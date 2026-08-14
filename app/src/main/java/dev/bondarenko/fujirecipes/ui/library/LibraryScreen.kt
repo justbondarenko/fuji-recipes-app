@@ -38,6 +38,7 @@ import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.core.net.ApiError
 import dev.bondarenko.fujirecipes.data.library.LibraryFilters
 import dev.bondarenko.fujirecipes.data.library.SortId
+import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewBottomSheet
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
 
@@ -66,6 +67,8 @@ fun LibraryScreen(
 ) {
     // Which row is slid open, owned here rather than by each row.
     var openRowId by rememberSaveable { mutableStateOf<String?>(null) }
+    // Which recipe is open in the Material 3 Bottom Sheet
+    var activeRecipeId by rememberSaveable { mutableStateOf<String?>(null) }
     PullToRefreshBox(
         isRefreshing = state.isRefreshing,
         onRefresh = onRefresh,
@@ -164,7 +167,13 @@ fun LibraryScreen(
                                     )
                                 },
                             ) {
-                                RecipeCard(recipe, onClick = { onOpenRecipe(recipe.id) })
+                                RecipeCard(
+                                    recipe = recipe,
+                                    onClick = {
+                                        activeRecipeId = recipe.id
+                                        onOpenRecipe(recipe.id)
+                                    },
+                                )
                             }
                         }
 
@@ -177,6 +186,17 @@ fun LibraryScreen(
                 }
             }
         }
+    }
+
+    activeRecipeId?.let { recipeId ->
+        RecipeViewBottomSheet(
+            recipeId = recipeId,
+            onDismiss = { activeRecipeId = null },
+            onEdit = { id ->
+                activeRecipeId = null
+                onEditRecipe(id)
+            },
+        )
     }
 }
 
