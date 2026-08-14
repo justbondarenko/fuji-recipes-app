@@ -10,15 +10,23 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -49,11 +57,15 @@ fun LibraryScreen(
     onClearSearchAndFilters: () -> Unit,
     onRefresh: () -> Unit,
     onOpenRecipe: (String) -> Unit,
+    onEditRecipe: (String) -> Unit,
+    onDeleteRecipe: (String) -> Unit,
     onCreateRecipe: () -> Unit,
     onOpenConnection: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
+    // Which row is slid open, owned here rather than by each row.
+    var openRowId by rememberSaveable { mutableStateOf<String?>(null) }
     PullToRefreshBox(
         isRefreshing = state.isRefreshing,
         onRefresh = onRefresh,
@@ -119,7 +131,41 @@ fun LibraryScreen(
                         }
                     } else {
                         items(state.visible, key = { it.id }) { recipe ->
-                            RecipeCard(recipe, onClick = { onOpenRecipe(recipe.id) })
+                            SwipeActionsRow(
+                                isOpen = openRowId == recipe.id,
+                                // One at a time: two rows open at once is how a delete gets
+                                // pressed on the wrong recipe.
+                                onOpenChange = { open ->
+                                    openRowId = if (open) recipe.id else null
+                                },
+                                actions = {
+                                    // Right to left as specified: delete is furthest from the
+                                    // edge, edit nearest it.
+                                    SwipeAction(
+                                        icon = rememberVectorPainter(Icons.Filled.Delete),
+                                        contentDescription = stringResource(R.string.action_delete),
+                                        onClick = { onDeleteRecipe(recipe.id) },
+                                        container = MaterialTheme.colorScheme.errorContainer,
+                                        content = MaterialTheme.colorScheme.onErrorContainer,
+                                    )
+                                    SwipeAction(
+                                        icon = painterResource(R.drawable.ic_photo_camera),
+                                        contentDescription = stringResource(R.string.action_write_to_camera),
+                                        onClick = {},
+                                        // Shown but inert until FEAT-006. A control that
+                                        // appears between builds is harder to learn than one
+                                        // that is visibly not ready.
+                                        enabled = false,
+                                    )
+                                    SwipeAction(
+                                        icon = rememberVectorPainter(Icons.Filled.Edit),
+                                        contentDescription = stringResource(R.string.action_edit),
+                                        onClick = { onEditRecipe(recipe.id) },
+                                    )
+                                },
+                            ) {
+                                RecipeCard(recipe, onClick = { onOpenRecipe(recipe.id) })
+                            }
                         }
 
                         // Last line of the list, not a banner at the top: it answers a
@@ -138,6 +184,7 @@ fun LibraryScreen(
 @Composable
 fun LibraryRouteContent(
     onOpenRecipe: (String) -> Unit,
+    onEditRecipe: (String) -> Unit,
     onCreateRecipe: () -> Unit,
     onOpenConnection: () -> Unit,
     contentPadding: PaddingValues,
@@ -154,6 +201,8 @@ fun LibraryRouteContent(
         onClearSearchAndFilters = viewModel::onClearSearchAndFilters,
         onRefresh = viewModel::refresh,
         onOpenRecipe = onOpenRecipe,
+        onEditRecipe = onEditRecipe,
+        onDeleteRecipe = viewModel::onDeleteRecipe,
         onCreateRecipe = onCreateRecipe,
         onOpenConnection = onOpenConnection,
         contentPadding = contentPadding,
@@ -181,6 +230,7 @@ private fun LibraryScreenPreview() {
             ),
             onSearchChange = {}, onSortChange = {}, onFiltersChange = {},
             onClearSearchAndFilters = {}, onRefresh = {}, onOpenRecipe = {},
+            onEditRecipe = {}, onDeleteRecipe = {},
             onCreateRecipe = {}, onOpenConnection = {},
             contentPadding = PaddingValues(0.dp),
         )
@@ -198,6 +248,7 @@ private fun LibraryForbiddenPreview() {
             ),
             onSearchChange = {}, onSortChange = {}, onFiltersChange = {},
             onClearSearchAndFilters = {}, onRefresh = {}, onOpenRecipe = {},
+            onEditRecipe = {}, onDeleteRecipe = {},
             onCreateRecipe = {}, onOpenConnection = {},
             contentPadding = PaddingValues(0.dp),
         )
@@ -212,6 +263,7 @@ private fun LibraryEmptyPreview() {
             state = LibraryUiState(hasLoaded = true, totalCount = 0),
             onSearchChange = {}, onSortChange = {}, onFiltersChange = {},
             onClearSearchAndFilters = {}, onRefresh = {}, onOpenRecipe = {},
+            onEditRecipe = {}, onDeleteRecipe = {},
             onCreateRecipe = {}, onOpenConnection = {},
             contentPadding = PaddingValues(0.dp),
         )

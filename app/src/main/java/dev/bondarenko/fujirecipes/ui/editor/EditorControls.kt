@@ -16,6 +16,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AssistChip
@@ -206,9 +207,15 @@ fun EnumDropdown(
         }
 
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            val current = value ?: field.defaultValue as? String
             field.options.forEach { option ->
                 DropdownMenuItem(
                     text = { Text(option.label) },
+                    trailingIcon = {
+                        if (option.id == current) {
+                            Icon(Icons.Filled.Check, contentDescription = null)
+                        }
+                    },
                     onClick = {
                         onValueChange(option.id)
                         expanded = false
@@ -248,6 +255,11 @@ fun FilmSimulationPicker(
                 DropdownMenuItem(
                     leadingIcon = { FilmSimBadge(simulation.id, size = 24.dp) },
                     text = { Text(simulation.label) },
+                    trailingIcon = {
+                        if (simulation.id == value) {
+                            Icon(Icons.Filled.Check, contentDescription = null)
+                        }
+                    },
                     onClick = {
                         onValueChange(simulation.id)
                         expanded = false

@@ -126,6 +126,17 @@ class LibraryViewModel(
         }
     }
 
+    /**
+     * Delete straight from the list — FEAT-003's delete, reached by a swipe action.
+     *
+     * No confirmation here on purpose: the row has to be deliberately slid open first, which
+     * is already a two-step gesture, and the repository refetches so a failure simply leaves
+     * the recipe where it was.
+     */
+    fun onDeleteRecipe(id: String) {
+        viewModelScope.launch { repository.delete(id) }
+    }
+
     /** Clears both, which is what the "no matches" panel offers. */
     fun onClearSearchAndFilters() {
         search.update { "" }

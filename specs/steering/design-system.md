@@ -216,7 +216,27 @@ Two implementation notes, both established by compiling rather than by reading r
 **Destructive actions are not in the app bar.** Duplicate and delete sit at the very bottom
 of the editing form, delete last, where they cannot be caught on the way to something else.
 
-## 8. App icon
+## 8. Lists, menus, chips, dividers, loading
+
+| Element | Rule |
+|---|---|
+| **List rows** | Slide left to reveal actions. From the right edge inward: **edit, write to camera, delete** — delete furthest from the thumb's resting place. One row open at a time. |
+| **Dividers** | Between *sections*, above the heading; never above the first. Row separators inside a card are a different job and stay. |
+| **Menus** | The current selection carries a trailing check. A menu that lists options without saying which one is active makes the reader open it twice. |
+| **Filter chips** | Selected chips carry a leading check. Absent rather than invisible when unselected, so the chip does not change width and the row does not reflow as you tap. |
+| **Filters** | A modal bottom sheet of chips, opened from the badged Filters button. |
+| **Loading** | Always `FujiLoadingIndicator` — see below. |
+
+**Swipe, not `SwipeToDismissBox`.** That component commits an action past a threshold, which
+suits one destructive gesture and not a menu of three. The rows hold open at an anchor so
+the actions can be read and then chosen.
+
+**Loading is not yet M3's `LoadingIndicator`.** That component is Expressive, and
+`internal` at `material3` 1.4.0 — confirmed by compiling against it. Every spinner in the
+app goes through `ui/common/FujiLoadingIndicator` so the swap is one function body when the
+toolchain moves (`tech-stack.md` §6).
+
+## 9. App icon
 
 Same mark as the web client. Sources in `fuji-recipes-book/src/public/`:
 
@@ -231,7 +251,7 @@ Do not regenerate the mark, re-trace it, or "clean it up". It is the same produc
 the same icon. `res/mipmap-anydpi-v26/ic_launcher.xml` and `ic_launcher_round.xml` reference
 the layers above.
 
-## 9. Card anatomy — list parity
+## 10. Card anatomy — list parity
 
 The web recipe card, as the Android card must read:
 

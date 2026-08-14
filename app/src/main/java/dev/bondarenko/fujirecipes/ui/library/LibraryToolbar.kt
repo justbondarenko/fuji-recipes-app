@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
@@ -22,6 +23,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -223,6 +225,13 @@ private fun SortMenu(sort: SortId, onSortChange: (SortId) -> Unit) {
             SortId.entries.forEach { option ->
                 DropdownMenuItem(
                     text = { Text(stringResource(option.labelRes())) },
+                    // M3 menus mark the current selection. Without it the menu states the
+                    // options but not which one you are already looking at.
+                    trailingIcon = {
+                        if (option == sort) {
+                            Icon(Icons.Filled.Check, contentDescription = null)
+                        }
+                    },
                     onClick = {
                         onSortChange(option)
                         expanded = false
@@ -299,6 +308,7 @@ private fun FiltersSheet(
                         )
                     },
                     label = { Text(stringResource(R.string.filter_rating, rating)) },
+                    leadingIcon = selectedCheck(state.filters.minRating == rating),
                 )
             }
         }
@@ -322,6 +332,7 @@ private fun FiltersSheet(
                         selected = tag in state.filters.tags,
                         onClick = { onFiltersChange(state.filters.toggleTag(tag)) },
                         label = { Text(tag) },
+                        leadingIcon = selectedCheck(tag in state.filters.tags),
                     )
                 }
             }
@@ -343,6 +354,26 @@ private fun FilterGroup(label: String, content: @Composable () -> Unit) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { content() }
     }
 }
+
+/**
+ * The leading check M3 filter chips show when selected.
+ *
+ * Null rather than an invisible icon when unselected: a chip that reserves the space either
+ * way changes width on selection, and a row of chips that reflows as you tap them is hard to
+ * aim at a second time.
+ */
+private fun selectedCheck(selected: Boolean): (@Composable () -> Unit)? =
+    if (!selected) {
+        null
+    } else {
+        {
+            Icon(
+                Icons.Filled.Check,
+                contentDescription = null,
+                modifier = Modifier.size(FilterChipDefaults.IconSize),
+            )
+        }
+    }
 
 internal fun LibraryFilters.toggleTag(tag: String) =
     copy(tags = if (tag in tags) tags - tag else tags + tag)

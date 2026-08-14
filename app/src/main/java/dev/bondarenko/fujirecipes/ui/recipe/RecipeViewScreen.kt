@@ -185,10 +185,10 @@ private fun RecipeBody(
             }
         }
 
-        state.groups.forEach { group ->
+        state.groups.forEachIndexed { index, group ->
             item(key = group.group.id) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SectionHeader(group.group.label)
+                    SectionHeader(group.group.label, showDivider = index > 0)
                     SettingsGroupBlock(group)
                 }
             }

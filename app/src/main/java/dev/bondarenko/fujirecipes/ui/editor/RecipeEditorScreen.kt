@@ -19,7 +19,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -54,6 +53,7 @@ import dev.bondarenko.fujirecipes.data.fields.FieldGroup
 import dev.bondarenko.fujirecipes.data.fields.NumberField
 import dev.bondarenko.fujirecipes.data.fields.RecipeFields
 import dev.bondarenko.fujirecipes.data.fields.RecipeValidation
+import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
 import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.common.errorMessageFor
 import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
@@ -147,9 +147,8 @@ fun RecipeEditorScreen(
                         modifier = Modifier.padding(end = 8.dp),
                     ) {
                         if (state.isSaving) {
-                            CircularProgressIndicator(
+                            FujiLoadingIndicator(
                                 modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
                                 color = MaterialTheme.colorScheme.onPrimary,
                             )
                         } else {
@@ -268,10 +267,10 @@ private fun EditorBody(
 
         FieldGroup.entries
             .filter { group -> applicable.any { it.group == group } }
-            .forEach { group ->
+            .forEachIndexed { index, group ->
                 item(key = group.id) {
                   Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SectionHeader(group.label)
+                    SectionHeader(group.label, showDivider = index > 0)
 
                     Column(
                         modifier = Modifier

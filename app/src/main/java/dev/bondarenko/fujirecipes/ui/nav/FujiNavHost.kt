@@ -81,6 +81,7 @@ fun FujiNavHost(
         composable<LibraryRoute> {
             LibraryRouteContent(
                 onOpenRecipe = { id -> navController.navigate(RecipeViewRoute(id)) },
+                onEditRecipe = { id -> navController.navigate(RecipeEditorRoute(id)) },
                 onCreateRecipe = { navController.navigate(RecipeEditorRoute(null)) },
                 onOpenConnection = { navController.navigate(ConnectionRoute()) },
                 contentPadding = contentPadding,
