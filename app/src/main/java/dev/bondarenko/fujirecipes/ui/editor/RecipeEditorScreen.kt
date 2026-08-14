@@ -48,6 +48,7 @@ import dev.bondarenko.fujirecipes.data.fields.FieldGroup
 import dev.bondarenko.fujirecipes.data.fields.NumberField
 import dev.bondarenko.fujirecipes.data.fields.RecipeFields
 import dev.bondarenko.fujirecipes.data.fields.RecipeValidation
+import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.common.errorMessageFor
 import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -226,17 +227,6 @@ private fun EditorBody(
                     onTagsChange = onTagsChange,
                     error = state.problemFor(RecipeValidation.TAGS_FIELD),
                 )
-
-                OutlinedTextField(
-                    value = state.notes,
-                    onValueChange = onNotesChange,
-                    label = { Text(stringResource(R.string.notes)) },
-                    minLines = 2,
-                    isError = state.problemFor(RecipeValidation.NOTES_FIELD) != null,
-                    supportingText = state.problemFor(RecipeValidation.NOTES_FIELD)
-                        ?.let { { Text(it) } },
-                    modifier = Modifier.fillMaxWidth(),
-                )
             }
         }
 
@@ -244,6 +234,9 @@ private fun EditorBody(
             .filter { group -> applicable.any { it.group == group } }
             .forEach { group ->
                 item(key = group.id) {
+                  Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SectionHeader(group.label)
+
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -257,12 +250,6 @@ private fun EditorBody(
                             .padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        Text(
-                            text = group.label,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-
                         applicable.filter { it.group == group }.forEach { field ->
                             when (field) {
                                 is EnumFieldDef ->
@@ -294,8 +281,27 @@ private fun EditorBody(
                             }
                         }
                     }
+                  }
                 }
             }
+
+        item {
+            // Last, not first: notes are written about a recipe once its parameters are
+            // decided, and a two-line text box above the controls pushed the actual
+            // parameters below the fold.
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                SectionHeader(stringResource(R.string.notes))
+                OutlinedTextField(
+                    value = state.notes,
+                    onValueChange = onNotesChange,
+                    minLines = 3,
+                    isError = state.problemFor(RecipeValidation.NOTES_FIELD) != null,
+                    supportingText = state.problemFor(RecipeValidation.NOTES_FIELD)
+                        ?.let { { Text(it) } },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
 
         if (state.saveError != null) {
             item {

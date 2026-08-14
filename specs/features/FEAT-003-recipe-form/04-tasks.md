@@ -74,3 +74,26 @@ Against a writable local mock, with the server's own log as the evidence:
 
 Not driven on device: delete and duplicate. Both are unit-covered and share the same
 `ApiResult` path as create and update.
+
+
+---
+
+## Design review — changes applied
+
+Six items from the designer, plus one bug their screenshot exposed:
+
+| Item | Change |
+|---|---|
+| Rating too spread out | Five `IconButton`s reserved 48dp each plus internal padding. Now 40dp targets with no padding between: still tappable, roughly half the width. |
+| Tag field always on screen | Behind a `+` chip at the end of the tags. The field appears focused when asked for and leaves once a tag is added or the entry abandoned. |
+| "Changed only" reads as a button | A labelled `Switch`. It has a persistent on and off state, and a chip made the reader guess which one they were looking at. |
+| Notes above the parameters | Moved to the very bottom. Notes get written once the parameters are decided, and a text box above them pushed the actual controls below the fold. |
+| Section titles too small, inside the card | `SectionHeader` in `ui/common`, `titleMedium`, **above** its card. Inside the card it read as the first row's caption rather than the group's name. Applied to the view as well as the editor — the same critique was true there. |
+| Same rating and tag treatment in the editor | One component each, so both screens changed together. |
+
+**The bug:** every stepper rendered blank except Clarity. An absent settings key produced an
+empty field, because only the read-only view fell back to the field's default. A recipe
+written before a parameter existed has no key for it and the camera applies the default, so a
+blank control claimed the parameter was unset when it was not — and the `−`/`+` buttons then
+stepped from 0 rather than from the real starting point. The stepper now falls back the same
+way the view does.

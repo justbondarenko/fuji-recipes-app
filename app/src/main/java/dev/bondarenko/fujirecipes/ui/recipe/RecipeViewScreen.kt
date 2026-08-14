@@ -21,11 +21,11 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -45,6 +45,7 @@ import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.data.fields.FieldFormatting
 import dev.bondarenko.fujirecipes.data.fields.FieldGroup
+import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.common.errorMessageFor
 import dev.bondarenko.fujirecipes.ui.editor.RatingInput
 import dev.bondarenko.fujirecipes.ui.editor.TagInput
@@ -143,11 +144,21 @@ private fun RecipeBody(
         item { RecipeHeaderBlock(recipe, onRatingChange, onTagsChange) }
 
         item {
-            FilterChip(
-                selected = state.changedOnly,
-                onClick = { onChangedOnlyChange(!state.changedOnly) },
-                label = { Text(stringResource(R.string.changed_only)) },
-            )
+            // A toggle, not a button: it has an on and an off state that persist, and a
+            // chip made the reader guess which one they were looking at.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.changed_only),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f),
+                )
+                Switch(checked = state.changedOnly, onCheckedChange = onChangedOnlyChange)
+            }
         }
 
         if (state.saveError != null) {
@@ -175,7 +186,12 @@ private fun RecipeBody(
         }
 
         state.groups.forEach { group ->
-            item(key = group.group.id) { SettingsGroupBlock(group) }
+            item(key = group.group.id) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SectionHeader(group.group.label)
+                    SettingsGroupBlock(group)
+                }
+            }
         }
 
         if (recipe.notes.isNotBlank()) {
@@ -233,13 +249,6 @@ private fun SettingsGroupBlock(group: SettingsGroup) {
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium)
             .padding(vertical = 4.dp),
     ) {
-        Text(
-            text = group.group.label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 6.dp),
-        )
-
         group.rows.forEachIndexed { index, row ->
             if (index > 0) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

@@ -1,6 +1,9 @@
 package dev.bondarenko.fujirecipes.ui.editor
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -9,27 +12,33 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ripple
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -73,9 +82,18 @@ fun NumberStepper(
 ) {
     val step = field.stepFor(SensorGeneration.XTRANS_V)
 
+    /**
+     * An absent value shows the field's **default**, not an empty box.
+     *
+     * A recipe written before a field existed simply has no key for it, and the camera will
+     * apply the default — so a blank control claims the parameter is unset when it is not.
+     * The read-only view already falls back this way; the two must agree.
+     */
+    val effective = value ?: (field.defaultValue as? Number)?.toDouble()
+
     // The text is local so a half-typed "-" or "" is not immediately clobbered by the
     // formatted model value; the model is updated only when the text parses.
-    var text by remember(field.id, value) { mutableStateOf(display(value, step)) }
+    var text by remember(field.id, value) { mutableStateOf(display(effective, step)) }
 
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
@@ -92,11 +110,11 @@ fun NumberStepper(
 
             IconButton(
                 onClick = {
-                    val next = ((value ?: 0.0) - step).coerceIn(field.min, field.max)
+                    val next = ((effective ?: 0.0) - step).coerceIn(field.min, field.max)
                     text = display(next, step)
                     onValueChange(next)
                 },
-                enabled = (value ?: 0.0) > field.min,
+                enabled = (effective ?: 0.0) > field.min,
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_remove),
@@ -128,11 +146,11 @@ fun NumberStepper(
 
             IconButton(
                 onClick = {
-                    val next = ((value ?: 0.0) + step).coerceIn(field.min, field.max)
+                    val next = ((effective ?: 0.0) + step).coerceIn(field.min, field.max)
                     text = display(next, step)
                     onValueChange(next)
                 },
-                enabled = (value ?: 0.0) < field.max,
+                enabled = (effective ?: 0.0) < field.max,
             ) {
                 Icon(
                     Icons.Filled.Add,
@@ -240,7 +258,15 @@ fun FilmSimulationPicker(
     }
 }
 
-/** Rating — FEAT-003 T-09. Tapping the current value clears it, so 0 is reachable. */
+/**
+ * Rating — FEAT-003 T-09, tightened after design review.
+ *
+ * Five `IconButton`s reserved 48dp each plus their own internal padding, so a five-star
+ * control ran most of the screen width for a row of small glyphs. These are 40dp targets
+ * with no padding between them: still comfortably tappable, roughly half the footprint.
+ *
+ * Tapping the current value clears it, so 0 is reachable without a separate control.
+ */
 @Composable
 fun RatingInput(
     rating: Int,
@@ -249,7 +275,15 @@ fun RatingInput(
 ) {
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
         (1..5).forEach { star ->
-            IconButton(onClick = { onRatingChange(if (rating == star) 0 else star) }) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = ripple(bounded = false, radius = 20.dp),
+                    ) { onRatingChange(if (rating == star) 0 else star) },
+                contentAlignment = Alignment.Center,
+            ) {
                 Icon(
                     painter = if (star <= rating) {
                         rememberVectorPainter(Icons.Filled.Star)
@@ -269,7 +303,14 @@ fun RatingInput(
     }
 }
 
-/** Tags — FEAT-003 T-09. */
+/**
+ * Tags — FEAT-003 T-09, reworked after design review.
+ *
+ * The text field used to be permanently on screen, which spent a full input row on
+ * something used occasionally. It is now behind a `+` chip that sits at the end of the tags:
+ * the field appears when asked for, takes focus, and goes away again once a tag is added or
+ * the entry is abandoned.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TagInput(
@@ -278,56 +319,85 @@ fun TagInput(
     modifier: Modifier = Modifier,
     error: String? = null,
 ) {
+    var adding by remember { mutableStateOf(false) }
     var entry by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
 
     fun commit() {
         val tag = entry.trim()
-        // Silently ignoring a duplicate rather than erroring: the user's intent is already
+        // A duplicate is silently ignored rather than reported: the user's intent is already
         // satisfied, and an error for "this is already true" is noise.
         if (tag.isNotEmpty() && tag !in tags) onTagsChange(tags + tag)
         entry = ""
+        adding = false
     }
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        if (tags.isNotEmpty()) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                tags.forEach { tag ->
-                    InputChip(
-                        selected = false,
-                        onClick = { onTagsChange(tags - tag) },
-                        label = { Text(tag) },
-                        trailingIcon = {
-                            Icon(
-                                Icons.Filled.Clear,
-                                contentDescription = stringResource(R.string.remove_tag, tag),
-                                modifier = Modifier.size(16.dp),
-                            )
-                        },
-                    )
-                }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            tags.forEach { tag ->
+                InputChip(
+                    selected = false,
+                    onClick = { onTagsChange(tags - tag) },
+                    label = { Text(tag) },
+                    trailingIcon = {
+                        Icon(
+                            Icons.Filled.Clear,
+                            contentDescription = stringResource(R.string.remove_tag, tag),
+                            modifier = Modifier.size(16.dp),
+                        )
+                    },
+                )
             }
-        }
 
-        OutlinedTextField(
-            value = entry,
-            onValueChange = { entry = it },
-            singleLine = true,
-            isError = error != null,
-            supportingText = error?.let { { Text(it) } },
-            label = { Text(stringResource(R.string.add_tag)) },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            trailingIcon = {
-                if (entry.isNotBlank()) {
-                    IconButton(onClick = ::commit) {
+            if (!adding) {
+                AssistChip(
+                    onClick = { adding = true },
+                    label = {
                         Icon(
                             Icons.Filled.Add,
                             contentDescription = stringResource(R.string.add_tag),
+                            modifier = Modifier.size(18.dp),
+                        )
+                    },
+                )
+            }
+        }
+
+        if (adding) {
+            OutlinedTextField(
+                value = entry,
+                onValueChange = { entry = it },
+                singleLine = true,
+                isError = error != null,
+                supportingText = error?.let { { Text(it) } },
+                label = { Text(stringResource(R.string.add_tag)) },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { commit() }),
+                trailingIcon = {
+                    IconButton(onClick = { if (entry.isBlank()) adding = false else commit() }) {
+                        Icon(
+                            imageVector = if (entry.isBlank()) Icons.Filled.Clear else Icons.Filled.Add,
+                            contentDescription = stringResource(
+                                if (entry.isBlank()) R.string.action_cancel else R.string.add_tag,
+                            ),
                         )
                     }
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-        )
+                },
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+            )
+
+            // Opening the field and then having to tap it is two taps for one intent.
+            LaunchedEffect(Unit) { focusRequester.requestFocus() }
+        } else if (error != null) {
+            Text(
+                text = error,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
     }
 }
 
