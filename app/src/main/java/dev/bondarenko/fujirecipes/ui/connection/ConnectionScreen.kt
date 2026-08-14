@@ -44,6 +44,8 @@ import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 @Composable
 fun ConnectionScreen(
     state: ConnectionUiState,
+    // Null on first run: there is nothing behind setup to go back to.
+    onBack: (() -> Unit)? = null,
     onBaseUrlChange: (String) -> Unit,
     onClientIdChange: (String) -> Unit,
     onClientSecretChange: (String) -> Unit,
@@ -61,6 +63,12 @@ fun ConnectionScreen(
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        if (onBack != null) {
+            TextButton(onClick = onBack, modifier = Modifier.padding(bottom = 4.dp)) {
+                Text(stringResource(R.string.action_back))
+            }
+        }
+
         Text(
             text = stringResource(R.string.connection_title),
             style = MaterialTheme.typography.headlineMedium,
@@ -153,7 +161,12 @@ fun ConnectionScreen(
 }
 
 @Composable
-fun ConnectionRouteContent(onSaved: () -> Unit, contentPadding: PaddingValues) {
+fun ConnectionRouteContent(
+    onSaved: () -> Unit,
+    onBack: () -> Unit,
+    showBack: Boolean,
+    contentPadding: PaddingValues,
+) {
     val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
     val viewModel: ConnectionViewModel =
         viewModel(factory = ConnectionViewModel.factory(container))
@@ -161,6 +174,7 @@ fun ConnectionRouteContent(onSaved: () -> Unit, contentPadding: PaddingValues) {
 
     ConnectionScreen(
         state = state,
+        onBack = onBack.takeIf { showBack },
         onBaseUrlChange = viewModel::onBaseUrlChange,
         onClientIdChange = viewModel::onClientIdChange,
         onClientSecretChange = viewModel::onClientSecretChange,

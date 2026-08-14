@@ -71,6 +71,9 @@ Auth policy admits it — `specs/roadmap.md` §4. T-01 to T-11 are testable with
       ungated health route and a bad token still reports the credentials as refused.
 - [x] **T-13** — Route the app to the connection screen on launch when settings are absent,
       and expose it from the list's overflow afterwards.
+      *Only the first half shipped, and this was ticked anyway. Once credentials were saved
+      the connection screen was reachable only by provoking a 403. Closed by **FEAT-004**,
+      which puts it under the More tab rather than in a list overflow.*
 
 ## List — pure logic first
 

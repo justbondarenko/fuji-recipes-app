@@ -45,7 +45,7 @@ class MainActivity : ComponentActivity() {
                 startDestination = if (container.connectionSettings.current().isConfigured) {
                     LibraryRoute
                 } else {
-                    ConnectionRoute
+                    ConnectionRoute(firstRun = true)
                 }
             }
 

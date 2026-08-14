@@ -37,6 +37,9 @@ android {
 
     buildFeatures {
         compose = true
+        // Off by default from AGP 8. The settings screen shows the version name, which is
+        // the only thing read from it.
+        buildConfig = true
     }
 
     packaging {

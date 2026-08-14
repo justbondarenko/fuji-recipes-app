@@ -27,12 +27,13 @@ Stages are sequential. A **GATE** must be fully closed before the next stage sta
 | **FEAT-001** | **Recipe list** ← *start here* | Connection setup, the API client, the snapshot cache, and a real library on screen with search, filters and sort | low |
 | FEAT-002 | Field source + recipe view | The canonical 27-field table, and a read-only screen to read a recipe on | **done** |
 | FEAT-003 | Recipe form | Create, edit, duplicate, delete; rating and tags in place | **done** |
-| FEAT-004 | Camera connection **GATE** | USB host, attach intent, PTP session, model detection, the connection indicator | **high** — reverse-engineered protocol |
-| FEAT-005 | Write to slot | Write plan, encoders, slot picker, progress, failure reporting | **high** |
-| FEAT-006 | Polish | Motion timing, haptics, reduced-motion fallback, dark-scheme audit, predictive back | none |
+| FEAT-004 | Settings | Connection settings reachable at any time, and clearable | **done** |
+| FEAT-005 | Camera connection **GATE** | USB host, attach intent, PTP session, model detection, the connection indicator | **high** — reverse-engineered protocol |
+| FEAT-006 | Write to slot | Write plan, encoders, slot picker, progress, failure reporting | **high** |
+| FEAT-007 | Polish | Motion timing, haptics, reduced-motion fallback, dark-scheme audit, predictive back | none |
 
 **FEAT-001 to FEAT-003 carry no protocol risk and ship a usable recipe manager.** That is
-deliberate: a hard slog in FEAT-004 must leave a working product behind, not a stalled one.
+deliberate: a hard slog in FEAT-005 must leave a working product behind, not a stalled one.
 
 ## 2. Why the list is first
 

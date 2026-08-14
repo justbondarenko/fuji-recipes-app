@@ -64,6 +64,17 @@ class ConnectionSettings(private val context: Context) {
         }
     }
 
+    /**
+     * Remove the stored credentials from this device.
+     *
+     * Local only: it revokes nothing server-side, so the UI must not imply that it does.
+     * What it is for is a phone being lent, sold or retired — the token should not go with
+     * it (`architecture.md` §5).
+     */
+    suspend fun clear() {
+        context.connectionDataStore.edit { it.clear() }
+    }
+
     companion object {
         /**
          * The base URL, in the one form the rest of the app can rely on.

@@ -109,6 +109,16 @@
     <string name="delete_title">Delete this recipe?</string>
     <string name="delete_body">“%1$s” will be removed from your library. This cannot be undone.</string>
 
+    <!-- Settings -->
+    <string name="settings_connection">Connection</string>
+    <string name="settings_about">About</string>
+    <string name="settings_version">Version %1$s</string>
+    <string name="settings_clear_credentials">Clear credentials</string>
+    <string name="settings_clear_credentials_subtitle">Remove the stored token from this device</string>
+    <string name="settings_clear_title">Clear stored credentials?</string>
+    <string name="settings_clear_body">The server address and service token will be removed from this phone. Your library is not affected, and the token itself is not revoked — do that in the Cloudflare dashboard if you need to.</string>
+    <string name="settings_clear_confirm">Clear</string>
+
     <!-- Placeholders, replaced as their features land -->
     <string name="placeholder_editor_title">Recipe</string>
     <string name="placeholder_editor_body">Create and edit go here (FEAT-002).</string>

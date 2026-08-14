@@ -12,6 +12,7 @@ import dev.bondarenko.fujirecipes.ui.connection.ConnectionRouteContent
 import dev.bondarenko.fujirecipes.ui.library.LibraryRouteContent
 import dev.bondarenko.fujirecipes.ui.editor.RecipeEditorRouteContent
 import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewRouteContent
+import dev.bondarenko.fujirecipes.ui.settings.SettingsRouteContent
 import kotlinx.serialization.Serializable
 
 /**
@@ -20,8 +21,15 @@ import kotlinx.serialization.Serializable
  * Type-safe navigation rather than string routes: a destination that gains an argument
  * becomes a compile error at every call site instead of a runtime "argument not found".
  */
+/**
+ * Connection setup.
+ *
+ * [firstRun] is true only when the app opened here because nothing was configured. It
+ * decides where saving goes — on to the library, or back to settings — because the screen
+ * cannot tell the two cases apart and guessing would strand the user somewhere unexpected.
+ */
 @Serializable
-data object ConnectionRoute
+data class ConnectionRoute(val firstRun: Boolean = false)
 
 @Serializable
 data object LibraryRoute
@@ -49,16 +57,23 @@ fun FujiNavHost(
     contentPadding: PaddingValues,
 ) {
     NavHost(navController = navController, startDestination = startDestination) {
-        composable<ConnectionRoute> {
+        composable<ConnectionRoute> { entry ->
+            val route = entry.toRoute<ConnectionRoute>()
             ConnectionRouteContent(
                 onSaved = {
-                    // Saving is the way out of setup, and coming back to it should not
-                    // reopen the form — so the library replaces it rather than stacking.
-                    navController.navigate(LibraryRoute) {
-                        popUpTo(ConnectionRoute) { inclusive = true }
-                        launchSingleTop = true
+                    if (route.firstRun) {
+                        // Setup is finished; the library replaces it rather than stacking,
+                        // so back does not return to a form that is already satisfied.
+                        navController.navigate(LibraryRoute) {
+                            popUpTo<ConnectionRoute> { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    } else {
+                        navController.popBackStack()
                     }
                 },
+                onBack = { navController.popBackStack() },
+                showBack = !route.firstRun,
                 contentPadding = contentPadding,
             )
         }
@@ -67,7 +82,7 @@ fun FujiNavHost(
             LibraryRouteContent(
                 onOpenRecipe = { id -> navController.navigate(RecipeViewRoute(id)) },
                 onCreateRecipe = { navController.navigate(RecipeEditorRoute(null)) },
-                onOpenConnection = { navController.navigate(ConnectionRoute) },
+                onOpenConnection = { navController.navigate(ConnectionRoute()) },
                 contentPadding = contentPadding,
             )
         }
@@ -106,9 +121,8 @@ fun FujiNavHost(
         }
 
         composable<MoreRoute> {
-            PlaceholderScreen(
-                titleRes = R.string.placeholder_more_title,
-                bodyRes = R.string.placeholder_more_body,
+            SettingsRouteContent(
+                onOpenConnection = { navController.navigate(ConnectionRoute()) },
                 contentPadding = contentPadding,
             )
         }
