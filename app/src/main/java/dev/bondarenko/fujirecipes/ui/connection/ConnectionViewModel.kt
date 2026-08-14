@@ -6,10 +6,10 @@ import androidx.lifecycle.viewModelScope
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.core.AppContainer
 import dev.bondarenko.fujirecipes.core.net.ApiClient
-import dev.bondarenko.fujirecipes.core.net.ApiError
 import dev.bondarenko.fujirecipes.core.net.ApiResult
 import dev.bondarenko.fujirecipes.core.settings.ConnectionConfig
 import dev.bondarenko.fujirecipes.core.settings.ConnectionSettings
+import dev.bondarenko.fujirecipes.ui.common.ApiErrorMessages
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,7 +41,7 @@ data class ConnectionUiState(
 class ConnectionViewModel(
     private val settings: ConnectionSettings,
     private val clientFor: (ConnectionConfig) -> ApiClient,
-    private val messages: ConnectionMessages,
+    private val messages: ApiErrorMessages,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ConnectionUiState())
@@ -118,47 +118,8 @@ class ConnectionViewModel(
                     ConnectionViewModel(
                         settings = container.connectionSettings,
                         clientFor = { config -> ApiClient(config = { config }) },
-                        messages = ConnectionMessages.from(container.applicationContext),
+                        messages = ApiErrorMessages.from(container.applicationContext),
                     ) as T
-            }
-    }
-}
-
-/**
- * The copy, behind an interface.
- *
- * So the ViewModel can be tested on the JVM without a `Context`, and so the per-`ApiError`
- * wording lives next to the resource ids rather than inline at the call site
- * (`coding-standards.md` P5, and the strings-in-`strings.xml` rule).
- */
-interface ConnectionMessages {
-    val incomplete: String
-    fun success(count: Int): String
-    fun forError(error: ApiError): String
-
-    companion object {
-        fun from(context: android.content.Context): ConnectionMessages =
-            object : ConnectionMessages {
-                override val incomplete: String
-                    get() = context.getString(R.string.connection_incomplete)
-
-                override fun success(count: Int): String =
-                    context.getString(R.string.connection_ok, count)
-
-                override fun forError(error: ApiError): String =
-                    when (error) {
-                        is ApiError.Forbidden ->
-                            error.message ?: context.getString(R.string.error_forbidden_body)
-                        is ApiError.AccessUnconfigured ->
-                            error.message ?: context.getString(R.string.error_access_unconfigured_body)
-                        is ApiError.StorageUnavailable -> context.getString(R.string.error_storage_body)
-                        is ApiError.Network -> context.getString(R.string.error_network_body)
-                        is ApiError.Malformed -> context.getString(R.string.error_malformed_body)
-                        is ApiError.Internal -> error.requestId
-                            ?.let { context.getString(R.string.error_internal_body_with_id, it) }
-                            ?: context.getString(R.string.error_internal_body)
-                        else -> error.message ?: context.getString(R.string.error_unexpected_body)
-                    }
             }
     }
 }

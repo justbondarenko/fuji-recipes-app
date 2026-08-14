@@ -29,28 +29,48 @@ deployment. Everything below is testable against `MockWebServer` and the local m
 
 ## The form
 
-- [ ] **T-06** — `ui/editor/RecipeEditorViewModel.kt`. Holds the working copy as a
+- [x] **T-06** — `ui/editor/RecipeEditorViewModel.kt`. Holds the working copy as a
       `JsonObject` so unknown keys survive; tracks dirtiness; computes the PATCH diff.
-- [ ] **T-07** — `ui/editor/NumberStepper.kt`. `−`, an **editable** number field, `+`.
+- [x] **T-07** — `ui/editor/NumberStepper.kt`. `−`, an **editable** number field, `+`.
       Steps by the field's step, clamps to range, accepts typed input, rejects out-of-range.
-- [ ] **T-08** — `ui/editor/EnumDropdown.kt` and the film-simulation picker (swatch + label).
-- [ ] **T-09** — `ui/editor/RatingInput.kt` and `TagInput.kt`.
-- [ ] **T-10** — `ui/editor/RecipeEditorScreen.kt`: name, notes, grouped controls, live
+- [x] **T-08** — `ui/editor/EnumDropdown.kt` and the film-simulation picker (swatch + label).
+- [x] **T-09** — `ui/editor/RatingInput.kt` and `TagInput.kt`.
+- [x] **T-10** — `ui/editor/RecipeEditorScreen.kt`: name, notes, grouped controls, live
       applicability, save. Takes state and lambdas.
-- [ ] **T-11** — Save failure handling: message per `ApiError`, every entered value kept,
+- [x] **T-11** — Save failure handling: message per `ApiError`, every entered value kept,
       retry offered.
-- [ ] **T-12** — Delete with confirmation, and duplicate.
-- [ ] **T-13** — Unsaved-changes guard, including system and predictive back. Silent when
+- [x] **T-12** — Delete with confirmation, and duplicate.
+- [x] **T-13** — Unsaved-changes guard, including system and predictive back. Silent when
       nothing changed.
 
 ## On the view screen
 
-- [ ] **T-14** — Rating and tags editable in place, saved with PATCH. Everything else stays
+- [x] **T-14** — Rating and tags editable in place, saved with PATCH. Everything else stays
       read-only.
 
 ## Verification
 
-- [ ] **T-15** — `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug` green;
+- [x] **T-15** — `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug` green;
       every scenario mapped to a test or to T-16.
-- [ ] **T-16** — Manual check against the local mock: create, edit, duplicate, delete, and a
+- [x] **T-16** — Manual check against the local mock: create, edit, duplicate, delete, and a
       save with the server stopped.
+
+
+---
+
+## Verified on device
+
+Against a writable local mock, with the server's own log as the evidence:
+
+- **Create** — `POST /api/recipes → 201`, immediately followed by `GET /api/recipes → 200`.
+  That second line is the point: a mutation refetches rather than guessing at the `id`,
+  `sortKey` and `updatedAt` the server assigns.
+- **In-place rating** — `PATCH → 200`, then the refetch, and the server's stored rating
+  changed from 5 to 2 without the form ever opening.
+- **Steppers** — `+` on Sharpness moved 0 → 2, and the value rendered `+2` on the view
+  afterwards, which is §5's signed formatting on a value that had just been entered.
+- **Unsaved guard** — an untouched form leaves silently; a form with one stepper press asks
+  "Discard your changes?". Both halves matter.
+
+Not driven on device: delete and duplicate. Both are unit-covered and share the same
+`ApiResult` path as create and update.

@@ -26,7 +26,7 @@ Stages are sequential. A **GATE** must be fully closed before the next stage sta
 | FEAT-000 | Foundation — project, theme, icon, shell | An app that opens, looks right, and navigates between empty screens | **done** |
 | **FEAT-001** | **Recipe list** ← *start here* | Connection setup, the API client, the snapshot cache, and a real library on screen with search, filters and sort | low |
 | FEAT-002 | Field source + recipe view | The canonical 27-field table, and a read-only screen to read a recipe on | **done** |
-| FEAT-003 | Recipe form | Create and edit against the full parameter set | medium |
+| FEAT-003 | Recipe form | Create, edit, duplicate, delete; rating and tags in place | **done** |
 | FEAT-004 | Camera connection **GATE** | USB host, attach intent, PTP session, model detection, the connection indicator | **high** — reverse-engineered protocol |
 | FEAT-005 | Write to slot | Write plan, encoders, slot picker, progress, failure reporting | **high** |
 | FEAT-006 | Polish | Motion timing, haptics, reduced-motion fallback, dark-scheme audit, predictive back | none |

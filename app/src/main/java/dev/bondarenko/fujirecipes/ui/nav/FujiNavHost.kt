@@ -10,6 +10,7 @@ import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.ui.common.PlaceholderScreen
 import dev.bondarenko.fujirecipes.ui.connection.ConnectionRouteContent
 import dev.bondarenko.fujirecipes.ui.library.LibraryRouteContent
+import dev.bondarenko.fujirecipes.ui.editor.RecipeEditorRouteContent
 import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewRouteContent
 import kotlinx.serialization.Serializable
 
@@ -25,9 +26,14 @@ data object ConnectionRoute
 @Serializable
 data object LibraryRoute
 
-/** `id = null` is create; a non-null id is edit. One screen, one ViewModel (FEAT-002). */
+/**
+ * `id = null` is create; a non-null id is edit.
+ *
+ * `duplicateOf` names a recipe to copy: the form loads from it but saves as new, so the
+ * original is untouched. Both null on a plain create.
+ */
 @Serializable
-data class RecipeEditorRoute(val id: String? = null)
+data class RecipeEditorRoute(val id: String? = null, val duplicateOf: String? = null)
 
 /** Read-only. Reached by tapping a card; its Edit action leads to [RecipeEditorRoute]. */
 @Serializable
@@ -76,13 +82,26 @@ fun FujiNavHost(
         }
 
         composable<RecipeEditorRoute> { entry ->
-            // Read even though it is unused, so a serialization mistake surfaces now rather
-            // than at FEAT-002.
-            entry.toRoute<RecipeEditorRoute>()
-            PlaceholderScreen(
-                titleRes = R.string.placeholder_editor_title,
-                bodyRes = R.string.placeholder_editor_body,
-                contentPadding = contentPadding,
+            val route = entry.toRoute<RecipeEditorRoute>()
+            RecipeEditorRouteContent(
+                recipeId = route.id,
+                duplicateOf = route.duplicateOf,
+                onBack = { navController.popBackStack() },
+                onSaved = { id ->
+                    // Back to the recipe just saved, replacing the form so back does not
+                    // return to an editor for work that is already committed.
+                    navController.navigate(RecipeViewRoute(id)) {
+                        popUpTo(LibraryRoute)
+                    }
+                },
+                onDeleted = {
+                    navController.navigate(LibraryRoute) {
+                        popUpTo(LibraryRoute) { inclusive = true }
+                    }
+                },
+                onDuplicate = { id ->
+                    navController.navigate(RecipeEditorRoute(id = null, duplicateOf = id))
+                },
             )
         }
 

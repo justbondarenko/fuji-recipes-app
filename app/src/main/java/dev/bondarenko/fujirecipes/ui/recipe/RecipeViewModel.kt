@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import dev.bondarenko.fujirecipes.core.AppContainer
+import dev.bondarenko.fujirecipes.core.net.ApiError
+import dev.bondarenko.fujirecipes.core.net.ApiResult
 import dev.bondarenko.fujirecipes.data.fields.FieldContext
 import dev.bondarenko.fujirecipes.data.fields.FieldFormatting
 import dev.bondarenko.fujirecipes.data.fields.FieldGroup
@@ -17,7 +19,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlinx.serialization.json.jsonPrimitive
 
 /** One group of rows, as the screen draws it. */
@@ -34,6 +41,8 @@ data class RecipeViewUiState(
     val changedOnly: Boolean = false,
     /** True when `changedOnly` is on and the recipe is entirely at its defaults. */
     val nothingChanged: Boolean = false,
+    /** A failed in-place rating or tag save. The screen still shows the stored values. */
+    val saveError: ApiError? = null,
 ) {
     val isNotFound: Boolean get() = !isLoading && recipe == null
 }
@@ -59,13 +68,14 @@ data class RecipeHeader(
  */
 class RecipeViewModel(
     private val recipeId: String,
-    repository: RecipeRepository,
+    private val repository: RecipeRepository,
 ) : ViewModel() {
 
     private val changedOnly = MutableStateFlow(false)
+    private val saveError = MutableStateFlow<ApiError?>(null)
 
     val state: StateFlow<RecipeViewUiState> =
-        combine(repository.library, changedOnly) { library, filterToChanged ->
+        combine(repository.library, changedOnly, saveError) { library, filterToChanged, error ->
             if (!library.hasLoaded) return@combine RecipeViewUiState(isLoading = true)
 
             val recipe = library.recipes.firstOrNull { it.id == recipeId }
@@ -82,6 +92,7 @@ class RecipeViewModel(
                 changedOnly = filterToChanged,
                 // Distinguished from "no rows" so the screen can say *why* it is empty.
                 nothingChanged = filterToChanged && rows.isEmpty(),
+                saveError = error,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -90,6 +101,32 @@ class RecipeViewModel(
         )
 
     fun onChangedOnlyChange(enabled: Boolean) = changedOnly.update { enabled }
+
+    /**
+     * Rating and tags, saved in place — FEAT-003 T-14.
+     *
+     * The only two parameters editable from the reading screen, and deliberately so: they
+     * are what gets adjusted while looking at a photo, and sending someone into a form to
+     * add one tag is friction with no purpose. Everything else stays read-only here.
+     */
+    fun onRatingChange(rating: Int) = patch(buildJsonObject { put("rating", rating) })
+
+    fun onTagsChange(tags: List<String>) =
+        patch(buildJsonObject { put("tags", JsonArray(tags.map { JsonPrimitive(it) })) })
+
+    private fun patch(body: JsonObject) {
+        viewModelScope.launch {
+            // No optimistic update: the repository refreshes on success, and on failure the
+            // screen keeps showing what the server last confirmed rather than a change that
+            // did not happen.
+            when (val result = repository.update(recipeId, body)) {
+                is ApiResult.Success -> saveError.update { null }
+                is ApiResult.Failure -> saveError.update { result.error }
+            }
+        }
+    }
+
+    fun onDismissError() = saveError.update { null }
 
     companion object {
         /**

@@ -45,6 +45,9 @@ import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.data.fields.FieldFormatting
 import dev.bondarenko.fujirecipes.data.fields.FieldGroup
+import dev.bondarenko.fujirecipes.ui.common.errorMessageFor
+import dev.bondarenko.fujirecipes.ui.editor.RatingInput
+import dev.bondarenko.fujirecipes.ui.editor.TagInput
 import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
 import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -68,6 +71,8 @@ fun RecipeViewScreen(
     onBack: () -> Unit,
     onEdit: () -> Unit,
     onChangedOnlyChange: (Boolean) -> Unit,
+    onRatingChange: (Int) -> Unit = {},
+    onTagsChange: (List<String>) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -116,7 +121,7 @@ fun RecipeViewScreen(
                 modifier = Modifier.padding(16.dp),
             )
 
-            else -> RecipeBody(state, onChangedOnlyChange)
+            else -> RecipeBody(state, onChangedOnlyChange, onRatingChange, onTagsChange)
         }
     }
 }
@@ -125,6 +130,8 @@ fun RecipeViewScreen(
 private fun RecipeBody(
     state: RecipeViewUiState,
     onChangedOnlyChange: (Boolean) -> Unit,
+    onRatingChange: (Int) -> Unit,
+    onTagsChange: (List<String>) -> Unit,
 ) {
     val recipe = state.recipe ?: return
 
@@ -133,7 +140,7 @@ private fun RecipeBody(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { RecipeHeaderBlock(recipe) }
+        item { RecipeHeaderBlock(recipe, onRatingChange, onTagsChange) }
 
         item {
             FilterChip(
@@ -141,6 +148,16 @@ private fun RecipeBody(
                 onClick = { onChangedOnlyChange(!state.changedOnly) },
                 label = { Text(stringResource(R.string.changed_only)) },
             )
+        }
+
+        if (state.saveError != null) {
+            item {
+                Text(
+                    text = errorMessageFor(state.saveError),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
         }
 
         if (state.nothingChanged) {
@@ -169,7 +186,11 @@ private fun RecipeBody(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun RecipeHeaderBlock(recipe: RecipeHeader) {
+private fun RecipeHeaderBlock(
+    recipe: RecipeHeader,
+    onRatingChange: (Int) -> Unit,
+    onTagsChange: (List<String>) -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -194,37 +215,11 @@ private fun RecipeHeaderBlock(recipe: RecipeHeader) {
             }
         }
 
-        if (recipe.rating > 0) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                repeat(recipe.rating) {
-                    Icon(
-                        Icons.Filled.Star,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.tertiary,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-            }
-        }
+        // Rating and tags are the two things adjusted while looking at a photo, so they are
+        // live here. Every other parameter stays read-only on this screen.
+        RatingInput(rating = recipe.rating, onRatingChange = onRatingChange)
 
-        if (recipe.tags.isNotEmpty()) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                recipe.tags.forEach { tag ->
-                    Text(
-                        text = tag,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(MaterialTheme.colorScheme.secondaryContainer)
-                            .padding(horizontal = 8.dp, vertical = 2.dp),
-                    )
-                }
-            }
-        }
+        TagInput(tags = recipe.tags, onTagsChange = onTagsChange)
     }
 }
 
@@ -319,6 +314,8 @@ fun RecipeViewRouteContent(
         onBack = onBack,
         onEdit = onEdit,
         onChangedOnlyChange = viewModel::onChangedOnlyChange,
+        onRatingChange = viewModel::onRatingChange,
+        onTagsChange = viewModel::onTagsChange,
     )
 }
 
