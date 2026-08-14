@@ -176,7 +176,25 @@ Everywhere else, standard weights.
 - **Reduced motion:** when `Settings.Global.ANIMATOR_DURATION_SCALE == 0`, fall back to
   `MotionScheme.standard()` and a non-wavy progress indicator.
 
-## 6. App icon
+## 6. Navigation — a floating bar
+
+Not an edge-to-edge `NavigationBar`. A rounded container that hovers over the content with
+the page visible around it, plus a separate circular button beside it.
+
+| Element | Rule |
+|---|---|
+| Container | Contrasts with the page: `inverseSurface` in light, `surfaceContainerHigh` in dark. **Not `primary`** — in dark that is near-white, and a glaring slab over a stone-900 page is not the effect. |
+| Selected item | Icon **and** label, inside a filled pill at 16% of the content colour |
+| Unselected item | **Label only, no icon**, content colour at 72% |
+| Create | A circle beside the bar, same container colour. An action, not a destination |
+| Content | Scrolls *under* the bar; screens receive a bottom inset so the last row can clear it |
+
+**Why only the selected item carries an icon:** selection then has one strong signal instead
+of a colour difference between identical glyphs, which is what makes a conventional bar hard
+to read at a glance. Create sits outside the bar because a "create" tab would never hold a
+selected state, and a tab that cannot be current is a lie about what tabs mean.
+
+## 7. App icon
 
 Same mark as the web client. Sources in `fuji-recipes-book/src/public/`:
 
@@ -191,7 +209,7 @@ Do not regenerate the mark, re-trace it, or "clean it up". It is the same produc
 the same icon. `res/mipmap-anydpi-v26/ic_launcher.xml` and `ic_launcher_round.xml` reference
 the layers above.
 
-## 7. Card anatomy — list parity
+## 8. Card anatomy — list parity
 
 The web recipe card, as the Android card must read:
 

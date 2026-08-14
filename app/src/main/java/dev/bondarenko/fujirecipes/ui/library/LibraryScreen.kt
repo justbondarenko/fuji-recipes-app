@@ -57,15 +57,17 @@ fun LibraryScreen(
     PullToRefreshBox(
         isRefreshing = state.isRefreshing,
         onRefresh = onRefresh,
-        modifier = modifier.fillMaxSize().padding(contentPadding),
+        modifier = modifier.fillMaxSize(),
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            // The extra bottom inset clears the centre-docked FAB, which floats above the
-            // navigation bar and would otherwise sit on top of the last card with no way to
-            // scroll it out from under.
+            // The shell's inset already reserves the floating bar's height, so the list
+            // scrolls under it and the last card can still clear it.
             contentPadding = PaddingValues(
-                start = 16.dp, end = 16.dp, top = 12.dp, bottom = 88.dp,
+                start = 16.dp,
+                end = 16.dp,
+                top = 12.dp + contentPadding.calculateTopPadding(),
+                bottom = 12.dp + contentPadding.calculateBottomPadding(),
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
