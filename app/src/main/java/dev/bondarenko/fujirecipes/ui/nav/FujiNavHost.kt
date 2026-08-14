@@ -10,6 +10,7 @@ import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.ui.common.PlaceholderScreen
 import dev.bondarenko.fujirecipes.ui.connection.ConnectionRouteContent
 import dev.bondarenko.fujirecipes.ui.library.LibraryRouteContent
+import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewRouteContent
 import kotlinx.serialization.Serializable
 
 /**
@@ -27,6 +28,10 @@ data object LibraryRoute
 /** `id = null` is create; a non-null id is edit. One screen, one ViewModel (FEAT-002). */
 @Serializable
 data class RecipeEditorRoute(val id: String? = null)
+
+/** Read-only. Reached by tapping a card; its Edit action leads to [RecipeEditorRoute]. */
+@Serializable
+data class RecipeViewRoute(val id: String)
 
 @Serializable
 data object MoreRoute
@@ -54,10 +59,19 @@ fun FujiNavHost(
 
         composable<LibraryRoute> {
             LibraryRouteContent(
-                onOpenRecipe = { id -> navController.navigate(RecipeEditorRoute(id)) },
+                onOpenRecipe = { id -> navController.navigate(RecipeViewRoute(id)) },
                 onCreateRecipe = { navController.navigate(RecipeEditorRoute(null)) },
                 onOpenConnection = { navController.navigate(ConnectionRoute) },
                 contentPadding = contentPadding,
+            )
+        }
+
+        composable<RecipeViewRoute> { entry ->
+            val route = entry.toRoute<RecipeViewRoute>()
+            RecipeViewRouteContent(
+                recipeId = route.id,
+                onBack = { navController.popBackStack() },
+                onEdit = { navController.navigate(RecipeEditorRoute(route.id)) },
             )
         }
 

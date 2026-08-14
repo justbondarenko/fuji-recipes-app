@@ -96,7 +96,7 @@ writes that response verbatim to one file and reads it back on next launch.
 |---|---|
 | **Reads** | Served from the snapshot immediately on launch, then refreshed from the network. Works with no signal. |
 | **Writes** (create, edit, rating, tags, reorder, slot bookkeeping) | Require the network. There is no queue, no dirty flag, no last-write-wins merge. A write with no signal fails, says so, and keeps the user's input. |
-| **Camera writes** | Entirely local. Work with no signal. `POST /:id/written` is best-effort bookkeeping afterwards and its failure never fails the camera write. |
+| **Camera writes** | Entirely local. Work with no signal. Nothing is reported back to the server — this client does not keep slot bookkeeping. |
 
 Rejected: a Room mirror with a sync engine. It is a real distributed-systems problem —
 queued mutations, conflict resolution, partial-failure recovery — built before the list
@@ -193,7 +193,7 @@ is how two clients end up disagreeing in the UI.
 | **Slot** | A camera custom setting, C1–C7 | "bank", "preset slot" |
 | **Manual order** | `sortKey` ascending, ties broken by `createdAt` ascending | "custom order", "user order" |
 | **Snapshot** | The cached `GET /api/recipes` response on disk | "cache", "offline DB" |
-| **Written** | `lastWrittenSlot` / `lastWrittenAt` — bookkeeping after a successful camera write | "synced", "applied" |
+| **Written** | The act of sending a recipe to a camera slot. The Android client does **not** record when this happened: `lastWrittenSlot` / `lastWrittenAt` are the web client's bookkeeping and pass through this app untouched, inside `extra` | "synced", "applied" |
 
 ## 8. Known constraints
 

@@ -190,9 +190,9 @@ fun LibraryRouteContent(
 }
 
 private val sampleRecipes = listOf(
-    RecipeCardModel("a", "Kodachrome 64", "classic-chrome", 5, listOf("street", "warm"), 3, "2026-08-12T07:25:02.104Z"),
-    RecipeCardModel("b", "Acros Night", "acros-r", 0, emptyList(), null, null),
-    RecipeCardModel("c", "Reala Sunday", "reala-ace", 4, listOf("family"), 1, null),
+    RecipeCardModel("a", "Kodachrome 64", "classic-chrome", 5, listOf("street", "warm")),
+    RecipeCardModel("b", "Acros Night", "acros-r", 0, emptyList()),
+    RecipeCardModel("c", "Reala Sunday", "reala-ace", 4, listOf("family")),
 )
 
 @Preview(name = "List — light", showBackground = true, heightDp = 900)

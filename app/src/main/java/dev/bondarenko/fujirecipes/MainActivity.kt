@@ -19,6 +19,7 @@ import dev.bondarenko.fujirecipes.ui.nav.FujiNavHost
 import dev.bondarenko.fujirecipes.ui.nav.LibraryRoute
 import dev.bondarenko.fujirecipes.ui.nav.MoreRoute
 import dev.bondarenko.fujirecipes.ui.nav.RecipeEditorRoute
+import dev.bondarenko.fujirecipes.ui.nav.RecipeViewRoute
 import dev.bondarenko.fujirecipes.ui.shell.AppShell
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 
@@ -67,7 +68,10 @@ private fun FujiApp(startDestination: Any) {
          */
         val onConnection = destination?.hasRoute<ConnectionRoute>() == true
         val onEditor = destination?.hasRoute<RecipeEditorRoute>() == true
-        val showChrome = !onConnection && !onEditor
+        // The view screen carries its own top bar and back affordance, and a bottom nav
+        // under a recipe would invite leaving the thing you just opened.
+        val onRecipeView = destination?.hasRoute<RecipeViewRoute>() == true
+        val showChrome = !onConnection && !onEditor && !onRecipeView
 
         AppShell(
             showChrome = showChrome,

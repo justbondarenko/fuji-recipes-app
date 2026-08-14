@@ -154,7 +154,7 @@ Numeric readouts use Inter with `FontFeatureSetting("tnum")`, mirroring the web 
 | `titleMedium` | Lora 600 | 16 / 22 | section headers |
 | `bodyLarge` | Inter 400 | 16 / 24 | notes, prose |
 | `bodyMedium` | Inter 400 | 14 / 20 | setting values |
-| `bodySmall` | Inter 400 | 12 / 16 | simulation label, last-written line |
+| `bodySmall` | Inter 400 | 12 / 16 | simulation label, secondary metadata |
 | `labelLarge` | Inter 600 | 14 / 20 | buttons |
 | `labelMedium` | Inter 500 | 12 / 16 | tag chips, field labels |
 | `labelSmall` | Inter 500 | 11 / 16 | metadata |
@@ -197,20 +197,13 @@ The web recipe card, as the Android card must read:
 
 ```
 ┌───────────────────────────────────────────────┐
-│ ◉  Kodachrome 64                    ★ 5   ⋮  │  ◉ = 32dp film-sim badge
-│    Classic Chrome                             │  name: Lora 700, titleLarge
-│    ─────────────────────────────────          │  sim label: Inter, bodySmall,
-│    [street] [warm] [+2]                       │             onSurfaceVariant
-│    ⛁ C3 · 12 Aug 2026                         │  rating pill: tertiaryContainer
-└───────────────────────────────────────────────┘  written line: bodySmall, italic
 ```
 
 - Card: `surfaceContainerLow` (light) / `surfaceContainer` (dark), 1dp `outlineVariant`
   border, `medium` corners, no elevation.
 - Rating pill is **omitted** when rating is 0, not shown as zero.
 - Tag row is omitted when there are no tags; at most 5 shown, then `+n`.
-- Last-written line is **absent** when `lastWrittenSlot` is null — not "Never".
-  Format: `C{slot} · {d MMM yyyy}`, or `Written to C{slot}` when the slot is known but the
-  date is not. This mirrors `fuji-recipes-book/src/utils/last-written.ts` exactly.
+- **No last-written line.** The Android client does not track when a recipe reached a
+  camera; the web client's `C3 · 12 Aug 2026` row has no counterpart here.
 - Overflow `⋮` is a 40dp touch target, sibling of the card's click target, never nested
   inside it.

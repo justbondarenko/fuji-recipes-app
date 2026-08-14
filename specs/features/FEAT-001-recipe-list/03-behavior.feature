@@ -46,16 +46,11 @@ Feature: Recipe list
     Then each recipe shows its name, film simulation, rating and tags
     And the header states how many recipes are in the library
 
-  Scenario: A recipe that has been written to a slot shows where and when
-    Given a recipe last written to slot 3 on 12 August 2026
+  Scenario: Slot bookkeeping is neither shown nor lost
+    Given a recipe the web client recorded as written to slot 3
     When I view it in the list
-    Then its card shows "C3 · 12 Aug 2026"
-
-  Scenario: A recipe that has never been written shows no written line
-    Given a recipe that has never been written to a slot
-    When I view it in the list
-    Then its card shows no last-written line
-    And it does not say "Never"
+    Then no last-written information is shown anywhere
+    And the recipe still carries that information when sent back to the server
 
   Scenario: An unrated recipe shows no rating
     Given a recipe with a rating of 0

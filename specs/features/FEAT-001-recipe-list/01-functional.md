@@ -49,7 +49,8 @@ feature reuses.
 7. On success, the response body is written **verbatim** to the snapshot file (§02-schema).
 8. On launch, the snapshot renders first if present, then the network refresh replaces it.
 9. `LazyColumn` of recipe cards. Card anatomy, spacing and omission rules:
-   `steering/design-system.md` §7.
+   `steering/design-system.md` §7. **No last-written line** — this client does not track
+   when a recipe reached a camera (`roadmap.md` §3).
 10. A header row showing `n recipes` — always the library's total. The narrowed count lives
     in the toolbar's summary bar (§12b) so the two do not say the same thing twice, and so
     the header stays a stable fact rather than a number that changes as you type.

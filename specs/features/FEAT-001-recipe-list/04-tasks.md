@@ -92,11 +92,10 @@ Auth policy admits it — `specs/roadmap.md` §4. T-01 to T-11 are testable with
       `#9CA3AF` fill and the raw id as the label. Preview for a known id, an image-less id,
       and an unknown id.
 - [x] **T-17** — `ui/library/RecipeCard.kt` to the anatomy in `steering/design-system.md` §7.
-      Rating pill omitted at 0; tag row omitted when empty, capped at 5 then `+n`;
-      last-written line absent when the slot is null, `C{slot} · {d MMM yyyy}` otherwise,
-      `Written to C{slot}` when the slot is known and the date is not. Overflow button is a
-      48dp sibling of the click target, not nested. Date formatting takes an injected
-      `Clock`/locale (`coding-standards.md` P6).
+      Rating pill omitted at 0; tag row omitted when empty, capped at 5 then `+n`. Overflow
+      button is a 48dp sibling of the click target, not nested.
+      *(Amended after FEAT-002: the last-written line this task originally specified was
+      removed — the app does not track slot bookkeeping, `roadmap.md` §3.)*
 - [x] **T-18** — `ui/library/LibraryUiState.kt` and `LibraryViewModel.kt`. One `UiState`
       exposed as `StateFlow`; search held in the ViewModel only, filters and sort round-trip
       through `ViewPreferences`. Turbine test: search state is not persisted, filter and
@@ -120,7 +119,7 @@ Auth policy admits it — `specs/roadmap.md` §4. T-01 to T-11 are testable with
 an unknown `filmSimulation` and an unknown top-level key): the library lists, search narrows
 to `3 of 10` on "portra", "Portra 2" sorts before "Portra 10", the unknown simulation draws
 the fallback swatch with its raw id, tag overflow shows `+1`, and the written line renders
-both `C5 · 18 Jun 2026` and `Written to C1`. Two fixes came out of it — see the notes below.
+the written line as it then existed. Two fixes came out of it — see the notes below.
 
 - [ ] **T-23** — Compose UI tests covering the state scenarios in `03-behavior.feature`:
       each of the ten states renders its own distinguishable content, and 403 in particular

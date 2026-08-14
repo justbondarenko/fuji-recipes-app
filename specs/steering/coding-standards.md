@@ -120,7 +120,7 @@ purpose.
 ## Naming
 
 Follow `architecture.md` §7's glossary. In code as in UI: `Recipe`, `settings`,
-`filmSimulation`, `slot`, `manualOrder`, `snapshot`, `lastWrittenSlot`.
+`filmSimulation`, `slot`, `manualOrder`, `snapshot`.
 
 Wire field names are `camelCase` exactly as the API sends them. Do not rename on the way in
 — `@SerialName` used to bridge a rename is a place where a future field gets dropped

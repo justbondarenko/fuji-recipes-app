@@ -87,13 +87,13 @@
           },
           "lastWrittenSlot": {
             "type": ["integer", "null"],
-            "description": "Camera custom slot 1-7, or null when this recipe has never been written. Null omits the last-written line from the card entirely — it is not rendered as 'Never'.",
+            "description": "Camera custom slot 1-7, or null. Written by the web client. The Android client does not model, display or track this field — it rides through in `extra` untouched, so declining to use it never destroys it.",
             "minimum": 1,
             "maximum": 7
           },
           "lastWrittenAt": {
             "type": ["string", "null"],
-            "description": "When the last successful camera write happened, or null. A non-null slot with a null date renders as 'Written to C{slot}' with no date.",
+            "description": "When the last successful camera write happened, or null. Written by the web client; carried through by the Android client but never displayed or updated.",
             "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$"
           }
         },

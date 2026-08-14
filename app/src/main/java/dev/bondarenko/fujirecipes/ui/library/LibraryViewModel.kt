@@ -80,8 +80,6 @@ class LibraryViewModel(
                         filmSimulationId = recipe.filmSimulationId,
                         rating = recipe.rating,
                         tags = recipe.tags,
-                        lastWrittenSlot = recipe.lastWrittenSlot,
-                        lastWrittenAt = recipe.lastWrittenAt,
                     )
                 },
                 totalCount = library.recipes.size,

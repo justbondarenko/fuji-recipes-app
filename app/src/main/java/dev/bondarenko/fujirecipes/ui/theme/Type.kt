@@ -83,7 +83,7 @@ val FujiTypography = Typography(
         fontFamily = FujiSans, fontWeight = FontWeight.Normal,
         fontSize = 14.sp, lineHeight = 20.sp,
     ),
-    // The simulation label and the last-written line.
+    // The simulation label and other secondary metadata.
     bodySmall = TextStyle(
         fontFamily = FujiSans, fontWeight = FontWeight.Normal,
         fontSize = 12.sp, lineHeight = 16.sp,

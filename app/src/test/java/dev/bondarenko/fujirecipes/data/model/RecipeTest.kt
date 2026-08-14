@@ -38,7 +38,6 @@ class RecipeTest {
         assertEquals(5, recipe.rating)
         assertEquals(listOf("street", "warm"), recipe.tags)
         assertEquals(1000.0, recipe.sortKey)
-        assertEquals(3, recipe.lastWrittenSlot)
         assertEquals("classic-chrome", recipe.filmSimulationId)
     }
 
@@ -53,6 +52,22 @@ class RecipeTest {
 
         assertEquals("abc-123", out["stackId"]?.jsonPrimitive?.content)
         assertEquals("true", out["favourite"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `slot bookkeeping is carried through untouched, not tracked`() {
+        // The Android client does not record when a recipe reached a camera, so
+        // `lastWrittenSlot` and `lastWrittenAt` are not modelled fields. They must still
+        // survive: the web client writes them, and dropping another client's data on every
+        // edit would be destroying something rather than declining to use it.
+        val recipe = Recipe.fromJson(parse(full))
+        val out = recipe.toJson()
+
+        assertEquals("3", out["lastWrittenSlot"]?.jsonPrimitive?.content)
+        assertEquals(
+            "2026-08-12T07:25:02.104Z",
+            out["lastWrittenAt"]?.jsonPrimitive?.content,
+        )
     }
 
     @Test
@@ -82,7 +97,6 @@ class RecipeTest {
 
         assertEquals(0, recipe.rating)
         assertTrue(recipe.tags.isEmpty())
-        assertNull(recipe.lastWrittenSlot)
         assertNull(recipe.filmSimulationId)
     }
 

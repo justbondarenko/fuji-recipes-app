@@ -35,8 +35,6 @@ data class RecipeCardModel(
     val filmSimulationId: String?,
     val rating: Int,
     val tags: List<String>,
-    val lastWrittenSlot: Int?,
-    val lastWrittenAt: String?,
 )
 
 /**
@@ -48,7 +46,6 @@ data class RecipeCardModel(
  *
  * - rating 0 shows **no** pill, not a zero
  * - no tags shows **no** tag row
- * - never written shows **no** line, not "Never"
  *
  * Separation from the page comes from a hairline outline and spacing, never elevation — a
  * floating shadow on this warm stone ground reads as a different app.
@@ -59,8 +56,6 @@ fun RecipeCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val written = LastWritten.line(recipe.lastWrittenSlot, recipe.lastWrittenAt)
-
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -104,15 +99,6 @@ fun RecipeCard(
 
             if (recipe.tags.isNotEmpty()) {
                 TagRow(recipe.tags, modifier = Modifier.padding(top = 2.dp))
-            }
-
-            if (written != null) {
-                Text(
-                    text = written,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
             }
         }
     }
@@ -201,12 +187,10 @@ private fun RecipeCardPreview() {
                     filmSimulationId = "classic-chrome",
                     rating = 5,
                     tags = listOf("street", "warm", "summer", "portra", "faded", "extra"),
-                    lastWrittenSlot = 3,
-                    lastWrittenAt = "2026-08-12T07:25:02.104Z",
                 ),
                 onClick = {},
             )
-            // The omission rules, drawn: no rating pill, no tag row, no written line.
+            // The omission rules, drawn: no rating pill, no tag row.
             RecipeCard(
                 RecipeCardModel(
                     id = "b",
@@ -214,8 +198,6 @@ private fun RecipeCardPreview() {
                     filmSimulationId = "acros-r",
                     rating = 0,
                     tags = emptyList(),
-                    lastWrittenSlot = null,
-                    lastWrittenAt = null,
                 ),
                 onClick = {},
             )
@@ -227,8 +209,6 @@ private fun RecipeCardPreview() {
                     filmSimulationId = "velvia-ii",
                     rating = 3,
                     tags = listOf("test"),
-                    lastWrittenSlot = 7,
-                    lastWrittenAt = null,
                 ),
                 onClick = {},
             )

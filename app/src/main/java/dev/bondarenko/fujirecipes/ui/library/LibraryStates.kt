@@ -248,7 +248,7 @@ private fun LibraryStatesPreview() {
  */
 @Composable
 fun LastUpdatedFooter(updatedAt: String, modifier: Modifier = Modifier) {
-    val formatted = LastWritten.updatedAt(updatedAt) ?: return
+    val formatted = Timestamps.updatedAt(updatedAt) ?: return
 
     Text(
         text = stringResource(R.string.last_updated, formatted),

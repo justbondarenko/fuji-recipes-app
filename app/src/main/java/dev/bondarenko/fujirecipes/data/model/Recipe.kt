@@ -23,6 +23,13 @@ import kotlinx.serialization.json.jsonPrimitive
  *   class is a list of the fields we know about today.
  * - [extra] collects unrecognised **top-level** keys, and [toJson] puts them back.
  *
+ * **`lastWrittenSlot` and `lastWrittenAt` are deliberately not declared here.** This client
+ * does not record, display or reason about when a recipe went to a camera — the owner's
+ * decision, and the web client remains free to keep doing so. Leaving them out of the known
+ * keys is what makes that true *and* safe: they fall into [extra] like any other field this
+ * build does not interpret, so they survive a round trip untouched rather than being
+ * dropped. Not tracking something is not the same as destroying it.
+ *
  * Timestamps stay strings. They are ISO-8601 UTC with milliseconds on the wire, they are
  * only ever compared and formatted, and parsing them into a date type here would mean
  * re-serialising them on the way out — which is a way to change them.
@@ -38,8 +45,6 @@ data class Recipe(
     val settings: JsonObject = JsonObject(emptyMap()),
     override val createdAt: String = "",
     override val updatedAt: String = "",
-    val lastWrittenSlot: Int? = null,
-    val lastWrittenAt: String? = null,
 
     /**
      * Top-level keys this build does not know, carried verbatim.
@@ -72,7 +77,7 @@ data class Recipe(
         /** Every key this class declares. Anything else on the wire is [extra]. */
         private val KNOWN_KEYS = setOf(
             "id", "name", "notes", "rating", "tags", "sortKey", "settings",
-            "createdAt", "updatedAt", "lastWrittenSlot", "lastWrittenAt",
+            "createdAt", "updatedAt",
         )
 
         val json: Json = Json {
