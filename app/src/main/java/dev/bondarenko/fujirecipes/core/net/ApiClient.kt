@@ -9,8 +9,10 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 
 /**
@@ -43,8 +45,37 @@ class ApiClient(
         RecipeListPayload(recipes = recipes, rawBody = body)
     }
 
+    /**
+     * `POST /api/recipes` — FEAT-003 T-01.
+     *
+     * The server assigns `id`, `sortKey`, `createdAt` and `updatedAt`; the body carries only
+     * what the user chose (`coding-standards.md` P2).
+     */
+    suspend fun createRecipe(body: JsonObject): ApiResult<Recipe> =
+        request("/api/recipes", method = "POST", body = body) { text ->
+            Recipe.fromJson(json.parseToJsonElement(text).jsonObject)
+        }
+
+    /**
+     * `PATCH /api/recipes/:id` — a **partial** update.
+     *
+     * Only the changed properties go in the body. That is the contract, and it is also what
+     * keeps an edit from destroying a field this build does not model: keys that are never
+     * sent are never overwritten.
+     */
+    suspend fun updateRecipe(id: String, body: JsonObject): ApiResult<Recipe> =
+        request("/api/recipes/$id", method = "PATCH", body = body) { text ->
+            Recipe.fromJson(json.parseToJsonElement(text).jsonObject)
+        }
+
+    /** `DELETE /api/recipes/:id`. 204, and idempotent — deleting an absent recipe is fine. */
+    suspend fun deleteRecipe(id: String): ApiResult<Unit> =
+        request("/api/recipes/$id", method = "DELETE", body = null) { }
+
     private suspend fun <T> request(
         path: String,
+        method: String = "GET",
+        body: JsonObject? = null,
         parse: (String) -> T,
     ): ApiResult<T> = withContext(Dispatchers.IO) {
         val current = config()
@@ -54,7 +85,11 @@ class ApiClient(
             )
         }
 
-        val call = Request.Builder().url(current.baseUrl + path).get().build()
+        val payload = body?.toString()?.toRequestBody(JSON_MEDIA_TYPE)
+        val call = Request.Builder()
+            .url(current.baseUrl + path)
+            .method(method, payload ?: if (method == "GET" || method == "DELETE") null else EMPTY_BODY)
+            .build()
 
         try {
             client.newCall(call).execute().use { response ->
@@ -140,6 +175,9 @@ class ApiClient(
 
     companion object {
         private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+
+        private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
+        private val EMPTY_BODY = "".toRequestBody(JSON_MEDIA_TYPE)
 
         private fun JsonObject.string(key: String): String? =
             this[key]?.stringOrNull()

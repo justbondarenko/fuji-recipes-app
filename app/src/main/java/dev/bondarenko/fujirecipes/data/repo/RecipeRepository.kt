@@ -1,6 +1,8 @@
 package dev.bondarenko.fujirecipes.data.repo
 
 import dev.bondarenko.fujirecipes.core.net.ApiError
+import dev.bondarenko.fujirecipes.core.net.ApiResult
+import kotlinx.serialization.json.JsonObject
 import dev.bondarenko.fujirecipes.data.model.Recipe
 import kotlinx.coroutines.flow.Flow
 
@@ -15,6 +17,18 @@ import kotlinx.coroutines.flow.Flow
 interface RecipeRepository {
     val library: Flow<LibraryState>
     suspend fun refresh()
+
+    /**
+     * The mutations — FEAT-003 T-03.
+     *
+     * Each returns its outcome rather than throwing, and **nothing local changes on
+     * failure**: there is no optimistic update and no queue (`architecture.md` §4), so a
+     * save that did not reach the server has simply not happened. On success the library is
+     * refreshed, which is what makes the list and the view follow along.
+     */
+    suspend fun create(body: JsonObject): ApiResult<Recipe>
+    suspend fun update(id: String, body: JsonObject): ApiResult<Recipe>
+    suspend fun delete(id: String): ApiResult<Unit>
 }
 
 /**

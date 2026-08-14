@@ -3,6 +3,8 @@ package dev.bondarenko.fujirecipes.data.repo
 import dev.bondarenko.fujirecipes.core.cache.SnapshotCache
 import dev.bondarenko.fujirecipes.core.net.ApiClient
 import dev.bondarenko.fujirecipes.core.net.ApiResult
+import dev.bondarenko.fujirecipes.data.model.Recipe
+import kotlinx.serialization.json.JsonObject
 import dev.bondarenko.fujirecipes.core.settings.ConnectionConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -102,5 +104,30 @@ class NetworkRecipeRepository(
         } finally {
             refreshing.unlock()
         }
+    }
+
+    override suspend fun create(body: JsonObject): ApiResult<Recipe> =
+        afterMutation(api.createRecipe(body))
+
+    override suspend fun update(id: String, body: JsonObject): ApiResult<Recipe> =
+        afterMutation(api.updateRecipe(id, body))
+
+    override suspend fun delete(id: String): ApiResult<Unit> =
+        afterMutation(api.deleteRecipe(id))
+
+    /**
+     * Refresh on success, leave everything alone on failure.
+     *
+     * A refetch rather than patching the in-memory list: the server assigns `sortKey`,
+     * `updatedAt` and — on create — the `id`, so the response is the truth and guessing at
+     * it locally is how two clients start disagreeing. The library is one request.
+     */
+    private suspend fun <T> afterMutation(result: ApiResult<T>): ApiResult<T> {
+        if (result is ApiResult.Success) {
+            // `hasLoaded` is already true here, so this is a plain network refresh — it will
+            // not step backwards to the snapshot.
+            refresh()
+        }
+        return result
     }
 }
