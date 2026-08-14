@@ -10,17 +10,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -37,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -93,37 +99,65 @@ fun RecipeEditorScreen(
     BackHandler(enabled = true) { attemptBack() }
 
     Column(modifier = modifier.fillMaxSize()) {
+        /**
+         * The **small top app bar** for an editing flow (`m3.material.io/components/app-bars`):
+         * back cancels, the title says what you are doing, and the confirming action lives in
+         * the bar itself.
+         *
+         * The subtitle is a `Column` in the `title` slot rather than the `subtitle` parameter,
+         * because that overload is `internal` at material3 1.4.0 — verified by compiling
+         * against it, not assumed.
+         */
         TopAppBar(
             title = {
-                Text(
-                    text = stringResource(
-                        if (state.isNew) R.string.editor_new else R.string.editor_edit,
-                    ),
-                    style = MaterialTheme.typography.titleMedium,
-                )
+                Column {
+                    Text(
+                        text = stringResource(
+                            if (state.isNew) R.string.editor_new else R.string.editor_edit,
+                        ),
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                    // Which recipe, so the bar answers "what am I editing" as well as "what
+                    // am I doing". Omitted when there is no name yet to answer with.
+                    if (state.name.isNotBlank()) {
+                        Text(
+                            text = state.name,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             },
             navigationIcon = {
+                // Back *is* cancel, and it confirms when there is work to lose.
                 IconButton(onClick = ::attemptBack) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.action_back),
+                        contentDescription = stringResource(R.string.action_cancel),
                     )
                 }
             },
             actions = {
-                if (!state.isNew && !state.notFound) {
-                    IconButton(onClick = onDuplicate) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_content_copy),
-                            contentDescription = stringResource(R.string.action_duplicate),
-                        )
-                    }
-                    IconButton(onClick = { confirmDelete = true }) {
-                        Icon(
-                            Icons.Filled.Delete,
-                            contentDescription = stringResource(R.string.action_delete),
-                            tint = MaterialTheme.colorScheme.error,
-                        )
+                if (!state.notFound) {
+                    FilledIconButton(
+                        onClick = onSave,
+                        enabled = !state.isSaving,
+                        modifier = Modifier.padding(end = 8.dp),
+                    ) {
+                        if (state.isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                            )
+                        } else {
+                            Icon(
+                                Icons.Filled.Check,
+                                contentDescription = stringResource(R.string.action_save),
+                            )
+                        }
                     }
                 }
             },
@@ -146,7 +180,8 @@ fun RecipeEditorScreen(
 
             else -> EditorBody(
                 state, onNameChange, onNotesChange, onRatingChange,
-                onTagsChange, onSettingChange, onSave,
+                onTagsChange, onSettingChange, onDuplicate,
+                onRequestDelete = { confirmDelete = true },
             )
         }
     }
@@ -197,7 +232,8 @@ private fun EditorBody(
     onRatingChange: (Int) -> Unit,
     onTagsChange: (List<String>) -> Unit,
     onSettingChange: (String, kotlinx.serialization.json.JsonElement?) -> Unit,
-    onSave: () -> Unit,
+    onDuplicate: () -> Unit,
+    onRequestDelete: () -> Unit,
 ) {
     val context = state.fieldContext
     val applicable = RecipeFields.applicable(context)
@@ -315,17 +351,31 @@ private fun EditorBody(
             }
         }
 
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Button(onClick = onSave, enabled = !state.isSaving) {
-                    Text(stringResource(R.string.action_save))
-                }
-                if (state.isSaving) {
-                    CircularProgressIndicator(modifier = Modifier.padding(4.dp))
+        // Saving lives in the app bar now. What is left down here is the pair of actions
+        // that end a recipe's life — and delete is last, where it cannot be hit on the way
+        // to something else.
+        if (!state.isNew) {
+            item {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = onDuplicate,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.action_duplicate))
+                    }
+
+                    TextButton(
+                        onClick = onRequestDelete,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ),
+                    ) {
+                        Text(stringResource(R.string.action_delete))
+                    }
                 }
             }
         }

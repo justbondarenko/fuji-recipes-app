@@ -71,21 +71,6 @@ fun LibraryScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    if (state.hasLoaded && state.totalCount > 0) CountChip(state)
-                }
-            }
-
             when {
                 // Nothing on screen and a failure: the error *is* the screen. Crucially a
                 // 403 lands here rather than rendering as an empty library.
@@ -147,22 +132,6 @@ fun LibraryScreen(
             }
         }
     }
-}
-
-/**
- * The library's size, always the total.
- *
- * The narrowed count lives in the toolbar's summary bar instead, so the two do not say the
- * same thing in two places — and so this stays a stable fact about the library rather than
- * a number that changes as you type.
- */
-@Composable
-private fun CountChip(state: LibraryUiState) {
-    Text(
-        text = pluralStringResource(R.plurals.count_total, state.totalCount, state.totalCount),
-        style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = TabularFigures),
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
 }
 
 /** The wiring, kept out of the screen so the screen stays previewable. */

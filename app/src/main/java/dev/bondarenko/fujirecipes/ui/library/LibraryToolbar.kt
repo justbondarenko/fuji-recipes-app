@@ -1,11 +1,15 @@
 package dev.bondarenko.fujirecipes.ui.library
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -35,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -80,11 +86,40 @@ fun LibraryToolbar(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        OutlinedTextField(
-            value = state.search,
-            onValueChange = onSearchChange,
-            singleLine = true,
+        /**
+         * The **search app bar** (`m3.material.io/components/app-bars`): the search field is
+         * the bar, rather than a text field sitting under a title.
+         *
+         * `SearchBarDefaults.InputField` is used on its own rather than inside a `SearchBar`,
+         * because the expanding container `SearchBar` provides exists to show suggestions
+         * over the screen — and there is nothing to suggest. The whole library is already in
+         * memory and the list narrows on every keystroke, so the results *are* the screen
+         * behind it. Using the input field alone keeps M3's shape, colour and height tokens
+         * without an overlay that would cover the answer.
+         */
+        /**
+         * The container is ours, not `SearchBarDefaults`'.
+         *
+         * M3's default is `surfaceContainerHigh`, which in this palette is stone-200 — the
+         * exact colour of the page, so the bar vanished. It takes the card treatment instead
+         * (`surfaceContainerLow` with a hairline outline), which is what every other raised
+         * thing in this app looks like.
+         */
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+        ) {
+        SearchBarDefaults.InputField(
+            query = state.search,
+            onQueryChange = onSearchChange,
+            onSearch = {},
+            expanded = false,
+            onExpandedChange = {},
             modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text(stringResource(R.string.search_placeholder)) },
             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
             trailingIcon = {
                 if (state.search.isNotEmpty()) {
@@ -96,9 +131,8 @@ fun LibraryToolbar(
                     }
                 }
             },
-            placeholder = { Text(stringResource(R.string.search_placeholder)) },
-            shape = MaterialTheme.shapes.small,
         )
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -109,6 +143,23 @@ fun LibraryToolbar(
                 onClick = { filtersOpen = true },
             )
             SortMenu(sort = state.sort, onSortChange = onSortChange)
+
+            Spacer(Modifier.weight(1f))
+
+            // The library's size, which the search app bar replaced a headline row for.
+            if (state.hasLoaded && state.totalCount > 0) {
+                Text(
+                    text = pluralStringResource(
+                        R.plurals.count_total,
+                        state.totalCount,
+                        state.totalCount,
+                    ),
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontFeatureSettings = TabularFigures,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         // Only when there is something to explain. A restored filter that is invisible is

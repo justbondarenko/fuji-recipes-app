@@ -194,7 +194,29 @@ of a colour difference between identical glyphs, which is what makes a conventio
 to read at a glance. Create sits outside the bar because a "create" tab would never hold a
 selected state, and a tab that cannot be current is a lie about what tabs mean.
 
-## 7. App icon
+## 7. Top app bars
+
+Per `m3.material.io/components/app-bars`.
+
+| Screen | Bar | Contents |
+|---|---|---|
+| Library | **Search app bar** | The search field *is* the bar. No separate title row — the app's name on its own screen is a wasted line. The library count moves to the control row beneath. |
+| Editor (create and edit) | **Small** | Back = cancel, confirming when there is unsaved work. Title says what you are doing; subtitle names the recipe. The **save action lives in the bar** as a filled check. |
+| Recipe view | **Small** | Back reads "Back to recipes"; edit action on the right. |
+
+Two implementation notes, both established by compiling rather than by reading release notes:
+
+- `TopAppBar(title, subtitle, …)` is **`internal`** at material3 1.4.0. The two-line bar is a
+  `Column` in the `title` slot.
+- `SearchBarDefaults.InputField` used on its own paints **no container** — the `SearchBar`
+  wrapper normally supplies it. It gets the card treatment instead
+  (`surfaceContainerLow` + hairline `outlineVariant`), because M3's own default of
+  `surfaceContainerHigh` is stone-200 in this palette, which is the page colour exactly.
+
+**Destructive actions are not in the app bar.** Duplicate and delete sit at the very bottom
+of the editing form, delete last, where they cannot be caught on the way to something else.
+
+## 8. App icon
 
 Same mark as the web client. Sources in `fuji-recipes-book/src/public/`:
 
@@ -209,7 +231,7 @@ Do not regenerate the mark, re-trace it, or "clean it up". It is the same produc
 the same icon. `res/mipmap-anydpi-v26/ic_launcher.xml` and `ic_launcher_round.xml` reference
 the layers above.
 
-## 8. Card anatomy — list parity
+## 9. Card anatomy — list parity
 
 The web recipe card, as the Android card must read:
 
