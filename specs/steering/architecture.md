@@ -155,11 +155,12 @@ app/src/main/java/dev/bondarenko/fujirecipes/
     model/Recipe.kt              the wire shape, `extra` preserved
     fields/FilmSimulations.kt    transcribed from field-definitions.md §3
     fields/RecipeFields.kt       transcribed from field-definitions.md §4 (FEAT-002)
+    library/LibraryView.kt       search, filter, sort — PURE, no Compose, no Android
     repo/RecipeRepository.kt     interface
     repo/NetworkRecipeRepository.kt
   ui/
     theme/                       Color.kt, Type.kt, Shape.kt, FujiTheme.kt
-    library/                     LibraryScreen, LibraryViewModel, LibraryView.kt (pure), cards
+    library/                     LibraryScreen, LibraryViewModel, cards
     common/                      shared composables
   camera/                        FEAT-003, FEAT-004
 

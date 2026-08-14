@@ -66,7 +66,9 @@ formatted.
 ## P7 — Selection logic is pure and lives outside Compose
 
 Search, filtering, and sorting are pure functions over a list, in a file with no Compose and
-no Android imports, mirroring `fuji-recipes-book/src/utils/library-view.ts`. The ViewModel
+no Android imports — `data/library/LibraryView.kt`, mirroring
+`fuji-recipes-book/src/utils/library-view.ts`. It sits under `data/` rather than `ui/` so
+that `core/settings` can read the stored-view types without a layer inversion. The ViewModel
 adds reactivity; the file decides. This is what makes the parity with the web client
 testable rather than asserted.
 

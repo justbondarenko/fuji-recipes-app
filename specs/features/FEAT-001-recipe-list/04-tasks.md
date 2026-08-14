@@ -11,32 +11,32 @@ Auth policy admits it — `specs/roadmap.md` §4. T-01 to T-11 are testable with
 
 ## Data and field source
 
-- [ ] **T-01** — `data/fields/FilmSimulations.kt`. Transcribe the 20-row table from
+- [x] **T-01** — `data/fields/FilmSimulations.kt`. Transcribe the 20-row table from
       `steering/design-system.md` §3 (`id`, `label`, `swatch`, `monochrome`,
       `minGeneration`). Header names the source document and the commit it was read at
       (`coding-standards.md` P3). Lookup by id returns null for an unknown id — it does not
       throw.
-- [ ] **T-02** — Copy the 20 `*.webp` swatch images from
+- [x] **T-02** — Copy the 20 `*.webp` swatch images from
       `fuji-recipes-book/src/public/film-simulations/` into `app/src/main/res/drawable/`,
       renamed to valid resource names (`classic_negative.webp`). One mapping function from
       simulation id to drawable resource, returning null when absent.
-- [ ] **T-03** — `data/model/Recipe.kt`. `@Serializable`, `ignoreUnknownKeys = true`, with
+- [x] **T-03** — `data/model/Recipe.kt`. `@Serializable`, `ignoreUnknownKeys = true`, with
       `settings` and unrecognised top-level keys held as `JsonObject` so nothing is dropped
       (`02-schema.json`; `coding-standards.md` P2). Test: a recipe carrying an unknown
       property round-trips through decode and encode with that property intact.
 
 ## Network
 
-- [ ] **T-04** — `core/net/ApiError.kt`. Sealed type mirroring the contract's envelope:
+- [x] **T-04** — `core/net/ApiError.kt`. Sealed type mirroring the contract's envelope:
       `Forbidden`, `AccessUnconfigured(missing)`, `NotFound(id)`, `ValidationFailed(fields)`,
       `IdExists`, `StorageUnavailable`, `Internal(requestId)`, `Network(cause)`,
       `Malformed(cause)`. Source: `steering/architecture.md` §9.
-- [ ] **T-05** — `core/net/ApiResult.kt`. `Success<T>` / `Failure(ApiError)`. No exceptions
+- [x] **T-05** — `core/net/ApiResult.kt`. `Success<T>` / `Failure(ApiError)`. No exceptions
       cross the repository seam.
-- [ ] **T-06** — `core/net/AccessInterceptor.kt`. Adds `CF-Access-Client-Id` and
+- [x] **T-06** — `core/net/AccessInterceptor.kt`. Adds `CF-Access-Client-Id` and
       `CF-Access-Client-Secret` when both are configured; adds neither when either is
       missing. Test with `MockWebServer`: headers present, and absent when unconfigured.
-- [ ] **T-07** — `core/net/ApiClient.kt`. `listRecipes()` against `GET /api/recipes` on
+- [x] **T-07** — `core/net/ApiClient.kt`. `listRecipes()` against `GET /api/recipes` on
       OkHttp + `kotlinx.serialization`. Maps every documented status and `error` code to the
       T-04 type. Tests with `MockWebServer` for 200, 403, 404, 422, 500, 503
       (`storage_unavailable`), 503 (`access_unconfigured`), a socket failure, and an
@@ -44,19 +44,19 @@ Auth policy admits it — `specs/roadmap.md` §4. T-01 to T-11 are testable with
 
 ## Settings and cache
 
-- [ ] **T-08** — `core/settings/ConnectionSettings.kt`. DataStore-backed base URL, client id,
+- [x] **T-08** — `core/settings/ConnectionSettings.kt`. DataStore-backed base URL, client id,
       client secret, exposed as a `Flow`. Base URL is normalised (trailing slash trimmed,
       scheme required). `android:allowBackup="false"` set in the manifest in this commit.
-- [ ] **T-09** — `core/settings/ViewPreferences.kt`. DataStore-backed sort, min rating, tags,
+- [x] **T-09** — `core/settings/ViewPreferences.kt`. DataStore-backed sort, min rating, tags,
       simulations. Reading applies the repair rules of `01-functional.md` §23 — unknown
       simulation dropped, rating clamped, unknown sort → default, unknown tag kept. Pure
       repair function, tested directly with the four cases.
-- [ ] **T-10** — `core/cache/SnapshotCache.kt`. Read and write the envelope in
+- [x] **T-10** — `core/cache/SnapshotCache.kt`. Read and write the envelope in
       `02-schema.json` to one app-private file. Writes the response body **verbatim**.
       Discards a snapshot whose `snapshotVersion` is unrecognised or whose `baseUrl` differs
       from the configured one. Tests: round trip, version mismatch discarded, base-URL
       mismatch discarded, unreadable file behaves as no snapshot.
-- [ ] **T-11** — `data/repo/RecipeRepository.kt` (interface, `Flow<List<Recipe>>`) and
+- [x] **T-11** — `data/repo/RecipeRepository.kt` (interface, `Flow<List<Recipe>>`) and
       `NetworkRecipeRepository.kt`: emit the snapshot first if present, then fetch; on
       success write the snapshot and emit; on failure emit the cached list alongside the
       error rather than replacing it. Test: a failed refresh does not clear a cached list
@@ -74,11 +74,12 @@ Auth policy admits it — `specs/roadmap.md` §4. T-01 to T-11 are testable with
 
 ## List — pure logic first
 
-- [ ] **T-14** — `ui/library/LibraryView.kt`. Pure, no Compose, no Android imports
+- [ ] **T-14** — `data/library/LibraryView.kt`. Pure, no Compose, no Android imports
       (`coding-standards.md` P7). Port of `fuji-recipes-book/src/utils/library-view.ts`:
-      `matchesSearch`, `matchesFilters`, `compareBy`, `selectRecipes`, `activeFilterCount`,
-      plus the manual-order comparator (`sortKey` asc, `createdAt` asc) from
-      `fuji-recipes-book/shared/ordering.ts`.
+      `matchesSearch`, `matchesFilters`, `compareBy`, `selectRecipes`, plus the manual-order
+      comparator (`sortKey` asc, `createdAt` asc) from `fuji-recipes-book/shared/ordering.ts`.
+      The file already exists — T-09 put `SortId`, `LibraryFilters` and the repair rules in
+      it — so this adds the pipeline to it rather than creating it.
 - [ ] **T-15** — Parity test suite for T-14, driven by plain lists. One test per scenario in
       the Search, Filters and Sorting sections of `03-behavior.feature`. **This is the
       highest-value suite in the feature** — it is what makes "parity with the web client" a
@@ -102,7 +103,8 @@ Auth policy admits it — `specs/roadmap.md` §4. T-01 to T-11 are testable with
       sort state is.
 - [ ] **T-19** — `ui/library/LibraryScreen.kt`. `LazyColumn`, the `n recipes` /
       `n of m recipes` header, pull-to-refresh, `WindowInsets.safeDrawing`. Screen composable
-      takes state and lambdas; a `LibraryRoute` does the `hiltViewModel()` wiring.
+      takes state and lambdas; a `LibraryRoute` does the `viewModel(factory = …)` wiring
+      against `AppContainer`.
 - [ ] **T-20** — Search field and the filter/sort surface: tag chips, minimum-rating
       selector, film-simulation selector, three sort options, filter badge counting axes.
 - [ ] **T-21** — Every state from `01-functional.md` §24–§33 as a distinct rendering, each
