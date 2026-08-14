@@ -3,6 +3,7 @@ package dev.bondarenko.fujirecipes.ui.editor
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -51,9 +53,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -111,7 +115,7 @@ fun NumberStepper(
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             // 💡 FIELD LABEL (Number controls e.g. Highlight tone, Shadow tone, Sharpness, Clarity):
             // - Change font style/size: `style = MaterialTheme.typography.bodyMedium` (or add `fontSize = 14.sp`)
@@ -131,19 +135,17 @@ fun NumberStepper(
                     onValueChange(next)
                 },
                 enabled = (effective ?: 0.0) > field.min,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .width(36.dp)
-                    .height(44.dp),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.size(36.dp),
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_remove),
                     contentDescription = stringResource(R.string.decrease, field.label),
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(16.dp),
                 )
             }
 
-            OutlinedTextField(
+            BasicTextField(
                 value = text,
                 onValueChange = { entered ->
                     text = entered
@@ -153,16 +155,35 @@ fun NumberStepper(
                     if (parsed != null) onValueChange(parsed)
                 },
                 singleLine = true,
-                isError = error != null,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
                     textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontFeatureSettings = TabularFigures,
                 ),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Done,
                 ),
-                modifier = Modifier.width(96.dp),
+                decorationBox = { innerTextField ->
+                    Box(
+                        modifier = Modifier
+                            .width(58.dp)
+                            .height(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f))
+                            .border(
+                                width = 1.dp,
+                                color = if (error != null) MaterialTheme.colorScheme.error
+                                else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(10.dp),
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        innerTextField()
+                    }
+                },
             )
 
             FilledTonalIconButton(
@@ -172,15 +193,13 @@ fun NumberStepper(
                     onValueChange(next)
                 },
                 enabled = (effective ?: 0.0) < field.max,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .width(36.dp)
-                    .height(44.dp),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.size(36.dp),
             ) {
                 Icon(
                     Icons.Filled.Add,
                     contentDescription = stringResource(R.string.increase, field.label),
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(16.dp),
                 )
             }
         }
@@ -190,7 +209,7 @@ fun NumberStepper(
                 text = error,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(bottom = 4.dp),
+                modifier = Modifier.padding(top = 4.dp),
             )
         }
     }

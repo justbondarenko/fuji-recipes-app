@@ -218,7 +218,12 @@ fun RecipeEditorScreen(
             // Named, so a confirmation cannot be given for the wrong recipe.
             text = { Text(stringResource(R.string.delete_body, state.name)) },
             confirmButton = {
-                TextButton(onClick = { confirmDelete = false; onDelete() }) {
+                TextButton(
+                    onClick = { confirmDelete = false; onDelete() },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) {
                     Text(stringResource(R.string.action_delete))
                 }
             },
@@ -248,10 +253,10 @@ private fun EditorBody(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 OutlinedTextField(
                     value = state.name,
                     onValueChange = onNameChange,
@@ -263,8 +268,6 @@ private fun EditorBody(
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                RatingInput(state.rating, onRatingChange)
-
                 TagInput(
                     tags = state.tags,
                     onTagsChange = onTagsChange,
@@ -275,14 +278,14 @@ private fun EditorBody(
 
         FieldGroup.entries
             .filter { group -> applicable.any { it.group == group } }
-            .forEachIndexed { index, group ->
+            .forEach { group ->
                 item(key = group.id) {
-                  Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SectionHeader(group.label, showDivider = index > 0)
+                  Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionHeader(group.label)
 
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         applicable.filter { it.group == group }.forEach { field ->
                             when (field) {
@@ -331,7 +334,7 @@ private fun EditorBody(
             // Last, not first: notes are written about a recipe once its parameters are
             // decided, and a two-line text box above the controls pushed the actual
             // parameters below the fold.
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SectionHeader(stringResource(R.string.notes))
                 OutlinedTextField(
                     value = state.notes,

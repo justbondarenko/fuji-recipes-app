@@ -291,10 +291,10 @@ private fun RecipeBentoBody(
         }
 
         // Bento Grid Sections
-        state.groups.forEachIndexed { index, group ->
+        state.groups.forEach { group ->
             item(key = group.group.id) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SectionHeader(group.group.label, showDivider = index > 0)
+                    SectionHeader(group.group.label)
                     BentoGroupGrid(group)
                 }
             }

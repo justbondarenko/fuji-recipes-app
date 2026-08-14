@@ -23,20 +23,12 @@ import androidx.compose.ui.unit.dp
 // SECTION HEADERS STYLING & SPACING (Shared by Recipe View & Recipe Editor)
 // =========================================================================================
 @Composable
-fun SectionHeader(text: String, modifier: Modifier = Modifier, showDivider: Boolean = true) {
+fun SectionHeader(text: String, modifier: Modifier = Modifier, showDivider: Boolean = false) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            // 💡 MARGIN TOP: Change `8.dp` below to increase/decrease space above the section divider
-            .then(if (showDivider) Modifier.padding(top = 8.dp) else Modifier)
+            .padding(top = 4.dp)
     ) {
-        if (showDivider) {
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant,
-                // 💡 MARGIN BOTTOM: Space between the divider line and the section title text
-                modifier = Modifier.padding(bottom = 10.dp),
-            )
-        }
         SectionTitle(text)
     }
 }

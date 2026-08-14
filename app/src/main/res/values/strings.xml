@@ -4,7 +4,7 @@
 
     <!-- Navigation -->
     <string name="nav_library">Recipes</string>
-    <string name="nav_more">More</string>
+    <string name="nav_more">Settings</string>
     <string name="nav_create">New recipe</string>
 
     <!-- Library -->

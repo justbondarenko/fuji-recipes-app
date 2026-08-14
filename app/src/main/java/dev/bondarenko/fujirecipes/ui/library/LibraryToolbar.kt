@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Badge
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -49,6 +51,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -199,17 +203,27 @@ fun LibraryToolbar(
 
 @Composable
 private fun FiltersButton(activeCount: Int, onClick: () -> Unit) {
-    // The count sits *beside* the label rather than in a `BadgedBox`, which anchors its
-    // badge over the top-end corner of its content and turns "Filters" into "Filte(2)rs".
-    // A badge overlapping a word is for an icon, not for text.
-    TextButton(onClick = onClick) {
-        Text(stringResource(R.string.filters))
-        if (activeCount > 0) {
-            Badge(
-                containerColor = MaterialTheme.colorScheme.tertiary,
-                contentColor = MaterialTheme.colorScheme.onTertiary,
-                modifier = Modifier.padding(start = 6.dp),
-            ) { Text(activeCount.toString()) }
+    TextButton(
+        onClick = onClick,
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_tune),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(stringResource(R.string.filters))
+            if (activeCount > 0) {
+                Badge(
+                    containerColor = MaterialTheme.colorScheme.tertiary,
+                    contentColor = MaterialTheme.colorScheme.onTertiary,
+                    modifier = Modifier.padding(start = 2.dp),
+                ) { Text(activeCount.toString()) }
+            }
         }
     }
 }
@@ -219,24 +233,64 @@ private fun SortMenu(sort: SortId, onSortChange: (SortId) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
 
     Row {
-        TextButton(onClick = { expanded = true }) {
-            Text(stringResource(sort.labelRes()))
-            Icon(
-                Icons.Filled.KeyboardArrowDown,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
+        TextButton(
+            onClick = { expanded = true },
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_sort),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(stringResource(sort.labelRes()))
+                Icon(
+                    Icons.Filled.KeyboardArrowDown,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
 
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            shape = RoundedCornerShape(12.dp),
+        ) {
             SortId.entries.forEach { option ->
                 DropdownMenuItem(
+                    leadingIcon = {
+                        val iconModifier = Modifier.size(20.dp)
+                        when (option) {
+                            SortId.NAME -> Icon(
+                                painter = painterResource(R.drawable.ic_sort_by_alpha),
+                                contentDescription = null,
+                                modifier = iconModifier,
+                            )
+                            SortId.RATING -> Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = null,
+                                modifier = iconModifier,
+                            )
+                            SortId.UPDATED -> Icon(
+                                painter = painterResource(R.drawable.ic_schedule),
+                                contentDescription = null,
+                                modifier = iconModifier,
+                            )
+                        }
+                    },
                     text = { Text(stringResource(option.labelRes())) },
-                    // M3 menus mark the current selection. Without it the menu states the
-                    // options but not which one you are already looking at.
                     trailingIcon = {
                         if (option == sort) {
-                            Icon(Icons.Filled.Check, contentDescription = null)
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
                         }
                     },
                     onClick = {
@@ -293,11 +347,22 @@ private fun FiltersSheet(
             .padding(bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        Text(
-            text = stringResource(R.string.filters),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_tune),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                text = stringResource(R.string.filters),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
 
         RatingButtonGroup(
             selectedRating = state.filters.minRating,
@@ -307,7 +372,10 @@ private fun FiltersSheet(
         )
 
         if (state.availableSimulations.isNotEmpty()) {
-            FilterGroup(stringResource(R.string.filter_simulation)) {
+            FilterGroup(
+                label = stringResource(R.string.filter_simulation),
+                icon = painterResource(R.drawable.ic_photo_camera),
+            ) {
                 state.availableSimulations.forEach { id ->
                     FilterChip(
                         selected = id in state.filters.simulations,
@@ -319,7 +387,10 @@ private fun FiltersSheet(
         }
 
         if (state.availableTags.isNotEmpty()) {
-            FilterGroup(stringResource(R.string.filter_tags_all_of)) {
+            FilterGroup(
+                label = stringResource(R.string.filter_tags_all_of),
+                icon = painterResource(R.drawable.ic_label),
+            ) {
                 state.availableTags.forEach { tag ->
                     FilterChip(
                         selected = tag in state.filters.tags,
@@ -343,11 +414,22 @@ private fun RatingButtonGroup(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text(
-            text = stringResource(R.string.filter_min_rating),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Star,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = stringResource(R.string.filter_min_rating),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
 
         val count = 5
         Row(
@@ -422,9 +504,16 @@ private fun RatingButtonGroup(
                                 modifier = Modifier.size(16.dp),
                                 tint = contentColor,
                             )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Filled.Star,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = contentColor.copy(alpha = 0.6f),
+                            )
                         }
                         Text(
-                            text = stringResource(R.string.filter_rating, rating),
+                            text = rating.toString(),
                             style = MaterialTheme.typography.labelMedium,
                             color = contentColor,
                             maxLines = 1,
@@ -438,13 +527,30 @@ private fun RatingButtonGroup(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun FilterGroup(label: String, content: @Composable () -> Unit) {
+private fun FilterGroup(
+    label: String,
+    icon: Painter? = null,
+    content: @Composable () -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            if (icon != null) {
+                Icon(
+                    painter = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         // Wrapping rather than scrolling: in a sheet there is room to show every option,
         // and a horizontal scroller hides the ones past the edge.
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { content() }
