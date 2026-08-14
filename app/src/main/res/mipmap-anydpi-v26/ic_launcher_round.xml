@@ -1,11 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  The web client's mark, on the web client's own #F6F6F4 ground — steering/design-system.md §6.
-  Foreground layers are generated from icons/icon-maskable-512.png, scaled so the mark
-  lands inside the guaranteed-visible circle of every launcher mask.
--->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/ic_launcher_background" />
-    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
-    <monochrome android:drawable="@mipmap/ic_launcher_foreground" />
+    <background android:drawable="@color/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+    <monochrome android:drawable="@mipmap/ic_launcher_foreground"/>
 </adaptive-icon>
