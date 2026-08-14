@@ -13,7 +13,13 @@
     <string name="sort_rating">Rating high–low</string>
     <string name="sort_updated">Recently updated</string>
     <string name="filter_rating">%1$d+</string>
-    <string name="count_narrowed">%1$d of %2$d</string>
+    <string name="showing_of">Showing %1$d of %2$d</string>
+    <string name="filters">Filters</string>
+    <string name="filter_min_rating">Minimum rating</string>
+    <string name="filter_simulation">Film simulation</string>
+    <string name="filter_tags_all_of">Tags · all of</string>
+    <string name="action_clear_all">Clear all</string>
+    <string name="action_clear_search">Clear search</string>
     <string name="rating_of_five">Rated %1$d out of 5</string>
     <plurals name="count_total">
         <item quantity="one">%1$d recipe</item>

@@ -9,16 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -35,7 +28,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.core.net.ApiError
-import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.library.LibraryFilters
 import dev.bondarenko.fujirecipes.data.library.SortId
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -125,6 +117,7 @@ fun LibraryScreen(
                             onSearchChange = onSearchChange,
                             onSortChange = onSortChange,
                             onFiltersChange = onFiltersChange,
+                            onClearSearchAndFilters = onClearSearchAndFilters,
                         )
                     }
 
@@ -152,123 +145,20 @@ fun LibraryScreen(
     }
 }
 
-/** `n recipes`, or `n of m recipes` while narrowed — the web client's counter. */
+/**
+ * The library's size, always the total.
+ *
+ * The narrowed count lives in the toolbar's summary bar instead, so the two do not say the
+ * same thing in two places — and so this stays a stable fact about the library rather than
+ * a number that changes as you type.
+ */
 @Composable
 private fun CountChip(state: LibraryUiState) {
-    val text = if (state.isNarrowed) {
-        stringResource(R.string.count_narrowed, state.visible.size, state.totalCount)
-    } else {
-        pluralStringResource(R.plurals.count_total, state.totalCount, state.totalCount)
-    }
-
     Text(
-        text = text,
+        text = pluralStringResource(R.plurals.count_total, state.totalCount, state.totalCount),
         style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = TabularFigures),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun LibraryToolbar(
-    state: LibraryUiState,
-    onSearchChange: (String) -> Unit,
-    onSortChange: (SortId) -> Unit,
-    onFiltersChange: (LibraryFilters) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        OutlinedTextField(
-            value = state.search,
-            onValueChange = onSearchChange,
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-            placeholder = { Text(stringResource(R.string.search_placeholder)) },
-            shape = MaterialTheme.shapes.small,
-        )
-
-        ChipRow {
-            SortId.entries.forEach { sort ->
-                FilterChip(
-                    selected = state.sort == sort,
-                    onClick = { onSortChange(sort) },
-                    label = { Text(stringResource(sort.labelRes())) },
-                )
-            }
-        }
-
-        // Minimum rating, as four steps rather than a slider: it is a filter with five
-        // meaningful values, and a slider for that is a smaller target and less legible.
-        ChipRow {
-            (1..5).forEach { rating ->
-                FilterChip(
-                    selected = state.filters.minRating == rating,
-                    onClick = {
-                        onFiltersChange(
-                            state.filters.copy(
-                                // Tapping the active one clears it, so the axis can be
-                                // switched off without hunting for a separate control.
-                                minRating = if (state.filters.minRating == rating) 0 else rating,
-                            ),
-                        )
-                    },
-                    label = { Text(stringResource(R.string.filter_rating, rating)) },
-                )
-            }
-        }
-
-        if (state.availableSimulations.isNotEmpty()) {
-            ChipRow {
-                state.availableSimulations.forEach { id ->
-                    FilterChip(
-                        selected = id in state.filters.simulations,
-                        onClick = { onFiltersChange(state.filters.toggleSimulation(id)) },
-                        label = { Text(FilmSimulations.labelFor(id)) },
-                    )
-                }
-            }
-        }
-
-        if (state.availableTags.isNotEmpty()) {
-            ChipRow {
-                state.availableTags.forEach { tag ->
-                    FilterChip(
-                        selected = tag in state.filters.tags,
-                        onClick = { onFiltersChange(state.filters.toggleTag(tag)) },
-                        label = { Text(tag) },
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * A horizontally scrolling row of chips.
- *
- * `LazyRow` would be wrong inside a `LazyColumn` item for these counts, and a plain
- * `Row` with horizontal scroll keeps every chip measurable for the tests.
- */
-@Composable
-private fun ChipRow(content: @Composable () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) { content() }
-}
-
-private fun LibraryFilters.toggleTag(tag: String) =
-    copy(tags = if (tag in tags) tags - tag else tags + tag)
-
-private fun LibraryFilters.toggleSimulation(id: String) =
-    copy(simulations = if (id in simulations) simulations - id else simulations + id)
-
-private fun SortId.labelRes(): Int = when (this) {
-    SortId.NAME -> R.string.sort_name
-    SortId.RATING -> R.string.sort_rating
-    SortId.UPDATED -> R.string.sort_updated
 }
 
 /** The wiring, kept out of the screen so the screen stays previewable. */

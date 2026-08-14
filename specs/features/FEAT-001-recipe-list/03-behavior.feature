@@ -96,6 +96,35 @@ Feature: Recipe list
     When I clear the search
     Then all 5 recipes are listed
 
+  # --- Toolbar ---
+
+  Scenario: The filter controls are not on screen until asked for
+    Given a library of recipes
+    When I open the list
+    Then I see a search field, a filters button and a sort control
+    And the rating, film simulation and tag controls are not shown
+
+  Scenario: Opening the filters reveals the controls
+    Given a library of recipes
+    When I open the filters
+    Then I can choose a minimum rating, a film simulation and a tag
+
+  Scenario: The filters button reports how many axes are set
+    Given no filters are set
+    When I filter by a minimum rating and a tag
+    Then the filters button shows a badge of 2
+
+  Scenario: A narrowed list says so and offers a way out
+    Given a library of 10 recipes
+    When I filter down to 3 of them
+    Then I am told I am seeing 3 of 10
+    And I am offered a way to clear everything
+
+  Scenario: The summary is absent when nothing is narrowed
+    Given a library of recipes with no search and no filters
+    When I open the list
+    Then no narrowing summary is shown
+
   # --- Filters ---
 
   Scenario: Filtering by minimum rating excludes lower-rated recipes

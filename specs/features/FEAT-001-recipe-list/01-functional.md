@@ -50,12 +50,25 @@ feature reuses.
 8. On launch, the snapshot renders first if present, then the network refresh replaces it.
 9. `LazyColumn` of recipe cards. Card anatomy, spacing and omission rules:
    `steering/design-system.md` §7.
-10. A header row showing `n recipes`, or `n of m recipes` while the list is narrowed —
-    matching the web client's counter.
+10. A header row showing `n recipes` — always the library's total. The narrowed count lives
+    in the toolbar's summary bar (§12b) so the two do not say the same thing twice, and so
+    the header stays a stable fact rather than a number that changes as you type.
 11. Tapping a card opens the recipe editor (FEAT-002). Until FEAT-002 exists, it opens a
     placeholder route. No read-only detail screen in v1.
 12. Overflow `⋮` on each card is present but its only enabled item in this feature is
     **Copy name**; the rest arrive with FEAT-002.
+
+### Toolbar layout — compact, expands on demand
+
+12a. The controls occupy **two rows at rest**, matching the web client's `LibraryToolbar.vue`:
+    a search field, then one line holding a **Filters** button (with a badge counting active
+    axes) and a **sort** menu. The filter controls themselves live in a bottom sheet opened
+    from that button.
+12b. A **"Showing n of m · Clear all"** bar appears only while the list is narrowed. A
+    restored filter that is invisible is how a library appears to have lost recipes
+    overnight.
+12c. Rating, film simulation and tag controls are **never permanently on screen**. They are
+    set rarely and read never, and the list screen's job is showing recipes.
 
 ### Search, filter, sort — parity with `library-view.ts`
 
@@ -65,8 +78,8 @@ feature reuses.
 14. **Filter by tags** — conjunctive. All selected tags must be present on a recipe.
 15. **Filter by minimum rating** — `0` means any, and includes unrated recipes.
 16. **Filter by film simulation** — disjunctive across selected simulations.
-17. **Sort**, offering exactly three options: `Name A–Z` (default), `Rating high–low`,
-    `Recently updated`.
+17. **Sort**, offering exactly three options in a menu: `Name A–Z` (default),
+    `Rating high–low`, `Recently updated`.
 18. Name sort is locale-aware with `numeric` collation and base sensitivity, so
     "Portra 2" precedes "Portra 10" and case does not split adjacent names.
 19. **Every comparator falls back to manual order** — `sortKey` ascending, ties broken by
