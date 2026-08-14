@@ -73,7 +73,8 @@ testable rather than asserted.
 ## P8 — No speculative abstraction
 
 An interface with one implementation is allowed exactly where `architecture.md` names it
-(`RecipeRepository`) and nowhere else. No factories for one product. No config for a value
+(`RecipeRepository`) and nowhere else. `AppContainer` gains a field when a feature needs it,
+not before. No factories for one product. No config for a value
 that never changes. No `RemoteSyncSource` stub, no dirty flag, no conflict-resolution
 strategy — they are guesses and they will be wrong when a real requirement arrives.
 
@@ -106,7 +107,8 @@ purpose.
 - One `UiState` data class per screen, exposed as `StateFlow`. No `mutableStateOf` in a
   ViewModel for screen state.
 - Screen composables take state and lambdas, never a ViewModel. A `…Route` composable does
-  the `hiltViewModel()` wiring. This is what makes previews and UI tests possible.
+  the `viewModel(factory = …)` wiring against `AppContainer`. This is what makes previews and
+  UI tests possible.
 - `@Preview` for every screen state a spec names, including the error and empty ones. A
   preview of only the happy path is how the empty state ships broken.
 - Consume `WindowInsets.safeDrawing`. Edge-to-edge is mandatory on Android 15+ regardless.

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Fuji Recipes</string>
+
+    <!-- Navigation -->
+    <string name="nav_library">Recipes</string>
+    <string name="nav_more">More</string>
+    <string name="nav_create">New recipe</string>
+
+    <!-- Placeholder destinations, replaced as their features land -->
+    <string name="placeholder_connection_title">Connection</string>
+    <string name="placeholder_connection_body">Base URL and Access service token go here (FEAT-001).</string>
+    <string name="placeholder_library_title">Recipes</string>
+    <string name="placeholder_library_body">Your library goes here (FEAT-001).</string>
+    <string name="placeholder_editor_title">Recipe</string>
+    <string name="placeholder_editor_body">Create and edit go here (FEAT-002).</string>
+    <string name="placeholder_more_title">More</string>
+    <string name="placeholder_more_body">Camera help and settings go here.</string>
+</resources>

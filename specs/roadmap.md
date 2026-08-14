@@ -23,7 +23,7 @@ Stages are sequential. A **GATE** must be fully closed before the next stage sta
 
 | # | Feature | Ships | Risk |
 |---|---|---|---|
-| FEAT-000 | Foundation — project, theme, icon, shell | An app that opens, looks right, and navigates between empty screens | none |
+| FEAT-000 | Foundation — project, theme, icon, shell | An app that opens, looks right, and navigates between empty screens | **done** |
 | **FEAT-001** | **Recipe list** ← *start here* | Connection setup, the API client, the snapshot cache, and a real library on screen with search, filters and sort | low |
 | FEAT-002 | Field source + recipe form | Create and edit a recipe against the full parameter set | medium — the field transcription is large and exacting |
 | FEAT-003 | Camera connection **GATE** | USB host, attach intent, PTP session, model detection, the connection indicator | **high** — reverse-engineered protocol |
@@ -86,3 +86,33 @@ file itself:
 
 Everything else in `PRD.md` — the field semantics, the camera integration, the USB gotchas,
 the error-handling table, the build order's *reasoning* — stands and is still worth reading.
+
+
+## 6. Open toolchain decision — Material 3 Expressive
+
+Surfaced while building FEAT-000, by compiling against the API rather than reading release
+notes. Full detail and the evidence: `steering/tech-stack.md` §6.
+
+**The finding:** at `material3` 1.4.0 — the newest release that resolves under the AGP
+8.13 / `compileSdk` 36 toolchain this machine has — every Expressive entry point is
+`internal` or absent. Getting them means `material3` 1.5.0-alpha → Compose 1.12.0-beta →
+AGP 9.1 → `compileSdk` 37, and the `android-37` platform is not installed.
+
+**What shipped instead:** the standard `MaterialTheme` carrying the full Fuji palette, type
+scale and shape scale. That is the part of `design-system.md` that holds parity with the web
+client, and it is unaffected.
+
+**What is deferred:** the Expressive motion scheme and four components. Every screen that
+wants one is a later feature, so nothing is blocked today:
+
+| Wants Expressive | Feature |
+|---|---|
+| `HorizontalFloatingToolbar` on the form | FEAT-002 |
+| `LoadingIndicator` on camera connect | FEAT-003 |
+| `LinearWavyProgressIndicator` during a write | FEAT-004 |
+| `ButtonGroup` for the C1–C7 slot picker | FEAT-004 |
+
+**The decision to take, before FEAT-002:** either move the whole toolchain to AGP 9.1 /
+`compileSdk` 37 / Compose beta, or accept standard Material 3 for v1 and revisit when the
+Expressive line goes stable. `ui/theme/Theme.kt` carries the swap instructions either way —
+it is a one-call change plus a `motionScheme` argument that is already computed.

@@ -35,3 +35,6 @@ google-services.json
 
 # macOS
 .DS_Store
+
+# Emulator/tooling scratch
+.kotlin/

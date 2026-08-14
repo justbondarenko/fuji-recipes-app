@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- stone-900 — steering/design-system.md §2, the dark `surface` role -->
+    <color name="window_background">#FF1C1917</color>
+</resources>

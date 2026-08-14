@@ -80,8 +80,9 @@ A silent copy is how two clients stop agreeing about what "Classic Negative" mea
 └───────────────────────────────────────────────┘
 ```
 
-Single activity, Compose Navigation, type-safe routes. `CameraController` is a `@Singleton`
-held above the nav graph so a connection survives navigation.
+Single activity, Compose Navigation, type-safe routes. The object graph is a hand-written
+`AppContainer` on the `Application` — no DI framework (`tech-stack.md` §2). `CameraController`
+lives there too, above the nav graph, so a connection survives navigation.
 
 ## 4. Storage — decided
 
@@ -139,7 +140,8 @@ Service Auth policy admitting the token, which is dashboard configuration, not c
 
 ```
 app/src/main/java/dev/bondarenko/fujirecipes/
-  FujiRecipesApp.kt              Application, Hilt entry point
+  FujiRecipesApp.kt              Application; owns the AppContainer
+  core/AppContainer.kt           the object graph, by hand
   MainActivity.kt                single activity, NavHost
   core/
     net/ApiClient.kt             the six routes, OkHttp + kotlinx.serialization
