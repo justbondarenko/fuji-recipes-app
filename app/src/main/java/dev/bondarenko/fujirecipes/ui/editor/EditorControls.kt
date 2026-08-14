@@ -1,5 +1,8 @@
 package dev.bondarenko.fujirecipes.ui.editor
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -9,9 +12,11 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -22,14 +27,18 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ripple
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,6 +47,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
@@ -102,6 +112,10 @@ fun NumberStepper(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
+            // 💡 FIELD LABEL (Number controls e.g. Highlight tone, Shadow tone, Sharpness, Clarity):
+            // - Change font style/size: `style = MaterialTheme.typography.bodyMedium` (or add `fontSize = 14.sp`)
+            // - Change font weight: add `fontWeight = FontWeight.SemiBold`
+            // - Change font color: `color = MaterialTheme.colorScheme.onSurface`
             Text(
                 text = field.label,
                 style = MaterialTheme.typography.bodyMedium,
@@ -195,6 +209,9 @@ fun EnumDropdown(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // 💡 FIELD LABEL (Dropdown fields):
+        // - Change font style/size: `style = MaterialTheme.typography.bodyMedium` (or add `fontSize = 14.sp`)
+        // - Change font weight: add `fontWeight = FontWeight.SemiBold`
         Text(
             text = field.label,
             style = MaterialTheme.typography.bodyMedium,
@@ -202,25 +219,142 @@ fun EnumDropdown(
             modifier = Modifier.weight(1f),
         )
 
-        TextButton(onClick = { expanded = true }) {
-            Text(field.labelFor(value ?: field.defaultValue as? String))
-        }
+        Box {
+            TextButton(onClick = { expanded = true }) {
+                Text(field.labelFor(value ?: field.defaultValue as? String))
+            }
 
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            val current = value ?: field.defaultValue as? String
-            field.options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.label) },
-                    trailingIcon = {
-                        if (option.id == current) {
-                            Icon(Icons.Filled.Check, contentDescription = null)
-                        }
-                    },
-                    onClick = {
-                        onValueChange(option.id)
-                        expanded = false
-                    },
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                val current = value ?: field.defaultValue as? String
+                field.options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option.label) },
+                        trailingIcon = {
+                            if (option.id == current) {
+                                Icon(Icons.Filled.Check, contentDescription = null)
+                            }
+                        },
+                        onClick = {
+                            onValueChange(option.id)
+                            expanded = false
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * A Material 3 Expressive connected single-choice button group for enum fields with
+ * a small set of options (e.g. Dynamic Range, Grain, Color Chrome) placed below the label.
+ */
+@Composable
+fun EnumButtonGroup(
+    field: EnumFieldDef,
+    value: String?,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val current = value ?: field.defaultValue as? String
+    val count = field.options.size
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        // 💡 SPACING BETWEEN LABEL AND BUTTONS: Change `6.dp` to increase/decrease gap
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        // 💡 FIELD LABEL (Button Group fields e.g. Dynamic range, Grain effect, Color Chrome):
+        // - Change font style/size: `style = MaterialTheme.typography.bodyMedium` (or add `fontSize = 14.sp`)
+        // - Change font weight: add `fontWeight = FontWeight.SemiBold`
+        Text(
+            text = field.label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            field.options.forEachIndexed { index, option ->
+                val selected = option.id == current
+
+                // M3 Expressive morphing corner radii:
+                // - Selected item is always full-pill (24.dp / 50%)
+                // - Outer edges of first/last items have 24.dp radius
+                // - Inner adjacent edges have 8.dp radius
+                val topStart = if (selected || index == 0) 24.dp else 8.dp
+                val bottomStart = if (selected || index == 0) 24.dp else 8.dp
+                val topEnd = if (selected || index == count - 1) 24.dp else 8.dp
+                val bottomEnd = if (selected || index == count - 1) 24.dp else 8.dp
+
+                val animTopStart by animateDpAsState(targetValue = topStart, label = "topStart")
+                val animBottomStart by animateDpAsState(targetValue = bottomStart, label = "bottomStart")
+                val animTopEnd by animateDpAsState(targetValue = topEnd, label = "topEnd")
+                val animBottomEnd by animateDpAsState(targetValue = bottomEnd, label = "bottomEnd")
+
+                val shape = RoundedCornerShape(
+                    topStart = animTopStart,
+                    bottomStart = animBottomStart,
+                    topEnd = animTopEnd,
+                    bottomEnd = animBottomEnd,
                 )
+
+                val targetContainerColor = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHighest
+                }
+                val containerColor by animateColorAsState(
+                    targetValue = targetContainerColor,
+                    label = "containerColor",
+                )
+
+                val targetContentColor = if (selected) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+                val contentColor by animateColorAsState(
+                    targetValue = targetContentColor,
+                    label = "contentColor",
+                )
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                        .clip(shape)
+                        .background(containerColor)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(),
+                        ) { onValueChange(option.id) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    ) {
+                        if (selected) {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = contentColor,
+                            )
+                        }
+                        Text(
+                            text = option.label,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = contentColor,
+                            maxLines = 1,
+                        )
+                    }
+                }
             }
         }
     }
@@ -241,30 +375,36 @@ fun FilmSimulationPicker(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         FilmSimBadge(value, size = 32.dp)
+        // 💡 FIELD LABEL (Film simulation picker):
+        // - Change font style/size: `style = MaterialTheme.typography.bodyMedium` (or add `fontSize = 14.sp`)
+        // - Change font weight: add `fontWeight = FontWeight.SemiBold`
         Text(
             text = stringResource(R.string.field_film_simulation),
             style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
-        TextButton(onClick = { expanded = true }) {
-            Text(FilmSimulations.labelFor(value))
-        }
+        Box {
+            TextButton(onClick = { expanded = true }) {
+                Text(FilmSimulations.labelFor(value))
+            }
 
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            FilmSimulations.all.forEach { simulation ->
-                DropdownMenuItem(
-                    leadingIcon = { FilmSimBadge(simulation.id, size = 24.dp) },
-                    text = { Text(simulation.label) },
-                    trailingIcon = {
-                        if (simulation.id == value) {
-                            Icon(Icons.Filled.Check, contentDescription = null)
-                        }
-                    },
-                    onClick = {
-                        onValueChange(simulation.id)
-                        expanded = false
-                    },
-                )
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                FilmSimulations.all.forEach { simulation ->
+                    DropdownMenuItem(
+                        leadingIcon = { FilmSimBadge(simulation.id, size = 24.dp) },
+                        text = { Text(simulation.label) },
+                        trailingIcon = {
+                            if (simulation.id == value) {
+                                Icon(Icons.Filled.Check, contentDescription = null)
+                            }
+                        },
+                        onClick = {
+                            onValueChange(simulation.id)
+                            expanded = false
+                        },
+                    )
+                }
             }
         }
     }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,8 +20,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -105,14 +107,16 @@ fun SwipeActionsRow(
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
                 .onSizeChanged { actionsWidth = it.width },
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Spacer(Modifier.width(8.dp))
             RowScopeActions.actions()
         }
 
         Box(
             modifier = Modifier
+                .fillMaxWidth()
                 .offset {
                     /**
                      * `offset`, not `requireOffset()`.
@@ -136,7 +140,7 @@ fun SwipeActionsRow(
 object RowScopeActions
 
 /**
- * One revealed action.
+ * One revealed action as an M3 Expressive round narrow icon button.
  *
  * Disabled actions are shown rather than hidden: "write to camera" exists and is coming
  * (FEAT-006), and a row whose action set changes shape between builds is harder to learn
@@ -151,14 +155,19 @@ fun RowScopeActions.SwipeAction(
     container: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.secondaryContainer,
     content: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSecondaryContainer,
 ) {
-    IconButton(
+    FilledIconButton(
         onClick = onClick,
         enabled = enabled,
+        shape = RoundedCornerShape(percent = 50),
         colors = IconButtonDefaults.filledIconButtonColors(
             containerColor = container,
             contentColor = content,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
         ),
-        modifier = Modifier.size(48.dp),
+        modifier = Modifier
+            .width(36.dp)
+            .height(52.dp),
     ) {
         Icon(icon, contentDescription = contentDescription, modifier = Modifier.size(20.dp))
     }

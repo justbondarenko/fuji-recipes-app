@@ -9,10 +9,13 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,7 +23,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -97,10 +105,18 @@ fun RecipeViewScreen(
             },
             actions = {
                 if (state.recipe != null) {
-                    IconButton(onClick = onEdit) {
+                    FilledTonalIconButton(
+                        onClick = onEdit,
+                        shape = RoundedCornerShape(percent = 50),
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .width(36.dp)
+                            .height(48.dp),
+                    ) {
                         Icon(
                             Icons.Filled.Edit,
                             contentDescription = stringResource(R.string.action_edit),
+                            modifier = Modifier.size(20.dp),
                         )
                     }
                 }
@@ -207,51 +223,78 @@ private fun RecipeHeaderBlock(
     onRatingChange: (Int) -> Unit,
     onTagsChange: (List<String>) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            FilmSimBadge(recipe.filmSimulationId, size = 56.dp)
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = recipe.name,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
+                FilmSimBadge(
+                    simulationId = recipe.filmSimulationId,
+                    size = 56.dp,
+                    shape = RoundedCornerShape(12.dp),
                 )
-                Text(
-                    text = recipe.filmSimulationLabel,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = recipe.name,
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = recipe.filmSimulationLabel,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            // Rating and tags are the two things adjusted while looking at a photo, so they are
+            // live here. Every other parameter stays read-only on this screen.
+            RatingInput(rating = recipe.rating, onRatingChange = onRatingChange)
+
+            TagInput(tags = recipe.tags, onTagsChange = onTagsChange)
+
+            Button(
+                onClick = {},
+                enabled = false,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_photo_camera),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
                 )
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.action_write_to_camera))
             }
         }
-
-        // Rating and tags are the two things adjusted while looking at a photo, so they are
-        // live here. Every other parameter stays read-only on this screen.
-        RatingInput(rating = recipe.rating, onRatingChange = onRatingChange)
-
-        TagInput(tags = recipe.tags, onTagsChange = onTagsChange)
     }
 }
 
 @Composable
 private fun SettingsGroupBlock(group: SettingsGroup) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium)
-            .padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth(),
     ) {
         group.rows.forEachIndexed { index, row ->
             if (index > 0) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             }
             SettingRow(row)
         }
@@ -261,10 +304,16 @@ private fun SettingsGroupBlock(group: SettingsGroup) {
 @Composable
 private fun SettingRow(row: FieldFormatting.Row) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 9.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            // 💡 ROW PADDING & SPACING: Change vertical = 10.dp to adjust height/spacing between rows
+            .padding(horizontal = 4.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // 💡 FIELD LABEL (Recipe View mode):
+        // - Change font style/size: `style = MaterialTheme.typography.bodyMedium` (or add `fontSize = 14.sp`)
+        // - Change font weight: add `fontWeight = FontWeight.SemiBold`
         Text(
             text = row.label,
             style = MaterialTheme.typography.bodyMedium,
@@ -277,6 +326,9 @@ private fun SettingRow(row: FieldFormatting.Row) {
             },
             modifier = Modifier.weight(1f),
         )
+        // 💡 FIELD VALUE (Recipe View mode):
+        // - Change font style/size: `style = MaterialTheme.typography.bodyMedium` (or add `fontSize = 14.sp`)
+        // - Change font weight: add `fontWeight = FontWeight.Bold`
         Text(
             text = row.value,
             style = MaterialTheme.typography.bodyMedium.copy(

@@ -21,13 +21,15 @@ import androidx.compose.ui.unit.dp
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 
+import androidx.compose.ui.graphics.Shape
+
 /**
  * The film-simulation swatch — FEAT-001 T-16.
  *
- * A circle filled with the simulation's swatch colour, with its sample image over the top.
+ * A rounded shape filled with the simulation's swatch colour, with its sample image over the top.
  * `design-system.md` §3: the swatch is a real value, not a fallback, because the web badge
  * paints it under the image and shows it alone when the image is missing. The same here,
- * which is why an unknown simulation is a grey circle rather than a broken row.
+ * which is why an unknown simulation is a grey swatch rather than a broken row.
  *
  * Decorative by default: the card names the simulation in text right beside it, so a screen
  * reader announcing it twice would be noise.
@@ -37,6 +39,7 @@ fun FilmSimBadge(
     simulationId: String?,
     modifier: Modifier = Modifier,
     size: Dp = 36.dp,
+    shape: Shape = CircleShape,
 ) {
     val simulation = FilmSimulations.byId(simulationId)
     val ring = if (MaterialTheme.colorScheme.surface.luminance() > 0.5f) {
@@ -48,9 +51,9 @@ fun FilmSimBadge(
     Box(
         modifier = modifier
             .size(size)
-            .clip(CircleShape)
+            .clip(shape)
             .background(simulation?.swatch ?: FilmSimulations.FallbackSwatch)
-            .border(1.dp, ring, CircleShape)
+            .border(1.dp, ring, shape)
             .clearAndSetSemantics { },
     ) {
         simulation?.image?.let { image ->

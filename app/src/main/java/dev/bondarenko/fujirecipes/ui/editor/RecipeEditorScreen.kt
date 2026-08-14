@@ -9,9 +9,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -144,7 +147,11 @@ fun RecipeEditorScreen(
                     FilledIconButton(
                         onClick = onSave,
                         enabled = !state.isSaving,
-                        modifier = Modifier.padding(end = 8.dp),
+                        shape = RoundedCornerShape(percent = 50),
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .width(36.dp)
+                            .height(48.dp),
                     ) {
                         if (state.isSaving) {
                             FujiLoadingIndicator(
@@ -155,6 +162,7 @@ fun RecipeEditorScreen(
                             Icon(
                                 Icons.Filled.Check,
                                 contentDescription = stringResource(R.string.action_save),
+                                modifier = Modifier.size(20.dp),
                             )
                         }
                     }
@@ -273,23 +281,22 @@ private fun EditorBody(
                     SectionHeader(group.label, showDivider = index > 0)
 
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(MaterialTheme.shapes.medium)
-                            .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                            .border(
-                                1.dp,
-                                MaterialTheme.colorScheme.outlineVariant,
-                                MaterialTheme.shapes.medium,
-                            )
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         applicable.filter { it.group == group }.forEach { field ->
                             when (field) {
                                 is EnumFieldDef ->
                                     if (field.id == "filmSimulation") {
                                         FilmSimulationPicker(
+                                            value = state.settings.stringOrNull(field.id),
+                                            onValueChange = {
+                                                onSettingChange(field.id, JsonPrimitive(it))
+                                            },
+                                        )
+                                    } else if (field.options.size <= 4) {
+                                        EnumButtonGroup(
+                                            field = field,
                                             value = state.settings.stringOrNull(field.id),
                                             onValueChange = {
                                                 onSettingChange(field.id, JsonPrimitive(it))

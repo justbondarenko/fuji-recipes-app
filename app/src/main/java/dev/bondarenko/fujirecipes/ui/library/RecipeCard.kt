@@ -1,7 +1,6 @@
 package dev.bondarenko.fujirecipes.ui.library
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,6 +12,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,15 +41,11 @@ data class RecipeCardModel(
 /**
  * One row of the library — FEAT-001 T-17.
  *
- * Anatomy: `steering/design-system.md` §7, which is a transcription of the web client's
- * `RecipeCard.vue`. The three omission rules are the ones that matter, because each of them
- * is a thing the web client deliberately *does not* draw:
+ * Built using Material 3's official `ListItem` component as intended by the framework.
  *
+ * Omission rules:
  * - rating 0 shows **no** pill, not a zero
  * - no tags shows **no** tag row
- *
- * Separation from the page comes from a hairline outline and spacing, never elevation — a
- * floating shadow on this warm stone ground reads as a different app.
  */
 @Composable
 fun RecipeCard(
@@ -56,52 +53,50 @@ fun RecipeCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .background(cardColor())
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium)
-            .clickable(onClick = onClick)
-            .padding(14.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        FilmSimBadge(recipe.filmSimulationId, modifier = Modifier.padding(top = 2.dp))
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.Top,
-            ) {
-                Text(
-                    text = recipe.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-
-                if (recipe.rating > 0) RatingPill(recipe.rating)
-            }
-
+    ListItem(
+        headlineContent = {
             Text(
-                text = FilmSimulations.labelFor(recipe.filmSimulationId),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = recipe.name,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-
-            if (recipe.tags.isNotEmpty()) {
-                TagRow(recipe.tags, modifier = Modifier.padding(top = 2.dp))
+        },
+        supportingContent = {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    text = FilmSimulations.labelFor(recipe.filmSimulationId),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (recipe.tags.isNotEmpty()) {
+                    TagRow(recipe.tags, modifier = Modifier.padding(top = 2.dp))
+                }
             }
-        }
-    }
+        },
+        leadingContent = {
+            FilmSimBadge(
+                simulationId = recipe.filmSimulationId,
+                size = 56.dp,
+                shape = RoundedCornerShape(12.dp),
+            )
+        },
+        trailingContent = {
+            if (recipe.rating > 0) {
+                RatingPill(recipe.rating)
+            }
+        },
+        colors = ListItemDefaults.colors(
+            containerColor = cardColor(),
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .clickable(onClick = onClick),
+    )
 }
 
 /** Cards sit one step off the page, and the step is not symmetrical between schemes. */

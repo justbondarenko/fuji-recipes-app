@@ -1,18 +1,25 @@
 package dev.bondarenko.fujirecipes.ui.library
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ripple
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
@@ -292,26 +299,12 @@ private fun FiltersSheet(
             color = MaterialTheme.colorScheme.onSurface,
         )
 
-        FilterGroup(stringResource(R.string.filter_min_rating)) {
-            // Steps rather than stars: "at least this good" is a threshold, and a threshold
-            // is easier to aim at than a star.
-            (1..5).forEach { rating ->
-                FilterChip(
-                    selected = state.filters.minRating == rating,
-                    onClick = {
-                        onFiltersChange(
-                            state.filters.copy(
-                                // Tapping the active step clears the axis, so it can be
-                                // switched off without a separate control.
-                                minRating = if (state.filters.minRating == rating) 0 else rating,
-                            ),
-                        )
-                    },
-                    label = { Text(stringResource(R.string.filter_rating, rating)) },
-                    leadingIcon = selectedCheck(state.filters.minRating == rating),
-                )
-            }
-        }
+        RatingButtonGroup(
+            selectedRating = state.filters.minRating,
+            onRatingChange = { newRating ->
+                onFiltersChange(state.filters.copy(minRating = newRating))
+            },
+        )
 
         if (state.availableSimulations.isNotEmpty()) {
             FilterGroup(stringResource(R.string.filter_simulation)) {
@@ -334,6 +327,109 @@ private fun FiltersSheet(
                         label = { Text(tag) },
                         leadingIcon = selectedCheck(tag in state.filters.tags),
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RatingButtonGroup(
+    selectedRating: Int,
+    onRatingChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.filter_min_rating),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        val count = 5
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            (1..5).forEachIndexed { index, rating ->
+                val selected = selectedRating == rating
+
+                // M3 Expressive morphing corner radii
+                val topStart = if (selected || index == 0) 24.dp else 8.dp
+                val bottomStart = if (selected || index == 0) 24.dp else 8.dp
+                val topEnd = if (selected || index == count - 1) 24.dp else 8.dp
+                val bottomEnd = if (selected || index == count - 1) 24.dp else 8.dp
+
+                val animTopStart by animateDpAsState(targetValue = topStart, label = "topStart")
+                val animBottomStart by animateDpAsState(targetValue = bottomStart, label = "bottomStart")
+                val animTopEnd by animateDpAsState(targetValue = topEnd, label = "topEnd")
+                val animBottomEnd by animateDpAsState(targetValue = bottomEnd, label = "bottomEnd")
+
+                val shape = RoundedCornerShape(
+                    topStart = animTopStart,
+                    bottomStart = animBottomStart,
+                    topEnd = animTopEnd,
+                    bottomEnd = animBottomEnd,
+                )
+
+                val targetContainerColor = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHighest
+                }
+                val containerColor by animateColorAsState(
+                    targetValue = targetContainerColor,
+                    label = "containerColor",
+                )
+
+                val targetContentColor = if (selected) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+                val contentColor by animateColorAsState(
+                    targetValue = targetContentColor,
+                    label = "contentColor",
+                )
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                        .clip(shape)
+                        .background(containerColor)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(),
+                        ) {
+                            onRatingChange(if (selected) 0 else rating)
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    ) {
+                        if (selected) {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = contentColor,
+                            )
+                        }
+                        Text(
+                            text = stringResource(R.string.filter_rating, rating),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = contentColor,
+                            maxLines = 1,
+                        )
+                    }
                 }
             }
         }

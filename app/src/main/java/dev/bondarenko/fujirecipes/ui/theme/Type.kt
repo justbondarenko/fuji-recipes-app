@@ -20,7 +20,6 @@ import androidx.compose.ui.unit.sp
 // ponytail: system serif/sans stand in for Lora and Inter until the font files are
 // vendored. Everything downstream reads these two values, so the swap is a two-line diff.
 // Tracked as FEAT-000 T-07 in the roadmap.
-val FujiSerif: FontFamily = FontFamily.Serif
 val FujiSans: FontFamily = FontFamily.SansSerif
 
 /**
@@ -34,44 +33,44 @@ const val TabularFigures = "tnum"
 
 val FujiTypography = Typography(
     displayLarge = TextStyle(
-        fontFamily = FujiSerif, fontWeight = FontWeight.SemiBold,
+        fontFamily = FujiSans, fontWeight = FontWeight.SemiBold,
         fontSize = 45.sp, lineHeight = 52.sp,
     ),
     displayMedium = TextStyle(
-        fontFamily = FujiSerif, fontWeight = FontWeight.SemiBold,
+        fontFamily = FujiSans, fontWeight = FontWeight.SemiBold,
         fontSize = 36.sp, lineHeight = 44.sp,
     ),
     displaySmall = TextStyle(
-        fontFamily = FujiSerif, fontWeight = FontWeight.SemiBold,
+        fontFamily = FujiSans, fontWeight = FontWeight.SemiBold,
         fontSize = 32.sp, lineHeight = 40.sp,
     ),
 
     headlineLarge = TextStyle(
-        fontFamily = FujiSerif, fontWeight = FontWeight.SemiBold,
+        fontFamily = FujiSans, fontWeight = FontWeight.SemiBold,
         fontSize = 32.sp, lineHeight = 40.sp,
     ),
     // Screen titles — "Fuji Recipes" on the list.
     headlineMedium = TextStyle(
-        fontFamily = FujiSerif, fontWeight = FontWeight.SemiBold,
+        fontFamily = FujiSans, fontWeight = FontWeight.SemiBold,
         fontSize = 28.sp, lineHeight = 36.sp,
     ),
     headlineSmall = TextStyle(
-        fontFamily = FujiSerif, fontWeight = FontWeight.SemiBold,
+        fontFamily = FujiSans, fontWeight = FontWeight.SemiBold,
         fontSize = 24.sp, lineHeight = 32.sp,
     ),
 
-    // The recipe name on a card. Bold rather than semibold, matching the web card's
-    // `font-bold` — it is the one thing on the row you are actually scanning for.
+    // 💡 SECTION TITLES (SectionHeader.kt) use titleLarge:
+    // Change `fontSize = 18.sp` and `fontWeight` here to change all section headers globally!
     titleLarge = TextStyle(
-        fontFamily = FujiSerif, fontWeight = FontWeight.Bold,
+        fontFamily = FujiSans, fontWeight = FontWeight.Bold,
         fontSize = 18.sp, lineHeight = 24.sp,
     ),
     titleMedium = TextStyle(
-        fontFamily = FujiSerif, fontWeight = FontWeight.SemiBold,
+        fontFamily = FujiSans, fontWeight = FontWeight.SemiBold,
         fontSize = 16.sp, lineHeight = 22.sp,
     ),
     titleSmall = TextStyle(
-        fontFamily = FujiSerif, fontWeight = FontWeight.SemiBold,
+        fontFamily = FujiSans, fontWeight = FontWeight.SemiBold,
         fontSize = 14.sp, lineHeight = 20.sp,
     ),
 
@@ -79,6 +78,8 @@ val FujiTypography = Typography(
         fontFamily = FujiSans, fontWeight = FontWeight.Normal,
         fontSize = 16.sp, lineHeight = 24.sp,
     ),
+    // 💡 FIELD LABELS & VALUES (EditorControls.kt & RecipeViewScreen.kt) use bodyMedium:
+    // Change `fontSize = 14.sp` and `fontWeight` here to change all field labels globally!
     bodyMedium = TextStyle(
         fontFamily = FujiSans, fontWeight = FontWeight.Normal,
         fontSize = 14.sp, lineHeight = 20.sp,
