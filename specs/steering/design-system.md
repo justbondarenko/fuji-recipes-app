@@ -94,9 +94,7 @@ Stone ramp: `0 #FFFFFF · 50 #FAFAF9 · 100 #F5F5F4 · 200 #E7E5E4 · 300 #D6D3D
 | `outline` | `#A8A29E` | stone-400 |
 | `outlineVariant` | `#44403C` | stone-700 |
 
-**Dynamic colour is off.** Do not call `dynamicLightColorScheme()` / `dynamicDarkColorScheme()`.
-Material You would replace this palette with wallpaper colours and destroy the parity that
-is the whole point.
+**Dynamic colour is enabled on Android 12+ (API 31+).** On Android 12+, `FujiTheme` uses `dynamicDarkColorScheme(context)` and `dynamicLightColorScheme(context)` to adapt to system Material You colors, falling back to the curated palette on older versions or when `dynamicColor` is set to false.
 
 ## 3. Film-simulation swatches — data, not theme
 

@@ -28,6 +28,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
@@ -123,17 +124,22 @@ fun NumberStepper(
                 modifier = Modifier.weight(1f),
             )
 
-            IconButton(
+            FilledTonalIconButton(
                 onClick = {
                     val next = ((effective ?: 0.0) - step).coerceIn(field.min, field.max)
                     text = display(next, step)
                     onValueChange(next)
                 },
                 enabled = (effective ?: 0.0) > field.min,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .width(36.dp)
+                    .height(44.dp),
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_remove),
                     contentDescription = stringResource(R.string.decrease, field.label),
+                    modifier = Modifier.size(18.dp),
                 )
             }
 
@@ -159,17 +165,22 @@ fun NumberStepper(
                 modifier = Modifier.width(96.dp),
             )
 
-            IconButton(
+            FilledTonalIconButton(
                 onClick = {
                     val next = ((effective ?: 0.0) + step).coerceIn(field.min, field.max)
                     text = display(next, step)
                     onValueChange(next)
                 },
                 enabled = (effective ?: 0.0) < field.max,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .width(36.dp)
+                    .height(44.dp),
             ) {
                 Icon(
                     Icons.Filled.Add,
                     contentDescription = stringResource(R.string.increase, field.label),
+                    modifier = Modifier.size(18.dp),
                 )
             }
         }

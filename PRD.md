@@ -199,7 +199,7 @@ Source colour: `#CC785C`. Palette generated from it and hand-tuned toward brown 
 | `outline` | `#A08D85` |
 | `outlineVariant` | `#52443D` |
 
-**Dynamic colour is off.** Material You would replace this palette with the user's wallpaper colours, which defeats the point. Set the scheme explicitly; do not call `dynamicLightColorScheme()`.
+**Dynamic colour is enabled on Android 12+ (API 31+).** On supported devices, the theme adapts to system Material You wallpaper colours via `dynamicLightColorScheme()` / `dynamicDarkColorScheme()`, falling back to the curated warm Fuji palette on older Android versions or when dynamic color is disabled.
 
 **Film simulation swatches** are a separate, non-theme palette — each simulation gets a fixed colour approximating its look (Velvia saturated red, Classic Chrome desaturated slate, Acros neutral grey). These are data, not theme tokens. Keep them in a `FilmSimColors` object and do not let them shift with the scheme.
 
