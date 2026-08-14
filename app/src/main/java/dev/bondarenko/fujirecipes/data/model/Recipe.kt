@@ -1,5 +1,6 @@
 package dev.bondarenko.fujirecipes.data.model
 
+import dev.bondarenko.fujirecipes.data.library.ViewableRecipe
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.Json
@@ -29,14 +30,14 @@ import kotlinx.serialization.json.jsonPrimitive
 @Serializable
 data class Recipe(
     val id: String,
-    val name: String,
+    override val name: String,
     val notes: String = "",
-    val rating: Int = 0,
-    val tags: List<String> = emptyList(),
-    val sortKey: Double = 0.0,
+    override val rating: Int = 0,
+    override val tags: List<String> = emptyList(),
+    override val sortKey: Double = 0.0,
     val settings: JsonObject = JsonObject(emptyMap()),
-    val createdAt: String = "",
-    val updatedAt: String = "",
+    override val createdAt: String = "",
+    override val updatedAt: String = "",
     val lastWrittenSlot: Int? = null,
     val lastWrittenAt: String? = null,
 
@@ -48,9 +49,9 @@ data class Recipe(
      * this class is lossless.
      */
     @Transient val extra: JsonObject = JsonObject(emptyMap()),
-) {
+) : ViewableRecipe {
     /** The film simulation id, or null when `settings` does not carry a usable one. */
-    val filmSimulationId: String?
+    override val filmSimulationId: String?
         get() = settings["filmSimulation"]?.let {
             runCatching { it.jsonPrimitive.content }.getOrNull()
         }

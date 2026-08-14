@@ -115,8 +115,8 @@ private fun AppShellPreview() {
             onCreateClick = {},
         ) { padding ->
             dev.bondarenko.fujirecipes.ui.common.PlaceholderScreen(
-                titleRes = R.string.placeholder_library_title,
-                bodyRes = R.string.placeholder_library_body,
+                titleRes = R.string.placeholder_more_title,
+                bodyRes = R.string.placeholder_more_body,
                 contentPadding = padding,
             )
         }

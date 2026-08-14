@@ -8,6 +8,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.ui.common.PlaceholderScreen
+import dev.bondarenko.fujirecipes.ui.connection.ConnectionRouteContent
+import dev.bondarenko.fujirecipes.ui.library.LibraryRouteContent
 import kotlinx.serialization.Serializable
 
 /**
@@ -29,14 +31,6 @@ data class RecipeEditorRoute(val id: String? = null)
 @Serializable
 data object MoreRoute
 
-/**
- * Every destination in the app, and nothing else.
- *
- * The bodies are placeholders at FEAT-000 on purpose — this stage ships a navigable shell,
- * so what is being proved here is the graph, the back stack and the insets, not any screen.
- * Each placeholder is replaced by the feature that owns it, and the route declarations
- * above do not change when that happens.
- */
 @Composable
 fun FujiNavHost(
     navController: NavHostController,
@@ -45,24 +39,31 @@ fun FujiNavHost(
 ) {
     NavHost(navController = navController, startDestination = startDestination) {
         composable<ConnectionRoute> {
-            PlaceholderScreen(
-                titleRes = R.string.placeholder_connection_title,
-                bodyRes = R.string.placeholder_connection_body,
+            ConnectionRouteContent(
+                onSaved = {
+                    // Saving is the way out of setup, and coming back to it should not
+                    // reopen the form — so the library replaces it rather than stacking.
+                    navController.navigate(LibraryRoute) {
+                        popUpTo(ConnectionRoute) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
                 contentPadding = contentPadding,
             )
         }
 
         composable<LibraryRoute> {
-            PlaceholderScreen(
-                titleRes = R.string.placeholder_library_title,
-                bodyRes = R.string.placeholder_library_body,
+            LibraryRouteContent(
+                onOpenRecipe = { id -> navController.navigate(RecipeEditorRoute(id)) },
+                onCreateRecipe = { navController.navigate(RecipeEditorRoute(null)) },
+                onOpenConnection = { navController.navigate(ConnectionRoute) },
                 contentPadding = contentPadding,
             )
         }
 
         composable<RecipeEditorRoute> { entry ->
-            // Read even though it is unused, so the argument is exercised by the shell and
-            // a serialization mistake surfaces at FEAT-000 rather than at FEAT-002.
+            // Read even though it is unused, so a serialization mistake surfaces now rather
+            // than at FEAT-002.
             entry.toRoute<RecipeEditorRoute>()
             PlaceholderScreen(
                 titleRes = R.string.placeholder_editor_title,

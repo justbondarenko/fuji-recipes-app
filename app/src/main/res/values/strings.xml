@@ -7,11 +7,74 @@
     <string name="nav_more">More</string>
     <string name="nav_create">New recipe</string>
 
-    <!-- Placeholder destinations, replaced as their features land -->
-    <string name="placeholder_connection_title">Connection</string>
-    <string name="placeholder_connection_body">Base URL and Access service token go here (FEAT-001).</string>
-    <string name="placeholder_library_title">Recipes</string>
-    <string name="placeholder_library_body">Your library goes here (FEAT-001).</string>
+    <!-- Library -->
+    <string name="search_placeholder">Search names and tags</string>
+    <string name="sort_name">Name A–Z</string>
+    <string name="sort_rating">Rating high–low</string>
+    <string name="sort_updated">Recently updated</string>
+    <string name="filter_rating">%1$d+</string>
+    <string name="count_narrowed">%1$d of %2$d</string>
+    <string name="rating_of_five">Rated %1$d out of 5</string>
+    <plurals name="count_total">
+        <item quantity="one">%1$d recipe</item>
+        <item quantity="other">%1$d recipes</item>
+    </plurals>
+
+    <string name="empty_library_title">No recipes yet</string>
+    <string name="empty_library_body">Keep your hand-tuned Fujifilm settings here instead of in screenshots and notes, then send them straight to a custom slot on your camera.</string>
+    <string name="action_create_recipe">Create a recipe</string>
+
+    <string name="no_matches_title">No recipes match</string>
+    <plurals name="no_matches_body">
+        <item quantity="one">%1$d recipe is in your library, but it does not match the current search and filters.</item>
+        <item quantity="other">%1$d recipes are in your library, but none match the current search and filters.</item>
+    </plurals>
+    <string name="action_clear_filters">Clear search and filters</string>
+    <string name="action_try_again">Try again</string>
+    <string name="action_open_connection">Connection settings</string>
+
+    <!-- Failures. Each names what failed and what to do — coding-standards P5. -->
+    <string name="snapshot_banner">Showing a saved copy of your library.</string>
+    <string name="snapshot_banner_dated">Showing a saved copy from %1$s.</string>
+
+    <string name="error_forbidden_title">Your credentials were refused</string>
+    <string name="error_forbidden_body">Cloudflare Access did not accept this service token. Check the client ID and secret in connection settings.</string>
+
+    <string name="error_access_unconfigured_title">The server is not ready</string>
+    <string name="error_access_unconfigured_body">The deployment has no Access gate configured, so it is refusing to serve the library. This is a server setting, not a problem with your token.</string>
+
+    <string name="error_storage_title">The library is temporarily unreachable</string>
+    <string name="error_storage_body">The server is up but its database is not answering. Nothing has been lost — this library is stored, not cached.</string>
+
+    <string name="error_network_title">No connection</string>
+    <string name="error_network_body">Your phone could not reach the server, and there is no saved copy of the library on this device yet.</string>
+
+    <string name="error_internal_title">The server failed</string>
+    <string name="error_internal_body">Something went wrong on the server.</string>
+    <string name="error_internal_body_with_id">Something went wrong on the server. Request ID %1$s — it identifies this failure in the server log.</string>
+
+    <string name="error_malformed_title">Unexpected answer</string>
+    <string name="error_malformed_body">The server\'s reply could not be read. If you are on public Wi-Fi, a sign-in page may be intercepting the request.</string>
+
+    <string name="error_unexpected_title">Something unexpected happened</string>
+    <string name="error_unexpected_body">The server answered in a way this version of the app does not recognise.</string>
+
+    <!-- Connection -->
+    <string name="connection_title">Connection</string>
+    <string name="connection_intro">Point the app at your recipe library. The service token is what gets past Cloudflare Access — create one in the Cloudflare dashboard and give its Access application a Service Auth policy.</string>
+    <string name="connection_base_url">Server address</string>
+    <string name="connection_base_url_hint">recipes.example.com</string>
+    <string name="connection_client_id">Access client ID</string>
+    <string name="connection_client_secret">Access client secret</string>
+    <string name="connection_show_secret">Show secret</string>
+    <string name="connection_hide_secret">Hide secret</string>
+    <string name="connection_test">Test connection</string>
+    <string name="connection_save">Save</string>
+    <string name="connection_testing">Testing…</string>
+    <string name="connection_ok">Connected. Found %1$d recipes.</string>
+    <string name="connection_incomplete">Fill in all three fields first.</string>
+
+    <!-- Placeholders, replaced as their features land -->
     <string name="placeholder_editor_title">Recipe</string>
     <string name="placeholder_editor_body">Create and edit go here (FEAT-002).</string>
     <string name="placeholder_more_title">More</string>

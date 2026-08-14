@@ -60,8 +60,8 @@ fun PlaceholderScreen(
 private fun PlaceholderScreenPreview() {
     FujiTheme {
         PlaceholderScreen(
-            titleRes = R.string.placeholder_library_title,
-            bodyRes = R.string.placeholder_library_body,
+            titleRes = R.string.placeholder_more_title,
+            bodyRes = R.string.placeholder_more_body,
             contentPadding = PaddingValues(0.dp),
         )
     }

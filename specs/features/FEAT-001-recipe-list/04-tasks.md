@@ -64,57 +64,63 @@ Auth policy admits it — `specs/roadmap.md` §4. T-01 to T-11 are testable with
 
 ## Connection screen
 
-- [ ] **T-12** — `ui/connection/ConnectionScreen.kt` + `ConnectionViewModel.kt`. Three
+- [x] **T-12** — `ui/connection/ConnectionScreen.kt` + `ConnectionViewModel.kt`. Three
       inputs, masked secret with a reveal toggle, save, and **Test connection** issuing
       `GET /api/recipes` — never `/api/health`. Outcome copy is per `ApiError` case
       (`coding-standards.md` P5). Include the regression test that a deployment with an
       ungated health route and a bad token still reports the credentials as refused.
-- [ ] **T-13** — Route the app to the connection screen on launch when settings are absent,
+- [x] **T-13** — Route the app to the connection screen on launch when settings are absent,
       and expose it from the list's overflow afterwards.
 
 ## List — pure logic first
 
-- [ ] **T-14** — `data/library/LibraryView.kt`. Pure, no Compose, no Android imports
+- [x] **T-14** — `data/library/LibraryView.kt`. Pure, no Compose, no Android imports
       (`coding-standards.md` P7). Port of `fuji-recipes-book/src/utils/library-view.ts`:
       `matchesSearch`, `matchesFilters`, `compareBy`, `selectRecipes`, plus the manual-order
       comparator (`sortKey` asc, `createdAt` asc) from `fuji-recipes-book/shared/ordering.ts`.
       The file already exists — T-09 put `SortId`, `LibraryFilters` and the repair rules in
       it — so this adds the pipeline to it rather than creating it.
-- [ ] **T-15** — Parity test suite for T-14, driven by plain lists. One test per scenario in
+- [x] **T-15** — Parity test suite for T-14, driven by plain lists. One test per scenario in
       the Search, Filters and Sorting sections of `03-behavior.feature`. **This is the
       highest-value suite in the feature** — it is what makes "parity with the web client" a
       checked claim rather than an asserted one.
 
 ## List — UI
 
-- [ ] **T-16** — `ui/library/FilmSimBadge.kt`. Circle, 1dp ring (`black 10%` light /
+- [x] **T-16** — `ui/library/FilmSimBadge.kt`. Circle, 1dp ring (`black 10%` light /
       `white 20%` dark), swatch fill, image over it with `ContentScale.Crop`. Unknown id →
       `#9CA3AF` fill and the raw id as the label. Preview for a known id, an image-less id,
       and an unknown id.
-- [ ] **T-17** — `ui/library/RecipeCard.kt` to the anatomy in `steering/design-system.md` §7.
+- [x] **T-17** — `ui/library/RecipeCard.kt` to the anatomy in `steering/design-system.md` §7.
       Rating pill omitted at 0; tag row omitted when empty, capped at 5 then `+n`;
       last-written line absent when the slot is null, `C{slot} · {d MMM yyyy}` otherwise,
       `Written to C{slot}` when the slot is known and the date is not. Overflow button is a
       48dp sibling of the click target, not nested. Date formatting takes an injected
       `Clock`/locale (`coding-standards.md` P6).
-- [ ] **T-18** — `ui/library/LibraryUiState.kt` and `LibraryViewModel.kt`. One `UiState`
+- [x] **T-18** — `ui/library/LibraryUiState.kt` and `LibraryViewModel.kt`. One `UiState`
       exposed as `StateFlow`; search held in the ViewModel only, filters and sort round-trip
       through `ViewPreferences`. Turbine test: search state is not persisted, filter and
       sort state is.
-- [ ] **T-19** — `ui/library/LibraryScreen.kt`. `LazyColumn`, the `n recipes` /
+- [x] **T-19** — `ui/library/LibraryScreen.kt`. `LazyColumn`, the `n recipes` /
       `n of m recipes` header, pull-to-refresh, `WindowInsets.safeDrawing`. Screen composable
       takes state and lambdas; a `LibraryRoute` does the `viewModel(factory = …)` wiring
       against `AppContainer`.
-- [ ] **T-20** — Search field and the filter/sort surface: tag chips, minimum-rating
+- [x] **T-20** — Search field and the filter/sort surface: tag chips, minimum-rating
       selector, film-simulation selector, three sort options, filter badge counting axes.
-- [ ] **T-21** — Every state from `01-functional.md` §24–§33 as a distinct rendering, each
+- [x] **T-21** — Every state from `01-functional.md` §24–§33 as a distinct rendering, each
       with a `@Preview`: loading-cold (skeletons), loading-warm, empty library, no matches,
       offline-with-snapshot banner, offline-no-snapshot, `forbidden`, `access_unconfigured`,
       `storage_unavailable`, `internal` with request id. Strings in `strings.xml`.
-- [ ] **T-22** — Card tap navigates to the recipe editor route. Until FEAT-002 lands this is
+- [x] **T-22** — Card tap navigates to the recipe editor route. Until FEAT-002 lands this is
       a placeholder destination; the navigation contract is what this task fixes.
 
 ## Verification
+
+**Verified on an emulator against a local mock of `/api/recipes`** (10 recipes, one carrying
+an unknown `filmSimulation` and an unknown top-level key): the library lists, search narrows
+to `3 of 10` on "portra", "Portra 2" sorts before "Portra 10", the unknown simulation draws
+the fallback swatch with its raw id, tag overflow shows `+1`, and the written line renders
+both `C5 · 18 Jun 2026` and `Written to C1`. Two fixes came out of it — see the notes below.
 
 - [ ] **T-23** — Compose UI tests covering the state scenarios in `03-behavior.feature`:
       each of the ten states renders its own distinguishable content, and 403 in particular
@@ -129,3 +135,21 @@ Auth policy admits it — `specs/roadmap.md` §4. T-01 to T-11 are testable with
       `MockWebServer` cannot prove either.*
 - [ ] **T-26** — `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug` green,
       and every scenario in `03-behavior.feature` maps to a test or to T-25.
+
+---
+
+## Notes from implementation
+
+Two things the on-device run turned up that the unit tests could not:
+
+- **Cleartext HTTP is blocked**, so a local mock is unreachable without a network security
+  config. Added as `app/src/debug/` only — release keeps the default block, and the real
+  deployment is HTTPS behind Access, so this is a development affordance and not a
+  loosening of the shipped app.
+- **The centre-docked FAB covered the last card.** The list now carries an 88dp bottom
+  content inset. Unit tests cannot see this and neither can a preview that is taller than
+  the content.
+
+Still open in this feature: T-23 (Compose UI state tests), T-24 (the forward-compatibility
+round trip as an automated test rather than the manual observation above), T-25 (the manual
+check against the real deployment, which needs the Access service token).

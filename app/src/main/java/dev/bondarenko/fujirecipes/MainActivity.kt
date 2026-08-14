@@ -5,7 +5,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -20,18 +24,37 @@ import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        val splash = installSplashScreen()
         // Mandatory on Android 15+ regardless, so it is done deliberately here rather than
-        // discovered in a release build (`coding-standards.md`, Compose conventions).
+        // discovered in a release build.
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        setContent { FujiApp() }
+        var startDestination by mutableStateOf<Any?>(null)
+
+        // The splash stays up until the stored connection has been read, because the
+        // alternative is showing the library for one frame and replacing it with setup —
+        // which reads as the app losing the library rather than never having had one.
+        splash.setKeepOnScreenCondition { startDestination == null }
+
+        setContent {
+            val container = (application as FujiRecipesApp).container
+
+            LaunchedEffect(Unit) {
+                startDestination = if (container.connectionSettings.current().isConfigured) {
+                    LibraryRoute
+                } else {
+                    ConnectionRoute
+                }
+            }
+
+            startDestination?.let { FujiApp(it) }
+        }
     }
 }
 
 @Composable
-private fun FujiApp() {
+private fun FujiApp(startDestination: Any) {
     FujiTheme {
         val navController = rememberNavController()
         val backStackEntry by navController.currentBackStackEntryAsState()
@@ -56,16 +79,12 @@ private fun FujiApp() {
                     launchSingleTop = true
                 }
             },
-            onMoreClick = {
-                navController.navigate(MoreRoute) { launchSingleTop = true }
-            },
+            onMoreClick = { navController.navigate(MoreRoute) { launchSingleTop = true } },
             onCreateClick = { navController.navigate(RecipeEditorRoute(id = null)) },
         ) { contentPadding ->
             FujiNavHost(
                 navController = navController,
-                // FEAT-001 T-13 replaces this with "connection first when unconfigured".
-                // Until settings exist there is nothing to branch on.
-                startDestination = LibraryRoute,
+                startDestination = startDestination,
                 contentPadding = contentPadding,
             )
         }
