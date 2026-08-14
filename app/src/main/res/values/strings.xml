@@ -40,8 +40,7 @@
     <string name="action_open_connection">Connection settings</string>
 
     <!-- Failures. Each names what failed and what to do — coding-standards P5. -->
-    <string name="snapshot_banner">Showing a saved copy of your library.</string>
-    <string name="snapshot_banner_dated">Showing a saved copy from %1$s.</string>
+    <string name="last_updated">Last updated %1$s</string>
 
     <string name="error_forbidden_title">Your credentials were refused</string>
     <string name="error_forbidden_body">Cloudflare Access did not accept this service token. Check the client ID and secret in connection settings.</string>

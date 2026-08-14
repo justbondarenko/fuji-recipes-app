@@ -31,7 +31,7 @@ data class LibraryUiState(
     val isRefreshing: Boolean = false,
     val hasLoaded: Boolean = false,
     val error: ApiError? = null,
-    val servedFromSnapshotAt: String? = null,
+    val lastUpdatedAt: String? = null,
     /** Every tag in the library, for the filter surface. */
     val availableTags: List<String> = emptyList(),
     /** Every simulation actually in use, so the filter never offers an empty result. */
@@ -47,8 +47,8 @@ data class LibraryUiState(
     /**
      * An error that has taken the screen, as opposed to one shown over a usable library.
      *
-     * The distinction is the whole offline story: with recipes on screen a failure is a
-     * banner, and with nothing on screen it is the screen.
+     * The distinction is the whole offline story: with recipes on screen a failed refresh
+     * is left to the footer's timestamp, and with nothing on screen it takes the screen.
      */
     val isBlockingError: Boolean get() = error != null && totalCount == 0
 }
@@ -91,7 +91,7 @@ class LibraryViewModel(
                 isRefreshing = library.isRefreshing,
                 hasLoaded = library.hasLoaded,
                 error = library.error,
-                servedFromSnapshotAt = library.servedFromSnapshotAt,
+                lastUpdatedAt = library.lastUpdatedAt,
                 availableTags = library.recipes.flatMap { it.tags }.distinct().sorted(),
                 availableSimulations = library.recipes
                     .mapNotNull { it.filmSimulationId }

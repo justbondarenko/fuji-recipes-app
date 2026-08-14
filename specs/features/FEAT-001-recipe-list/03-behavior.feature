@@ -244,7 +244,13 @@ Feature: Recipe list
     And the device has no network connection
     When I open the app
     Then my library is listed
-    And I am told I am seeing a copy and when it was taken
+    And the end of the list says when it was last updated
+
+  Scenario: A freshly refreshed library also reports when it was updated
+    Given a configured connection and a reachable server
+    When the list loads successfully
+    Then the end of the list says when it was last updated
+    And no warning is shown about the library being cached
 
   Scenario: The cached list appears before the refresh completes
     Given a snapshot from an earlier successful fetch

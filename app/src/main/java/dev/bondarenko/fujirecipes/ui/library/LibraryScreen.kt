@@ -84,10 +84,6 @@ fun LibraryScreen(
                 }
             }
 
-            if (state.servedFromSnapshotAt != null) {
-                item { SnapshotBanner(state.servedFromSnapshotAt) }
-            }
-
             when {
                 // Nothing on screen and a failure: the error *is* the screen. Crucially a
                 // 403 lands here rather than rendering as an empty library.
@@ -137,6 +133,12 @@ fun LibraryScreen(
                     } else {
                         items(state.visible, key = { it.id }) { recipe ->
                             RecipeCard(recipe, onClick = { onOpenRecipe(recipe.id) })
+                        }
+
+                        // Last line of the list, not a banner at the top: it answers a
+                        // question you only ask once you are already looking.
+                        state.lastUpdatedAt?.let { updatedAt ->
+                            item { LastUpdatedFooter(updatedAt) }
                         }
                     }
                 }

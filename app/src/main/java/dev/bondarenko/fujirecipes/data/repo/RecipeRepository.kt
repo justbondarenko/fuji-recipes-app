@@ -32,8 +32,15 @@ data class LibraryState(
     val isRefreshing: Boolean = false,
     /** The most recent refresh failure, or null if the last one succeeded. */
     val error: ApiError? = null,
-    /** When [recipes] were fetched, if they came from the snapshot. Null once refreshed. */
-    val servedFromSnapshotAt: String? = null,
+    /**
+     * When these recipes were fetched — from the network just now, or from the snapshot on
+     * a cold start.
+     *
+     * One field rather than a separate "this is stale" flag: the list shows the time either
+     * way and lets the reader judge. A three-minute-old copy and a three-day-old one are
+     * both "cached", and only one of them is worth doing something about.
+     */
+    val lastUpdatedAt: String? = null,
     /** False until the first read of either source completes — the difference between an
      *  empty library and one that has not loaded yet. */
     val hasLoaded: Boolean = false,

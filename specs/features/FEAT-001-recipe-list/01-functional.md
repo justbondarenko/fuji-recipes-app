@@ -102,8 +102,14 @@ feature reuses.
 26. **Empty library** — headline, one line of copy, and a **Create a recipe** action.
 27. **Narrowed to nothing** — states how many recipes are in the library and offers
     **Clear search and filters**.
-28. **Offline with a snapshot** — the list renders, with a dismissible banner saying the
-    library is showing a cached copy and when it was taken.
+28. **Offline with a snapshot** — the list renders normally. Freshness is reported by a
+    quiet **"Last updated <date>, <time>"** line at the *end* of the list, in muted body
+    text with no container.
+
+    Deliberately not a banner at the top: a cached library is the normal state in the field,
+    not a warning, and colouring it like one trains the reader to ignore colour that does
+    mean something. The same line shows after a successful refresh — one timestamp, always
+    present, saying how fresh the library is rather than announcing a failure mode.
 29. **Offline with no snapshot** — an error state with a retry, naming the network as the
     problem.
 30. **Refused (403 `forbidden`)** — names the credentials as the problem and offers a route

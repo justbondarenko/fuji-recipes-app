@@ -24,6 +24,21 @@ object LastWritten {
     }
 
     /**
+     * `14 Aug 2026, 10:43`, for the library's own freshness.
+     *
+     * Date *and* time, unlike a slot write: a refresh is usually minutes old, and a bare
+     * date on something from ten seconds ago reads as staler than it is.
+     */
+    fun updatedAt(iso: String, locale: Locale = Locale.getDefault()): String? = runCatching {
+        val parsed = isoParser().parse(iso) ?: return null
+        SimpleDateFormat("d MMM yyyy, HH:mm", locale).format(parsed)
+    }.getOrNull()
+
+    private fun isoParser() =
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
+            .apply { timeZone = TimeZone.getTimeZone("UTC") }
+
+    /**
      * `12 Aug 2026`, or null if the timestamp cannot be read.
      *
      * A null on a bad date rather than a substituted "now": the server refuses to invent a
@@ -31,9 +46,7 @@ object LastWritten {
      * mistake one layer up. The caller degrades to "Written to C3", which is still true.
      */
     private fun formatDate(iso: String, locale: Locale): String? = runCatching {
-        val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
-            .apply { timeZone = TimeZone.getTimeZone("UTC") }
-        val parsed = parser.parse(iso) ?: return null
+        val parsed = isoParser().parse(iso) ?: return null
         SimpleDateFormat("d MMM yyyy", locale).format(parsed)
     }.getOrNull()
 }

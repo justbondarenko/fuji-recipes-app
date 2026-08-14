@@ -53,7 +53,7 @@ class NetworkRecipeRepository(
                     state.update {
                         it.copy(
                             recipes = snapshot.recipes,
-                            servedFromSnapshotAt = snapshot.fetchedAt,
+                            lastUpdatedAt = snapshot.fetchedAt,
                             hasLoaded = true,
                         )
                     }
@@ -75,7 +75,7 @@ class NetworkRecipeRepository(
                             recipes = result.value.recipes,
                             isRefreshing = false,
                             error = null,
-                            servedFromSnapshotAt = null,
+                            lastUpdatedAt = fetchedAt,
                             hasLoaded = true,
                         )
                     }

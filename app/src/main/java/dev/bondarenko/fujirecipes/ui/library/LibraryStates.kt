@@ -211,24 +211,6 @@ fun LibraryErrorPanel(
     )
 }
 
-/** The cached-copy banner: a library on screen, with a note about where it came from. */
-@Composable
-fun SnapshotBanner(fetchedAt: String, modifier: Modifier = Modifier) {
-    val date = LastWritten.line(slot = 1, at = fetchedAt)?.substringAfter("· ")
-
-    Text(
-        text = date?.let { stringResource(R.string.snapshot_banner_dated, it) }
-            ?: stringResource(R.string.snapshot_banner),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onTertiaryContainer,
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.small)
-            .background(MaterialTheme.colorScheme.tertiaryContainer)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-    )
-}
-
 @Preview(name = "States — light", showBackground = true, heightDp = 900)
 @Preview(name = "States — dark", showBackground = true, uiMode = 0x20, heightDp = 900)
 @Composable
@@ -238,7 +220,6 @@ private fun LibraryStatesPreview() {
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            SnapshotBanner("2026-08-13T20:00:00.000Z")
             LibraryErrorPanel(
                 ApiError.Forbidden("This token was not accepted."),
                 onRetry = {},
@@ -255,4 +236,25 @@ private fun LibraryStatesPreview() {
             LibraryLoading()
         }
     }
+}
+
+/**
+ * When the library was last fetched — the last line of the list.
+ *
+ * **Quiet on purpose.** This replaced a tertiary-coloured banner at the top of the screen,
+ * which used alarm styling to report that everything was fine: a cached library is the
+ * normal state in the field, not a warning. A date at the end of the list is where you look
+ * when you are already wondering how fresh this is, and invisible when you are not.
+ */
+@Composable
+fun LastUpdatedFooter(updatedAt: String, modifier: Modifier = Modifier) {
+    val formatted = LastWritten.updatedAt(updatedAt) ?: return
+
+    Text(
+        text = stringResource(R.string.last_updated, formatted),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp),
+    )
 }

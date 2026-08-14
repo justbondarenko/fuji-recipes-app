@@ -106,8 +106,8 @@ class NetworkRecipeRepositoryTest {
         val state = repository.library.value
         assertEquals(2, state.recipes.size)
         assertIs<ApiError.Network>(state.error)
-        // The banner needs to say *when* the copy was taken, or "cached" is meaningless.
-        assertEquals("2026-08-13T20:00:00.000Z", state.servedFromSnapshotAt)
+        // The footer needs to say *when*, or "last updated" is meaningless.
+        assertEquals("2026-08-13T20:00:00.000Z", state.lastUpdatedAt)
     }
 
     @Test
@@ -184,8 +184,8 @@ class NetworkRecipeRepositoryTest {
         repository.refresh()
 
         assertNull(repository.library.value.error)
-        // No longer a cached copy, so the offline banner must come down.
-        assertNull(repository.library.value.servedFromSnapshotAt)
+        // The footer now reports the fresh fetch, not the copy it replaced.
+        assertEquals("2026-08-14T09:31:04.221Z", repository.library.value.lastUpdatedAt)
     }
 
     @Test
