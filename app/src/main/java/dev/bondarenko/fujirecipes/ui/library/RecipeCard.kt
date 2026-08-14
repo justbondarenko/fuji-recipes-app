@@ -8,12 +8,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -41,7 +42,11 @@ data class RecipeCardModel(
 /**
  * One row of the library — FEAT-001 T-17.
  *
- * Built using Material 3's official `ListItem` component as intended by the framework.
+ * Designed according to Material 3 Expressive best practices:
+ * - Balanced 16dp / 14dp padding all around
+ * - Circular avatar badge with no corner artifacts
+ * - Clear typographic hierarchy (titleMedium SemiBold + bodySmall)
+ * - Vertically centered rating pill and tags
  *
  * Omission rules:
  * - rating 0 shows **no** pill, not a zero
@@ -53,50 +58,53 @@ fun RecipeCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    ListItem(
-        headlineContent = {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(cardColor())
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        FilmSimBadge(
+            simulationId = recipe.filmSimulationId,
+            size = 48.dp,
+            shape = CircleShape,
+        )
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
             Text(
                 text = recipe.name,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                ),
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-        },
-        supportingContent = {
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(
-                    text = FilmSimulations.labelFor(recipe.filmSimulationId),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (recipe.tags.isNotEmpty()) {
-                    TagRow(recipe.tags, modifier = Modifier.padding(top = 2.dp))
-                }
-            }
-        },
-        leadingContent = {
-            FilmSimBadge(
-                simulationId = recipe.filmSimulationId,
-                size = 56.dp,
-                shape = RoundedCornerShape(12.dp),
+
+            Text(
+                text = FilmSimulations.labelFor(recipe.filmSimulationId),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-        },
-        trailingContent = {
-            if (recipe.rating > 0) {
-                RatingPill(recipe.rating)
+
+            if (recipe.tags.isNotEmpty()) {
+                TagRow(recipe.tags, modifier = Modifier.padding(top = 2.dp))
             }
-        },
-        colors = ListItemDefaults.colors(
-            containerColor = cardColor(),
-        ),
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .clickable(onClick = onClick),
-    )
+        }
+
+        if (recipe.rating > 0) {
+            RatingBadge(recipe.rating)
+        }
+    }
 }
 
 /** Cards sit one step off the page, and the step is not symmetrical between schemes. */
@@ -109,28 +117,29 @@ private fun cardColor() =
     }
 
 @Composable
-private fun RatingPill(rating: Int) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(MaterialTheme.colorScheme.tertiaryContainer)
-            .padding(horizontal = 8.dp, vertical = 2.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-        verticalAlignment = Alignment.CenterVertically,
+private fun RatingBadge(
+    rating: Int,
+    modifier: Modifier = Modifier,
+) {
+    Badge(
+        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        modifier = modifier,
     ) {
         Text(
             text = rating.toString(),
-            style = MaterialTheme.typography.labelMedium.copy(
-                // Tabular, so the pill does not change width between a 1 and a 4.
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.Bold,
                 fontFeatureSettings = TabularFigures,
             ),
-            color = MaterialTheme.colorScheme.onTertiaryContainer,
         )
         Icon(
             imageVector = Icons.Filled.Star,
             contentDescription = stringResource(R.string.rating_of_five, rating),
-            tint = MaterialTheme.colorScheme.tertiary,
-            modifier = Modifier.size(12.dp),
+            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+            modifier = Modifier
+                .padding(start = 2.dp)
+                .size(11.dp),
         )
     }
 }
@@ -156,7 +165,7 @@ private const val MAX_VISIBLE_TAGS = 5
 private fun TagChip(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.labelMedium,
+        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
         color = MaterialTheme.colorScheme.onSecondaryContainer,
         maxLines = 1,
         modifier = Modifier
