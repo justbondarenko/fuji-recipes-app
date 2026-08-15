@@ -21,7 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -47,6 +46,7 @@ import dev.bondarenko.fujirecipes.data.photo.MatchResult
 import dev.bondarenko.fujirecipes.data.photo.PhotoReadFailure
 import dev.bondarenko.fujirecipes.data.photo.PhotoRecipe
 import dev.bondarenko.fujirecipes.data.photo.RecipeMatch
+import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
 import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
@@ -183,7 +183,7 @@ private fun ReadingPhotoState(modifier: Modifier = Modifier) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            CircularProgressIndicator(modifier = Modifier.size(36.dp))
+            FujiLoadingIndicator(size = 36.dp)
             Text(
                 text = stringResource(R.string.photo_reading),
                 style = MaterialTheme.typography.bodyLarge,

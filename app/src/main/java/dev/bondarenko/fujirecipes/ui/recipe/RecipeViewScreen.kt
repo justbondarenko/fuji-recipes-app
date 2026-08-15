@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,28 +27,35 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -79,6 +88,7 @@ import dev.bondarenko.fujirecipes.ui.camera.WriteSheetHost
 import dev.bondarenko.fujirecipes.data.fields.FieldFormatting
 import dev.bondarenko.fujirecipes.data.fields.FieldGroup
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
+import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
 import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.common.errorMessageFor
 import dev.bondarenko.fujirecipes.ui.editor.RatingInput
@@ -176,24 +186,6 @@ fun RecipeViewScreen(
                     )
                 }
             },
-            actions = {
-                if (state.recipe != null) {
-                    FilledTonalIconButton(
-                        onClick = onEdit,
-                        shape = RoundedCornerShape(percent = 50),
-                        modifier = Modifier
-                            .padding(end = 8.dp)
-                            .width(36.dp)
-                            .height(48.dp),
-                    ) {
-                        Icon(
-                            Icons.Filled.Edit,
-                            contentDescription = stringResource(R.string.action_edit),
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                }
-            },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = MaterialTheme.colorScheme.surface,
                 titleContentColor = MaterialTheme.colorScheme.onSurface,
@@ -215,7 +207,8 @@ fun RecipeViewScreen(
 }
 
 /**
- * Shared Recipe View Content containing the Hero Card and Bento Grid parameters.
+ * Shared Recipe View Content containing the Hero Card, Bento Grid parameters,
+ * and the consolidated floating action toolbar + Write to Camera FAB.
  */
 @Composable
 fun RecipeViewContent(
@@ -238,7 +231,7 @@ fun RecipeViewContent(
                     .height(280.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator()
+                FujiLoadingIndicator()
             }
         }
 
@@ -253,17 +246,131 @@ fun RecipeViewContent(
         }
 
         else -> {
-            RecipeBentoBody(
-                state = state,
-                onEdit = onEdit,
-                onChangedOnlyChange = onChangedOnlyChange,
-                onRatingChange = onRatingChange,
-                onTagsChange = onTagsChange,
-                onWriteToCamera = onWriteToCamera,
-                canWriteToCamera = canWriteToCamera,
-                onExportRecipe = onExportRecipe,
-                modifier = modifier,
-            )
+            val recipe = state.recipe
+            Box(modifier = modifier.fillMaxSize()) {
+                RecipeBentoBody(
+                    state = state,
+                    onChangedOnlyChange = onChangedOnlyChange,
+                    onRatingChange = onRatingChange,
+                    onTagsChange = onTagsChange,
+                    modifier = Modifier.fillMaxSize(),
+                )
+
+                if (recipe != null) {
+                    RecipeFloatingToolbar(
+                        recipe = recipe,
+                        groups = state.groups,
+                        onEdit = onEdit,
+                        onExportRecipe = onExportRecipe,
+                        onWriteToCamera = onWriteToCamera,
+                        canWriteToCamera = canWriteToCamera,
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Consolidated floating actions: Floating Toolbar (Edit, Copy as text, Export)
+ * and adjacent FAB (Write to camera).
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun RecipeFloatingToolbar(
+    recipe: RecipeHeader,
+    groups: List<SettingsGroup>,
+    onEdit: () -> Unit,
+    onExportRecipe: () -> Unit,
+    onWriteToCamera: () -> Unit,
+    canWriteToCamera: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    val copiedMessage = stringResource(R.string.recipe_copied)
+    val tooltipState = rememberTooltipState(isPersistent = true)
+    val coroutineScope = rememberCoroutineScope()
+
+    Row(
+        modifier = modifier
+            .padding(horizontal = 16.dp, vertical = 16.dp)
+            .navigationBarsPadding(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        HorizontalFloatingToolbar(expanded = true) {
+            IconButton(onClick = onEdit) {
+                Icon(
+                    imageVector = Icons.Filled.Edit,
+                    contentDescription = stringResource(R.string.action_edit),
+                )
+            }
+
+            IconButton(
+                onClick = {
+                    val text = RecipeTextFormatter.format(recipe, groups)
+                    clipboardManager.setText(AnnotatedString(text))
+                    Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
+                },
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_content_copy),
+                    contentDescription = stringResource(R.string.action_copy_recipe),
+                )
+            }
+
+            IconButton(onClick = onExportRecipe) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_cloud_sync),
+                    contentDescription = stringResource(R.string.action_export_recipe),
+                )
+            }
+        }
+
+        TooltipBox(
+            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+            tooltip = {
+                PlainTooltip {
+                    Text(stringResource(R.string.camera_not_connected_tooltip))
+                }
+            },
+            state = tooltipState,
+        ) {
+            FloatingActionButton(
+                onClick = {
+                    if (canWriteToCamera) {
+                        onWriteToCamera()
+                    } else {
+                        coroutineScope.launch {
+                            tooltipState.show()
+                        }
+                    }
+                },
+                shape = RoundedCornerShape(16.dp),
+                containerColor = if (canWriteToCamera) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                },
+                contentColor = if (canWriteToCamera) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                },
+                elevation = FloatingActionButtonDefaults.elevation(
+                    defaultElevation = 3.dp,
+                    pressedElevation = 6.dp,
+                ),
+                modifier = Modifier.size(56.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_photo_camera),
+                    contentDescription = stringResource(R.string.action_write_to_camera),
+                    modifier = Modifier.size(24.dp),
+                )
+            }
         }
     }
 }
@@ -274,32 +381,24 @@ fun RecipeViewContent(
 @Composable
 private fun RecipeBentoBody(
     state: RecipeViewUiState,
-    onEdit: () -> Unit,
     onChangedOnlyChange: (Boolean) -> Unit,
     onRatingChange: (Int) -> Unit,
     onTagsChange: (List<String>) -> Unit,
-    onWriteToCamera: () -> Unit,
-    canWriteToCamera: Boolean,
-    onExportRecipe: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val recipe = state.recipe ?: return
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 36.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         // Hero Header Card
         item {
             RecipeHeaderBlock(
                 recipe = recipe,
-                onEdit = onEdit,
                 onRatingChange = onRatingChange,
                 onTagsChange = onTagsChange,
-                onWriteToCamera = onWriteToCamera,
-                canWriteToCamera = canWriteToCamera,
-                onExportRecipe = onExportRecipe,
             )
         }
 
@@ -361,80 +460,19 @@ private fun RecipeBentoBody(
                 BentoNotesCard(recipe.notes)
             }
         }
-
-        // Copy recipe as text action button at the very bottom
-        item {
-            val context = LocalContext.current
-            val clipboardManager = LocalClipboardManager.current
-            val copiedMessage = stringResource(R.string.recipe_copied)
-
-            OutlinedButton(
-                onClick = {
-                    val text = RecipeTextFormatter.format(recipe, state.groups)
-                    clipboardManager.setText(AnnotatedString(text))
-                    Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_content_copy),
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.action_copy_recipe),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-            }
-        }
-
-        /**
-         * Export this one — FEAT-008 T-14.
-         *
-         * Beside "copy as text" because they answer the same question in two registers: text
-         * for a message someone reads, a file for an app that will import it.
-         */
-        item {
-            OutlinedButton(
-                onClick = onExportRecipe,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_cloud_sync),
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.action_export_recipe),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-            }
-        }
     }
 }
 
 /**
- * Header card containing recipe thumbnail, name, simulation, rating, tags, and actions
+ * Header card containing recipe thumbnail, name, simulation, rating, and tags
  * with a blurred film simulation frosted glass background.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RecipeHeaderBlock(
     recipe: RecipeHeader,
-    onEdit: () -> Unit,
     onRatingChange: (Int) -> Unit,
     onTagsChange: (List<String>) -> Unit,
-    onWriteToCamera: () -> Unit,
-    canWriteToCamera: Boolean,
-    onExportRecipe: () -> Unit,
 ) {
     val sim = FilmSimulations.byId(recipe.filmSimulationId)
     val shape = RoundedCornerShape(20.dp)
@@ -481,7 +519,7 @@ private fun RecipeHeaderBlock(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -511,49 +549,11 @@ private fun RecipeHeaderBlock(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-
-                    FilledTonalIconButton(
-                        onClick = onEdit,
-                        shape = RoundedCornerShape(percent = 50),
-                        modifier = Modifier
-                            .width(36.dp)
-                            .height(48.dp),
-                    ) {
-                        Icon(
-                            Icons.Filled.Edit,
-                            contentDescription = stringResource(R.string.action_edit),
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
                 }
 
                 RatingInput(rating = recipe.rating, onRatingChange = onRatingChange)
 
                 TagInput(tags = recipe.tags, onTagsChange = onTagsChange)
-
-                /**
-                 * The write action — FEAT-006 T-13.
-                 *
-                 * Disabled rather than hidden: the recipe screen is where someone goes *to*
-                 * write, and a button that has quietly vanished reads as a missing feature
-                 * rather than as a camera that is not plugged in. The reason lives one place
-                 * up — the shell's camera chip names the state and its sheet explains it,
-                 * which keeps one answer to "why can I not write" rather than two.
-                 */
-                Button(
-                    onClick = onWriteToCamera,
-                    enabled = canWriteToCamera,
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_photo_camera),
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.action_write_to_camera))
-                }
             }
         }
     }

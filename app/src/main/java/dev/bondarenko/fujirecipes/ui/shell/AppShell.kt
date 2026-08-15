@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.defaultMinSize
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,12 +37,16 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -73,6 +79,7 @@ import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
  * The right FAB is a Material 3 FAB menu (https://m3.material.io/components/fab-menu/overview):
  * there are two ways to start a recipe now — from pasted text, or from an empty form.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AppShell(
     showChrome: Boolean,
@@ -168,46 +175,33 @@ fun AppShell(
             }
 
             // Center: Material 3 Floating Navigation Toolbar (fixed at bottom-center)
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                tonalElevation = 3.dp,
-                shadowElevation = 4.dp,
+            HorizontalFloatingToolbar(
+                expanded = true,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = systemBars.calculateBottomPadding() + BarMargin)
-                    .height(56.dp),
+                    .padding(bottom = systemBars.calculateBottomPadding() + BarMargin),
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .animateContentSize()
-                        .padding(horizontal = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    FloatingToolbarItem(
-                        selected = isLibrarySelected,
-                        icon = rememberVectorPainter(Icons.AutoMirrored.Filled.List),
-                        label = stringResource(R.string.nav_library),
-                        contentDescription = stringResource(R.string.nav_library),
-                        onClick = onLibraryClick,
-                    )
-                    FloatingToolbarItem(
-                        selected = isReadSelected,
-                        icon = painterResource(R.drawable.ic_photo_camera),
-                        label = stringResource(R.string.nav_read),
-                        contentDescription = stringResource(R.string.nav_read),
-                        onClick = onReadClick,
-                    )
-                    FloatingToolbarItem(
-                        selected = isMoreSelected,
-                        icon = rememberVectorPainter(Icons.Filled.Settings),
-                        label = stringResource(R.string.nav_more),
-                        contentDescription = stringResource(R.string.nav_more),
-                        onClick = onMoreClick,
-                    )
-                }
+                FloatingToolbarItem(
+                    selected = isLibrarySelected,
+                    icon = rememberVectorPainter(Icons.AutoMirrored.Filled.List),
+                    label = stringResource(R.string.nav_library),
+                    contentDescription = stringResource(R.string.nav_library),
+                    onClick = onLibraryClick,
+                )
+                FloatingToolbarItem(
+                    selected = isReadSelected,
+                    icon = painterResource(R.drawable.ic_photo_camera),
+                    label = stringResource(R.string.nav_read),
+                    contentDescription = stringResource(R.string.nav_read),
+                    onClick = onReadClick,
+                )
+                FloatingToolbarItem(
+                    selected = isMoreSelected,
+                    icon = rememberVectorPainter(Icons.Filled.Settings),
+                    label = stringResource(R.string.nav_more),
+                    contentDescription = stringResource(R.string.nav_more),
+                    onClick = onMoreClick,
+                )
             }
 
             // Right FAB: the create menu (fixed in bottom-right corner)
@@ -341,8 +335,12 @@ private fun CreateFabMenuItem(
 
 /**
  * Individual item inside the Material 3 Floating Toolbar.
- * When selected, expands into a pill displaying both icon and text label with secondaryContainer tonal background.
+ *
+ * A thin adapter over `ToggleButton` — the shape morph on selection, the press physics and
+ * the container/content colour roles all come from M3 Expressive now. The only thing left
+ * here is the icon-plus-label-when-selected arrangement, which is this app's choice.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun FloatingToolbarItem(
     selected: Boolean,
@@ -351,45 +349,24 @@ private fun FloatingToolbarItem(
     contentDescription: String,
     onClick: () -> Unit,
 ) {
-    Box(
-        modifier = Modifier
-            .height(44.dp)
-            .defaultMinSize(minWidth = 44.dp)
-            .clip(CircleShape)
-            .background(
-                if (selected) MaterialTheme.colorScheme.secondaryContainer
-                else Color.Transparent,
-            )
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = ripple(bounded = true),
-                onClick = onClick,
-            )
-            .padding(horizontal = if (selected) 16.dp else 11.dp)
-            .animateContentSize(),
-        contentAlignment = Alignment.Center,
+    ToggleButton(
+        checked = selected,
+        onCheckedChange = { onClick() },
+        colors = ToggleButtonDefaults.toggleButtonColors(
+            containerColor = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+            checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        ),
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                painter = icon,
-                contentDescription = contentDescription,
-                tint = if (selected) {
-                    MaterialTheme.colorScheme.onSecondaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                modifier = Modifier.size(22.dp),
-            )
-            if (selected) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-            }
+        Icon(
+            painter = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(ToggleButtonDefaults.IconSize),
+        )
+        if (selected) {
+            Spacer(Modifier.width(ToggleButtonDefaults.IconSpacing))
+            Text(text = label, style = MaterialTheme.typography.labelLarge)
         }
     }
 }

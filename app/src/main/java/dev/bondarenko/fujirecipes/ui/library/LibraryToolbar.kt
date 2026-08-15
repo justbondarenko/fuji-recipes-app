@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -30,7 +31,9 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Badge
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -40,6 +43,8 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -404,6 +409,7 @@ private fun FiltersSheet(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun RatingButtonGroup(
     selectedRating: Int,
@@ -434,91 +440,45 @@ private fun RatingButtonGroup(
         val count = 5
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             (1..5).forEachIndexed { index, rating ->
                 val selected = selectedRating == rating
 
-                // M3 Expressive morphing corner radii
-                val topStart = if (selected || index == 0) 24.dp else 8.dp
-                val bottomStart = if (selected || index == 0) 24.dp else 8.dp
-                val topEnd = if (selected || index == count - 1) 24.dp else 8.dp
-                val bottomEnd = if (selected || index == count - 1) 24.dp else 8.dp
-
-                val animTopStart by animateDpAsState(targetValue = topStart, label = "topStart")
-                val animBottomStart by animateDpAsState(targetValue = bottomStart, label = "bottomStart")
-                val animTopEnd by animateDpAsState(targetValue = topEnd, label = "topEnd")
-                val animBottomEnd by animateDpAsState(targetValue = bottomEnd, label = "bottomEnd")
-
-                val shape = RoundedCornerShape(
-                    topStart = animTopStart,
-                    bottomStart = animBottomStart,
-                    topEnd = animTopEnd,
-                    bottomEnd = animBottomEnd,
-                )
-
-                val targetContainerColor = if (selected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHighest
-                }
-                val containerColor by animateColorAsState(
-                    targetValue = targetContainerColor,
-                    label = "containerColor",
-                )
-
-                val targetContentColor = if (selected) {
-                    MaterialTheme.colorScheme.onPrimary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-                val contentColor by animateColorAsState(
-                    targetValue = targetContentColor,
-                    label = "contentColor",
-                )
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                        .clip(shape)
-                        .background(containerColor)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(),
-                        ) {
-                            onRatingChange(if (selected) 0 else rating)
-                        },
-                    contentAlignment = Alignment.Center,
+                ToggleButton(
+                    checked = selected,
+                    // Tapping the selected rating clears the filter, so this is not a plain
+                    // toggle — the group is single-choice with an off state.
+                    onCheckedChange = { onRatingChange(if (selected) 0 else rating) },
+                    modifier = Modifier.weight(1f),
+                    shapes = when (index) {
+                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                        count - 1 -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                    },
+                    // The sheet already sits on a light container, so ToggleButton's default
+                    // unchecked tone disappears into it. These are the roles the group had
+                    // before the swap.
+                    colors = ToggleButtonDefaults.toggleButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        checkedContainerColor = MaterialTheme.colorScheme.primary,
+                        checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.padding(horizontal = 4.dp),
-                    ) {
-                        if (selected) {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = contentColor,
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Filled.Star,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = contentColor.copy(alpha = 0.6f),
-                            )
-                        }
-                        Text(
-                            text = rating.toString(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = contentColor,
-                            maxLines = 1,
-                        )
-                    }
+                    Icon(
+                        imageVector = if (selected) Icons.Filled.Check else Icons.Filled.Star,
+                        contentDescription = null,
+                        modifier = Modifier.size(ToggleButtonDefaults.IconSize),
+                    )
+                    Spacer(Modifier.width(ToggleButtonDefaults.IconSpacing))
+                    Text(
+                        text = rating.toString(),
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                    )
                 }
             }
         }

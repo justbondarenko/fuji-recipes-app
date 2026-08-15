@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -27,13 +29,16 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
@@ -41,8 +46,11 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -279,6 +287,7 @@ fun EnumDropdown(
  * A Material 3 Expressive connected single-choice button group for enum fields with
  * a small set of options (e.g. Dynamic Range, Grain, Color Chrome) placed below the label.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun EnumButtonGroup(
     field: EnumFieldDef,
@@ -303,87 +312,47 @@ fun EnumButtonGroup(
             color = MaterialTheme.colorScheme.onSurface,
         )
 
+        // The corner morph on selection, the neighbour squeeze on press and the colour
+        // cross-fade are all ButtonGroup/ToggleButton behaviour now — the shapes below only
+        // say which position in the group each button holds.
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             field.options.forEachIndexed { index, option ->
                 val selected = option.id == current
 
-                // M3 Expressive morphing corner radii:
-                // - Selected item is always full-pill (24.dp / 50%)
-                // - Outer edges of first/last items have 24.dp radius
-                // - Inner adjacent edges have 8.dp radius
-                val topStart = if (selected || index == 0) 24.dp else 8.dp
-                val bottomStart = if (selected || index == 0) 24.dp else 8.dp
-                val topEnd = if (selected || index == count - 1) 24.dp else 8.dp
-                val bottomEnd = if (selected || index == count - 1) 24.dp else 8.dp
-
-                val animTopStart by animateDpAsState(targetValue = topStart, label = "topStart")
-                val animBottomStart by animateDpAsState(targetValue = bottomStart, label = "bottomStart")
-                val animTopEnd by animateDpAsState(targetValue = topEnd, label = "topEnd")
-                val animBottomEnd by animateDpAsState(targetValue = bottomEnd, label = "bottomEnd")
-
-                val shape = RoundedCornerShape(
-                    topStart = animTopStart,
-                    bottomStart = animBottomStart,
-                    topEnd = animTopEnd,
-                    bottomEnd = animBottomEnd,
-                )
-
-                val targetContainerColor = if (selected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHighest
-                }
-                val containerColor by animateColorAsState(
-                    targetValue = targetContainerColor,
-                    label = "containerColor",
-                )
-
-                val targetContentColor = if (selected) {
-                    MaterialTheme.colorScheme.onPrimary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-                val contentColor by animateColorAsState(
-                    targetValue = targetContentColor,
-                    label = "contentColor",
-                )
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                        .clip(shape)
-                        .background(containerColor)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(),
-                        ) { onValueChange(option.id) },
-                    contentAlignment = Alignment.Center,
+                ToggleButton(
+                    checked = selected,
+                    onCheckedChange = { onValueChange(option.id) },
+                    modifier = Modifier.weight(1f),
+                    shapes = when (index) {
+                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                        count - 1 -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                    },
+                    colors = ToggleButtonDefaults.toggleButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        checkedContainerColor = MaterialTheme.colorScheme.primary,
+                        checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.padding(horizontal = 4.dp),
-                    ) {
-                        if (selected) {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = contentColor,
-                            )
-                        }
-                        Text(
-                            text = option.label,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = contentColor,
-                            maxLines = 1,
+                    if (selected) {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(ToggleButtonDefaults.IconSize),
                         )
+                        Spacer(Modifier.width(ToggleButtonDefaults.IconSpacing))
                     }
+                    Text(
+                        text = option.label,
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                    )
                 }
             }
         }
@@ -455,14 +424,18 @@ fun RatingInput(
     onRatingChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
         (1..5).forEach { star ->
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(28.dp)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(bounded = false, radius = 20.dp),
+                        indication = ripple(bounded = false, radius = 14.dp),
                     ) { onRatingChange(if (rating == star) 0 else star) },
                 contentAlignment = Alignment.Center,
             ) {
@@ -478,7 +451,7 @@ fun RatingInput(
                     } else {
                         MaterialTheme.colorScheme.outline
                     },
-                    modifier = Modifier.size(22.dp),
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
@@ -514,37 +487,39 @@ fun TagInput(
         adding = false
     }
 
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            tags.forEach { tag ->
-                InputChip(
-                    selected = false,
-                    onClick = { onTagsChange(tags - tag) },
-                    label = { Text(tag) },
-                    trailingIcon = {
-                        Icon(
-                            Icons.Filled.Clear,
-                            contentDescription = stringResource(R.string.remove_tag, tag),
-                            modifier = Modifier.size(16.dp),
-                        )
-                    },
-                )
-            }
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                tags.forEach { tag ->
+                    InputChip(
+                        selected = false,
+                        onClick = { onTagsChange(tags - tag) },
+                        label = { Text(tag) },
+                        trailingIcon = {
+                            Icon(
+                                Icons.Filled.Clear,
+                                contentDescription = stringResource(R.string.remove_tag, tag),
+                                modifier = Modifier.size(16.dp),
+                            )
+                        },
+                    )
+                }
 
-            if (!adding) {
-                AssistChip(
-                    onClick = { adding = true },
-                    label = {
-                        Icon(
-                            Icons.Filled.Add,
-                            contentDescription = stringResource(R.string.add_tag),
-                            modifier = Modifier.size(18.dp),
-                        )
-                    },
-                )
+                if (!adding) {
+                    AssistChip(
+                        onClick = { adding = true },
+                        label = {
+                            Icon(
+                                Icons.Filled.Add,
+                                contentDescription = stringResource(R.string.add_tag),
+                                modifier = Modifier.size(18.dp),
+                            )
+                        },
+                    )
+                }
             }
         }
 
