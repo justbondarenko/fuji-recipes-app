@@ -2,20 +2,14 @@ package dev.bondarenko.fujirecipes.ui.shell
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -27,20 +21,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.material3.FloatingActionButtonMenu
+import androidx.compose.material3.FloatingActionButtonMenuItem
+import androidx.compose.material3.ToggleFloatingActionButton
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
@@ -225,11 +218,14 @@ fun AppShell(
 /**
  * The Material 3 FAB menu (https://m3.material.io/components/fab-menu/overview).
  *
- * Hand-built rather than `FloatingActionButtonMenu`: that component arrived in material3
- * 1.5.0-alpha, which pulls compose-foundation 1.12 and with it the AGP 9 / compileSdk 37
- * move that `gradle/libs.versions.toml` is pinned away from. Two items and a scrim are not
- * worth that migration; when the pins move, this becomes a delete.
+ * The stagger, the item pills and the plus-to-close morph are all component behaviour —
+ * `ToggleFloatingActionButton` hands its own animation progress to the icon, so the rotation
+ * tracks the container morph instead of running on a parallel timer.
+ *
+ * The scrim stays in `AppShell`: the component dims nothing, and what is behind an open menu
+ * must be untappable.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun CreateFabMenu(
     expanded: Boolean,
@@ -238,93 +234,41 @@ private fun CreateFabMenu(
     onManualClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // The plus turns into a close by rotating: one icon, and the motion says what happened.
-    val iconRotation by animateFloatAsState(
-        targetValue = if (expanded) 45f else 0f,
-        animationSpec = tween(MenuDurationMs),
-        label = "fabIconRotation",
-    )
-
-    Column(
+    FloatingActionButtonMenu(
+        expanded = expanded,
         modifier = modifier,
-        horizontalAlignment = Alignment.End,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        // Items are listed bottom-up, the way they read from the FAB outwards, so the last
-        // one in the column is the one nearest the thumb.
-        CreateFabMenuItem(
-            visible = expanded,
-            // The far item leads, so the pair unfolds away from the FAB rather than at once.
-            delayMillis = MenuStaggerMs,
-            icon = painterResource(R.drawable.ic_content_paste),
-            label = stringResource(R.string.create_from_text),
-            onClick = onParseTextClick,
-        )
-        CreateFabMenuItem(
-            visible = expanded,
-            delayMillis = 0,
-            icon = rememberVectorPainter(Icons.Filled.Edit),
-            label = stringResource(R.string.create_manually),
-            onClick = onManualClick,
-        )
-
-        FloatingActionButton(
-            onClick = { onExpandedChange(!expanded) },
-            shape = RoundedCornerShape(16.dp),
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            elevation = FloatingActionButtonDefaults.elevation(
-                defaultElevation = 3.dp,
-                pressedElevation = 6.dp,
-            ),
-            modifier = Modifier.size(56.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Add,
-                contentDescription = stringResource(
-                    if (expanded) R.string.create_menu_close else R.string.nav_create,
+        button = {
+            ToggleFloatingActionButton(
+                checked = expanded,
+                onCheckedChange = onExpandedChange,
+                containerColor = ToggleFloatingActionButtonDefaults.containerColor(
+                    initialColor = MaterialTheme.colorScheme.primaryContainer,
+                    finalColor = MaterialTheme.colorScheme.primaryContainer,
                 ),
-                modifier = Modifier
-                    .size(24.dp)
-                    .rotate(iconRotation),
-            )
-        }
-    }
-}
-
-/** One row of the menu: a labelled pill, sized to its own text. */
-@Composable
-private fun CreateFabMenuItem(
-    visible: Boolean,
-    delayMillis: Int,
-    icon: Painter,
-    label: String,
-    onClick: () -> Unit,
-) {
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(tween(MenuDurationMs, delayMillis)) +
-            scaleIn(tween(MenuDurationMs, delayMillis), initialScale = 0.8f),
-        exit = fadeOut(tween(MenuDurationMs)) + scaleOut(tween(MenuDurationMs), targetScale = 0.8f),
-    ) {
-        Surface(
-            onClick = onClick,
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            tonalElevation = 3.dp,
-            shadowElevation = 4.dp,
-            modifier = Modifier.height(56.dp),
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(painter = icon, contentDescription = null, modifier = Modifier.size(24.dp))
-                Text(text = label, style = MaterialTheme.typography.labelLarge)
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = stringResource(
+                        if (expanded) R.string.create_menu_close else R.string.nav_create,
+                    ),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.rotate(checkedProgress * 45f),
+                )
             }
-        }
+        },
+    ) {
+        // Declaration order is bottom-up: the last item sits nearest the FAB, which is the
+        // one nearest the thumb.
+        FloatingActionButtonMenuItem(
+            onClick = onParseTextClick,
+            icon = { Icon(painterResource(R.drawable.ic_content_paste), contentDescription = null) },
+            text = { Text(stringResource(R.string.create_from_text)) },
+        )
+        FloatingActionButtonMenuItem(
+            onClick = onManualClick,
+            icon = { Icon(rememberVectorPainter(Icons.Filled.Edit), contentDescription = null) },
+            text = { Text(stringResource(R.string.create_manually)) },
+        )
     }
 }
 
@@ -370,7 +314,6 @@ private val BarHeight = 56.dp
 private val BarMargin = 16.dp
 
 private const val MenuDurationMs = 180
-private const val MenuStaggerMs = 40
 
 @Preview(name = "Shell — light", showBackground = true, heightDp = 400)
 @Preview(name = "Shell — dark", showBackground = true, uiMode = 0x20, heightDp = 400)
