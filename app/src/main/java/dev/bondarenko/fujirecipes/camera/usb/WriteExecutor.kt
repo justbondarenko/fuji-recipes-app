@@ -184,7 +184,11 @@ fun executeWritePlan(
             if (sameBytes(payload, read)) {
                 record(step, StepStatus.WRITTEN)
             } else {
-                record(step, StepStatus.MISMATCHED, "read back as ${read.joinToString(", ")}")
+                record(
+                    step,
+                    StepStatus.MISMATCHED,
+                    "sent ${payload.asHex()}, read back ${read.asHex()}",
+                )
                 warnings += "${step.label} was accepted but read back changed, so the camera " +
                     "may have adjusted it."
             }
@@ -235,6 +239,23 @@ private fun refusalDetail(error: PtpError): String =
  * answer a two-byte property with a padded buffer, and the bytes we care about are the ones we
  * wrote.
  */
+/**
+ * Bytes as the wire carries them, little-endian, for a mismatch the user has to read on a
+ * phone with a camera hanging off it.
+ *
+ * Hex rather than decimal, and the value alongside it: the codes in `CameraEncoding.kt` are
+ * written in hex, so `0x2000` is greppable against the table and `0, 32` is not. This is the
+ * only place in the app that shows a raw value, and it exists for exactly one job — telling
+ * you what the camera did with something you sent it.
+ */
+private fun ByteArray.asHex(): String {
+    val hex = joinToString(" ") { "%02X".format(it) }
+    if (size != 2) return hex
+
+    val value = (this[0].toInt() and 0xff) or ((this[1].toInt() and 0xff) shl 8)
+    return "$hex (0x%04X)".format(value)
+}
+
 private fun sameBytes(sent: ByteArray, read: ByteArray): Boolean {
     if (read.size < sent.size) return false
     return sent.indices.all { sent[it] == read[it] }

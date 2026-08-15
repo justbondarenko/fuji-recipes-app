@@ -250,6 +250,10 @@ class WriteExecutorTest {
 
         val clarity = outcome.steps.first { it.id == "clarity" }
         assertEquals(StepStatus.MISMATCHED, clarity.status)
+        // Hex, and greppable against the encoding tables: this is the one diagnostic the user
+        // reads on a phone with a camera hanging off it.
+        assertTrue(clarity.detail!!.contains("0x03E7"), "unreadable detail: ${clarity.detail}")
+        assertTrue(clarity.detail!!.contains("0x001E"), "the sent value is not named")
         assertTrue(outcome.warnings.any { it.contains("read back changed") })
         // It did not stop the write: the value is already in the camera.
         assertEquals(plan.total, outcome.steps.size)
