@@ -1,4 +1,4 @@
-# Task: FEAT-005 → FEAT-007 — the camera link, both directions
+# Task: FEAT-005 → FEAT-008 — the camera link, and getting the library out
 
 **Branch:** `feat/FEAT-005-camera-connection` (both features, see `specs/roadmap.md` §7)
 **Specs:** `specs/features/FEAT-005-camera-connection/`, `specs/features/FEAT-006-write-to-slot/`
@@ -30,8 +30,12 @@ This is a transcription, not protocol archaeology.
       writes to a slot. FEAT-005 T-18 and FEAT-006 T-15 <!-- id: 11 -->
 - [x] 12. **FEAT-007 — import from camera.** More → Import reads C1–C7, decodes each slot,
       reviews against the library with duplicate detection, imports the chosen ones <!-- id: 12 -->
-- [ ] 13. Read the slots on the X-T50 and compare against the camera's own menu — the only
-      check that proves the properties mean what the tables say <!-- id: 13 -->
+- [x] 13. **FEAT-008 — export.** More → Export builds the canonical file and hands it to the
+      OS share sheet; plus a single-recipe export <!-- id: 13 -->
+- [ ] 14. Read the slots on the X-T50 and compare against the camera's own menu — the only
+      check that proves the properties mean what the tables say <!-- id: 14 -->
+- [ ] 15. Export from Android and import that file into the web client — proves the two
+      implementations still agree about a format that is a compatibility promise <!-- id: 15 -->
 
 ## Notes carried through implementation
 
@@ -60,7 +64,7 @@ resolved every property code against an X100VI in its stage 32. Re-rated to **me
 ### Gate
 
 `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug` — green.
-**385 unit tests**, 0 failures. Camera-specific:
+**413 unit tests**, 0 failures. Camera-specific:
 
 | Suite | Tests | Covers |
 |---|---|---|
@@ -79,6 +83,8 @@ resolved every property code against an X100VI in its stage 32. Re-rated to **me
 | `RecipeConfigTest` | 17 | Whether two recipes are the same camera configuration |
 | `ImportReviewTest` | 17 | New / already-held / name-clash, and what gets sent |
 | `ApiClientImportTest` | 9 | `POST /api/import`, against MockWebServer |
+| `RecipeExportTest` | 23 | The export format, against the spec's own §3 example |
+| `ZipWriterTest` | 5 | The archive, read back through a real unzipper |
 | `CameraPurityTest` | 1 | P4, structurally |
 
 ### Verified on the Pixel 10 Pro XL emulator
@@ -172,6 +178,28 @@ Three decisions worth keeping:
 One bug the tests caught rather than the field: `getOrPut` re-invokes its lambda on a `null`
 value, so a property the body *refused* was being asked for again by every field sharing its
 code. The refusal has to be cached too.
+
+### FEAT-008 — the library can leave the phone
+
+**More → Export** selects recipes, builds the canonical file, and hands it to the OS share
+sheet. Plus **Export this recipe** on a recipe's own screen. Ported from
+`shared/format/export.ts`, against `recipe-format.spec.md`, which is binding and shared with
+the web client.
+
+- **The file is built on the phone, not fetched from `/api/export`.** A backup that needs a
+  working connection to the thing being backed up is not a backup. Export works with no
+  signal, which is what makes it something you can do in the field.
+- **The share sheet rather than the Storage Access Framework** `PRD.md` §7.6 specifies. One
+  sheet reaches Files, Drive, mail and anything else installed; SAF reaches the file system.
+  Recorded as a deviation in `FEAT-008/01-functional.md` §21 rather than silently ignored.
+- **Values are re-ordered, never re-serialised.** They came from the server already validated
+  and `settings` is held as a raw `JsonObject`, so every value is copied exactly as it
+  arrived. That is P2 at its strongest and it makes SF-017 free rather than a feature.
+
+The emulator run confirmed the format on live data rather than a fixture: the exported file
+carried `stackId` — a field the server sends that this build does not model — preserved
+verbatim and placed after the documented keys. That is SF-017 doing its job against a real
+server, which no unit test can claim.
 
 ### The one claim still unproven — that the properties *mean* what the tables say
 
