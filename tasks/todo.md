@@ -1,35 +1,39 @@
-# Task: Fix Camera Disconnection Detection (ACTION_USB_DEVICE_DETACHED)
+# Task: FEAT-011 — create a recipe from pasted text
 
-## Root Cause Analysis
-1. Android OS dispatches `UsbManager.ACTION_USB_DEVICE_DETACHED` (`android.hardware.usb.action.USB_DEVICE_DETACHED`) as an explicit/package broadcast to components registered in `AndroidManifest.xml` (like official camera apps such as `com.fujifilm.xapp` and `com.adobe.lrmobile` do via their `<receiver>`).
-2. Without a manifest-declared `<receiver android:exported="true">` for `android.hardware.usb.action.USB_DEVICE_DETACHED`, the system broadcast is filtered by `PackageManager` before it ever reaches dynamic, context-only listeners on modern Android versions.
+Branch: `feat/FEAT-011-recipe-from-text`
+
+## Goal
+
+The web client can turn a pasted Fuji X Weekly / forum / notes recipe into a filled-in
+creation form. Bring the same to Android, reached from a Material 3 FAB menu
+(https://m3.material.io/components/fab-menu/overview) that replaces the single create FAB
+with two options: **Parse text** and **Manual**.
 
 ## Plan Items
 
-- [x] 1. Create `UsbReceiver.kt` inheriting from `BroadcastReceiver` to handle `ACTION_USB_DEVICE_DETACHED` and `ACTION_USB_DEVICE_ATTACHED` <!-- id: 1 -->
-- [x] 2. Declare `UsbReceiver` in `AndroidManifest.xml` with `exported="true"` and an `<intent-filter>` for `USB_DEVICE_ATTACHED` and `USB_DEVICE_DETACHED` <!-- id: 2 -->
-- [x] 3. Update `CameraController.kt`: implement `onDeviceDetached(device: UsbDevice?)` and wire it to both `UsbReceiver` and internal dynamic receivers <!-- id: 3 -->
-- [x] 4. Run tests and verify the build <!-- id: 4 -->
-- [x] 5. Assemble APK and install on connected physical device and emulator <!-- id: 5 -->
+- [x] 1. Port `fuji-recipes-book/src/utils/recipe-text-parser.ts` to a pure Kotlin file under `data/text/` <!-- id: 1 -->
+- [x] 2. Port the sibling's parser spec as a JVM unit test <!-- id: 2 -->
+- [x] 3. Turn the right-hand FAB into a FAB menu (scrim, two labelled items, rotating icon, back to dismiss) <!-- id: 3 -->
+- [x] 4. A paste sheet that shows what was recognised before committing, and opens the editor pre-filled <!-- id: 4 -->
+- [x] 5. Tests, lint, and an end-to-end run on the emulator <!-- id: 5 -->
 
 ## Review & Verification
 
-### Root Cause
-Android's `UsbHostManager` and `UsbService` route USB detachment broadcasts through `PackageManager`'s registered receiver components. Dynamic, in-code only receivers on Android 14+ may not receive implicit detach intents unless a manifest receiver is registered for the action.
+### What changed
 
-### What Changed
-1. **Manifest Receiver ([`UsbReceiver.kt`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/java/dev/bondarenko/fujirecipes/camera/UsbReceiver.kt))**:
-   - Created a dedicated `UsbReceiver` that listens for `ACTION_USB_DEVICE_DETACHED` and `ACTION_USB_DEVICE_ATTACHED`.
-   - Filters incoming intents for `vendorId == FUJI_VENDOR_ID`.
-   - Calls `controller.onDeviceDetached(device)` upon disconnect.
-2. **Manifest Declaration ([`AndroidManifest.xml`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/AndroidManifest.xml))**:
-   - Declared `<receiver android:name=".camera.UsbReceiver" android:exported="true">` with intent filters for both USB attach and detach actions.
-3. **Controller Handling ([`CameraController.kt`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/java/dev/bondarenko/fujirecipes/camera/CameraController.kt))**:
-   - Added `onDeviceDetached(device: UsbDevice?)` which cleanly locks, closes the PTP session, and sets `_state` to `CameraState.Disconnected` (or `CameraState.Error` if unplugged during a write).
-4. **Clean Builds & Testing**:
-   - Resolved Kotlin 2.5 expression body warning on `connectNow`.
+1. **[`data/text/RecipeTextParser.kt`](app/src/main/java/dev/bondarenko/fujirecipes/data/text/RecipeTextParser.kt)** — a line-for-line port of the web parser, returning name + a `JsonObject` of `RecipeFields` ids. No Android imports, so it is testable on the JVM (P9). `sensorGeneration` is detected but discarded: D1 migration 0002 dropped the column, and the detection only survives because it decides whether a line is a setting or the title.
+2. **[`ui/shell/AppShell.kt`](app/src/main/java/dev/bondarenko/fujirecipes/ui/shell/AppShell.kt)** — the create FAB became a FAB menu: scrim, two pill items, the plus rotating 45° into a close, `BackHandler` to dismiss. Hand-built because `FloatingActionButtonMenu` first ships in material3 1.5.0-alpha, which pulls compose-foundation 1.12 and the AGP 9 / compileSdk 37 move `libs.versions.toml` is deliberately pinned away from.
+3. **[`ui/editor/PasteRecipeSheet.kt`](app/src/main/java/dev/bondarenko/fujirecipes/ui/editor/PasteRecipeSheet.kt)** — the paste surface. The recognised-count is live on every keystroke, because the failure it guards against is a paste that parses to almost nothing and silently opens an empty form.
+4. **[`MainActivity.kt`](app/src/main/java/dev/bondarenko/fujirecipes/MainActivity.kt)** — the sheet is state, not a route: a destination of its own would leave an empty text box in the back stack behind every recipe made from a paste. Import reuses `RecipeEditorRoute(prefill, prefillName)`, already built for FEAT-009.
 
-### Verification Results
-- `./gradlew test`: **BUILD SUCCESSFUL** (all unit tests passed).
-- Verified with `adb shell dumpsys package dev.bondarenko.fujirecipes` that `UsbReceiver` is registered in Android's Receiver Resolver Table for `android.hardware.usb.action.USB_DEVICE_DETACHED`.
-- Installed on physical device (`adb-58061FDCQ0057S-jAkCZy._adb-tls-connect._tcp`) and launched.
+### One deliberate deviation from the source
+
+The web parser tests `1/3` before `-1/3`, and `"-1/3"` contains `"1/3"`, so its negative
+exposure-compensation branches are unreachable — `-1/3 EV` arrives as `+0.333`. The Kotlin
+port tests the negatives first and has a test for it. Worth fixing on the web side too.
+
+### Verification
+
+- `./gradlew :app:testDebugUnitTest` — green, including 10 new parser cases ported from the sibling's spec.
+- `./gradlew :app:lintDebug` — green.
+- On the emulator, end to end: FAB → menu opens with a scrim → **Parse text** → sheet → *Insert an example* reports "Found 15 settings" → **Fill the form** opens the editor with Classic Chrome, DR400, highlight −1, shadow 1.5, colour +2, sharpness 0, high ISO NR −2, clarity −2, grain Strong/Small, CC Strong, FX blue Weak, WB Auto with R +2 / B −3. **Manual** opens an empty form at the documented defaults.
