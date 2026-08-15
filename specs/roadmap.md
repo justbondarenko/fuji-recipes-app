@@ -28,8 +28,8 @@ Stages are sequential. A **GATE** must be fully closed before the next stage sta
 | FEAT-002 | Field source + recipe view | The canonical 27-field table, and a read-only screen to read a recipe on | **done** |
 | FEAT-003 | Recipe form | Create, edit, duplicate, delete; rating and tags in place | **done** |
 | FEAT-004 | Settings | Connection settings reachable at any time, and clearable | **done** |
-| FEAT-005 | Camera connection **GATE** | USB host, attach intent, PTP session, model detection, the connection indicator | **high** — reverse-engineered protocol |
-| FEAT-006 | Write to slot | Write plan, encoders, slot picker, progress, failure reporting | **high** |
+| **FEAT-005** | **Camera connection GATE** ← *in progress* | USB host, attach intent, PTP session, model detection, the connection indicator | **medium** — see §7 |
+| **FEAT-006** | **Write to slot** ← *in progress* | Write plan, encoders, slot picker, progress, failure reporting | **medium** — see §7 |
 | FEAT-007 | Polish | Motion timing, haptics, reduced-motion fallback, dark-scheme audit, predictive back | none |
 
 **FEAT-001 to FEAT-003 carry no protocol risk and ship a usable recipe manager.** That is
@@ -124,3 +124,35 @@ wants one is a later feature, so nothing is blocked today:
 `compileSdk` 37 / Compose beta, or accept standard Material 3 for v1 and revisit when the
 Expressive line goes stable. `ui/theme/Theme.kt` carries the swap instructions either way —
 it is a one-call change plus a `motionScheme` argument that is already computed.
+
+## 7. The camera stages, re-rated
+
+Written when FEAT-005 started, and it corrects §1's own risk column.
+
+Both camera stages were rated **high** on the premise that the protocol was reverse-engineered
+and partly unverified — `PRD.md` C3, and `steering/architecture.md` §8 C3 say the same. That
+premise is out of date, and the correction is worth recording because it is the reason these
+two stages are being attempted together.
+
+`fuji-recipes-book` shipped a **working, unit-tested WebUSB PTP implementation**:
+`camera/usb/{ptp,transport,session,payload,write}.ts`, `camera/{models,encoding,write-plan,read-slot}.ts`,
+and roughly 2,600 lines of tests including a fake camera that speaks PTP back. Its stage 32
+resolved every property code from `eggricesoy/filmkit` @ `9e3bbcf`, cross-checked against an
+X100VI, and its stage 37 replaced the plan-time write order with the observed one.
+
+So the Android work is a **transcription against a known-good reference**, not protocol
+archaeology. What remains genuinely unknown is narrower and named:
+
+| Still unverified | Where it bites |
+|---|---|
+| WebUSB and `android.hardware.usb` differ in claim and endpoint behaviour | FEAT-005 T-08. The reference's ranked-interface and discovered-endpoint logic exists *because* of real claim failures, and is carried over rather than simplified. |
+| Property codes are verified on X-Trans V (X100VI) only | `propertyCodesVerifiedFor` is transcribed with the tables; an unverified generation says so rather than pretending. |
+| GFX is assumed, not observed | `GFX_FIELD_SET_VERIFIED = false` travels with the transcription. |
+
+**One branch, two feature folders.** `coding-standards.md`'s Git section says one feature
+folder, one branch. FEAT-005 and FEAT-006 share `feat/FEAT-005-camera-connection`, at the
+owner's decision: they transcribe one reference module, and splitting them would mean porting
+`encoding.ts` twice or merging a connection that cannot yet do anything. The gate property is
+kept instead of the branch rule — FEAT-005 T-18 is a complete, installable, shippable stage on
+its own, so a slog in FEAT-006 still leaves a working product behind. That was always the point
+of the ordering.
