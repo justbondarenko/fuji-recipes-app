@@ -1,64 +1,39 @@
-# Task: FEAT-012 — import a recipe file
+# Task: FEAT-011 — create a recipe from pasted text
 
-Branch: `feat/FEAT-012-import-from-file`
+Branch: `feat/FEAT-011-recipe-from-text`
 
 ## Goal
 
-Import the files this app's Export feature produces (`.json` envelope, bare array, bare
-recipe, and `.zip` archives), which today can only be imported by the web client. Camera
-import (FEAT-007) stays exactly as it is; this is the other half of the round trip that
-`specs/roadmap.md` deferred.
-
-Binding spec: `fuji-recipes-book/specs/shared/recipe-format.spec.md` — SF-003 to SF-017.
-Reference implementations: `shared/format/import.ts`, `shared/format/migrate.ts`,
-`src/utils/import-review.ts`, and `POST /api/import` in `specs/contracts.md`.
+The web client can turn a pasted Fuji X Weekly / forum / notes recipe into a filled-in
+creation form. Bring the same to Android, reached from a Material 3 FAB menu
+(https://m3.material.io/components/fab-menu/overview) that replaces the single create FAB
+with two options: **Parse text** and **Manual**.
 
 ## Plan Items
 
-- [x] 1. `data/importing/RecipeFile.kt` — read one JSON document in any of SF-005's three shapes; reject wrong `format` (SF-003), bad or future `version` (SF-004, SF-006); run the migration chain (SF-007) <!-- id: 1 -->
-- [x] 2. Same file — ZIP: every `.json` entry at any depth, sorted, non-JSON ignored, traversal paths refuse the whole archive (SF-015) <!-- id: 2 -->
-- [x] 3. `data/importing/FileReview.kt` — five statuses (new / conflict / config-duplicate / name-warning / invalid), the resolutions (SF-010 to SF-014), and the `POST /api/import` body <!-- id: 3 -->
-- [x] 4. Unit tests from the spec's own conformance fixtures (§6) <!-- id: 4 -->
-- [x] 5. `ui/importing/FileImportScreen.kt` + view model: pick a file, review, resolve conflicts, import <!-- id: 5 -->
-- [x] 6. Route, a More card, strings <!-- id: 6 -->
-- [x] 7. Tests, lint, and a run on the emulator against real files <!-- id: 7 -->
-
-## Decisions
-
-- **A separate screen, not a second source on the camera Import screen.** The camera rows are
-  keyed by slot and have three statuses; file rows are keyed by index and have five, plus a
-  resolution and per-row validation errors. Merging them would complicate both screens to save
-  one entry point in More.
-- **Validation reuses `RecipeValidation`** rather than a second transcription of the field
-  table (`coding-standards.md` P3). Missing keys are not errors — §4 fills them with defaults
-  on import, and the server's `normaliseSettings` is what does it.
-- **Two deliberate deviations from the reference**, both recorded in the code:
-  1. A **configuration duplicate is offered Skip / Keep both, not SF-012's three options.**
-     Replacing needs an id to replace; a duplicate collides on nothing the server can key on.
-     The web client offers Replace there and it does nothing.
-  2. **Skip is honoured locally for a row with no id collision.** The reference sends
-     `resolutions` keyed by id and lets the server decide, so a skipped configuration
-     duplicate — which has no colliding id — is imported anyway. Dropping it from the request
-     is the only place that choice can be kept.
-- **Not in scope:** receiving a file from another app's share sheet (an intent filter), and
-  importing from a URL. Both are extra entry points to this same screen.
+- [x] 1. Port `fuji-recipes-book/src/utils/recipe-text-parser.ts` to a pure Kotlin file under `data/text/` <!-- id: 1 -->
+- [x] 2. Port the sibling's parser spec as a JVM unit test <!-- id: 2 -->
+- [x] 3. Turn the right-hand FAB into a FAB menu (scrim, two labelled items, rotating icon, back to dismiss) <!-- id: 3 -->
+- [x] 4. A paste sheet that shows what was recognised before committing, and opens the editor pre-filled <!-- id: 4 -->
+- [x] 5. Tests, lint, and an end-to-end run on the emulator <!-- id: 5 -->
 
 ## Review & Verification
 
 ### What changed
 
-1. **[`RecipeFile.kt`](app/src/main/java/dev/bondarenko/fujirecipes/data/importing/RecipeFile.kt)** — the file reader. Envelope, bare array and bare object (SF-005); `format` and `version` refusals with the reasons named (SF-003, SF-004, SF-006, including SF-006's required wording verbatim); the migration chain with §5's `1 -> 2` identity slot (SF-007); ZIP entries at any depth, sorted, non-JSON ignored, an escaping path refusing the whole archive (SF-015). Unzipping is `java.util.zip` with a 64 MB cap on *expanded* bytes, counted as it copies — a decompression bomb is inflated on read, so measuring afterwards would be measuring from inside the failure. The shape is decided by the file's own magic bytes, not its name.
-2. **[`FileReview.kt`](app/src/main/java/dev/bondarenko/fujirecipes/data/importing/FileReview.kt)** — what each entry is, and the request body. This is the full five statuses, unlike the camera path: a file carries ids, so the id-collision branch `ImportReview.kt` could never reach is the one that matters here.
-3. **[`FileImportViewModel.kt`](app/src/main/java/dev/bondarenko/fujirecipes/ui/importing/FileImportViewModel.kt)** / **[`FileImportScreen.kt`](app/src/main/java/dev/bondarenko/fujirecipes/ui/importing/FileImportScreen.kt)** — choose, review, resolve, import. Reading and reviewing are local; only the import needs the network, and a failed import keeps the review and the resolutions so retrying costs nothing.
-4. **More → Import a file**, its route, and the strings.
+1. **[`data/text/RecipeTextParser.kt`](app/src/main/java/dev/bondarenko/fujirecipes/data/text/RecipeTextParser.kt)** — a line-for-line port of the web parser, returning name + a `JsonObject` of `RecipeFields` ids. No Android imports, so it is testable on the JVM (P9). `sensorGeneration` is detected but discarded: D1 migration 0002 dropped the column, and the detection only survives because it decides whether a line is a setting or the title.
+2. **[`ui/shell/AppShell.kt`](app/src/main/java/dev/bondarenko/fujirecipes/ui/shell/AppShell.kt)** — the create FAB became a FAB menu: scrim, two pill items, the plus rotating 45° into a close, `BackHandler` to dismiss. Hand-built because `FloatingActionButtonMenu` first ships in material3 1.5.0-alpha, which pulls compose-foundation 1.12 and the AGP 9 / compileSdk 37 move `libs.versions.toml` is deliberately pinned away from.
+3. **[`ui/editor/PasteRecipeSheet.kt`](app/src/main/java/dev/bondarenko/fujirecipes/ui/editor/PasteRecipeSheet.kt)** — the paste surface. The recognised-count is live on every keystroke, because the failure it guards against is a paste that parses to almost nothing and silently opens an empty form.
+4. **[`MainActivity.kt`](app/src/main/java/dev/bondarenko/fujirecipes/MainActivity.kt)** — the sheet is state, not a route: a destination of its own would leave an empty text box in the back stack behind every recipe made from a paste. Import reuses `RecipeEditorRoute(prefill, prefillName)`, already built for FEAT-009.
+
+### One deliberate deviation from the source
+
+The web parser tests `1/3` before `-1/3`, and `"-1/3"` contains `"1/3"`, so its negative
+exposure-compensation branches are unreachable — `-1/3 EV` arrives as `+0.333`. The Kotlin
+port tests the negatives first and has a test for it. Worth fixing on the web side too.
 
 ### Verification
 
-- `./gradlew :app:testDebugUnitTest` — green, with 33 new tests: 16 for the file reader (the spec's §6 fixtures, built in the test rather than checked in) and 17 for the review and the request body.
+- `./gradlew :app:testDebugUnitTest` — green, including 10 new parser cases ported from the sibling's spec.
 - `./gradlew :app:lintDebug` — green.
-- On the emulator, against files pushed to Downloads:
-  - `lib.json` — 4 recipes: one new, one identical to a library recipe (offered Skip / Keep both), one with `clarity: 99` and one with no name. The screen read "4 found · 2 new · 2 that cannot be imported", named `clarity` and `name` on the failing rows, and kept Import disabled until the duplicate was decided.
-  - The request body was captured off the wire: the two valid recipes only, timestamps preserved, and the unknown `futureField` carried through untouched (SF-017). `resolutions` was empty, correctly — nothing in that file collided on an id.
-  - `bundle.zip` — one recipe found at `nested/velvia.json`, `README.txt` ignored silently, the source entry shown on the row.
-  - `future.json` (`version: 99`) — refused whole, with SF-006's sentence first and the version numbers after it.
-  - With the server unreachable, the review still built from the cached library and the import failed with the offline message, the rows and the chosen resolution intact.
+- On the emulator, end to end: FAB → menu opens with a scrim → **Parse text** → sheet → *Insert an example* reports "Found 15 settings" → **Fill the form** opens the editor with Classic Chrome, DR400, highlight −1, shadow 1.5, colour +2, sharpness 0, high ISO NR −2, clarity −2, grain Strong/Small, CC Strong, FX blue Weak, WB Auto with R +2 / B −3. **Manual** opens an empty form at the documented defaults.

@@ -19,6 +19,7 @@ import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dev.bondarenko.fujirecipes.ui.camera.CameraChipHost
+import dev.bondarenko.fujirecipes.ui.editor.PasteRecipeSheet
 import dev.bondarenko.fujirecipes.ui.nav.ConnectionRoute
 import dev.bondarenko.fujirecipes.ui.nav.ExportRoute
 import dev.bondarenko.fujirecipes.ui.nav.FileImportRoute
@@ -112,6 +113,27 @@ private fun FujiApp(startDestination: Any) {
         val showChrome =
             !onConnection && !onEditor && !onRecipeView && !onImport && !onFileImport && !onExport
 
+        // Not a route: the sheet is a way of starting the editor, and giving it a destination
+        // of its own would put an empty text box in the back stack behind every recipe made
+        // from a paste.
+        var showPasteSheet by remember { mutableStateOf(false) }
+
+        if (showPasteSheet) {
+            PasteRecipeSheet(
+                onDismiss = { showPasteSheet = false },
+                onImport = { parsed ->
+                    showPasteSheet = false
+                    navController.navigate(
+                        RecipeEditorRoute(
+                            id = null,
+                            prefill = parsed.settings.toString(),
+                            prefillName = parsed.name,
+                        ),
+                    )
+                },
+            )
+        }
+
         AppShell(
             showChrome = showChrome,
             isLibrarySelected = destination?.hasRoute<LibraryRoute>() == true,
@@ -126,6 +148,7 @@ private fun FujiApp(startDestination: Any) {
             onReadClick = { navController.navigate(PhotoRoute) { launchSingleTop = true } },
             onMoreClick = { navController.navigate(MoreRoute) { launchSingleTop = true } },
             onCreateClick = { navController.navigate(RecipeEditorRoute(id = null)) },
+            onParseTextClick = { showPasteSheet = true },
             cameraChip = { CameraChipHost() },
         ) { contentPadding ->
             FujiNavHost(

@@ -34,6 +34,7 @@ Stages are sequential. A **GATE** must be fully closed before the next stage sta
 | **FEAT-008** | **Export recipes** ← *in progress* | More → Export: select recipes, build the canonical file, hand it to the OS share sheet. Plus a single-recipe export | low — the format is specified and shipped on the web |
 | **FEAT-009** | **Read a recipe from a photo** ← *in progress* | Bottom bar → Read: decode a JPEG's Fujifilm MakerNote, match it against the library by name, save it as a new recipe | medium — the MakerNote layout is reverse-engineered, but the reference has run against real files |
 | FEAT-010 | Polish | Motion timing, haptics, reduced-motion fallback, dark-scheme audit, predictive back | none |
+| **FEAT-011** | **Create a recipe from pasted text** | The create FAB becomes a FAB menu: paste a recipe from Fuji X Weekly, a forum or notes, and the form opens filled in | low — the parser is a port of one the web client already ships |
 | **FEAT-012** | **Import a file** | More → Import a file: read back a `.json` or `.zip` this app or the web client exported, review it against the library, resolve id collisions, import | low — the format is specified, and the reference implementation is the one the web client ships |
 
 **FEAT-001 to FEAT-003 carry no protocol risk and ship a usable recipe manager.** That is

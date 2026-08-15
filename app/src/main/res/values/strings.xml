@@ -258,6 +258,23 @@
     <string name="photo_error_unreadable_title">This photo could not be read</string>
     <string name="photo_error_unreadable_body">It looks like a Fujifilm JPEG, but its recipe block is not in a form this app can walk. If the file was re-saved by another app, try the camera original.</string>
 
+    <!-- Create a recipe from pasted text — FEAT-011 -->
+    <string name="create_from_text">Parse text</string>
+    <string name="create_manually">Manual</string>
+    <string name="create_menu_close">Close the create menu</string>
+    <string name="paste_title">Create from text</string>
+    <string name="paste_intro">Paste a recipe from Fuji X Weekly, a forum or your own notes. What it recognises goes into the form, and you can change anything before saving.</string>
+    <string name="paste_label">Recipe text</string>
+    <string name="paste_placeholder">Film Simulation: Classic Chrome\nDynamic Range: DR400\nHighlight: 0\nShadow: -0.5…</string>
+    <string name="paste_sample">Insert an example</string>
+    <plurals name="paste_detected">
+        <item quantity="one">Found %1$d setting</item>
+        <item quantity="other">Found %1$d settings</item>
+    </plurals>
+    <string name="paste_detected_name">%1$s, named “%2$s”</string>
+    <string name="paste_detected_none">Nothing recognised yet</string>
+    <string name="paste_action">Fill the form</string>
+
     <!-- Import from a file — FEAT-012 -->
     <string name="file_import_title">Import a file</string>
     <string name="file_import_subtitle">Read back a library or a recipe this app exported</string>
