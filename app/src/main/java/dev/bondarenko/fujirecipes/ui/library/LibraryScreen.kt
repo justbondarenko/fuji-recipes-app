@@ -13,15 +13,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
@@ -69,6 +73,9 @@ fun LibraryScreen(
     var openRowId by rememberSaveable { mutableStateOf<String?>(null) }
     // Which recipe is open in the Material 3 Bottom Sheet
     var activeRecipeId by rememberSaveable { mutableStateOf<String?>(null) }
+    // Which recipe is pending confirmation for deletion from swipe action
+    var recipePendingDelete by remember { mutableStateOf<RecipeCardModel?>(null) }
+
     PullToRefreshBox(
         isRefreshing = state.isRefreshing,
         onRefresh = onRefresh,
@@ -147,7 +154,7 @@ fun LibraryScreen(
                                     SwipeAction(
                                         icon = rememberVectorPainter(Icons.Filled.Delete),
                                         contentDescription = stringResource(R.string.action_delete),
-                                        onClick = { onDeleteRecipe(recipe.id) },
+                                        onClick = { recipePendingDelete = recipe },
                                         container = MaterialTheme.colorScheme.errorContainer,
                                         content = MaterialTheme.colorScheme.onErrorContainer,
                                     )
@@ -195,6 +202,34 @@ fun LibraryScreen(
             onEdit = { id ->
                 activeRecipeId = null
                 onEditRecipe(id)
+            },
+        )
+    }
+
+    recipePendingDelete?.let { recipe ->
+        AlertDialog(
+            onDismissRequest = { recipePendingDelete = null },
+            title = { Text(stringResource(R.string.delete_title)) },
+            text = { Text(stringResource(R.string.delete_body, recipe.name)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val id = recipe.id
+                        recipePendingDelete = null
+                        openRowId = null
+                        onDeleteRecipe(id)
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) {
+                    Text(stringResource(R.string.action_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { recipePendingDelete = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             },
         )
     }

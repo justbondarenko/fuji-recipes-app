@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -144,14 +145,11 @@ fun RecipeEditorScreen(
             },
             actions = {
                 if (!state.notFound) {
-                    FilledIconButton(
+                    Button(
                         onClick = onSave,
                         enabled = !state.isSaving,
-                        shape = RoundedCornerShape(percent = 50),
-                        modifier = Modifier
-                            .padding(end = 8.dp)
-                            .width(36.dp)
-                            .height(48.dp),
+                        modifier = Modifier.padding(end = 8.dp),
+                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                     ) {
                         if (state.isSaving) {
                             FujiLoadingIndicator(
@@ -161,9 +159,11 @@ fun RecipeEditorScreen(
                         } else {
                             Icon(
                                 Icons.Filled.Check,
-                                contentDescription = stringResource(R.string.action_save),
-                                modifier = Modifier.size(20.dp),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
                             )
+                            Spacer(Modifier.width(8.dp))
+                            Text(stringResource(R.string.action_save))
                         }
                     }
                 }

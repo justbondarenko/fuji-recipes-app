@@ -1,5 +1,8 @@
 package dev.bondarenko.fujirecipes.ui.recipe
 
+import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -33,6 +36,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -40,14 +44,27 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -56,6 +73,7 @@ import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.data.fields.FieldFormatting
 import dev.bondarenko.fujirecipes.data.fields.FieldGroup
+import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.common.errorMessageFor
 import dev.bondarenko.fujirecipes.ui.editor.RatingInput
@@ -84,7 +102,7 @@ fun RecipeViewBottomSheet(
         viewModel(factory = RecipeViewModel.factory(container, recipeId), key = recipeId)
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -305,11 +323,43 @@ private fun RecipeBentoBody(
                 BentoNotesCard(recipe.notes)
             }
         }
+
+        // Copy recipe as text action button at the very bottom
+        item {
+            val context = LocalContext.current
+            val clipboardManager = LocalClipboardManager.current
+            val copiedMessage = stringResource(R.string.recipe_copied)
+
+            OutlinedButton(
+                onClick = {
+                    val text = RecipeTextFormatter.format(recipe, state.groups)
+                    clipboardManager.setText(AnnotatedString(text))
+                    Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_content_copy),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.action_copy_recipe),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        }
     }
 }
 
 /**
- * Header card containing recipe thumbnail, name, simulation, rating, tags, and actions.
+ * Header card containing recipe thumbnail, name, simulation, rating, tags, and actions
+ * with a blurred film simulation frosted glass background.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -319,80 +369,115 @@ private fun RecipeHeaderBlock(
     onRatingChange: (Int) -> Unit,
     onTagsChange: (List<String>) -> Unit,
 ) {
+    val sim = FilmSimulations.byId(recipe.filmSimulationId)
+    val shape = RoundedCornerShape(20.dp)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = shape,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+        ),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                FilmSimBadge(
-                    simulationId = recipe.filmSimulationId,
-                    size = 56.dp,
-                    shape = CircleShape,
-                )
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    Text(
-                        text = recipe.name,
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = recipe.filmSimulationLabel,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-
-                FilledTonalIconButton(
-                    onClick = onEdit,
-                    shape = RoundedCornerShape(percent = 50),
+        Box(modifier = Modifier.fillMaxWidth()) {
+            // Blurred film simulation background image
+            if (sim?.image != null) {
+                Image(
+                    painter = painterResource(sim.image),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .width(36.dp)
-                        .height(48.dp),
-                ) {
-                    Icon(
-                        Icons.Filled.Edit,
-                        contentDescription = stringResource(R.string.action_edit),
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
+                        .matchParentSize()
+                        .blur(24.dp)
+                        .graphicsLayer(scaleX = 1.15f, scaleY = 1.15f),
+                )
+            } else if (recipe.filmSimulationId != null) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(FilmSimulations.swatchFor(recipe.filmSimulationId).copy(alpha = 0.35f)),
+                )
             }
 
-            RatingInput(rating = recipe.rating, onRatingChange = onRatingChange)
+            // Frosted glass translucent scrim overlay to ensure crisp contrast and readability
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)),
+            )
 
-            TagInput(tags = recipe.tags, onTagsChange = onTagsChange)
-
-            Button(
-                onClick = {},
-                enabled = false,
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_photo_camera),
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.action_write_to_camera))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    FilmSimBadge(
+                        simulationId = recipe.filmSimulationId,
+                        size = 56.dp,
+                        shape = CircleShape,
+                    )
+
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(
+                            text = recipe.name,
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = recipe.filmSimulationLabel,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+
+                    FilledTonalIconButton(
+                        onClick = onEdit,
+                        shape = RoundedCornerShape(percent = 50),
+                        modifier = Modifier
+                            .width(36.dp)
+                            .height(48.dp),
+                    ) {
+                        Icon(
+                            Icons.Filled.Edit,
+                            contentDescription = stringResource(R.string.action_edit),
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+
+                RatingInput(rating = recipe.rating, onRatingChange = onRatingChange)
+
+                TagInput(tags = recipe.tags, onTagsChange = onTagsChange)
+
+                Button(
+                    onClick = {},
+                    enabled = false,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_photo_camera),
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.action_write_to_camera))
+                }
             }
         }
     }
@@ -487,10 +572,57 @@ private fun BentoParameterTile(
 }
 
 /**
- * Full-width Bento Card for recipe notes.
+ * Full-width Bento Card for recipe notes with auto-detected clickable URLs.
  */
 @Composable
 private fun BentoNotesCard(notes: String, modifier: Modifier = Modifier) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val uriHandler = LocalUriHandler.current
+
+    val annotatedNotes = remember(notes, primaryColor, uriHandler) {
+        buildAnnotatedString {
+            val urlRegex = Regex("""https?://[^\s<>"{}|\\^`]+""")
+            var lastIndex = 0
+            for (match in urlRegex.findAll(notes)) {
+                val start = match.range.first
+                val end = match.range.last + 1
+                if (start > lastIndex) {
+                    append(notes.substring(lastIndex, start))
+                }
+                val rawUrl = match.value
+                val cleanUrl = rawUrl.trimEnd('.', ',', ';', '!', '?', ')')
+                val trailingPunctuation = rawUrl.substring(cleanUrl.length)
+
+                val link = LinkAnnotation.Url(
+                    url = cleanUrl,
+                    styles = TextLinkStyles(
+                        style = SpanStyle(
+                            color = primaryColor,
+                            textDecoration = TextDecoration.Underline,
+                        ),
+                    ),
+                    linkInteractionListener = {
+                        try {
+                            uriHandler.openUri(cleanUrl)
+                        } catch (_: Exception) {
+                            // Ignored if no browser/handler installed
+                        }
+                    },
+                )
+                withLink(link) {
+                    append(cleanUrl)
+                }
+                if (trailingPunctuation.isNotEmpty()) {
+                    append(trailingPunctuation)
+                }
+                lastIndex = end
+            }
+            if (lastIndex < notes.length) {
+                append(notes.substring(lastIndex))
+            }
+        }
+    }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -510,7 +642,7 @@ private fun BentoNotesCard(notes: String, modifier: Modifier = Modifier) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = notes,
+                text = annotatedNotes,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
