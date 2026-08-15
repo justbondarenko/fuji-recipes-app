@@ -5,11 +5,14 @@ import dev.bondarenko.fujirecipes.camera.ptp.ContainerType
 import dev.bondarenko.fujirecipes.camera.ptp.Operation
 import dev.bondarenko.fujirecipes.camera.ptp.PtpTimeoutError
 import dev.bondarenko.fujirecipes.camera.ptp.ResponseCode
+import dev.bondarenko.fujirecipes.camera.plan.PRESET_NAME_PROPERTY
+import dev.bondarenko.fujirecipes.camera.plan.PRESET_SLOT_PROPERTY
 import dev.bondarenko.fujirecipes.camera.ptp.packContainer
 import dev.bondarenko.fujirecipes.camera.ptp.packPtpString
 import dev.bondarenko.fujirecipes.camera.ptp.packU16
 import dev.bondarenko.fujirecipes.camera.ptp.packU32
 import dev.bondarenko.fujirecipes.camera.ptp.unpackContainer
+import dev.bondarenko.fujirecipes.camera.ptp.unpackU16
 import java.io.ByteArrayOutputStream
 
 /**
@@ -56,6 +59,19 @@ class FakeCamera(
 
     /** Properties whose read-back answers something else, for the mismatch path. */
     val readBackAs: MutableMap<Int, ByteArray> = mutableMapOf()
+
+    /**
+     * What each custom slot holds, keyed C1..C7. A body switches its name register when the
+     * slot selector changes, and the slot reader depends on exactly that.
+     */
+    val slotNames: MutableMap<Int, String?> = mutableMapOf()
+
+    /** Slots whose name the body will not report — the "unreadable", not "unnamed", case. */
+    val refuseNameForSlots: MutableSet<Int> = mutableSetOf()
+
+    /** The slot the selector currently points at. */
+    var selectedSlot: Int? = null
+        private set
 
     /** Every property write, in the order the camera received it. */
     val writes: MutableList<Write> = mutableListOf()
@@ -138,7 +154,22 @@ class FakeCamera(
             }
 
             Operation.GET_DEVICE_PROP_VALUE -> {
-                val value = propertyValues[params.firstOrNull() ?: 0]
+                val code = params.firstOrNull() ?: 0
+
+                // The name register follows the selector, so it is answered from `slotNames`
+                // rather than from whatever was last written to the property.
+                if (code == PRESET_NAME_PROPERTY && slotNames.isNotEmpty()) {
+                    val slot = selectedSlot
+                    if (slot != null && slot in refuseNameForSlots) {
+                        reply(ResponseCode.DEVICE_PROP_NOT_SUPPORTED, transactionId)
+                    } else {
+                        data(operation, transactionId, packPtpString(slotNames[slot] ?: ""))
+                        reply(ResponseCode.OK, transactionId)
+                    }
+                    return
+                }
+
+                val value = propertyValues[code]
                 if (value == null) {
                     reply(ResponseCode.DEVICE_PROP_NOT_SUPPORTED, transactionId)
                 } else {
@@ -171,6 +202,8 @@ class FakeCamera(
         val code = pendingSetProperty ?: error("The fake camera got a data phase it did not expect")
         pendingSetProperty = null
         writes += Write(code, payload)
+
+        if (code == PRESET_SLOT_PROPERTY) selectedSlot = unpackU16(payload)
 
         // A real body holds what it was told, which is what makes the executor's read-back
         // check mean anything. A property it refused holds nothing new.

@@ -1,7 +1,10 @@
 package dev.bondarenko.fujirecipes.ui.camera
 
 import dev.bondarenko.fujirecipes.camera.CameraState
+import dev.bondarenko.fujirecipes.camera.plan.SlotCaution
+import dev.bondarenko.fujirecipes.camera.plan.SlotState
 import dev.bondarenko.fujirecipes.camera.plan.WritePlan
+import dev.bondarenko.fujirecipes.camera.plan.slotStates
 import dev.bondarenko.fujirecipes.camera.usb.WriteOutcome
 
 /**
@@ -22,11 +25,24 @@ sealed interface WriteStage {
      */
     data class Compatibility(val plan: WritePlan) : WriteStage
 
-    /** Stage 3. C1–C7. Contents read "Unknown" — this build does not read slots back. */
+    /**
+     * Stage 3. C1–C7, each showing what the camera says it currently holds.
+     *
+     * Read from the body when this stage is reached, never derived: a write is a destructive
+     * act against a device, and the decision has to be made against the device's own answer at
+     * the moment of choosing.
+     */
     data object Picker : WriteStage
 
-    /** Stage 4. A second tap on the chosen slot. */
-    data class Confirm(val slot: Int) : WriteStage
+    /**
+     * Stage 4. A second tap, on a slot with known contents.
+     *
+     * [caution] is why it is being asked — something named is about to be replaced, or the
+     * camera would not say what is there. A slot the camera answered for with no name reaches
+     * the write directly: confirming all seven slots of an untouched camera trains people to
+     * tap through the dialog that exists to protect them.
+     */
+    data class Confirm(val slot: Int, val caution: SlotCaution) : WriteStage
 
     /** Stage 5. Non-dismissible; back is intercepted. */
     data class Progress(
@@ -62,6 +78,10 @@ data class WriteUiState(
     val isWriting: Boolean = false,
     /** Set when the user pressed back mid-write and has not yet confirmed. */
     val confirmingCancel: Boolean = false,
+    /** What the camera said each slot holds, C1 first. Always seven entries. */
+    val slots: List<SlotState> = slotStates(emptyList(), loading = true),
+    /** Set when the read failed as a whole, rather than one slot at a time. */
+    val slotsError: String? = null,
 )
 
 /**

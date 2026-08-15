@@ -93,10 +93,23 @@ to write a recipe that looks right and is wrong.
 19. **Stage 2 compatibility** appears only when the plan drops something or refuses. Refusal
     is blocking with no write action. Dropped fields are listed by name, with *Write anyway*
     and *Cancel*.
-20. **Stage 3 slot picker** — seven large targets, C1…C7. Each shows "Unknown" for its
-    contents; this client does not read slots back (v1.1) and does not keep bookkeeping
-    (`roadmap.md` §3).
-21. **Stage 4 confirm** — a second tap on the chosen slot.
+20. **Stage 3 slot picker** — seven targets, C1…C7, each showing **what the camera says it
+    currently holds**. The names are read from the body when the stage is reached, never
+    derived: a write is a destructive act against a device, and the decision has to be made
+    against the device's own answer at the moment of choosing. Deriving contents from this
+    app's own past writes would be wrong the moment anything else touches the body — a recipe
+    set by hand on the camera, or one written from the web client — and this client keeps no
+    slot bookkeeping to derive from anyway (`roadmap.md` §3).
+20a. Four states after a read, kept visibly apart: **named**, **no name set** (the camera
+    answered and reported nothing to identify), **the camera did not answer** (it refused this
+    slot), and **unknown** (nothing was read). Merging the middle two is how someone writes
+    over a recipe after being shown an empty-looking slot.
+20b. The read is repeated every time the picker is reached rather than cached. A stale name is
+    worse than no name: it is a wrong fact rather than a missing one.
+21. **Stage 4 confirm** — a second tap, on a slot with **known contents**, and the
+    confirmation names what is being replaced. A slot the camera answered for with no name
+    goes straight to the write: putting a confirmation in front of all seven slots of an
+    untouched camera trains people to tap through the dialog that exists to protect them.
 22. **Stage 5 progress** — `n / total` in tabular figures with the current property named.
     The sheet is non-dismissible and back is intercepted with a cancel confirmation.
 23. **Stage 6 result** — success names the slot; failure names the failing property and the
@@ -109,7 +122,7 @@ to write a recipe that looks right and is wrong.
 
 | Deferred | To | Why |
 |---|---|---|
-| Reading slot contents back | v1.1 | `PRD.md` §14.3. Would turn "Unknown" into real contents. `fuji-recipes-book/camera/read-slot.ts` is already written. |
+| Reading a slot's full **settings** back, as an import | v2 | `fuji-recipes-book/camera/read-slot.ts`'s `readSlot` decodes every property into a recipe. That is the import path, which this client does not have. Slot **names** are read — see §20. |
 | Recording that a recipe was written | won't do | `roadmap.md` §3. `lastWrittenSlot` / `lastWrittenAt` pass through untouched inside `extra` so the web client's own bookkeeping is not destroyed. |
 | Writing the seven unmodelled per-slot settings | won't do | No recipe models them. Giving one of them a field is what would change this. |
 | Batch writing several recipes | won't do | Seven slots and one hand. |

@@ -60,6 +60,7 @@ ordering cost nothing — the form (FEAT-003) now inherits a table that is alrea
 
 | Deferred | To | Why |
 |---|---|---|
+| Reading a slot's full settings back as an importable recipe | v2 | The write sheet reads slot **names** from the camera — a write is a destructive act and the picker has to show the device's own answer. Decoding every property back into a recipe is the import path, which this client does not have. |
 | Reorder / manual-order editing | v2 | The list *respects* manual order as a tiebreak and never offers it as a sort — matching the web client, which also does not offer it. Editing it needs `POST /:id/move` and a drag surface. |
 | Delete and duplicate | FEAT-003 | They belong with the editor, not the list |
 | Export / import | v2 | The web client is the backup surface and `P2` of the web constitution already guarantees it. Duplicating it on Android before the camera works is misordered. |

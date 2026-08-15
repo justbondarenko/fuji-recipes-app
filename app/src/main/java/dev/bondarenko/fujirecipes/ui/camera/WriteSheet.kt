@@ -1,6 +1,7 @@
 package dev.bondarenko.fujirecipes.ui.camera
 
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -42,9 +44,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.camera.plan.DroppedField
-import dev.bondarenko.fujirecipes.camera.plan.FIRST_SLOT
-import dev.bondarenko.fujirecipes.camera.plan.LAST_SLOT
+import dev.bondarenko.fujirecipes.camera.plan.SlotCaution
+import dev.bondarenko.fujirecipes.camera.plan.SlotNameReading
+import dev.bondarenko.fujirecipes.camera.plan.SlotState
+import dev.bondarenko.fujirecipes.camera.plan.SlotStatus
 import dev.bondarenko.fujirecipes.camera.plan.WritePlan
+import dev.bondarenko.fujirecipes.camera.plan.slotStates
 import dev.bondarenko.fujirecipes.camera.usb.WriteOutcome
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
@@ -90,6 +95,7 @@ fun WriteSheetHost(recipeId: String, onDismiss: () -> Unit) {
             onConnect = viewModel::connect,
             onAcceptCompatibility = viewModel::acceptCompatibility,
             onChooseSlot = viewModel::chooseSlot,
+            onRefreshSlots = viewModel::refreshSlots,
             onBackToPicker = viewModel::backToPicker,
             onConfirm = viewModel::confirm,
             onRetry = viewModel::retry,
@@ -107,6 +113,7 @@ fun WriteSheetContent(
     onConnect: () -> Unit,
     onAcceptCompatibility: () -> Unit,
     onChooseSlot: (Int) -> Unit,
+    onRefreshSlots: () -> Unit,
     onBackToPicker: () -> Unit,
     onConfirm: (Int) -> Unit,
     onRetry: (Int) -> Unit,
@@ -137,10 +144,16 @@ fun WriteSheetContent(
                 onCancel = onDone,
             )
 
-            WriteStage.Picker -> PickerStage(onChooseSlot)
+            WriteStage.Picker -> PickerStage(
+                slots = state.slots,
+                slotsError = state.slotsError,
+                onChooseSlot = onChooseSlot,
+                onRefresh = onRefreshSlots,
+            )
 
             is WriteStage.Confirm -> ConfirmStage(
                 slot = stage.slot,
+                caution = stage.caution,
                 recipeName = state.recipeName,
                 onConfirm = { onConfirm(stage.slot) },
                 onBack = onBackToPicker,
@@ -243,36 +256,83 @@ private fun DroppedRow(dropped: DroppedField) {
 // ─── Stage 3 ────────────────────────────────────────────────────────────────
 
 @Composable
-private fun PickerStage(onChooseSlot: (Int) -> Unit) {
+private fun PickerStage(
+    slots: List<SlotState>,
+    slotsError: String?,
+    onChooseSlot: (Int) -> Unit,
+    onRefresh: () -> Unit,
+) {
     StageHeader(stringResource(R.string.write_pick_slot))
 
-    // `ButtonGroup` — the Expressive component PRD §7.4 asks for, with its neighbouring-button
-    // squeeze — is internal at material3 1.4.0 (`tech-stack.md` §6). Seven large targets built
-    // from the same vocabulary the shell uses instead.
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    slotsError?.let { Panel(it, alert = true) }
+
+    // A row per slot rather than seven buttons in a line: each one carries what the camera
+    // says is in it, and that is the whole point of the stage. `ButtonGroup` — the Expressive
+    // component `PRD.md` §7.4 asks for — is internal at material3 1.4.0 (`tech-stack.md` §6),
+    // and would not have carried a second line anyway.
+    slots.forEach { slot -> SlotRow(slot, onClick = { onChooseSlot(slot.slot) }) }
+
+    TextButton(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.write_slot_refresh))
+    }
+}
+
+/**
+ * One slot, as the camera described it.
+ *
+ * The four states after a read are kept visibly apart, because "the camera says nothing is
+ * named here" and "the camera would not tell us" lead to different decisions — merging them is
+ * how someone writes over a recipe after being shown an empty-looking slot.
+ */
+@Composable
+private fun SlotRow(state: SlotState, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        // A slot that is still being read is not a decision anyone can make yet.
+        enabled = state.status != SlotStatus.READING,
+        shape = MaterialTheme.shapes.small,
+        color = if (state.occupied) {
+            MaterialTheme.colorScheme.surfaceContainerHighest
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        },
+        contentColor = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        (FIRST_SLOT..LAST_SLOT).forEach { slot ->
-            Surface(
-                onClick = { onChooseSlot(slot) },
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f).height(56.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(text = "C$slot", style = MaterialTheme.typography.titleMedium)
-                }
-            }
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.write_slot_name, state.slot),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = state.name ?: stringResource(state.status.labelRes()),
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (state.occupied) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
+}
 
-    // Honest rather than blank: PRD §7.4 wants each slot to show what it holds, and this
-    // build cannot know.
-    // ponytail: no slot read-back in v1. `fuji-recipes-book/camera/read-slot.ts` is written
-    // and tested — port it when "Unknown" starts costing a wrong overwrite.
-    Body(stringResource(R.string.write_slot_contents_note))
+/** The status in the app's words. In `strings.xml` because everything user-facing is. */
+@StringRes
+private fun SlotStatus.labelRes(): Int = when (this) {
+    SlotStatus.READING -> R.string.write_slot_reading
+    // Never reached: a named slot renders its name.
+    SlotStatus.NAMED -> R.string.write_slot_name
+    SlotStatus.UNNAMED -> R.string.write_slot_unnamed
+    SlotStatus.UNREADABLE -> R.string.write_slot_unreadable
+    SlotStatus.UNKNOWN -> R.string.write_slot_unknown
 }
 
 // ─── Stage 4 ────────────────────────────────────────────────────────────────
@@ -280,12 +340,28 @@ private fun PickerStage(onChooseSlot: (Int) -> Unit) {
 @Composable
 private fun ConfirmStage(
     slot: Int,
+    caution: SlotCaution,
     recipeName: String,
     onConfirm: () -> Unit,
     onBack: () -> Unit,
 ) {
     StageHeader(stringResource(R.string.write_confirm_title, slot))
-    Body(stringResource(R.string.write_confirm_body, recipeName, slot))
+
+    // The confirmation names what is being lost. "Are you sure?" is a question nobody can
+    // answer; "C3 currently holds Kodachrome 64" is one they can.
+    Panel(
+        when (caution) {
+            is SlotCaution.Named -> stringResource(
+                R.string.write_confirm_named,
+                slot,
+                caution.recipeName,
+                recipeName,
+            )
+
+            is SlotCaution.Unknown -> stringResource(R.string.write_confirm_unknown, slot)
+        },
+        alert = true,
+    )
 
     Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth()) {
         Text(stringResource(R.string.write_confirm_action, slot))
@@ -434,10 +510,23 @@ private fun Panel(text: String, alert: Boolean = false) {
 // refusal ones. A preview of only the happy path is how the failure stage ships broken — and
 // this one is unreachable without a camera refusing a property mid-write.
 
+private val previewSlots = slotStates(
+    listOf(
+        SlotNameReading(1, "Kodachrome 64", read = true),
+        SlotNameReading(2, null, read = true),
+        SlotNameReading(3, "Acros Night", read = true),
+        SlotNameReading(4, null, read = true),
+        SlotNameReading(5, null, read = false),
+        SlotNameReading(6, "Portra 2", read = true),
+        SlotNameReading(7, null, read = true),
+    ),
+)
+
 private fun previewState(stage: WriteStage, writing: Boolean = false) = WriteUiState(
     stage = stage,
     recipeName = "Kodachrome 64",
     isWriting = writing,
+    slots = previewSlots,
 )
 
 @Composable
@@ -447,6 +536,7 @@ private fun PreviewSheet(state: WriteUiState) {
             WriteSheetContent(
                 state = state,
                 onConnect = {}, onAcceptCompatibility = {}, onChooseSlot = {},
+                onRefreshSlots = {},
                 onBackToPicker = {}, onConfirm = {}, onRetry = {}, onRequestCancel = {},
                 onDismissCancel = {}, onConfirmCancel = {}, onDone = {},
             )
@@ -503,7 +593,22 @@ private fun WritePickerPreview() = PreviewSheet(previewState(WriteStage.Picker))
 
 @Preview(name = "Write — confirm", showBackground = true)
 @Composable
-private fun WriteConfirmPreview() = PreviewSheet(previewState(WriteStage.Confirm(3)))
+private fun WriteConfirmPreview() = PreviewSheet(
+    previewState(WriteStage.Confirm(3, SlotCaution.Named(3, "Acros Night"))),
+)
+
+/** The slot the camera would not describe — a different warning, deliberately. */
+@Preview(name = "Write — confirm, unreadable slot", showBackground = true)
+@Composable
+private fun WriteConfirmUnknownPreview() = PreviewSheet(
+    previewState(WriteStage.Confirm(5, SlotCaution.Unknown(5))),
+)
+
+@Preview(name = "Write — picker, still reading", showBackground = true)
+@Composable
+private fun WritePickerReadingPreview() = PreviewSheet(
+    previewState(WriteStage.Picker).copy(slots = slotStates(emptyList(), loading = true)),
+)
 
 @Preview(name = "Write — progress", showBackground = true)
 @Composable

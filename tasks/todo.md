@@ -24,8 +24,10 @@ This is a transcription, not protocol archaeology.
       stages, haptics, entry point on the recipe view <!-- id: 8 -->
 - [x] 9. `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`, emulator pass,
       dark scheme, reduced motion, P5 error-copy audit <!-- id: 9 -->
-- [ ] 10. **Hardware pass on the X100VI** — the one thing no test replaces. FEAT-005 T-18 and
-      FEAT-006 T-15 <!-- id: 10 -->
+- [x] 10. Slot read-back in the picker — reversed from a deferral at the owner's
+      request <!-- id: 10 -->
+- [ ] 11. **Hardware pass on the X100VI** — the one thing no test replaces. FEAT-005 T-18 and
+      FEAT-006 T-15 <!-- id: 11 -->
 
 ## Notes carried through implementation
 
@@ -54,7 +56,7 @@ resolved every property code against an X100VI in its stage 32. Re-rated to **me
 ### Gate
 
 `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug` — green.
-**299 unit tests**, 0 failures. Camera-specific:
+**318 unit tests**, 0 failures. Camera-specific:
 
 | Suite | Tests | Covers |
 |---|---|---|
@@ -67,6 +69,8 @@ resolved every property code against an X100VI in its stage 32. Re-rated to **me
 | `WriteExecutorTest` | 15 | Refusals, unplug, cancel, read-back |
 | `CameraChipLookTest` | 9 | Six states, each with its own icon and words |
 | `WriteSheetStateTest` | 7 | Which stage the sheet opens on |
+| `SlotStatesTest` | 12 | The four post-read slot states, and which need a second tap |
+| `SlotReaderTest` | 7 | Reading C1–C7 off the body without turning a failure into a fact |
 | `CameraPurityTest` | 1 | P4, structurally |
 
 ### Verified on the Pixel 10 Pro XL emulator
@@ -94,6 +98,30 @@ against a fake camera that speaks PTP back.
   it is off, because the state still has its own icon and words.
 - **Dark scheme.** Chip, sheet and every write stage take their colours from the scheme; the
   previews cover both.
+
+### One deferral reversed: the slot picker reads the camera
+
+Shipped first as seven bare buttons, with slot read-back deferred to v1.1 and a `ponytail:`
+comment naming the upgrade. **Wrong call, corrected at the owner's request.** Picking a slot
+blind is exactly the case the deferral was gambling on: the point of the stage is to decide
+what to overwrite, and a picker that cannot say what is in a slot cannot support that
+decision. `fuji-recipes-book/camera/read-slot.ts` already had it.
+
+What that brought with it, ported from the sibling's `src/utils/slots.ts`:
+
+- **The camera is the only source.** The names are read from the body when the picker is
+  reached, and re-read every time. The sibling tried deriving them from its own past writes
+  and found the model wrong the moment anything else touched the camera — a recipe set by
+  hand, or written from the other client. This app keeps no slot bookkeeping to derive from
+  anyway, so there was never a second option.
+- **Four states, kept apart.** Named, no-name-set, the-camera-would-not-say, and unknown.
+  Merging the middle two shows an empty-looking slot for one nobody knows anything about,
+  which is how a recipe gets overwritten.
+- **The second tap is now conditional**, which is what `PRD.md` §7.4 said all along ("a slot
+  with **known contents**"). A named slot asks and names what it is replacing; a slot the
+  camera would not describe asks with a different warning; a slot the camera answered for with
+  no name goes straight through. Confirming all seven slots of an untouched camera would train
+  someone to tap past the dialog that exists to protect them.
 
 ### Still open — the hardware pass
 

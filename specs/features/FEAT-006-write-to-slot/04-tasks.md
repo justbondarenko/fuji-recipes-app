@@ -56,11 +56,9 @@ Paths are relative to `app/src/main/java/dev/bondarenko/fujirecipes/` unless sta
 - [x] **T-10** — `ui/camera/WriteSheet.kt` + `WriteViewModel.kt`. `PRD.md` §7.4's six stages
       in one expanding `ModalBottomSheet`. Connection stage skipped when already connected.
       Non-dismissible during the write, back intercepted with a cancel confirmation.
-      Slot contents read "Unknown" — a `ponytail:` comment names slot read-back
-      (`fuji-recipes-book/camera/read-slot.ts`) as the upgrade.
-- [x] **T-11** — Slot picker: seven large C1–C7 targets built from the shell's existing
-      hand-rolled M3-Expressive vocabulary. `ButtonGroup` is unreachable at material3 1.4.0
-      (`tech-stack.md` §6), so this is not a place to wait for it.
+- [x] **T-11** — Slot picker: a row per slot, C1–C7, each carrying what the camera says it
+      holds. `ButtonGroup` is unreachable at material3 1.4.0 (`tech-stack.md` §6), and would
+      not have carried a second line anyway.
 - [x] **T-12** — Progress: `n / total` in tabular figures with the current property named.
       Haptic `Confirm` on success and `Reject` on failure.
 - [x] **T-13** — Entry point: **Write to camera** on `ui/recipe/RecipeViewScreen.kt`'s
@@ -68,6 +66,20 @@ Paths are relative to `app/src/main/java/dev/bondarenko/fujirecipes/` unless sta
       cannot take a write.
 - [x] **T-14** — Strings in `strings.xml`. `@Preview` for every stage, including the
       refusal, the dropped-fields warning and the failure.
+## Reading the slots
+
+- [x] **T-16** — `camera/plan/SlotStates.kt` ← `fuji-recipes-book/src/utils/slots.ts`.
+      `SlotNameReading`, the five statuses, `slotStates`, `slotCaution`. Pure (P4); the labels
+      live in `strings.xml` rather than in the module, per the Compose conventions.
+- [x] **T-17** — `camera/usb/SlotReader.kt` ← `camera/read-slot.ts`'s `readSlotNames`. Select
+      the slot, settle, read `0xD18D`. A `PtpError` marks that slot unread and the rest
+      continue; anything else propagates. `SlotReaderTest` against `FakeCamera`, which gains
+      per-slot name registers so the settle and the selector are exercised properly.
+- [x] **T-18** — `WriteViewModel` reads the slots every time the picker is reached, never
+      cached: the answer changes without this app, and a stale name is a wrong fact rather
+      than a missing one. `SlotStatesTest` covers the four post-read states and which of them
+      need a second tap.
+
 - [ ] **T-15** — `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug` green.
       Emulator: every stage renders. **Hardware, once:** write a known recipe to **C7**
       (least likely to be in use), then read the slot on the camera and compare every field

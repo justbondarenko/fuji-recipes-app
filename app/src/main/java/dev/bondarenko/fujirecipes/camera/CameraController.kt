@@ -10,6 +10,7 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.PowerManager
 import androidx.core.content.ContextCompat
+import dev.bondarenko.fujirecipes.camera.plan.SlotNameReading
 import dev.bondarenko.fujirecipes.camera.plan.WritePlan
 import dev.bondarenko.fujirecipes.camera.ptp.PtpError
 import dev.bondarenko.fujirecipes.camera.ptp.PtpFramingError
@@ -23,6 +24,7 @@ import dev.bondarenko.fujirecipes.camera.usb.WriteInterrupted
 import dev.bondarenko.fujirecipes.camera.usb.WriteOutcome
 import dev.bondarenko.fujirecipes.camera.usb.executeWritePlan
 import dev.bondarenko.fujirecipes.camera.usb.partialWriteWarning
+import dev.bondarenko.fujirecipes.camera.usb.readSlotNames
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -224,6 +226,25 @@ class CameraController(
                 }
             }
         }
+    }
+
+    // ─── Reading the slots (FEAT-006) ───────────────────────────────────────
+
+    /**
+     * Asks the camera what each of C1–C7 currently holds.
+     *
+     * Behind the same lock as everything else, so it cannot run alongside a write — they share
+     * the slot selector, and interleaving them would leave the selector pointing somewhere the
+     * write did not choose.
+     *
+     * A per-slot refusal is that slot's own answer and comes back as unread. A failure of the
+     * pipe itself throws, and the sheet says the camera did not answer rather than showing
+     * seven slots it never asked about.
+     */
+    suspend fun readSlots(): List<SlotNameReading> = lock.withLock {
+        val open = session ?: return emptyList()
+
+        return withContext(Dispatchers.IO) { readSlotNames(open) }
     }
 
     // ─── Writing (FEAT-006) ─────────────────────────────────────────────────

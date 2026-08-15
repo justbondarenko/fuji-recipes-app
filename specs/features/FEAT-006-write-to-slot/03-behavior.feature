@@ -135,13 +135,65 @@ Feature: Write to slot
     Then the sheet lists each dropped parameter by name
     And it offers to write anyway or cancel
 
-  Scenario: Slot contents are honestly unknown
+  Scenario: The picker shows what the camera says each slot holds
+    Given a camera whose C3 holds a recipe named "Acros Night"
     When I reach the slot picker
-    Then each slot's contents read as unknown
+    Then C3 shows "Acros Night"
 
-  Scenario: Choosing a slot asks for a second tap
+  Scenario: The slots are read from the camera, not from what this app wrote before
+    Given a recipe was written to C3 from this app earlier
+    And the camera's C3 has since been changed on the body
+    When I reach the slot picker
+    Then C3 shows what the camera reports now
+
+  Scenario: The slots are read again each time the picker is reached
+    Given I have already seen the picker once
+    When I reach it again
+    Then the camera is asked again
+
+  Scenario: A slot the camera answered for with no name says so
+    Given a camera whose C4 has no name set
+    When I reach the slot picker
+    Then C4 says no name is set
+    And it does not claim the slot is empty
+
+  Scenario: A slot the camera would not describe is not shown as empty
+    Given a camera that refuses to report the name of C5
+    When I reach the slot picker
+    Then C5 says the camera did not answer
+    And it reads differently from a slot with no name set
+
+  Scenario: One refused slot does not cost the others
+    Given a camera that refuses to report the name of C5
+    When I reach the slot picker
+    Then the other six slots show what the camera reported
+
+  Scenario: A failed read is reported rather than shown as seven empty slots
+    Given a camera that stops answering while the slots are being read
+    When I reach the slot picker
+    Then the sheet says the camera did not answer
+    And every slot reads as unknown
+
+  Scenario: Reading the slots changes nothing on the camera
+    When the slots are read
+    Then only the slot selector is written
+
+  Scenario: Choosing an occupied slot asks for a second tap, naming what it holds
+    Given C3 holds a recipe named "Acros Night"
     When I choose C3
-    Then I am asked to confirm before the write begins
+    Then I am asked to confirm
+    And the confirmation names "Acros Night" as what will be replaced
+
+  Scenario: Choosing a slot the camera would not describe asks for a second tap
+    Given the camera refused to report the name of C5
+    When I choose C5
+    Then I am asked to confirm
+    And the confirmation says the camera would not say what is there
+
+  Scenario: Choosing an empty-named slot does not ask twice
+    Given C4 has no name set
+    When I choose C4
+    Then the write begins without a second tap
 
   Scenario: Progress names the parameter currently being written
     Given a write in progress

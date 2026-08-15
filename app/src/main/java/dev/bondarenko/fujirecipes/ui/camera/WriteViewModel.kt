@@ -12,6 +12,8 @@ import dev.bondarenko.fujirecipes.camera.WriteResult
 import dev.bondarenko.fujirecipes.camera.plan.FIRST_SLOT
 import dev.bondarenko.fujirecipes.camera.plan.WritePlan
 import dev.bondarenko.fujirecipes.camera.plan.buildWritePlan
+import dev.bondarenko.fujirecipes.camera.plan.slotCaution
+import dev.bondarenko.fujirecipes.camera.plan.slotStates
 import dev.bondarenko.fujirecipes.core.AppContainer
 import dev.bondarenko.fujirecipes.data.fields.RecipeFields
 import dev.bondarenko.fujirecipes.data.model.Recipe
@@ -49,10 +51,12 @@ class WriteViewModel(
                 .recipes.firstOrNull { it.id == recipeId }
 
             recipe = loaded
-            _state.value = WriteUiState(
-                stage = openingStage(controller.state.value, planFor(FIRST_SLOT)),
-                recipeName = loaded?.name.orEmpty(),
-            )
+            val stage = openingStage(controller.state.value, planFor(FIRST_SLOT))
+            _state.value = WriteUiState(stage = stage, recipeName = loaded?.name.orEmpty())
+
+            // The ordinary case opens straight on the picker, so the read starts here rather
+            // than only on the compatibility stage's way out.
+            if (stage == WriteStage.Picker) refreshSlots()
         }
     }
 
@@ -87,18 +91,64 @@ class WriteViewModel(
         controller.connect()
         viewModelScope.launch {
             controller.state.first { it is CameraState.Connected }
-            _state.value = _state.value.copy(stage = openingStage(controller.state.value, planFor(FIRST_SLOT)))
+            val stage = openingStage(controller.state.value, planFor(FIRST_SLOT))
+            _state.value = _state.value.copy(stage = stage)
+            if (stage == WriteStage.Picker) refreshSlots()
         }
     }
 
     /** Stage 2 → "write anyway", having read what will be dropped. */
     fun acceptCompatibility() {
         _state.value = _state.value.copy(stage = WriteStage.Picker)
+        refreshSlots()
     }
 
-    /** Stage 3 → a slot is chosen; stage 4 asks for a second tap. */
+    /**
+     * Asks the camera what its slots hold.
+     *
+     * Run every time the picker is reached rather than cached, because the answer can change
+     * without this app: a recipe set by hand on the body, or written from the web client. A
+     * stale name here is worse than no name, since it is a wrong fact rather than a missing
+     * one.
+     */
+    fun refreshSlots() {
+        _state.value = _state.value.copy(
+            slots = slotStates(emptyList(), loading = true),
+            slotsError = null,
+        )
+
+        viewModelScope.launch {
+            runCatching { controller.readSlots() }
+                .onSuccess { readings ->
+                    _state.value = _state.value.copy(slots = slotStates(readings))
+                }
+                .onFailure { error ->
+                    // The read failed as a whole. Seven slots showing "Unknown" is the honest
+                    // rendering, and the message says why they are unknown.
+                    _state.value = _state.value.copy(
+                        slots = slotStates(emptyList()),
+                        slotsError = error.message
+                            ?: "The camera did not answer when asked what its slots hold.",
+                    )
+                }
+        }
+    }
+
+    /**
+     * Stage 3 → a slot is chosen.
+     *
+     * A slot with something known in it gets stage 4's second tap. A slot the camera answered
+     * for with no name goes straight to the write — there is nothing identifiable to lose, and
+     * a confirmation in front of all seven slots of an untouched camera is one nobody reads.
+     */
     fun chooseSlot(slot: Int) {
-        _state.value = _state.value.copy(stage = WriteStage.Confirm(slot))
+        val caution = slotCaution(_state.value.slots.firstOrNull { it.slot == slot })
+
+        if (caution == null) {
+            confirm(slot)
+        } else {
+            _state.value = _state.value.copy(stage = WriteStage.Confirm(slot, caution))
+        }
     }
 
     fun backToPicker() {
