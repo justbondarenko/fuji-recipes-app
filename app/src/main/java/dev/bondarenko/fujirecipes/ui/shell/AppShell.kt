@@ -63,6 +63,13 @@ fun AppShell(
     onMoreClick: () -> Unit,
     onCreateClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * The camera indicator, floated top-right over the content — `PRD.md` §7.2.
+     *
+     * Passed in rather than built here so the shell keeps knowing nothing about the camera,
+     * and so a preview can render the chrome without a controller.
+     */
+    cameraChip: (@Composable () -> Unit)? = null,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     val systemBars = WindowInsets.navigationBars.asPaddingValues()
@@ -74,9 +81,14 @@ fun AppShell(
             .background(MaterialTheme.colorScheme.surface),
     ) {
         // Content scrolls under the floating toolbar
+        val showCameraChip = showChrome && cameraChip != null
+
         content(
             PaddingValues(
-                top = statusBar.calculateTopPadding(),
+                // The chip floats over the content, so the content's top inset reserves its
+                // row — otherwise the first card scrolls to rest underneath it.
+                top = statusBar.calculateTopPadding() +
+                    if (showCameraChip) ChipRowHeight else 0.dp,
                 bottom = if (showChrome) {
                     BarHeight + BarMargin * 2 + systemBars.calculateBottomPadding()
                 } else {
@@ -91,7 +103,10 @@ fun AppShell(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
-                    .height(statusBar.calculateTopPadding() + 16.dp)
+                    .height(
+                        statusBar.calculateTopPadding() +
+                            if (showCameraChip) ChipRowHeight + 8.dp else 16.dp,
+                    )
                     .background(
                         Brush.verticalGradient(
                             0.0f to MaterialTheme.colorScheme.surface,
@@ -100,6 +115,16 @@ fun AppShell(
                         ),
                     ),
             )
+
+            if (showCameraChip) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = statusBar.calculateTopPadding() + 4.dp, end = BarMargin),
+                ) {
+                    cameraChip()
+                }
+            }
 
             Row(
                 modifier = Modifier
@@ -220,6 +245,9 @@ private fun FloatingToolbarItem(
 
 private val BarHeight = 56.dp
 private val BarMargin = 16.dp
+
+/** The floating camera chip's row: its own height plus the breathing room around it. */
+private val ChipRowHeight = 44.dp
 
 @Preview(name = "Shell — light", showBackground = true, heightDp = 400)
 @Preview(name = "Shell — dark", showBackground = true, uiMode = 0x20, heightDp = 400)

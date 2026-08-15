@@ -122,6 +122,31 @@
     <string name="settings_clear_body">The server address and service token will be removed from this phone. Your library is not affected, and the token itself is not revoked — do that in the Cloudflare dashboard if you need to.</string>
     <string name="settings_clear_confirm">Clear</string>
 
+    <!-- Camera — FEAT-005. The chip's six states are PRD §7.2's. -->
+    <string name="camera_chip_no_usb">No USB</string>
+    <string name="camera_chip_connect">Connect</string>
+    <string name="camera_chip_connecting">Connecting</string>
+    <string name="camera_chip_connected">Camera</string>
+    <string name="camera_chip_writing">Writing…</string>
+    <string name="camera_chip_error">Error</string>
+    <string name="camera_chip_description">Camera: %1$s</string>
+
+    <string name="camera_sheet_title">Camera</string>
+    <string name="camera_state_no_usb_title">This phone has no USB host support</string>
+    <string name="camera_state_no_usb_body">Writing to a camera needs USB host mode, which this device does not have. Storing and editing recipes works normally.</string>
+    <string name="camera_state_disconnected_title">No camera connected</string>
+    <string name="camera_state_disconnected_body">Connect the camera with a USB-C cable and set its USB mode to the RAW-conversion/backup mode.</string>
+    <string name="camera_state_attached_body">A Fujifilm camera is attached. Connect to read which body it is.</string>
+    <string name="camera_state_connecting_title">Connecting…</string>
+    <string name="camera_state_connecting_body">Opening a session with the camera.</string>
+    <string name="camera_state_error_title">The camera could not be reached</string>
+    <string name="camera_ptp_code">Camera response: %1$s</string>
+    <string name="camera_writes_available">Ready to write recipes to C1–C7.</string>
+    <string name="camera_action_connect">Connect</string>
+    <string name="camera_action_retry">Try again</string>
+    <string name="camera_action_disconnect">Disconnect</string>
+    <string name="camera_slot_note">Writing to a slot leaves its image size, quality, smooth skin, long-exposure NR and colour space as they were — a slot is not reset before it is written.</string>
+
     <!-- Placeholders, replaced as their features land -->
     <string name="placeholder_editor_title">Recipe</string>
     <string name="placeholder_editor_body">Create and edit go here (FEAT-002).</string>

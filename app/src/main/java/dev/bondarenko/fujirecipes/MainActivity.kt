@@ -18,6 +18,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import dev.bondarenko.fujirecipes.ui.camera.CameraChipHost
 import dev.bondarenko.fujirecipes.ui.nav.ConnectionRoute
 import dev.bondarenko.fujirecipes.ui.nav.FujiNavHost
 import dev.bondarenko.fujirecipes.ui.nav.LibraryRoute
@@ -114,6 +115,7 @@ private fun FujiApp(startDestination: Any) {
             },
             onMoreClick = { navController.navigate(MoreRoute) { launchSingleTop = true } },
             onCreateClick = { navController.navigate(RecipeEditorRoute(id = null)) },
+            cameraChip = { CameraChipHost() },
         ) { contentPadding ->
             FujiNavHost(
                 navController = navController,
