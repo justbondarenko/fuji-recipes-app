@@ -1,0 +1,51 @@
+name: Build
+
+# A debug APK per push, downloadable from the run's Artifacts.
+# Also runs the unit tests, so a build that produces an APK is one whose tests passed.
+# Push only: a pull_request trigger on top of it would run the same commit twice, and a
+# push run on a branch already shows up in that branch's pull request checks.
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+jobs:
+  debug-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # JDK 17: what `app/build.gradle.kts` compiles against.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      # Accepts the SDK licences, so AGP can fetch the platform compileSdk asks for.
+      - uses: android-actions/setup-android@v3
+
+      - run: chmod +x ./gradlew
+
+      - name: Unit tests
+        run: ./gradlew :app:testDebugUnitTest
+
+      - name: Assemble debug APK
+        run: ./gradlew :app:assembleDebug
+
+      - name: Test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-report
+          path: app/build/reports/tests/testDebugUnitTest
+          retention-days: 14
+
+      - name: Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuji-recipes-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+          if-no-files-found: error

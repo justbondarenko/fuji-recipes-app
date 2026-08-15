@@ -57,8 +57,19 @@ class WriteViewModel(
 
             // The ordinary case opens straight on the picker, so the read starts here rather
             // than only on the compatibility stage's way out.
-            if (stage == WriteStage.Picker) refreshSlots()
+            if (stage == WriteStage.Picker) enterPicker()
         }
+    }
+
+    /**
+     * Arrive at the slot picker: nothing chosen for the user, and a fresh read from the body.
+     *
+     * Both halves matter every single time this stage is reached. `WriteUiState.enteringPicker`
+     * says why the selection resets; [refreshSlots] says why the names are re-read.
+     */
+    private fun enterPicker() {
+        _state.value = _state.value.enteringPicker()
+        refreshSlots()
     }
 
     /**
@@ -94,14 +105,13 @@ class WriteViewModel(
             controller.state.first { it is CameraState.Connected }
             val stage = openingStage(controller.state.value, planFor(FIRST_SLOT))
             _state.value = _state.value.copy(stage = stage)
-            if (stage == WriteStage.Picker) refreshSlots()
+            if (stage == WriteStage.Picker) enterPicker()
         }
     }
 
     /** Stage 2 → "write anyway", having read what will be dropped. */
     fun acceptCompatibility() {
-        _state.value = _state.value.copy(stage = WriteStage.Picker)
-        refreshSlots()
+        enterPicker()
     }
 
     /**
@@ -161,11 +171,30 @@ class WriteViewModel(
     }
 
     fun backToPicker() {
-        _state.value = _state.value.copy(stage = WriteStage.Picker)
+        enterPicker()
+    }
+
+    /**
+     * The picker's selection — which slot the write button is offering.
+     *
+     * A slot still being read cannot be chosen: `slotCaution` answers null for it, so a write
+     * aimed at one would start with no warning about what it is replacing.
+     */
+    fun selectSlot(slot: Int) {
+        val state = _state.value.slots.firstOrNull { it.slot == slot } ?: return
+        if (state.status == SlotStatus.READING) return
+
+        _state.value = _state.value.copy(selectedSlot = slot)
     }
 
     /** Stage 4 → the write runs. */
     fun confirm(slot: Int) {
+        // The same guard as [selectSlot], on the path that actually sends bytes. The picker
+        // disables the button too; this is the half that has to hold, because the other half
+        // is a rendering decision.
+        val slotState = _state.value.slots.firstOrNull { it.slot == slot }
+        if (slotState?.status == SlotStatus.READING) return
+
         val plan = planFor(slot)
         cancelRequested = false
 
