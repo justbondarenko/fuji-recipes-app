@@ -27,7 +27,7 @@ fun CameraToolbarItemHost(selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-fun CameraRouteContent(onBack: () -> Unit, contentPadding: PaddingValues) {
+fun CameraRouteContent(contentPadding: PaddingValues) {
     val controller = cameraController()
     val state by controller.state.collectAsStateWithLifecycle()
 
@@ -35,13 +35,9 @@ fun CameraRouteContent(onBack: () -> Unit, contentPadding: PaddingValues) {
         state = state,
         isCameraAttached = controller.isCameraAttached,
         onConnect = controller::connect,
-        // Disconnecting leaves nothing on this screen worth reading, so it goes back to
-        // wherever the camera was opened from.
-        onDisconnect = {
-            controller.disconnect()
-            onBack()
-        },
-        onBack = onBack,
+        // Stays put: this is a destination, not a sheet, and the disconnected state is worth
+        // showing — it carries the Connect action.
+        onDisconnect = controller::disconnect,
         contentPadding = contentPadding,
     )
 }

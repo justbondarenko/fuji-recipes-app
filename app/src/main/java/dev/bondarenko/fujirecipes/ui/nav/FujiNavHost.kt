@@ -169,10 +169,7 @@ fun FujiNavHost(
         }
 
         composable<CameraRoute> {
-            CameraRouteContent(
-                onBack = { navController.popBackStack() },
-                contentPadding = contentPadding,
-            )
+            CameraRouteContent(contentPadding = contentPadding)
         }
 
         composable<PhotoRoute> {
