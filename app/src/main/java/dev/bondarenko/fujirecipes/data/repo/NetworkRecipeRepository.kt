@@ -3,6 +3,7 @@ package dev.bondarenko.fujirecipes.data.repo
 import dev.bondarenko.fujirecipes.core.cache.SnapshotCache
 import dev.bondarenko.fujirecipes.core.net.ApiClient
 import dev.bondarenko.fujirecipes.core.net.ApiResult
+import dev.bondarenko.fujirecipes.core.net.ImportResult
 import dev.bondarenko.fujirecipes.data.model.Recipe
 import kotlinx.serialization.json.JsonObject
 import dev.bondarenko.fujirecipes.core.settings.ConnectionConfig
@@ -114,6 +115,9 @@ class NetworkRecipeRepository(
 
     override suspend fun delete(id: String): ApiResult<Unit> =
         afterMutation(api.deleteRecipe(id))
+
+    override suspend fun importAll(body: JsonObject): ApiResult<ImportResult> =
+        afterMutation(api.importRecipes(body))
 
     /**
      * Refresh on success, leave everything alone on failure.
