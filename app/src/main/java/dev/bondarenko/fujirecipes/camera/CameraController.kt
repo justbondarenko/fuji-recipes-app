@@ -8,17 +8,25 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
+import android.os.PowerManager
 import androidx.core.content.ContextCompat
+import dev.bondarenko.fujirecipes.camera.plan.WritePlan
 import dev.bondarenko.fujirecipes.camera.ptp.PtpError
 import dev.bondarenko.fujirecipes.camera.ptp.PtpFramingError
 import dev.bondarenko.fujirecipes.camera.ptp.PtpSession
 import dev.bondarenko.fujirecipes.camera.ptp.PtpTimeoutError
 import dev.bondarenko.fujirecipes.camera.ptp.PtpTransport
+import dev.bondarenko.fujirecipes.camera.usb.InterruptReason
 import dev.bondarenko.fujirecipes.camera.usb.UsbBulkChannel
 import dev.bondarenko.fujirecipes.camera.usb.UsbConnectError
+import dev.bondarenko.fujirecipes.camera.usb.WriteInterrupted
+import dev.bondarenko.fujirecipes.camera.usb.WriteOutcome
+import dev.bondarenko.fujirecipes.camera.usb.executeWritePlan
+import dev.bondarenko.fujirecipes.camera.usb.partialWriteWarning
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -218,19 +226,110 @@ class CameraController(
         }
     }
 
-    // ─── For the write executor (FEAT-006) ──────────────────────────────────
+    // ─── Writing (FEAT-006) ─────────────────────────────────────────────────
 
-    /** The open session, or null. The write path is the only caller. */
-    internal fun openSessionOrNull(): PtpSession? = session
+    /**
+     * Executes a plan against the open session.
+     *
+     * Serialised behind the same lock as connecting, so a detach arriving mid-write cannot
+     * tear the session down underneath the executor — it waits, and finds the state already
+     * moved on.
+     *
+     * The state goes to [CameraState.Writing] for the duration and back to
+     * [CameraState.Connected] afterwards, so the chip's progress bar is driven by the same
+     * value everything else reads.
+     */
+    suspend fun write(
+        plan: WritePlan,
+        isCancelled: () -> Boolean = { false },
+    ): WriteResult = lock.withLock {
+        val open = session
+        val connected = _state.value as? CameraState.Connected
 
-    internal fun publish(state: CameraState) {
-        _state.value = state
+        if (open == null || connected == null) {
+            return WriteResult.Failure(
+                "The camera is not connected, so there is nothing to write to.",
+            )
+        }
+
+        /**
+         * A partial wake lock for the duration of the write, and no longer.
+         *
+         * `PRD.md` §8.4: writes take seconds, and a screen timeout with doze arriving
+         * mid-transfer is a bad way to leave a slot half-written. No foreground service — the
+         * operation is short and the user started it.
+         */
+        val wakeLock = (appContext.getSystemService(Context.POWER_SERVICE) as PowerManager)
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_TAG)
+
+        return try {
+            wakeLock.acquire(WAKE_LOCK_TIMEOUT_MS)
+            _state.value = CameraState.Writing(plan.slot, 0, plan.total, "")
+
+            val outcome = withContext(Dispatchers.IO) {
+                executeWritePlan(
+                    session = open,
+                    plan = plan,
+                    onProgress = { progress ->
+                        _state.value = CameraState.Writing(
+                            slot = plan.slot,
+                            done = progress.done,
+                            total = progress.total,
+                            current = progress.label,
+                        )
+                    },
+                    isCancelled = isCancelled,
+                )
+            }
+
+            _state.value = connected
+            WriteResult.Success(outcome)
+        } catch (error: WriteInterrupted) {
+            // A disconnect has already been handled by the detach receiver, which left an
+            // Error state saying so. Anything else returns to connected: the camera is still
+            // there, and the sheet reports what happened.
+            if (error.reason != InterruptReason.DISCONNECTED) _state.value = connected
+
+            WriteResult.Failure(
+                message = error.message.orEmpty(),
+                warning = partialWriteWarning(error.outcome),
+                outcome = error.outcome,
+            )
+        } catch (error: Exception) {
+            _state.value = connected
+            WriteResult.Failure(error.toCameraError().message)
+        } finally {
+            if (wakeLock.isHeld) wakeLock.release()
+        }
     }
+
+    /** The open session, or null. */
+    internal fun openSessionOrNull(): PtpSession? = session
 
     companion object {
         /** Private to this app: the filter is registered `RECEIVER_NOT_EXPORTED`. */
         const val ACTION_USB_PERMISSION = "dev.bondarenko.fujirecipes.USB_PERMISSION"
+
+        private const val WAKE_LOCK_TAG = "fujirecipes:camera-write"
+
+        /**
+         * A backstop, not a budget. A write is seconds; this only guarantees the lock is not
+         * left held for ever if something goes wrong in a way `finally` cannot see.
+         */
+        private const val WAKE_LOCK_TIMEOUT_MS = 2 * 60 * 1000L
     }
+}
+
+/** What a write did, as the sheet needs to render it. */
+sealed interface WriteResult {
+    data class Success(val outcome: WriteOutcome) : WriteResult
+
+    data class Failure(
+        val message: String,
+        /** What the slot now holds, when anything was written before this stopped. */
+        val warning: String? = null,
+        val outcome: WriteOutcome? = null,
+    ) : WriteResult
 }
 
 /**

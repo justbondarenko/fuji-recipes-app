@@ -9,6 +9,13 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!--
+      FEAT-006: a partial wake lock is held for the duration of a write and no longer. Writes
+      take seconds, and a screen timeout with doze arriving mid-transfer is a bad way to leave
+      a slot half-written (`PRD.md` §8.4).
+    -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!--
       FEAT-005. Declared required: a device without USB host cannot do the thing the app
       exists for (`steering/tech-stack.md` §4).
     -->

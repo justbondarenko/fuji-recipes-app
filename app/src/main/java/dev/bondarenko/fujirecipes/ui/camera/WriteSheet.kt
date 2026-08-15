@@ -1,0 +1,546 @@
+package dev.bondarenko.fujirecipes.ui.camera
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import dev.bondarenko.fujirecipes.FujiRecipesApp
+import dev.bondarenko.fujirecipes.R
+import dev.bondarenko.fujirecipes.camera.plan.DroppedField
+import dev.bondarenko.fujirecipes.camera.plan.FIRST_SLOT
+import dev.bondarenko.fujirecipes.camera.plan.LAST_SLOT
+import dev.bondarenko.fujirecipes.camera.plan.WritePlan
+import dev.bondarenko.fujirecipes.camera.usb.WriteOutcome
+import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
+import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
+
+/**
+ * The write flow — `PRD.md` §7.4.
+ *
+ * One `ModalBottomSheet` expanding through its stages rather than a stack of dialogs, because
+ * the user is doing one thing. The stage machine is `WriteSheetState.kt`; this renders it.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WriteSheetHost(recipeId: String, onDismiss: () -> Unit) {
+    val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
+    val viewModel: WriteViewModel = viewModel(
+        factory = WriteViewModel.factory(container, recipeId),
+    )
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val haptics = LocalHapticFeedback.current
+
+    /**
+     * The confirmation you feel rather than read.
+     *
+     * `PRD.md` §7.4: you will often be looking at the camera, not the phone, when the write
+     * lands. This matters more than it sounds.
+     */
+    LaunchedEffect(state.stage) {
+        when (state.stage) {
+            is WriteStage.Done -> haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+            is WriteStage.Failed -> haptics.performHapticFeedback(HapticFeedbackType.Reject)
+            else -> Unit
+        }
+    }
+
+    ModalBottomSheet(
+        // A write in progress is a slot being changed. Dismissing it would abandon the sheet,
+        // not the write, and leave the user with no way back to the result.
+        onDismissRequest = { if (!state.isWriting) onDismiss() },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
+        WriteSheetContent(
+            state = state,
+            onConnect = viewModel::connect,
+            onAcceptCompatibility = viewModel::acceptCompatibility,
+            onChooseSlot = viewModel::chooseSlot,
+            onBackToPicker = viewModel::backToPicker,
+            onConfirm = viewModel::confirm,
+            onRetry = viewModel::retry,
+            onRequestCancel = viewModel::requestCancel,
+            onDismissCancel = viewModel::dismissCancel,
+            onConfirmCancel = viewModel::confirmCancel,
+            onDone = onDismiss,
+        )
+    }
+}
+
+@Composable
+fun WriteSheetContent(
+    state: WriteUiState,
+    onConnect: () -> Unit,
+    onAcceptCompatibility: () -> Unit,
+    onChooseSlot: (Int) -> Unit,
+    onBackToPicker: () -> Unit,
+    onConfirm: (Int) -> Unit,
+    onRetry: (Int) -> Unit,
+    onRequestCancel: () -> Unit,
+    onDismissCancel: () -> Unit,
+    onConfirmCancel: () -> Unit,
+    onDone: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Back during a write asks first, for the same reason the sheet will not be dismissed.
+    BackHandler(enabled = state.isWriting) { onRequestCancel() }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 32.dp)
+            .navigationBarsPadding()
+            .animateContentSize(),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        when (val stage = state.stage) {
+            WriteStage.Connect -> ConnectStage(state.recipeName, onConnect)
+
+            is WriteStage.Compatibility -> CompatibilityStage(
+                plan = stage.plan,
+                onWriteAnyway = onAcceptCompatibility,
+                onCancel = onDone,
+            )
+
+            WriteStage.Picker -> PickerStage(onChooseSlot)
+
+            is WriteStage.Confirm -> ConfirmStage(
+                slot = stage.slot,
+                recipeName = state.recipeName,
+                onConfirm = { onConfirm(stage.slot) },
+                onBack = onBackToPicker,
+            )
+
+            is WriteStage.Progress -> ProgressStage(stage)
+
+            is WriteStage.Done -> DoneStage(stage.outcome, onDone)
+
+            is WriteStage.Failed -> FailedStage(
+                stage = stage,
+                onRetry = { stage.slot?.let(onRetry) },
+                onDone = onDone,
+            )
+        }
+    }
+
+    if (state.confirmingCancel) {
+        AlertDialog(
+            onDismissRequest = onDismissCancel,
+            title = { Text(stringResource(R.string.write_cancel_title)) },
+            text = { Text(stringResource(R.string.write_cancel_body)) },
+            confirmButton = {
+                TextButton(onClick = onConfirmCancel) {
+                    Text(stringResource(R.string.write_cancel_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissCancel) {
+                    Text(stringResource(R.string.write_cancel_keep))
+                }
+            },
+        )
+    }
+}
+
+// ─── Stage 1 ────────────────────────────────────────────────────────────────
+
+@Composable
+private fun ConnectStage(recipeName: String, onConnect: () -> Unit) {
+    StageHeader(stringResource(R.string.write_title))
+    Body(stringResource(R.string.write_connect_body, recipeName))
+    Button(onClick = onConnect, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.camera_action_connect))
+    }
+}
+
+// ─── Stage 2 ────────────────────────────────────────────────────────────────
+
+@Composable
+private fun CompatibilityStage(plan: WritePlan, onWriteAnyway: () -> Unit, onCancel: () -> Unit) {
+    val refusal = plan.refusal
+
+    if (refusal != null) {
+        // WR-01. Blocking: there is no "write anyway" for a body with no slot registers.
+        StageHeader(stringResource(R.string.write_refused_title))
+        Panel(refusal, alert = true)
+        Button(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.action_cancel))
+        }
+        return
+    }
+
+    StageHeader(stringResource(R.string.write_dropped_title))
+    Body(stringResource(R.string.write_dropped_body))
+
+    plan.dropped.forEach { DroppedRow(it) }
+    plan.notes.forEach { Panel(it) }
+
+    Button(onClick = onWriteAnyway, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.write_anyway))
+    }
+    OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.action_cancel))
+    }
+}
+
+@Composable
+private fun DroppedRow(dropped: DroppedField) {
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.errorContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = dropped.label,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Text(
+                text = dropped.reason,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+        }
+    }
+}
+
+// ─── Stage 3 ────────────────────────────────────────────────────────────────
+
+@Composable
+private fun PickerStage(onChooseSlot: (Int) -> Unit) {
+    StageHeader(stringResource(R.string.write_pick_slot))
+
+    // `ButtonGroup` — the Expressive component PRD §7.4 asks for, with its neighbouring-button
+    // squeeze — is internal at material3 1.4.0 (`tech-stack.md` §6). Seven large targets built
+    // from the same vocabulary the shell uses instead.
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        (FIRST_SLOT..LAST_SLOT).forEach { slot ->
+            Surface(
+                onClick = { onChooseSlot(slot) },
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f).height(56.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(text = "C$slot", style = MaterialTheme.typography.titleMedium)
+                }
+            }
+        }
+    }
+
+    // Honest rather than blank: PRD §7.4 wants each slot to show what it holds, and this
+    // build cannot know.
+    // ponytail: no slot read-back in v1. `fuji-recipes-book/camera/read-slot.ts` is written
+    // and tested — port it when "Unknown" starts costing a wrong overwrite.
+    Body(stringResource(R.string.write_slot_contents_note))
+}
+
+// ─── Stage 4 ────────────────────────────────────────────────────────────────
+
+@Composable
+private fun ConfirmStage(
+    slot: Int,
+    recipeName: String,
+    onConfirm: () -> Unit,
+    onBack: () -> Unit,
+) {
+    StageHeader(stringResource(R.string.write_confirm_title, slot))
+    Body(stringResource(R.string.write_confirm_body, recipeName, slot))
+
+    Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.write_confirm_action, slot))
+    }
+    OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.action_back))
+    }
+}
+
+// ─── Stage 5 ────────────────────────────────────────────────────────────────
+
+@Composable
+private fun ProgressStage(stage: WriteStage.Progress) {
+    StageHeader(stringResource(R.string.write_progress_title, stage.slot))
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = stage.current,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = stringResource(R.string.write_progress_count, stage.done, stage.total),
+            // Tabular figures, so the count does not jitter as it climbs (`PRD.md` §5.3).
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontFeatureSettings = TabularFigures,
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+
+    // `LinearWavyProgressIndicator` — the wave being the visual signal that something is
+    // genuinely happening on the wire — is internal at material3 1.4.0 (`tech-stack.md` §6).
+    val fraction = if (stage.total == 0) 0f else stage.done.toFloat() / stage.total
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(6.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(fraction.coerceIn(0f, 1f))
+                .height(6.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary),
+        )
+    }
+}
+
+// ─── Stage 6 ────────────────────────────────────────────────────────────────
+
+@Composable
+private fun DoneStage(outcome: WriteOutcome, onDone: () -> Unit) {
+    StageHeader(stringResource(R.string.write_done_title, outcome.slot))
+    Body(stringResource(R.string.write_done_body, outcome.written, outcome.total))
+
+    // A refused setting or a value the body adjusted did not stop the write, and the user
+    // should still know about it.
+    outcome.warnings.forEach { Panel(it) }
+
+    Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.action_done))
+    }
+}
+
+@Composable
+private fun FailedStage(stage: WriteStage.Failed, onRetry: () -> Unit, onDone: () -> Unit) {
+    StageHeader(stringResource(R.string.write_failed_title))
+    Panel(stage.message, alert = true)
+
+    // Only when something actually landed. Saying "the slot may be half-written" about an
+    // untouched slot is a false alarm.
+    stage.warning?.let { Panel(it, alert = true) }
+
+    Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.camera_action_retry))
+    }
+    OutlinedButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.action_done))
+    }
+}
+
+// ─── Pieces ─────────────────────────────────────────────────────────────────
+
+@Composable
+private fun StageHeader(text: String) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_photo_camera),
+            contentDescription = null,
+            modifier = Modifier.size(22.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
+private fun Body(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun Panel(text: String, alert: Boolean = false) {
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = if (alert) {
+            MaterialTheme.colorScheme.errorContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (alert) {
+                MaterialTheme.colorScheme.onErrorContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            modifier = Modifier.padding(12.dp),
+        )
+    }
+}
+
+// ─── Previews ───────────────────────────────────────────────────────────────
+//
+// `coding-standards.md`: a preview for every state a spec names, including the error and
+// refusal ones. A preview of only the happy path is how the failure stage ships broken — and
+// this one is unreachable without a camera refusing a property mid-write.
+
+private fun previewState(stage: WriteStage, writing: Boolean = false) = WriteUiState(
+    stage = stage,
+    recipeName = "Kodachrome 64",
+    isWriting = writing,
+)
+
+@Composable
+private fun PreviewSheet(state: WriteUiState) {
+    FujiTheme {
+        Surface(color = MaterialTheme.colorScheme.surfaceContainerLow) {
+            WriteSheetContent(
+                state = state,
+                onConnect = {}, onAcceptCompatibility = {}, onChooseSlot = {},
+                onBackToPicker = {}, onConfirm = {}, onRetry = {}, onRequestCancel = {},
+                onDismissCancel = {}, onConfirmCancel = {}, onDone = {},
+            )
+        }
+    }
+}
+
+@Preview(name = "Write — connect", showBackground = true)
+@Composable
+private fun WriteConnectPreview() = PreviewSheet(previewState(WriteStage.Connect))
+
+@Preview(name = "Write — refused (WR-01)", showBackground = true)
+@Composable
+private fun WriteRefusedPreview() = PreviewSheet(
+    previewState(
+        WriteStage.Compatibility(
+            WritePlan(
+                slot = 1,
+                refusal = "X-Trans III has no custom slots, so a recipe cannot be written to it.",
+            ),
+        ),
+    ),
+)
+
+@Preview(name = "Write — dropped fields", showBackground = true)
+@Preview(name = "Write — dropped fields, dark", showBackground = true, uiMode = 0x20)
+@Composable
+private fun WriteDroppedPreview() = PreviewSheet(
+    previewState(
+        WriteStage.Compatibility(
+            WritePlan(
+                slot = 1,
+                dropped = listOf(
+                    DroppedField(
+                        "filmSimulation",
+                        "Film simulation",
+                        "X-Trans IV has no Nostalgic Neg. simulation, so the slot will keep " +
+                            "the simulation it already has",
+                    ),
+                    DroppedField(
+                        "monochromaticColorWc",
+                        "Warm / cool",
+                        "X-Trans IV has no monochromatic colour",
+                    ),
+                ),
+            ),
+        ),
+    ),
+)
+
+@Preview(name = "Write — slot picker", showBackground = true)
+@Composable
+private fun WritePickerPreview() = PreviewSheet(previewState(WriteStage.Picker))
+
+@Preview(name = "Write — confirm", showBackground = true)
+@Composable
+private fun WriteConfirmPreview() = PreviewSheet(previewState(WriteStage.Confirm(3)))
+
+@Preview(name = "Write — progress", showBackground = true)
+@Composable
+private fun WriteProgressPreview() = PreviewSheet(
+    previewState(WriteStage.Progress(slot = 3, done = 7, total = 17, current = "Clarity"), true),
+)
+
+@Preview(name = "Write — done", showBackground = true)
+@Composable
+private fun WriteDonePreview() = PreviewSheet(
+    previewState(
+        WriteStage.Done(
+            WriteOutcome(
+                slot = 3,
+                written = 16,
+                total = 17,
+                warnings = listOf(
+                    "Clarity was refused — the camera answered InvalidDevicePropValue " +
+                        "(0x200C) — so the slot keeps whatever it had for it.",
+                ),
+                slotTouched = true,
+            ),
+        ),
+    ),
+)
+
+@Preview(name = "Write — failed", showBackground = true)
+@Composable
+private fun WriteFailedPreview() = PreviewSheet(
+    previewState(
+        WriteStage.Failed(
+            message = "The connection failed while writing Sharpness: the camera did not " +
+                "answer within 5000ms.",
+            warning = "Slot C3 was partly written: 9 of 17 properties went in before this " +
+                "stopped. The rest are whatever the slot held before, so it is neither the " +
+                "old recipe nor the new one. Writing it again from the start fixes it.",
+            slot = 3,
+        ),
+    ),
+)

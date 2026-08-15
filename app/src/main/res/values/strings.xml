@@ -147,6 +147,30 @@
     <string name="camera_action_disconnect">Disconnect</string>
     <string name="camera_slot_note">Writing to a slot leaves its image size, quality, smooth skin, long-exposure NR and colour space as they were — a slot is not reset before it is written.</string>
 
+    <!-- Write to camera — FEAT-006. The stages are PRD §7.4's. -->
+    <string name="write_title">Write to camera</string>
+    <string name="write_connect_body">Connect the camera before writing “%1$s” to a slot.</string>
+    <string name="write_refused_title">This body cannot take a write</string>
+    <string name="write_dropped_title">Some parameters will not be written</string>
+    <string name="write_dropped_body">This camera cannot take the following. The rest of the recipe will be written.</string>
+    <string name="write_anyway">Write anyway</string>
+    <string name="write_pick_slot">Choose a slot</string>
+    <string name="write_slot_unknown">Unknown</string>
+    <string name="write_slot_contents_note">This app does not read slots back, so what each slot currently holds is unknown.</string>
+    <string name="write_confirm_title">Write to C%1$d?</string>
+    <string name="write_confirm_body">“%1$s” will replace what C%2$d currently holds. Tap again to write.</string>
+    <string name="write_confirm_action">Write to C%1$d</string>
+    <string name="write_progress_count">%1$d / %2$d</string>
+    <string name="write_progress_title">Writing to C%1$d</string>
+    <string name="write_done_title">Written to C%1$d</string>
+    <string name="write_done_body">%1$d of %2$d properties written and read back.</string>
+    <string name="write_failed_title">The write did not finish</string>
+    <string name="write_cancel_title">Stop the write?</string>
+    <string name="write_cancel_body">The slot is being changed right now. Stopping leaves it partly written, which is neither the old recipe nor the new one.</string>
+    <string name="write_cancel_confirm">Stop writing</string>
+    <string name="write_cancel_keep">Keep writing</string>
+    <string name="action_done">Done</string>
+
     <!-- Placeholders, replaced as their features land -->
     <string name="placeholder_editor_title">Recipe</string>
     <string name="placeholder_editor_body">Create and edit go here (FEAT-002).</string>

@@ -45,6 +45,18 @@ class FakeCamera(
     /** A camera that has stopped answering: every read times out. */
     var silent: Boolean = false
 
+    /**
+     * Whether a written property reads back as what was written.
+     *
+     * True is the ordinary body. False is the one that takes a value and will not describe or
+     * return it — which some bodies do for this whole property block, and which the executor
+     * must record as *unverified* rather than as a failure.
+     */
+    var echoWrites: Boolean = true
+
+    /** Properties whose read-back answers something else, for the mismatch path. */
+    val readBackAs: MutableMap<Int, ByteArray> = mutableMapOf()
+
     /** Every property write, in the order the camera received it. */
     val writes: MutableList<Write> = mutableListOf()
 
@@ -159,6 +171,12 @@ class FakeCamera(
         val code = pendingSetProperty ?: error("The fake camera got a data phase it did not expect")
         pendingSetProperty = null
         writes += Write(code, payload)
+
+        // A real body holds what it was told, which is what makes the executor's read-back
+        // check mean anything. A property it refused holds nothing new.
+        if (echoWrites && refuseProperty[code] == null) {
+            propertyValues[code] = readBackAs[code] ?: payload
+        }
 
         unplugAfterWrites?.let { limit -> if (writes.size >= limit) unplugged = true }
     }
