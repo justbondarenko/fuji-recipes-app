@@ -28,7 +28,7 @@ Stages are sequential. A **GATE** must be fully closed before the next stage sta
 | FEAT-002 | Field source + recipe view | The canonical 27-field table, and a read-only screen to read a recipe on | **done** |
 | FEAT-003 | Recipe form | Create, edit, duplicate, delete; rating and tags in place | **done** |
 | FEAT-004 | Settings | Connection settings reachable at any time, and clearable | **done** |
-| **FEAT-005** | **Camera connection GATE** ← *in progress* | USB host, attach intent, PTP session, model detection, the connection indicator | **medium** — see §7 |
+| FEAT-005 | Camera connection **GATE** | USB host, attach intent, PTP session, model detection, the connection indicator | **done** — connects on hardware |
 | **FEAT-006** | **Write to slot** ← *in progress* | Write plan, encoders, slot picker, progress, failure reporting | **medium** — see §7 |
 | FEAT-007 | Polish | Motion timing, haptics, reduced-motion fallback, dark-scheme audit, predictive back | none |
 

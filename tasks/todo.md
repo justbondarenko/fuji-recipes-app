@@ -123,19 +123,31 @@ What that brought with it, ported from the sibling's `src/utils/slots.ts`:
   no name goes straight through. Confirming all seven slots of an untouched camera would train
   someone to tap past the dialog that exists to protect them.
 
-### Still open — the hardware pass
+### The hardware pass — connection confirmed
 
-The one thing no test replaces. Run in this order:
+**The camera connects on the owner's phone.** That closes the FEAT-005 gate, and it is the
+half no fake camera could prove: the ranked-interface claim finds and takes the PTP interface
+on a real body, the endpoint addresses discovered off it are right, the PTP session opens, and
+`GetDeviceInfo` comes back readable. Everything above that layer was already tested on the
+JVM; this was the layer that could only be settled with a cable.
 
-1. Pair **wireless ADB before the cable goes in** — the camera occupies the only USB-C port
-   (`architecture.md` C1), so this cannot be done afterwards.
-2. Set the camera's USB mode to **RAW conversion / backup**.
-3. Plug in cold with the app closed. It should launch itself and the chip should name the
-   body, with no permission dialog.
-4. Write a known recipe to **C7** — least likely to be in use.
-5. Read C7 on the camera and compare every field against the recipe screen.
+### Still open — the write
 
-Two things to watch, because they are the parts a fake camera cannot prove: whether the
-ranked-interface claim succeeds on the first candidate, and whether the read-back verification
-returns values or is refused for this property block. The second is expected on some bodies
-and is reported as *unverified* rather than as a failure.
+Not yet run. In this order:
+
+1. Open a recipe → **Write to camera**. The picker should list C1–C7 with the names the body
+   reports. This is the first hardware exercise of `SlotReader`.
+2. Write a known recipe to **C7** — least likely to be in use.
+3. Read C7 on the camera and compare every field against the recipe screen.
+
+What to watch, because these are the parts a fake camera cannot settle:
+
+- **Do slot names come back?** If the body refuses `GetDevicePropValue` on `0xD18D`, every
+  slot reads "The camera did not answer" — correct behaviour, but it means the picker cannot
+  help and the confirmation falls back to its unknown-contents wording.
+- **Does the read-back verification return values?** Some bodies refuse reads for this whole
+  property block. Expected, and reported as *unverified* rather than as a failure — but if
+  every step comes back unverified, the write cannot be confirmed from the phone and step 3
+  becomes the only proof.
+- **The settle after the slot switch.** If names or values look like they belong to the
+  *previous* slot, `SLOT_SETTLE_MS` is too short for this body.

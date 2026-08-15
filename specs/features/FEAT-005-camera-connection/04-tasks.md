@@ -73,7 +73,8 @@ naming the source path and that commit (`coding-standards.md` P3).
       availability with the reason when unavailable, connect / disconnect / retry.
       `@Preview` for every state including the error and unrecognised ones.
 - [x] **T-17** — Mount the chip in `ui/shell/AppShell.kt`. Strings in `strings.xml`.
-- [ ] **T-18** — `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug` green.
-      Emulator: every chip state renders. **Hardware, once:** wireless ADB paired first
-      (C1), camera in RAW-conversion USB mode, plug in cold, app launches connected, model
-      correct.
+- [x] **T-18** — `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug` green.
+      Emulator: every chip state renders. **Hardware: confirmed on the owner's phone — the
+      camera connects.** The gate is closed: the ranked-interface claim, the endpoint
+      discovery, the PTP session and `GetDeviceInfo` all work against a real body, which is
+      the half no fake camera could prove.
