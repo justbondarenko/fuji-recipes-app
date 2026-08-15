@@ -89,6 +89,17 @@ fun AppShell(
     val systemBars = WindowInsets.navigationBars.asPaddingValues()
     val statusBar = WindowInsets.statusBars.asPaddingValues()
 
+    /**
+     * Where the bottom edge of every floating thing lands.
+     *
+     * The two FABs and the toolbar each subtract whatever bottom inset their own component
+     * already reserves, so all three bottoms end up on this line. Measured on device rather
+     * than guessed: with one shared padding they sat at 2872 / 2848 / 2824 px — an 8dp
+     * staircase, because `HorizontalFloatingToolbar` reserves 8dp under itself and
+     * `FloatingActionButtonMenu` reserves 16dp under its button.
+     */
+    val barBaseline = systemBars.calculateBottomPadding() + BarMargin
+
     // Deliberately not saved across process death: an open menu is a gesture in progress,
     // and restoring one over a freshly drawn library would read as the app doing something
     // on its own.
@@ -153,10 +164,7 @@ fun AppShell(
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(
-                            start = BarMargin,
-                            bottom = systemBars.calculateBottomPadding() + BarMargin,
-                        ),
+                        .padding(start = BarMargin, bottom = barBaseline),
                 ) {
                     cameraChip()
                 }
@@ -165,9 +173,11 @@ fun AppShell(
             // Center: Material 3 Floating Navigation Toolbar (fixed at bottom-center)
             HorizontalFloatingToolbar(
                 expanded = true,
+                expandedShadowElevation = ToolbarElevation,
+                collapsedShadowElevation = ToolbarElevation,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = systemBars.calculateBottomPadding() + BarMargin),
+                    .padding(bottom = barBaseline - ToolbarOwnInset),
             ) {
                 FloatingToolbarItem(
                     selected = isLibrarySelected,
@@ -206,10 +216,7 @@ fun AppShell(
                 },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(
-                        end = BarMargin,
-                        bottom = systemBars.calculateBottomPadding() + BarMargin,
-                    ),
+                    .padding(end = BarMargin, bottom = barBaseline - FabMenuOwnInset),
             )
         }
     }
@@ -312,6 +319,16 @@ private fun FloatingToolbarItem(
 
 private val BarHeight = 56.dp
 private val BarMargin = 16.dp
+
+/// Bottom inset `HorizontalFloatingToolbar` reserves inside its own bounds.
+private val ToolbarOwnInset = 8.dp
+
+/// Bottom inset `FloatingActionButtonMenu` reserves under its button.
+private val FabMenuOwnInset = 16.dp
+
+// The toolbar floats over scrolling content, so it needs to read as above it rather than
+// printed on it. M3's default is 3.dp.
+private val ToolbarElevation = 6.dp
 
 private const val MenuDurationMs = 180
 
