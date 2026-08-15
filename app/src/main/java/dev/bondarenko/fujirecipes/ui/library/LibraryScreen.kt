@@ -8,8 +8,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -47,6 +50,30 @@ import dev.bondarenko.fujirecipes.ui.camera.WriteSheetHost
 import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewBottomSheet
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
+
+/**
+ * Computes corner shape for segmented list elements:
+ * - Top element: rounded top corners (16dp), subtle bottom corners (4dp)
+ * - Bottom element: subtle top corners (4dp), rounded bottom corners (16dp)
+ * - Middle elements: subtle corners (4dp)
+ * - Single element: all corners rounded (16dp)
+ */
+fun recipeItemShape(index: Int, total: Int): RoundedCornerShape = when {
+    total <= 1 -> RoundedCornerShape(16.dp)
+    index == 0 -> RoundedCornerShape(
+        topStart = 16.dp,
+        topEnd = 16.dp,
+        bottomStart = 4.dp,
+        bottomEnd = 4.dp,
+    )
+    index == total - 1 -> RoundedCornerShape(
+        topStart = 4.dp,
+        topEnd = 4.dp,
+        bottomStart = 16.dp,
+        bottomEnd = 16.dp,
+    )
+    else -> RoundedCornerShape(4.dp)
+}
 
 /**
  * The list — FEAT-001 T-19, T-20, T-22.
@@ -96,7 +123,7 @@ fun LibraryScreen(
                 top = 12.dp + contentPadding.calculateTopPadding(),
                 bottom = 12.dp + contentPadding.calculateBottomPadding(),
             ),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
             when {
                 // Nothing on screen and a failure: the error *is* the screen. Crucially a
@@ -122,13 +149,16 @@ fun LibraryScreen(
 
                 else -> {
                     item {
-                        LibraryToolbar(
-                            state = state,
-                            onSearchChange = onSearchChange,
-                            onSortChange = onSortChange,
-                            onFiltersChange = onFiltersChange,
-                            onClearSearchAndFilters = onClearSearchAndFilters,
-                        )
+                        Column {
+                            LibraryToolbar(
+                                state = state,
+                                onSearchChange = onSearchChange,
+                                onSortChange = onSortChange,
+                                onFiltersChange = onFiltersChange,
+                                onClearSearchAndFilters = onClearSearchAndFilters,
+                            )
+                            Spacer(Modifier.height(10.dp))
+                        }
                     }
 
                     if (state.hasNoMatches) {
@@ -145,7 +175,8 @@ fun LibraryScreen(
                             )
                         }
                     } else {
-                        items(state.visible, key = { it.id }) { recipe ->
+                        itemsIndexed(state.visible, key = { _, recipe -> recipe.id }) { index, recipe ->
+                            val itemShape = recipeItemShape(index, state.visible.size)
                             SwipeActionsRow(
                                 isOpen = openRowId == recipe.id,
                                 // One at a time: two rows open at once is how a delete gets
@@ -186,6 +217,7 @@ fun LibraryScreen(
                             ) {
                                 RecipeCard(
                                     recipe = recipe,
+                                    shape = itemShape,
                                     onClick = {
                                         activeRecipeId = recipe.id
                                         onOpenRecipe(recipe.id)
@@ -197,7 +229,12 @@ fun LibraryScreen(
                         // Last line of the list, not a banner at the top: it answers a
                         // question you only ask once you are already looking.
                         state.lastUpdatedAt?.let { updatedAt ->
-                            item { LastUpdatedFooter(updatedAt) }
+                            item {
+                                Column {
+                                    Spacer(Modifier.height(10.dp))
+                                    LastUpdatedFooter(updatedAt)
+                                }
+                            }
                         }
                     }
                 }

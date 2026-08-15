@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -264,6 +265,30 @@ private fun DroppedRow(dropped: DroppedField) {
     }
 }
 
+/**
+ * Computes corner shape for segmented slot choices:
+ * - Top element: rounded top corners (16dp), subtle bottom corners (4dp)
+ * - Bottom element: subtle top corners (4dp), rounded bottom corners (16dp)
+ * - Middle elements: subtle corners (4dp)
+ * - Single element: all corners rounded (16dp)
+ */
+fun slotItemShape(index: Int, total: Int): RoundedCornerShape = when {
+    total <= 1 -> RoundedCornerShape(16.dp)
+    index == 0 -> RoundedCornerShape(
+        topStart = 16.dp,
+        topEnd = 16.dp,
+        bottomStart = 4.dp,
+        bottomEnd = 4.dp,
+    )
+    index == total - 1 -> RoundedCornerShape(
+        topStart = 4.dp,
+        topEnd = 4.dp,
+        bottomStart = 16.dp,
+        bottomEnd = 16.dp,
+    )
+    else -> RoundedCornerShape(4.dp)
+}
+
 // ─── Stage 3 ────────────────────────────────────────────────────────────────
 
 @Composable
@@ -312,22 +337,18 @@ private fun PickerStage(
 
     slotsError?.let { Panel(it, alert = true) }
 
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    Column(
         modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(4.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            slots.forEach { slot ->
-                SegmentedSlotItem(
-                    state = slot,
-                    isSelected = slot.slot == selectedSlot,
-                    onClick = { selectedSlot = slot.slot },
-                )
-            }
+        slots.forEachIndexed { index, slot ->
+            val shape = slotItemShape(index, slots.size)
+            SegmentedSlotItem(
+                state = slot,
+                isSelected = slot.slot == selectedSlot,
+                shape = shape,
+                onClick = { selectedSlot = slot.slot },
+            )
         }
     }
 
@@ -365,6 +386,7 @@ private fun PickerStage(
 private fun SegmentedSlotItem(
     state: SlotState,
     isSelected: Boolean,
+    shape: Shape,
     onClick: () -> Unit,
 ) {
     val enabled = state.status != SlotStatus.READING
@@ -372,11 +394,13 @@ private fun SegmentedSlotItem(
     Surface(
         onClick = onClick,
         enabled = enabled,
-        shape = RoundedCornerShape(16.dp),
+        shape = shape,
         color = if (isSelected) {
             MaterialTheme.colorScheme.secondaryContainer
+        } else if (state.occupied) {
+            MaterialTheme.colorScheme.surfaceContainer
         } else {
-            Color.Transparent
+            MaterialTheme.colorScheme.surfaceContainerLow
         },
         contentColor = if (isSelected) {
             MaterialTheme.colorScheme.onSecondaryContainer
@@ -388,8 +412,8 @@ private fun SegmentedSlotItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Surface(

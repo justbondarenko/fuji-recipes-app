@@ -30,6 +30,8 @@ import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
 
+import androidx.compose.ui.graphics.Shape
+
 /** What a card needs. A plain holder, so a preview and a test can build one. */
 data class RecipeCardModel(
     val id: String,
@@ -42,11 +44,7 @@ data class RecipeCardModel(
 /**
  * One row of the library — FEAT-001 T-17.
  *
- * Designed according to Material 3 Expressive best practices:
- * - Balanced 16dp / 14dp padding all around
- * - Circular avatar badge with no corner artifacts
- * - Clear typographic hierarchy (titleMedium SemiBold + bodySmall)
- * - Vertically centered rating pill and tags
+ * Implements Material 3 Single-Action List Item with Segmented corner shaping.
  *
  * Omission rules:
  * - rating 0 shows **no** pill, not a zero
@@ -57,11 +55,12 @@ fun RecipeCard(
     recipe: RecipeCardModel,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(16.dp),
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(shape)
             .background(cardColor())
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
