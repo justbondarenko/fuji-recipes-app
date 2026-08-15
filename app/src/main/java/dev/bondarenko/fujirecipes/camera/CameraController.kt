@@ -10,6 +10,7 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.PowerManager
 import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
 import dev.bondarenko.fujirecipes.camera.plan.SlotNameReading
 import dev.bondarenko.fujirecipes.camera.plan.WritePlan
 import dev.bondarenko.fujirecipes.camera.ptp.PtpError
@@ -17,6 +18,7 @@ import dev.bondarenko.fujirecipes.camera.ptp.PtpFramingError
 import dev.bondarenko.fujirecipes.camera.ptp.PtpSession
 import dev.bondarenko.fujirecipes.camera.ptp.PtpTimeoutError
 import dev.bondarenko.fujirecipes.camera.ptp.PtpTransport
+import dev.bondarenko.fujirecipes.camera.usb.FUJI_VENDOR_ID
 import dev.bondarenko.fujirecipes.camera.usb.InterruptReason
 import dev.bondarenko.fujirecipes.camera.usb.UsbBulkChannel
 import dev.bondarenko.fujirecipes.camera.usb.UsbConnectError
@@ -103,26 +105,28 @@ class CameraController(
         scope.launch { connectNow(device ?: UsbBulkChannel.findCamera(usbManager)) }
     }
 
-    private suspend fun connectNow(device: UsbDevice?) = lock.withLock {
-        if (_state.value is CameraState.Connected || _state.value is CameraState.Writing) return
+    private suspend fun connectNow(device: UsbDevice?) {
+        lock.withLock {
+            if (_state.value is CameraState.Connected || _state.value is CameraState.Writing) return@withLock
 
-        if (device == null) {
-            _state.value = CameraState.Error(
-                "No camera is attached. Connect it with a USB-C cable, and set the camera's " +
-                    "USB mode to the RAW-conversion/backup mode.",
-            )
-            return
+            if (device == null) {
+                _state.value = CameraState.Error(
+                    "No camera is attached. Connect it with a USB-C cable, and set the camera's " +
+                        "USB mode to the RAW-conversion/backup mode.",
+                )
+                return@withLock
+            }
+
+            _state.value = CameraState.Connecting
+
+            if (!usbManager.hasPermission(device)) {
+                requestPermission(device)
+                // The broadcast receiver picks it up from here, in either direction.
+                return@withLock
+            }
+
+            openSession(device)
         }
-
-        _state.value = CameraState.Connecting
-
-        if (!usbManager.hasPermission(device)) {
-            requestPermission(device)
-            // The broadcast receiver picks it up from here, in either direction.
-            return
-        }
-
-        openSession(device)
     }
 
     /**
@@ -156,6 +160,29 @@ class CameraController(
         }
     }
 
+    /**
+     * Called when a camera USB detachment is detected.
+     */
+    fun onDeviceDetached(device: UsbDevice?) {
+        if (!hasHostSupport) return
+        scope.launch {
+            lock.withLock {
+                // A write in progress is a partial slot, and the sheet says so rather
+                // than the state quietly reading "disconnected" as if nothing was
+                // underway.
+                val next = if (_state.value is CameraState.Writing) {
+                    CameraState.Error(
+                        "The camera was unplugged during the write. The slot may be " +
+                            "partly written.",
+                    )
+                } else {
+                    CameraState.Disconnected
+                }
+                closeSession(next)
+            }
+        }
+    }
+
     // ─── Disconnecting ──────────────────────────────────────────────────────
 
     fun disconnect() {
@@ -180,7 +207,7 @@ class CameraController(
             appContext,
             receiver,
             filter,
-            ContextCompat.RECEIVER_NOT_EXPORTED,
+            ContextCompat.RECEIVER_EXPORTED,
         )
     }
 
@@ -207,24 +234,29 @@ class CameraController(
                 // A camera plugged in while the app is already open. The attach *intent* path
                 // is `onDeviceAttached`; this is the same event arriving at a running app.
                 UsbManager.ACTION_USB_DEVICE_ATTACHED -> {
-                    if (_state.value is CameraState.Disconnected) connect()
+                    val attachedDevice = IntentCompat.getParcelableExtra(
+                        intent,
+                        UsbManager.EXTRA_DEVICE,
+                        UsbDevice::class.java,
+                    )
+                    if (attachedDevice != null && attachedDevice.vendorId != FUJI_VENDOR_ID) {
+                        return
+                    }
+                    if (_state.value is CameraState.Disconnected) {
+                        onDeviceAttached(attachedDevice)
+                    }
                 }
 
-                UsbManager.ACTION_USB_DEVICE_DETACHED -> scope.launch {
-                    lock.withLock {
-                        // A write in progress is a partial slot, and the sheet says so rather
-                        // than the state quietly reading "disconnected" as if nothing was
-                        // underway.
-                        val next = if (_state.value is CameraState.Writing) {
-                            CameraState.Error(
-                                "The camera was unplugged during the write. The slot may be " +
-                                    "partly written.",
-                            )
-                        } else {
-                            CameraState.Disconnected
-                        }
-                        closeSession(next)
+                UsbManager.ACTION_USB_DEVICE_DETACHED -> {
+                    val detachedDevice = IntentCompat.getParcelableExtra(
+                        intent,
+                        UsbManager.EXTRA_DEVICE,
+                        UsbDevice::class.java,
+                    )
+                    if (detachedDevice != null && detachedDevice.vendorId != FUJI_VENDOR_ID) {
+                        return
                     }
+                    onDeviceDetached(detachedDevice)
                 }
             }
         }
@@ -348,7 +380,7 @@ class CameraController(
     internal fun openSessionOrNull(): PtpSession? = session
 
     companion object {
-        /** Private to this app: the filter is registered `RECEIVER_NOT_EXPORTED`. */
+        /** Intent action used for USB permission callbacks. */
         const val ACTION_USB_PERMISSION = "dev.bondarenko.fujirecipes.USB_PERMISSION"
 
         private const val WAKE_LOCK_TAG = "fujirecipes:camera-write"

@@ -66,6 +66,18 @@
         </activity>
 
         <!--
+          USB lifecycle receiver for device detachment and attachment broadcasts.
+        -->
+        <receiver
+            android:name=".camera.UsbReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+                <action android:name="android.hardware.usb.action.USB_DEVICE_DETACHED" />
+            </intent-filter>
+        </receiver>
+
+        <!--
           FEAT-008: exports are shared as content:// URIs so the OS share sheet can hand them
           to Files, Drive, mail or anything else installed.
 
