@@ -1,25 +1,18 @@
 package dev.bondarenko.fujirecipes.ui.camera
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
@@ -30,13 +23,10 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
@@ -99,70 +89,6 @@ fun CameraFab(
                     trackColor = colors.content.copy(alpha = 0.24f),
                     modifier = Modifier.size(44.dp),
                 )
-            }
-        }
-    }
-}
-
-/**
- * The single source of truth on the screen for what the camera is doing.
- */
-@Composable
-fun CameraChip(
-    state: CameraState,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val look = cameraChipLook(state)
-    val label = look.modelLabel ?: stringResource(look.labelRes)
-    val colors = look.tone.colors()
-
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color = colors.container,
-        contentColor = colors.content,
-        tonalElevation = 3.dp,
-        shadowElevation = 2.dp,
-        modifier = modifier
-            .animateContentSize()
-            .semantics {
-                contentDescription = "Camera: $label"
-            },
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    painter = look.icon.painter(),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(16.dp)
-                        .then(if (look.spinning) Modifier.spin() else Modifier),
-                )
-                Text(text = label, style = MaterialTheme.typography.labelLarge)
-            }
-
-            // The write's progress, as the one state that has something to show over time.
-            look.progress?.let { fraction ->
-                Box(
-                    modifier = Modifier
-                        .padding(top = 4.dp)
-                        .fillMaxWidth()
-                        .height(3.dp)
-                        .clip(CircleShape)
-                        .background(colors.content.copy(alpha = 0.24f)),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(fraction.coerceIn(0f, 1f))
-                            .height(3.dp)
-                            .clip(CircleShape)
-                            .background(colors.content),
-                    )
-                }
             }
         }
     }
