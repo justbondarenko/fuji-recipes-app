@@ -4,12 +4,13 @@
 # carries Material 3 Expressive — so the one version that the design actually depends on
 # is not compromised. Raise the whole set together after moving to AGP 9.
 [versions]
-agp = "8.13.2"
+agp = "9.3.1"
 kotlin = "2.4.10"
 coreKtx = "1.18.0"
 splashscreen = "1.2.0"
 activityCompose = "1.12.4"
-composeBom = "2026.06.01"
+composeBom = "2026.08.00"
+material3 = "1.5.0-alpha26"
 lifecycle = "2.10.0"
 navigationCompose = "2.9.8"
 datastore = "1.2.1"
@@ -36,7 +37,7 @@ androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-te
 androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 # Material 3 Expressive lives here. See steering/tech-stack.md §2 — the build is the
 # verification that MaterialExpressiveTheme and friends exist at this BOM version.
-androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 # Core only — ~200 icons. `material-icons-extended` ships several thousand and put 40MB
 # into the debug APK for the three this app uses.
 androidx-compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core" }
