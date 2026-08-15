@@ -80,8 +80,11 @@ meant".
     UUID per slot only to satisfy its own client-side schema check.
 16. Consequence of §15: an imported slot **cannot collide by id**, so the contract's
     `resolutions` mechanism is unreachable here and the request carries `resolutions: {}`.
-17. Importing **requires the network** (`architecture.md` §4). The screen says so before the
-    tap rather than failing at it.
+17. Importing **requires the network** (`architecture.md` §4), and the failure says so in
+    those terms: reading worked without a signal, saving will not. There is deliberately **no
+    pre-flight connectivity check** — `ConnectivityManager` reports a captive portal as
+    connected, and a button disabled on a wrong answer is worse than a clear failure with the
+    review still on screen and Retry available.
 18. On success: how many were imported, and the library refreshes.
 19. On failure: the contract's error, named per `coding-standards.md` P5. Nothing was written.
 
@@ -103,5 +106,5 @@ meant".
 | The read fails as a whole | The screen, with Retry | That the camera stopped answering |
 | Every slot is empty | The screen, plainly | That the camera has no custom recipes saved |
 | Every slot is already in the library | The review, with all rows deselected | That nothing is new, and the rows are still there to override |
-| No network at import | The import action, disabled with the reason | That saving needs a connection and reading did not |
+| No network at import | The screen, with the review kept and Retry offered | That saving needs a connection and reading did not |
 | The server rejects the import | The screen, with Retry | The contract's `error` code, and that nothing was written |

@@ -58,6 +58,7 @@ import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 fun SettingsScreen(
     state: SettingsUiState,
     onOpenConnection: () -> Unit,
+    onOpenImport: () -> Unit,
     onClearCredentials: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
@@ -86,6 +87,16 @@ fun SettingsScreen(
             subtitle = state.summary(),
             icon = painterResource(R.drawable.ic_cloud_sync),
             onClick = onOpenConnection,
+            showChevron = true,
+        )
+
+        SectionHeader(stringResource(R.string.import_title))
+
+        SettingsCard(
+            title = stringResource(R.string.import_title),
+            subtitle = stringResource(R.string.import_subtitle),
+            icon = painterResource(R.drawable.ic_photo_camera),
+            onClick = onOpenImport,
             showChevron = true,
         )
 
@@ -227,7 +238,11 @@ private fun SettingsCard(
 }
 
 @Composable
-fun SettingsRouteContent(onOpenConnection: () -> Unit, contentPadding: PaddingValues) {
+fun SettingsRouteContent(
+    onOpenConnection: () -> Unit,
+    onOpenImport: () -> Unit,
+    contentPadding: PaddingValues,
+) {
     val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
     val viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(container))
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -235,6 +250,7 @@ fun SettingsRouteContent(onOpenConnection: () -> Unit, contentPadding: PaddingVa
     SettingsScreen(
         state = state,
         onOpenConnection = onOpenConnection,
+        onOpenImport = onOpenImport,
         onClearCredentials = viewModel::clearCredentials,
         contentPadding = contentPadding,
     )
@@ -248,6 +264,7 @@ private fun SettingsPreview() {
         SettingsScreen(
             state = SettingsUiState(host = "recipes.example.com", isConfigured = true),
             onOpenConnection = {},
+            onOpenImport = {},
             onClearCredentials = {},
             contentPadding = PaddingValues(0.dp),
         )
@@ -261,6 +278,7 @@ private fun SettingsUnconfiguredPreview() {
         SettingsScreen(
             state = SettingsUiState(),
             onOpenConnection = {},
+            onOpenImport = {},
             onClearCredentials = {},
             contentPadding = PaddingValues(0.dp),
         )

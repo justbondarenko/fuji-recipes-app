@@ -159,10 +159,12 @@ Feature: Import from camera
     When I return to the library
     Then the imported recipes are there
 
-  Scenario: Importing needs a connection, and says so first
+  Scenario: Importing with no connection says that reading worked and saving will not
     Given no network connection and slots that have been read
-    Then the import action is unavailable
-    And it says that saving needs a connection
+    When I import
+    Then I am told that saving needs a connection and reading did not
+    And the review is still on screen
+    And I am offered to try again
 
   Scenario: A refused import names what the server said and keeps the review
     Given a server that refuses the import

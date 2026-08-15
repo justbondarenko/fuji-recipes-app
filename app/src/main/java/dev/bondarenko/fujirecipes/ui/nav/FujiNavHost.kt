@@ -11,6 +11,7 @@ import dev.bondarenko.fujirecipes.ui.common.PlaceholderScreen
 import dev.bondarenko.fujirecipes.ui.connection.ConnectionRouteContent
 import dev.bondarenko.fujirecipes.ui.library.LibraryRouteContent
 import dev.bondarenko.fujirecipes.ui.editor.RecipeEditorRouteContent
+import dev.bondarenko.fujirecipes.ui.importing.ImportRouteContent
 import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewRouteContent
 import dev.bondarenko.fujirecipes.ui.settings.SettingsRouteContent
 import kotlinx.serialization.Serializable
@@ -49,6 +50,10 @@ data class RecipeViewRoute(val id: String)
 
 @Serializable
 data object MoreRoute
+
+/** More → Import: read the camera's C1–C7 into the library (FEAT-007). */
+@Serializable
+data object ImportRoute
 
 @Composable
 fun FujiNavHost(
@@ -124,6 +129,20 @@ fun FujiNavHost(
         composable<MoreRoute> {
             SettingsRouteContent(
                 onOpenConnection = { navController.navigate(ConnectionRoute()) },
+                onOpenImport = { navController.navigate(ImportRoute) },
+                contentPadding = contentPadding,
+            )
+        }
+
+        composable<ImportRoute> {
+            ImportRouteContent(
+                // Finishing an import means going to look at what landed.
+                onDone = {
+                    navController.navigate(LibraryRoute) {
+                        popUpTo(LibraryRoute) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
                 contentPadding = contentPadding,
             )
         }

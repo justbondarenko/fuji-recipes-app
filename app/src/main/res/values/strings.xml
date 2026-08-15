@@ -177,6 +177,32 @@
     <string name="write_cancel_keep">Keep writing</string>
     <string name="action_done">Done</string>
 
+    <!-- Import from camera — FEAT-007 -->
+    <string name="import_title">Import from camera</string>
+    <string name="import_subtitle">Read the recipes saved in your camera\'s C1–C7 slots</string>
+    <string name="import_needs_camera_title">Connect your camera</string>
+    <string name="import_needs_camera_body">Import reads the custom recipe slots saved on the camera itself. Connect it with a USB-C cable, set its USB mode to the RAW-conversion/backup mode, and this screen will be ready.</string>
+    <string name="import_ready_title">Ready to read %1$s</string>
+    <string name="import_ready_title_generic">Ready to read the camera</string>
+    <string name="import_ready_body">Reading looks at all seven custom slots and does not change anything on the camera. It works with no signal.</string>
+    <string name="import_action_read">Read the slots</string>
+    <string name="import_reading">Reading slot C%1$d of %2$d…</string>
+    <string name="import_empty_title">No custom recipes saved</string>
+    <string name="import_empty_body">The camera\'s custom slots are empty, so there is nothing to import. Recipes appear here once they are saved to C1–C7 on the body.</string>
+    <string name="import_nothing_new">Everything on the camera is already in your library. The slots are listed below if you want a second copy of one anyway.</string>
+    <string name="import_summary">%1$d found · %2$d selected</string>
+    <string name="import_status_new">New</string>
+    <string name="import_status_duplicate">Already in your library as “%1$s”</string>
+    <string name="import_status_name">Another recipe is called “%1$s”. This will be imported as a second one.</string>
+    <string name="import_action_import">Import %1$d</string>
+    <string name="import_action_import_none">Select something to import</string>
+    <string name="import_importing">Importing…</string>
+    <string name="import_done_title">Imported %1$d</string>
+    <string name="import_done_body">They are in your library now.</string>
+    <string name="import_failed_title">Nothing was imported</string>
+    <string name="import_action_back_to_review">Back to the list</string>
+    <string name="import_action_read_again">Read again</string>
+
     <!-- Placeholders, replaced as their features land -->
     <string name="placeholder_editor_title">Recipe</string>
     <string name="placeholder_editor_body">Create and edit go here (FEAT-002).</string>
