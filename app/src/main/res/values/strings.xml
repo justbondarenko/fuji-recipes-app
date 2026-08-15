@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Fuji Recipes</string>
+
+    <!-- Navigation -->
+    <string name="nav_library">Recipes</string>
+    <string name="nav_more">Settings</string>
+    <string name="nav_create">New recipe</string>
+
+    <!-- Library -->
+    <string name="search_placeholder">Search names and tags</string>
+    <string name="sort_name">Name A–Z</string>
+    <string name="sort_rating">Rating high–low</string>
+    <string name="sort_updated">Recently updated</string>
+    <string name="filter_rating">%1$d+</string>
+    <string name="showing_of">Showing %1$d of %2$d</string>
+    <string name="filters">Filters</string>
+    <string name="filter_min_rating">Minimum rating</string>
+    <string name="filter_simulation">Film simulation</string>
+    <string name="filter_tags_all_of">Tags · all of</string>
+    <string name="action_clear_all">Clear all</string>
+    <string name="action_clear_search">Clear search</string>
+    <string name="action_write_to_camera">Write to camera</string>
+    <string name="rating_of_five">Rated %1$d out of 5</string>
+    <plurals name="count_total">
+        <item quantity="one">%1$d recipe</item>
+        <item quantity="other">%1$d recipes</item>
+    </plurals>
+
+    <string name="empty_library_title">No recipes yet</string>
+    <string name="empty_library_body">Keep your hand-tuned Fujifilm settings here instead of in screenshots and notes, then send them straight to a custom slot on your camera.</string>
+    <string name="action_create_recipe">Create a recipe</string>
+
+    <string name="no_matches_title">No recipes match</string>
+    <plurals name="no_matches_body">
+        <item quantity="one">%1$d recipe is in your library, but it does not match the current search and filters.</item>
+        <item quantity="other">%1$d recipes are in your library, but none match the current search and filters.</item>
+    </plurals>
+    <string name="action_clear_filters">Clear search and filters</string>
+    <string name="action_try_again">Try again</string>
+    <string name="action_open_connection">Connection settings</string>
+
+    <!-- Failures. Each names what failed and what to do — coding-standards P5. -->
+    <string name="last_updated">Last updated %1$s</string>
+
+    <string name="error_forbidden_title">Your credentials were refused</string>
+    <string name="error_forbidden_body">Cloudflare Access did not accept this service token. Check the client ID and secret in connection settings.</string>
+
+    <string name="error_access_unconfigured_title">The server is not ready</string>
+    <string name="error_access_unconfigured_body">The deployment has no Access gate configured, so it is refusing to serve the library. This is a server setting, not a problem with your token.</string>
+
+    <string name="error_storage_title">The library is temporarily unreachable</string>
+    <string name="error_storage_body">The server is up but its database is not answering. Nothing has been lost — this library is stored, not cached.</string>
+
+    <string name="error_network_title">No connection</string>
+    <string name="error_network_body">Your phone could not reach the server, and there is no saved copy of the library on this device yet.</string>
+
+    <string name="error_internal_title">The server failed</string>
+    <string name="error_internal_body">Something went wrong on the server.</string>
+    <string name="error_internal_body_with_id">Something went wrong on the server. Request ID %1$s — it identifies this failure in the server log.</string>
+
+    <string name="error_malformed_title">Unexpected answer</string>
+    <string name="error_malformed_body">The server\'s reply could not be read. If you are on public Wi-Fi, a sign-in page may be intercepting the request.</string>
+
+    <string name="error_unexpected_title">Something unexpected happened</string>
+    <string name="error_unexpected_body">The server answered in a way this version of the app does not recognise.</string>
+
+    <!-- Connection -->
+    <string name="connection_title">Connection</string>
+    <string name="connection_intro">Point the app at your recipe library. The service token is what gets past Cloudflare Access — create one in the Cloudflare dashboard and give its Access application a Service Auth policy.</string>
+    <string name="connection_base_url">Server address</string>
+    <string name="connection_base_url_hint">recipes.example.com</string>
+    <string name="connection_client_id">Access client ID</string>
+    <string name="connection_client_secret">Access client secret</string>
+    <string name="connection_show_secret">Show secret</string>
+    <string name="connection_hide_secret">Hide secret</string>
+    <string name="connection_test">Test connection</string>
+    <string name="connection_save">Save</string>
+    <string name="connection_testing">Testing…</string>
+    <string name="connection_ok">Connected. Found %1$d recipes.</string>
+    <string name="connection_incomplete">Fill in all three fields first.</string>
+
+    <!-- Recipe view -->
+    <string name="action_back">Back</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_back_to_list">Back to recipes</string>
+    <string name="changed_only">Changed only</string>
+    <string name="nothing_changed">Every parameter in this recipe is at its default.</string>
+    <string name="notes">Notes</string>
+    <string name="action_copy_recipe">Copy recipe as text</string>
+    <string name="recipe_copied">Recipe copied to clipboard</string>
+    <string name="recipe_not_found_title">Recipe not found</string>
+    <string name="recipe_not_found_body">This recipe is no longer in your library. It may have been deleted from the web app.</string>
+
+    <!-- Editor -->
+    <string name="editor_new">New recipe</string>
+    <string name="editor_edit">Edit recipe</string>
+    <string name="field_name">Name</string>
+    <string name="field_film_simulation">Film simulation</string>
+    <string name="add_tag">Add a tag</string>
+    <string name="remove_tag">Remove %1$s</string>
+    <string name="decrease">Decrease %1$s</string>
+    <string name="increase">Increase %1$s</string>
+    <string name="action_save">Save</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_duplicate">Duplicate</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_discard">Discard</string>
+    <string name="action_keep_editing">Keep editing</string>
+    <string name="discard_title">Discard your changes?</string>
+    <string name="discard_body">You have unsaved edits to this recipe.</string>
+    <string name="delete_title">Delete this recipe?</string>
+    <string name="delete_body">“%1$s” will be removed from your library. This cannot be undone.</string>
+
+    <!-- Settings -->
+    <string name="settings_connection">Connection</string>
+    <string name="settings_about">About</string>
+    <string name="settings_version">Version %1$s</string>
+    <string name="settings_clear_credentials">Clear credentials</string>
+    <string name="settings_clear_credentials_subtitle">Remove the stored token from this device</string>
+    <string name="settings_clear_title">Clear stored credentials?</string>
+    <string name="settings_clear_body">The server address and service token will be removed from this phone. Your library is not affected, and the token itself is not revoked — do that in the Cloudflare dashboard if you need to.</string>
+    <string name="settings_clear_confirm">Clear</string>
+
+    <!-- Placeholders, replaced as their features land -->
+    <string name="placeholder_editor_title">Recipe</string>
+    <string name="placeholder_editor_body">Create and edit go here (FEAT-002).</string>
+    <string name="placeholder_more_title">More</string>
+    <string name="placeholder_more_body">Camera help and settings go here.</string>
+</resources>

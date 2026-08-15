@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "TEMPLATE — copy to specs/features/FEAT-XXX-slug/02-schema.json. Replace every placeholder. Delete this $comment when done.",
+  "title": "<FEAT-XXX: name of the data shape>",
+  "description": "<What this data represents and where it is used.>",
+  "type": "object",
+  "properties": {
+    "exampleStringField": {
+      "type": "string",
+      "description": "<What this field is for.>",
+      "minLength": 1
+    },
+    "exampleEnumField": {
+      "type": "string",
+      "description": "<What this field is for.>",
+      "enum": ["optionA", "optionB"]
+    },
+    "exampleNumberField": {
+      "type": "integer",
+      "description": "<What this field is for.>",
+      "minimum": 0
+    },
+    "exampleOptionalField": {
+      "type": ["string", "null"],
+      "description": "<What this field is for. Nullable — explain when it is null.>"
+    },
+    "exampleArrayField": {
+      "type": "array",
+      "description": "<What this collection holds.>",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": ["exampleStringField", "exampleEnumField"],
+  "additionalProperties": false,
+  "examples": [
+    {
+      "exampleStringField": "value",
+      "exampleEnumField": "optionA",
+      "exampleNumberField": 0,
+      "exampleOptionalField": null,
+      "exampleArrayField": ["a", "b"]
+    }
+  ]
+}

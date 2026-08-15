@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!--
+      The window background only has to exist between process start and the first
+      Compose frame. Everything visible after that is FujiTheme (ui/theme/Theme.kt).
+
+      Stone-200 light / stone-900 dark — steering/design-system.md §2's `surface`, so the
+      handoff to Compose is invisible rather than a flash of a different colour.
+    -->
+    <style name="Theme.FujiRecipes.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/window_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.FujiRecipes</item>
+    </style>
+
+    <style name="Theme.FujiRecipes" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:statusBarColor" tools:targetApi="l">@android:color/transparent</item>
+        <item name="android:navigationBarColor" tools:targetApi="l">@android:color/transparent</item>
+    </style>
+</resources>

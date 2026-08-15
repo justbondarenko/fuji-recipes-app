@@ -1,0 +1,61 @@
+package dev.bondarenko.fujirecipes.core.settings
+
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import dev.bondarenko.fujirecipes.data.library.SortId
+import dev.bondarenko.fujirecipes.data.library.StoredLibraryView
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+/**
+ * The remembered view — FEAT-001 T-09.
+ *
+ * Filters and sort survive a restart; **the search text does not**. That asymmetry is the
+ * point, not an omission: search is a way of getting to one recipe, and a phone reopened
+ * tomorrow showing three of forty recipes because of a word typed yesterday reads as a
+ * library that lost things.
+ *
+ * Reading goes through [StoredLibraryView.repair], so a value this build did not write can
+ * never put the list into a state the UI cannot explain. The repair itself is pure and
+ * tested directly; this class only moves bytes.
+ */
+private val Context.viewDataStore: DataStore<Preferences> by
+    preferencesDataStore(name = "library_view")
+
+class ViewPreferences(private val context: Context) {
+
+    private object Keys {
+        val Sort = stringPreferencesKey("view.sort")
+        val MinRating = intPreferencesKey("view.min_rating")
+        val Tags = stringSetPreferencesKey("view.tags")
+        val Simulations = stringSetPreferencesKey("view.simulations")
+    }
+
+    val view: Flow<StoredLibraryView> = context.viewDataStore.data.map { prefs ->
+        StoredLibraryView.repair(
+            tags = prefs[Keys.Tags],
+            minRating = prefs[Keys.MinRating],
+            simulations = prefs[Keys.Simulations],
+            sort = prefs[Keys.Sort],
+        )
+    }
+
+    suspend fun save(view: StoredLibraryView) {
+        context.viewDataStore.edit { prefs ->
+            prefs[Keys.Sort] = view.sort.id
+            prefs[Keys.MinRating] = view.filters.minRating
+            prefs[Keys.Tags] = view.filters.tags.toSet()
+            prefs[Keys.Simulations] = view.filters.simulations.toSet()
+        }
+    }
+
+    suspend fun saveSort(sort: SortId) {
+        context.viewDataStore.edit { prefs -> prefs[Keys.Sort] = sort.id }
+    }
+}
