@@ -24,7 +24,9 @@ import dev.bondarenko.fujirecipes.camera.usb.WriteInterrupted
 import dev.bondarenko.fujirecipes.camera.usb.WriteOutcome
 import dev.bondarenko.fujirecipes.camera.usb.executeWritePlan
 import dev.bondarenko.fujirecipes.camera.usb.partialWriteWarning
+import dev.bondarenko.fujirecipes.camera.usb.SlotRecipe
 import dev.bondarenko.fujirecipes.camera.usb.readSlotNames
+import dev.bondarenko.fujirecipes.camera.usb.readSlotRecipes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -245,6 +247,24 @@ class CameraController(
         val open = session ?: return emptyList()
 
         return withContext(Dispatchers.IO) { readSlotNames(open) }
+    }
+
+    /**
+     * Reads every slot as a recipe — FEAT-007's import.
+     *
+     * Behind the same lock and for the same reason as [readSlots]: it drives the slot selector,
+     * and interleaving it with a write would leave the selector pointing somewhere the write
+     * did not choose.
+     *
+     * Slower than [readSlots] by roughly the number of properties per slot, so the progress
+     * callback is not decoration — this is seconds of work with a cable in.
+     */
+    suspend fun readSlotRecipes(
+        onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
+    ): List<SlotRecipe> = lock.withLock {
+        val open = session ?: return emptyList()
+
+        return withContext(Dispatchers.IO) { readSlotRecipes(open, onProgress) }
     }
 
     // ─── Writing (FEAT-006) ─────────────────────────────────────────────────

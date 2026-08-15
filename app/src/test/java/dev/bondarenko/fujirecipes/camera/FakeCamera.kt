@@ -69,6 +69,21 @@ class FakeCamera(
     /** Slots whose name the body will not report — the "unreadable", not "unnamed", case. */
     val refuseNameForSlots: MutableSet<Int> = mutableSetOf()
 
+    /**
+     * What each slot's settings properties hold, keyed slot → property code → raw value.
+     *
+     * A real body switches its whole property block with the selector, not just the name, and
+     * the importer depends on that: read the wrong slot's registers and every recipe comes back
+     * as a copy of C1.
+     */
+    val slotSettings: MutableMap<Int, MutableMap<Int, Int>> = mutableMapOf()
+
+    /** Property codes the body will not report at all, whichever slot is selected. */
+    val refuseProperties: MutableSet<Int> = mutableSetOf()
+
+    /** Every property read, in order — so a test can prove a shared property is read once. */
+    val reads: MutableList<Int> = mutableListOf()
+
     /** The slot the selector currently points at. */
     var selectedSlot: Int? = null
         private set
@@ -155,6 +170,28 @@ class FakeCamera(
 
             Operation.GET_DEVICE_PROP_VALUE -> {
                 val code = params.firstOrNull() ?: 0
+                reads += code
+
+                if (code in refuseProperties) {
+                    reply(ResponseCode.DEVICE_PROP_NOT_SUPPORTED, transactionId)
+                    return
+                }
+
+                // The settings registers follow the selector, exactly as the name register
+                // does. A slot with no entry answers as unsupported, which is how an
+                // unconfigured slot reads.
+                slotSettings[selectedSlot]?.let { registers ->
+                    if (code != PRESET_NAME_PROPERTY && code != PRESET_SLOT_PROPERTY) {
+                        val value = registers[code]
+                        if (value == null) {
+                            reply(ResponseCode.DEVICE_PROP_NOT_SUPPORTED, transactionId)
+                        } else {
+                            data(operation, transactionId, packU16(value))
+                            reply(ResponseCode.OK, transactionId)
+                        }
+                        return
+                    }
+                }
 
                 // The name register follows the selector, so it is answered from `slotNames`
                 // rather than from whatever was last written to the property.
