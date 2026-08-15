@@ -318,6 +318,61 @@ private fun lookup(fieldId: String, value: Any?, grainSizeValue: Any?): Int? = w
     else -> null
 }
 
+// ─── Decoding ───────────────────────────────────────────────────────────────
+
+/**
+ * The inverse of [encodeValue]: what a value read off the camera means.
+ *
+ * Transcribed from `encoding.ts`'s decoding half, which this project left out of FEAT-006
+ * because nothing read a value then. FEAT-007 imports whole slots, so it does now.
+ *
+ * The reference added it because a real body made it necessary: an X-T50 refuses
+ * `GetDevicePropDesc` and answers `GetDevicePropValue`, so the only evidence it offers about
+ * the encodings is the values it currently holds — and a table of raw numbers cannot be
+ * checked by a person. Decoded, `0xD192 = 19` reads "Nostalgic Negative" in a slot named
+ * "1970s Summer", which is a fact anyone can confirm against the camera's own menu.
+ *
+ * `null` means the code is not one this build can name — a finding, not a bug. The importer
+ * omits the field rather than guessing, so one unknown value costs one field and not the slot.
+ */
+fun decodeValue(fieldId: String, code: Int): Any? {
+    val mapping = FIELD_PROPERTIES[fieldId] ?: return null
+    if (mapping.code == null) return null
+
+    return when (mapping.packing) {
+        // Division, not multiplication by 0.1: `-5 / 10.0` is -0.5 exactly, while `-5 * 0.1`
+        // differs in the last bit — and half steps have to compare equal for the duplicate
+        // detection to work at all.
+        Packing.TONE10 -> code / 10.0
+        Packing.U16, Packing.I16 -> code
+        Packing.LOOKUP -> decodeLookup(fieldId, code)
+    }
+}
+
+private fun decodeLookup(fieldId: String, code: Int): Any? = when (fieldId) {
+    "highIsoNR" -> HIGH_ISO_NR_CODES.entries.firstOrNull { it.value == code }?.key
+
+    "grainEffect", "grainSize" -> {
+        val pair = GRAIN_CODES.entries.firstOrNull { it.value == code }?.key
+        val effect = pair?.substringBefore('/')
+        when {
+            pair == null -> null
+            // Off ignores the size, so there is no size to report for it.
+            effect == "off" -> if (fieldId == "grainEffect") "off" else null
+            fieldId == "grainEffect" -> effect
+            else -> pair.substringAfter('/')
+        }
+    }
+
+    "filmSimulation" -> FILM_SIMULATION_CODES.entries.firstOrNull { it.value == code }?.key
+    "dynamicRange" -> DYNAMIC_RANGE_CODES.entries.firstOrNull { it.value == code }?.key
+    "whiteBalance" -> WHITE_BALANCE_CODES.entries.firstOrNull { it.value == code }?.key
+    "colorChromeEffect", "colorChromeFxBlue" ->
+        EFFECT_CODES.entries.firstOrNull { it.value == code }?.key
+
+    else -> null
+}
+
 /** The single value the grain property takes, from the two fields the menu presents. */
 fun grainCode(effect: Any?, size: Any?): Int? {
     val effectId = effect?.toString() ?: return null
