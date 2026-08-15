@@ -80,7 +80,9 @@ Paths are relative to `app/src/main/java/dev/bondarenko/fujirecipes/` unless sta
       than a missing one. `SlotStatesTest` covers the four post-read states and which of them
       need a second tap.
 
-- [ ] **T-15** — `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug` green.
-      Emulator: every stage renders. **Hardware, once:** write a known recipe to **C7**
-      (least likely to be in use), then read the slot on the camera and compare every field
-      against the recipe screen. Record the result in `tasks/todo.md`.
+- [x] **T-15** — `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug` green.
+      Emulator: every stage renders. **Hardware: a recipe was written to C6 of an X-T50 and
+      the write completed.** The chain ran end to end on a real body — plan, pack, slot
+      select, name, seventeen properties, read-back. Open: whether every property *landed as
+      the recipe describes it*, which only the camera's own menu can confirm — see
+      `tasks/todo.md`.

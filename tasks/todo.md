@@ -26,8 +26,10 @@ This is a transcription, not protocol archaeology.
       dark scheme, reduced motion, P5 error-copy audit <!-- id: 9 -->
 - [x] 10. Slot read-back in the picker — reversed from a deferral at the owner's
       request <!-- id: 10 -->
-- [ ] 11. **Hardware pass on the X100VI** — the one thing no test replaces. FEAT-005 T-18 and
-      FEAT-006 T-15 <!-- id: 11 -->
+- [x] 11. **Hardware pass on an X-T50** — connects, is identified, launches on attach, and
+      writes to a slot. FEAT-005 T-18 and FEAT-006 T-15 <!-- id: 11 -->
+- [ ] 12. Compare C6 on the camera against the recipe screen — the only check that proves the
+      properties mean what the tables say <!-- id: 12 -->
 
 ## Notes carried through implementation
 
@@ -131,23 +133,36 @@ on a real body, the endpoint addresses discovered off it are right, the PTP sess
 `GetDeviceInfo` comes back readable. Everything above that layer was already tested on the
 JVM; this was the layer that could only be settled with a cable.
 
-### Still open — the write
+### The write — ran on hardware
 
-Not yet run. In this order:
+**A recipe was written to C6 of an X-T50 and the write completed.** The chain ran end to end
+against a real body: build the plan, pack each step, select the slot, write the name, write
+seventeen properties, read each one back. Nothing in it was refused hard enough to abandon the
+write, and no partial-slot warning was raised.
 
-1. Open a recipe → **Write to camera**. The picker should list C1–C7 with the names the body
-   reports. This is the first hardware exercise of `SlotReader`.
-2. Write a known recipe to **C7** — least likely to be in use.
-3. Read C7 on the camera and compare every field against the recipe screen.
+Every layer of this project now has hardware behind it except one claim, below.
 
-What to watch, because these are the parts a fake camera cannot settle:
+### The one claim still unproven — that the properties *mean* what the tables say
 
-- **Do slot names come back?** If the body refuses `GetDevicePropValue` on `0xD18D`, every
-  slot reads "The camera did not answer" — correct behaviour, but it means the picker cannot
-  help and the confirmation falls back to its unknown-contents wording.
-- **Does the read-back verification return values?** Some bodies refuse reads for this whole
-  property block. Expected, and reported as *unverified* rather than as a failure — but if
-  every step comes back unverified, the write cannot be confirmed from the phone and step 3
-  becomes the only proof.
-- **The settle after the slot switch.** If names or values look like they belong to the
-  *previous* slot, `SLOT_SETTLE_MS` is too short for this body.
+Property **existence** was confirmed on this body by the sibling repo's dump (all nineteen,
+2026-08-09). Property **meaning** is a separate claim: nothing yet proves `0xD19D` is highlight
+tone rather than something else that also accepts −20, only that it exists, accepts the value
+and gives it back.
+
+A successful write does not settle it. A write that put highlight tone into the sharpness
+property would look identical from the phone: sent, accepted, read back unchanged.
+
+**What settles it:** open C6 on the camera and compare each setting against the recipe screen.
+That is the only check that crosses from "the camera stored what I sent" to "the camera stored
+what I meant", and it needs doing once — after that, every encoder is pinned by a test and a
+change to one breaks it.
+
+Two smaller things worth reading off the same write:
+
+- **`0xD1A1` (High ISO NR).** The earlier dump found it reading `0x8000`, which is either NR −4
+  per WR-08's table or the reference implementation's sentinel value; a dump cannot tell them
+  apart. If the recipe written to C6 had any NR other than −4 and the step verified, the table
+  is right and it was not a sentinel.
+- **Whether every step verified.** The result stage reports `n of m properties written and read
+  back`. If `n == m`, this body returns values for the whole property block — which also means
+  the read-back check is doing real work rather than passing vacuously.

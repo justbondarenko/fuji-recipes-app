@@ -29,7 +29,7 @@ Stages are sequential. A **GATE** must be fully closed before the next stage sta
 | FEAT-003 | Recipe form | Create, edit, duplicate, delete; rating and tags in place | **done** |
 | FEAT-004 | Settings | Connection settings reachable at any time, and clearable | **done** |
 | FEAT-005 | Camera connection **GATE** | USB host, attach intent, PTP session, model detection, the connection indicator | **done** — connects on hardware |
-| **FEAT-006** | **Write to slot** ← *in progress* | Write plan, encoders, slot picker, progress, failure reporting | **medium** — see §7 |
+| FEAT-006 | Write to slot | Write plan, encoders, slot picker, progress, failure reporting | **done** — writes to a slot on hardware |
 | FEAT-007 | Polish | Motion timing, haptics, reduced-motion fallback, dark-scheme audit, predictive back | none |
 
 **FEAT-001 to FEAT-003 carry no protocol risk and ship a usable recipe manager.** That is
