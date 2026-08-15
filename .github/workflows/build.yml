@@ -2,10 +2,11 @@ name: Build
 
 # A debug APK per push, downloadable from the run's Artifacts.
 # Also runs the unit tests, so a build that produces an APK is one whose tests passed.
+# Push only: a pull_request trigger on top of it would run the same commit twice, and a
+# push run on a branch already shows up in that branch's pull request checks.
 on:
   push:
     branches: ['**']
-  pull_request:
   workflow_dispatch:
 
 jobs:
