@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import dev.bondarenko.fujirecipes.core.AppContainer
-import dev.bondarenko.fujirecipes.core.net.ApiError
+import dev.bondarenko.fujirecipes.core.result.LibraryError
 import dev.bondarenko.fujirecipes.core.settings.ViewPreferences
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.library.LibraryFilters
@@ -28,9 +28,8 @@ data class LibraryUiState(
     val search: String = "",
     val filters: LibraryFilters = LibraryFilters(),
     val sort: SortId = SortId.Default,
-    val isRefreshing: Boolean = false,
     val hasLoaded: Boolean = false,
-    val error: ApiError? = null,
+    val error: LibraryError? = null,
     val lastUpdatedAt: String? = null,
     /** Every tag in the library, for the filter surface. */
     val availableTags: List<String> = emptyList(),
@@ -47,8 +46,8 @@ data class LibraryUiState(
     /**
      * An error that has taken the screen, as opposed to one shown over a usable library.
      *
-     * The distinction is the whole offline story: with recipes on screen a failed refresh
-     * is left to the footer's timestamp, and with nothing on screen it takes the screen.
+     * With recipes on screen a failed save is reported without taking the library away;
+     * with nothing on screen — a library file that would not parse — it takes the screen.
      */
     val isBlockingError: Boolean get() = error != null && totalCount == 0
 }
@@ -86,7 +85,6 @@ class LibraryViewModel(
                 search = query,
                 filters = stored.filters,
                 sort = stored.sort,
-                isRefreshing = library.isRefreshing,
                 hasLoaded = library.hasLoaded,
                 error = library.error,
                 lastUpdatedAt = library.lastUpdatedAt,
@@ -105,11 +103,17 @@ class LibraryViewModel(
         )
 
     init {
-        refresh()
+        retry()
     }
 
-    fun refresh() {
-        viewModelScope.launch { repository.refresh() }
+    /**
+     * Read the library off the device.
+     *
+     * Called once on arrival, and again from the error panel — the only two moments there is
+     * anything to re-read, now that every change to the library republishes on its own.
+     */
+    fun retry() {
+        viewModelScope.launch { repository.load() }
     }
 
     fun onSearchChange(query: String) {
@@ -130,8 +134,8 @@ class LibraryViewModel(
      * Delete straight from the list — FEAT-003's delete, reached by a swipe action.
      *
      * No confirmation here on purpose: the row has to be deliberately slid open first, which
-     * is already a two-step gesture, and the repository refetches so a failure simply leaves
-     * the recipe where it was.
+     * is already a two-step gesture, and the library is rewritten whole — so a failure simply
+     * leaves the recipe where it was.
      */
     fun onDeleteRecipe(id: String) {
         viewModelScope.launch { repository.delete(id) }

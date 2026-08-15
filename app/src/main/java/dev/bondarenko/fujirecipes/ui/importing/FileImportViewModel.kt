@@ -6,9 +6,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.bondarenko.fujirecipes.core.AppContainer
-import dev.bondarenko.fujirecipes.core.net.ApiError
-import dev.bondarenko.fujirecipes.core.net.ApiResult
-import dev.bondarenko.fujirecipes.core.net.ImportFailure
+import dev.bondarenko.fujirecipes.core.result.LibraryError
+import dev.bondarenko.fujirecipes.core.result.LibraryResult
+import dev.bondarenko.fujirecipes.data.repo.ImportFailure
 import dev.bondarenko.fujirecipes.data.importing.FileRow
 import dev.bondarenko.fujirecipes.data.importing.FileImportSummary
 import dev.bondarenko.fujirecipes.data.importing.ImportRejected
@@ -53,7 +53,7 @@ sealed interface FileImportStage {
      */
     data class Rejected(val reason: RejectionReason, val message: String) : FileImportStage
 
-    /** The server refused the import. The review is kept, so retrying costs nothing. */
+    /** The library could not be written. The review is kept, so retrying costs nothing. */
     data class Failed(val message: String) : FileImportStage
 }
 
@@ -62,8 +62,8 @@ data class FileImportUiState(
     val fileName: String? = null,
     val rows: List<FileRow> = emptyList(),
     val resolutions: Map<Int, Resolution> = emptyMap(),
-    /** What the server reported per recipe, when it reported anything (`contracts.md`). */
-    val serverFailures: List<ImportFailure> = emptyList(),
+    /** Entries the import itself refused, one line each (SF-014). */
+    val rejectedEntries: List<ImportFailure> = emptyList(),
 ) {
     val summary: FileImportSummary get() = summarise(rows, resolutions)
     val canImport: Boolean get() = summary.undecided == 0 && summary.importing > 0
@@ -72,9 +72,9 @@ data class FileImportUiState(
 /**
  * Import from a file — FEAT-012.
  *
- * Reading and reviewing are local and need no signal; importing is a server write and does
- * (`architecture.md` §4). Two stages, deliberately, so a failed import never costs the review
- * that preceded it.
+ * Every stage is local now, which removes the reason the two halves used to be separate —
+ * except the one that still holds: a write that fails must not cost the review that preceded
+ * it, so the rows stay in state and Retry is free.
  */
 class FileImportViewModel(
     private val repository: RecipeRepository,
@@ -117,8 +117,6 @@ class FileImportViewModel(
                     return@launch
                 }
 
-            // The library from the snapshot when there is no signal, which is the point: the
-            // duplicate and conflict checks are as useful offline as on.
             val library = repository.library.first { it.hasLoaded }.recipes
 
             _state.value = FileImportUiState(
@@ -143,31 +141,35 @@ class FileImportViewModel(
         val current = _state.value
         if (!current.canImport) return
 
-        _state.value = current.copy(stage = FileImportStage.Importing, serverFailures = emptyList())
+        _state.value = current.copy(
+            stage = FileImportStage.Importing,
+            rejectedEntries = emptyList(),
+        )
 
         viewModelScope.launch {
             val body = fileImportBody(current.rows, current.resolutions)
 
             _state.value = when (val result = repository.importAll(body)) {
-                is ApiResult.Success -> _state.value.copy(
+                is LibraryResult.Success -> _state.value.copy(
                     stage = FileImportStage.Done(
                         imported = result.value.imported,
                         skipped = result.value.skipped,
                         replaced = result.value.replaced,
                     ),
-                    // SF-014 again, from the other side: the server validates too, and a recipe
-                    // it refused is one the user has to be told about by name.
-                    serverFailures = result.value.failed,
+                    // SF-014 again, from the other side: the import validates every entry as
+                    // it writes, and one it refused is one the user has to be told about by
+                    // name rather than left to discover missing.
+                    rejectedEntries = result.value.failed,
                 )
 
-                is ApiResult.Failure -> _state.value.copy(
+                is LibraryResult.Failure -> _state.value.copy(
                     stage = FileImportStage.Failed(messageFor(result.error)),
                 )
             }
         }
     }
 
-    /** After a server failure: back to the review that is still held. */
+    /** After a failed write: back to the review that is still held. */
     fun backToReview() {
         _state.value = _state.value.copy(
             stage = if (_state.value.rows.isEmpty()) FileImportStage.Ready else FileImportStage.Review,
@@ -178,26 +180,26 @@ class FileImportViewModel(
         _state.value = FileImportUiState()
     }
 
-    private fun messageFor(error: ApiError): String = when (error) {
-        is ApiError.Network ->
-            "Saving needs a connection — reading the file did not. Nothing was imported, and " +
-                "your choices are still here to try again."
+    private fun messageFor(error: LibraryError): String = when (error) {
+        is LibraryError.Storage ->
+            "Your library could not be saved to this phone, so nothing was imported" +
+                (error.message?.let { ": $it" } ?: ".") +
+                " Your choices are still here to try again."
 
-        is ApiError.Forbidden ->
-            "The server refused the app's credentials, so nothing was imported. Check the " +
-                "connection settings."
+        is LibraryError.Unreadable ->
+            "The library already on this phone could not be read, so nothing was written to " +
+                "it. Importing on top of it would replace recipes that may still be " +
+                "recoverable."
 
-        is ApiError.ValidationFailed -> {
+        is LibraryError.Invalid -> {
             val field = error.fields.firstOrNull()
-            "The server refused the import" +
+            "The import was refused" +
                 (field?.let { " — ${it.path}: ${it.message}" } ?: "") +
                 ". Nothing was written."
         }
 
-        is ApiError.StorageUnavailable ->
-            "The library is unreachable right now, so nothing was imported. Try again shortly."
-
-        else -> "The import failed, so nothing was written: ${error::class.simpleName}"
+        is LibraryError.NotFound ->
+            "A recipe this file replaces is no longer in your library. Nothing was written."
     }
 
     companion object {

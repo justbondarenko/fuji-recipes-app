@@ -47,18 +47,19 @@ Enforced structurally: nothing under `camera/plan/` may import `android.*`.
 
 ## P5 — Errors name the thing that failed
 
-No "Something went wrong." A refused request names which of the contract's `error` codes
-came back and what the user can do. A failed camera write names the property and the PTP
-response code. A validation failure names the field path the server gave.
+No "Something went wrong." A failed read or write names which `LibraryError` it was and what
+the user can do. A failed camera write names the property and the PTP response code. A
+validation failure names the field path.
 
-Specifically forbidden: rendering a 403, a 503, and a socket timeout as the same message.
-They have three different remedies.
+Specifically forbidden: rendering a library file that will not parse, a device with no room
+left, and a value outside its range as the same message. They have three different remedies —
+and the first must never render as an empty library.
 
 ## P6 — No I/O in ViewModels or composables
 
-ViewModels call repositories. Repositories call `ApiClient` and `SnapshotCache`. A
-composable that touches the network, the filesystem, or `System.currentTimeMillis()`
-directly is a bug, because it cannot be tested and it cannot be previewed.
+ViewModels call repositories. Repositories call `LibraryStore`. A composable that touches
+the filesystem or `System.currentTimeMillis()` directly is a bug, because it cannot be
+tested and it cannot be previewed.
 
 Time is injected. `Clock` is a constructor parameter wherever a timestamp is compared or
 formatted.

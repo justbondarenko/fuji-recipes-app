@@ -29,8 +29,8 @@ import kotlinx.coroutines.launch
  * The write sheet's state, and the one place a write is started from.
  *
  * Reads the recipe from the already-loaded library rather than fetching it: the whole library
- * is in memory (`architecture.md` §4), and a camera write must work with no signal
- * (`architecture.md` C4). A network call on this path would break the field case entirely.
+ * is in memory (`architecture.md` §4), and a camera write touches nothing but the phone and
+ * the body on the other end of the cable (`architecture.md` C4).
  */
 class WriteViewModel(
     private val recipeId: String,

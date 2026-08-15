@@ -22,7 +22,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,7 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
-import dev.bondarenko.fujirecipes.core.net.ApiError
+import dev.bondarenko.fujirecipes.core.result.LibraryError
 import dev.bondarenko.fujirecipes.data.library.LibraryFilters
 import dev.bondarenko.fujirecipes.data.library.SortId
 import dev.bondarenko.fujirecipes.camera.canWrite
@@ -89,12 +88,11 @@ fun LibraryScreen(
     onSortChange: (SortId) -> Unit,
     onFiltersChange: (LibraryFilters) -> Unit,
     onClearSearchAndFilters: () -> Unit,
-    onRefresh: () -> Unit,
+    onRetry: () -> Unit,
     onOpenRecipe: (String) -> Unit,
     onEditRecipe: (String) -> Unit,
     onDeleteRecipe: (String) -> Unit,
     onCreateRecipe: () -> Unit,
-    onOpenConnection: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
     canWriteToCamera: Boolean = false,
@@ -108,11 +106,9 @@ fun LibraryScreen(
     // Which recipe is currently open in the Write to Camera sheet
     var writeRecipeId by rememberSaveable { mutableStateOf<String?>(null) }
 
-    PullToRefreshBox(
-        isRefreshing = state.isRefreshing,
-        onRefresh = onRefresh,
-        modifier = modifier.fillMaxSize(),
-    ) {
+    // No pull-to-refresh: there is nowhere to refresh *from*. The library is a file on this
+    // phone, and the flow that feeds this screen already republishes on every change.
+    Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             // The shell's inset already reserves the floating bar's height, so the list
@@ -126,14 +122,10 @@ fun LibraryScreen(
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
             when {
-                // Nothing on screen and a failure: the error *is* the screen. Crucially a
-                // 403 lands here rather than rendering as an empty library.
+                // Nothing on screen and a failure: the error *is* the screen. Crucially an
+                // unreadable library file lands here rather than rendering as an empty one.
                 state.isBlockingError -> item {
-                    LibraryErrorPanel(
-                        error = state.error!!,
-                        onRetry = onRefresh,
-                        onOpenConnection = onOpenConnection,
-                    )
+                    LibraryErrorPanel(error = state.error!!, onRetry = onRetry)
                 }
 
                 !state.hasLoaded -> item { LibraryLoading() }
@@ -295,7 +287,6 @@ fun LibraryRouteContent(
     onOpenRecipe: (String) -> Unit,
     onEditRecipe: (String) -> Unit,
     onCreateRecipe: () -> Unit,
-    onOpenConnection: () -> Unit,
     contentPadding: PaddingValues,
 ) {
     val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
@@ -309,12 +300,11 @@ fun LibraryRouteContent(
         onSortChange = viewModel::onSortChange,
         onFiltersChange = viewModel::onFiltersChange,
         onClearSearchAndFilters = viewModel::onClearSearchAndFilters,
-        onRefresh = viewModel::refresh,
+        onRetry = viewModel::retry,
         onOpenRecipe = onOpenRecipe,
         onEditRecipe = onEditRecipe,
         onDeleteRecipe = viewModel::onDeleteRecipe,
         onCreateRecipe = onCreateRecipe,
-        onOpenConnection = onOpenConnection,
         contentPadding = contentPadding,
         canWriteToCamera = camera.canWrite,
     )
@@ -340,27 +330,25 @@ private fun LibraryScreenPreview() {
                 availableSimulations = listOf("classic-chrome", "acros-r", "reala-ace"),
             ),
             onSearchChange = {}, onSortChange = {}, onFiltersChange = {},
-            onClearSearchAndFilters = {}, onRefresh = {}, onOpenRecipe = {},
-            onEditRecipe = {}, onDeleteRecipe = {},
-            onCreateRecipe = {}, onOpenConnection = {},
+            onClearSearchAndFilters = {}, onRetry = {}, onOpenRecipe = {},
+            onEditRecipe = {}, onDeleteRecipe = {}, onCreateRecipe = {},
             contentPadding = PaddingValues(0.dp),
         )
     }
 }
 
-@Preview(name = "List — refused token", showBackground = true, heightDp = 700)
+@Preview(name = "List — unreadable library", showBackground = true, heightDp = 700)
 @Composable
-private fun LibraryForbiddenPreview() {
+private fun LibraryUnreadablePreview() {
     FujiTheme {
         LibraryScreen(
             state = LibraryUiState(
                 hasLoaded = true,
-                error = ApiError.Forbidden("This token was not accepted."),
+                error = LibraryError.Unreadable("Unexpected character at offset 412."),
             ),
             onSearchChange = {}, onSortChange = {}, onFiltersChange = {},
-            onClearSearchAndFilters = {}, onRefresh = {}, onOpenRecipe = {},
-            onEditRecipe = {}, onDeleteRecipe = {},
-            onCreateRecipe = {}, onOpenConnection = {},
+            onClearSearchAndFilters = {}, onRetry = {}, onOpenRecipe = {},
+            onEditRecipe = {}, onDeleteRecipe = {}, onCreateRecipe = {},
             contentPadding = PaddingValues(0.dp),
         )
     }
@@ -373,9 +361,8 @@ private fun LibraryEmptyPreview() {
         LibraryScreen(
             state = LibraryUiState(hasLoaded = true, totalCount = 0),
             onSearchChange = {}, onSortChange = {}, onFiltersChange = {},
-            onClearSearchAndFilters = {}, onRefresh = {}, onOpenRecipe = {},
-            onEditRecipe = {}, onDeleteRecipe = {},
-            onCreateRecipe = {}, onOpenConnection = {},
+            onClearSearchAndFilters = {}, onRetry = {}, onOpenRecipe = {},
+            onEditRecipe = {}, onDeleteRecipe = {}, onCreateRecipe = {},
             contentPadding = PaddingValues(0.dp),
         )
     }

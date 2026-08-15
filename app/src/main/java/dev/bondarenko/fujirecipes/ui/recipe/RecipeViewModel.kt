@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import dev.bondarenko.fujirecipes.core.AppContainer
-import dev.bondarenko.fujirecipes.core.net.ApiError
-import dev.bondarenko.fujirecipes.core.net.ApiResult
+import dev.bondarenko.fujirecipes.core.result.LibraryError
+import dev.bondarenko.fujirecipes.core.result.LibraryResult
 import dev.bondarenko.fujirecipes.data.fields.FieldContext
 import dev.bondarenko.fujirecipes.data.fields.FieldFormatting
 import dev.bondarenko.fujirecipes.data.fields.FieldGroup
@@ -45,7 +45,7 @@ data class RecipeViewUiState(
     /** True when `changedOnly` is on and the recipe is entirely at its defaults. */
     val nothingChanged: Boolean = false,
     /** A failed in-place rating or tag save. The screen still shows the stored values. */
-    val saveError: ApiError? = null,
+    val saveError: LibraryError? = null,
 ) {
     val isNotFound: Boolean get() = !isLoading && recipe == null
 }
@@ -64,10 +64,8 @@ data class RecipeHeader(
 /**
  * FEAT-002 T-07.
  *
- * **Reads from the already-loaded library, not from `GET /api/recipes/:id`.** The whole
- * library is in memory (`architecture.md` §4), so a per-recipe fetch would add a network
- * dependency to a screen that has every byte it needs — and would fail offline for data the
- * app is holding.
+ * **Reads from the already-loaded library.** The whole library is in memory
+ * (`architecture.md` §4), so there is nothing for this screen to go and get.
  */
 class RecipeViewModel(
     private val recipeId: String,
@@ -75,7 +73,7 @@ class RecipeViewModel(
 ) : ViewModel() {
 
     private val changedOnly = MutableStateFlow(false)
-    private val saveError = MutableStateFlow<ApiError?>(null)
+    private val saveError = MutableStateFlow<LibraryError?>(null)
 
     val state: StateFlow<RecipeViewUiState> =
         combine(repository.library, changedOnly, saveError) { library, filterToChanged, error ->
@@ -119,12 +117,12 @@ class RecipeViewModel(
 
     private fun patch(body: JsonObject) {
         viewModelScope.launch {
-            // No optimistic update: the repository refreshes on success, and on failure the
-            // screen keeps showing what the server last confirmed rather than a change that
-            // did not happen.
+            // No optimistic update: the repository republishes the library on success, and
+            // on failure the screen keeps showing what is actually stored rather than a
+            // change that did not happen.
             when (val result = repository.update(recipeId, body)) {
-                is ApiResult.Success -> saveError.update { null }
-                is ApiResult.Failure -> saveError.update { result.error }
+                is LibraryResult.Success -> saveError.update { null }
+                is LibraryResult.Failure -> saveError.update { result.error }
             }
         }
     }

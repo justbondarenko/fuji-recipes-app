@@ -38,8 +38,8 @@ import dev.bondarenko.fujirecipes.camera.ptp.unpackU16
 /**
  * One custom slot, decoded into something the library could hold.
  *
- * No id: `coding-standards.md` P2 forbids the phone inventing one the server would assign, and
- * `POST /api/import` assigns it. The web client generates a UUID here only to satisfy its own
+ * No id: a slot is not a stored recipe, and the repository assigns one when the import is
+ * written. The web client generates a UUID here only to satisfy its own
  * client-side schema check.
  */
 data class SlotRecipe(

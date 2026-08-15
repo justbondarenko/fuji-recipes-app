@@ -407,7 +407,7 @@ private fun RecipeBentoBody(
                 contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_cloud_sync),
+                    painter = painterResource(R.drawable.ic_save_alt),
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
                 )

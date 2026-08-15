@@ -213,10 +213,10 @@ private fun LazyListScope.doneItems(
     onDone: () -> Unit,
     onChoose: () -> Unit,
 ) {
-    // The server's own refusals, before the summary panel: SF-014 says an invalid recipe is
-    // named rather than swallowed, and that holds when the server is the one that found it.
-    if (state.serverFailures.isNotEmpty()) {
-        items(state.serverFailures) { failure ->
+    // The import's own refusals, before the summary panel: SF-014 says an invalid recipe is
+    // named rather than swallowed, and that holds however late it is found.
+    if (state.rejectedEntries.isNotEmpty()) {
+        items(state.rejectedEntries) { failure ->
             Note(
                 stringResource(
                     R.string.file_import_server_failure,
@@ -243,12 +243,12 @@ private fun LazyListScope.doneItems(
                         ),
                     )
                 }
-                if (state.serverFailures.isNotEmpty()) {
+                if (state.rejectedEntries.isNotEmpty()) {
                     append(" ")
                     append(
                         stringResource(
                             R.string.file_import_done_failed,
-                            state.serverFailures.size,
+                            state.rejectedEntries.size,
                         ),
                     )
                 }

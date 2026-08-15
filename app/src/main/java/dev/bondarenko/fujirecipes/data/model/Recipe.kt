@@ -8,7 +8,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * One recipe, as the server sends it — FEAT-001 T-03.
+ * One recipe, as it is stored and as the export files carry it — FEAT-001 T-03.
  *
  * Canonical shape: `fuji-recipes-book/specs/shared/recipe.schema.json`. This is not a
  * redefinition of it, it is the subset this client reads, plus a rule for everything else.
@@ -65,8 +65,8 @@ data class Recipe(
      * Re-serialise, unknown keys included.
      *
      * [extra] goes down first so the known fields win: a stored unknown key that happens to
-     * be named `name` cannot rewrite the real one. Same precedence as `rowToEntity` on the
-     * server, and for the same reason.
+     * be named `name` cannot rewrite the real one. Same precedence as the web client's
+     * `rowToEntity`, and for the same reason.
      */
     fun toJson(): JsonObject {
         val known = json.encodeToJsonElement(serializer(), this) as JsonObject
@@ -92,6 +92,3 @@ data class Recipe(
     }
 }
 
-/** The `GET /api/recipes` body — `fuji-recipes-book/specs/contracts.md`. */
-@Serializable
-data class RecipeListResponse(val recipes: List<JsonObject> = emptyList())

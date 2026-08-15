@@ -26,10 +26,10 @@ the table below with a reason, in the same commit as the spec that needs it.
 | Material 3 Expressive | **Not reachable on this toolchain — see §6.** `material3` is pinned at 1.4.0 via `compose-bom` 2026.06.01, where the entire Expressive surface is `internal`. Colour, type and shape are unaffected; motion and four components are. | The Expressive vocabulary is a product requirement, and §6 records what it costs to get it |
 | Navigation | Navigation Compose, type-safe routes | — |
 | Async | Coroutines + Flow | — |
-| HTTP | **OkHttp** + `kotlinx.serialization` directly. No Retrofit, no Ktor. | Six endpoints. A `Retrofit` interface plus a converter factory plus an OkHttp client is three dependencies and an annotation layer over what is ~80 lines of `Request.Builder`. Revisit if the route count passes ~15. |
+| HTTP | **None.** No OkHttp, no Retrofit, no Ktor, and no `INTERNET` permission. | The app is offline: the library is a file on the device and recipes move by export and import (`architecture.md` §4). A dependency that could open a socket is one more thing that could. |
 | JSON | `kotlinx.serialization` | Handles `JsonObject` passthrough for `settings` and `extra`, which is the requirement that rules out Gson |
-| Preferences | DataStore (Preferences) | Connection settings, remembered filters and sort |
-| Snapshot cache | `java.io.File` + `kotlinx.serialization` | It is one file holding one response verbatim. A database for that is ceremony. |
+| Preferences | DataStore (Preferences) | Remembered filters and sort |
+| Library store | `java.io.File` + `kotlinx.serialization` | Tens of recipes, loaded whole and filtered in memory. Room would buy queries nothing asks and a migration story for one file. |
 | Images | Bundled `drawable` resources | The 20 film-simulation swatches are fixed assets copied from `fuji-recipes-book/src/public/film-simulations/`. Nothing is loaded from a URL, so no Coil, no Glide. |
 | ZIP | `java.util.zip`, stdlib | Import/export only — out of v1 scope |
 | USB | `android.hardware.usb` + hand-rolled PTP | libgphoto2 via NDK is a cross-compile for a surface that is a few hundred lines of Kotlin |
@@ -37,7 +37,7 @@ the table below with a reason, in the same commit as the spec that needs it.
 | DI | **None — a hand-written `AppContainer`** | The graph is six objects with no cycles and one scope. Hilt costs a Gradle plugin, an annotation processor and a Kotlin/KSP version alignment to maintain, for wiring that fits on one screen. Revisit if the graph grows scopes. |
 | Testing (JVM) | JUnit 4 + `kotlin.test`, Turbine for Flow | JUnit 5 on Android needs a third-party Gradle plugin; JUnit 4 is what AGP runs out of the box. The pure list-selection pipeline and `buildWritePlan` are the highest-value suites |
 | Testing (UI) | `androidx.compose.ui.test` | List states: loading, empty, no-match, error, populated |
-| HTTP test double | OkHttp `MockWebServer` | Contract tests against recorded envelopes, no network |
+| Store test double | JUnit's `TemporaryFolder` | The store is a real file in the tests, because "the bytes on disk survive a restart" is the property worth checking |
 
 ## 3. Explicitly not approved
 
@@ -45,10 +45,10 @@ the table below with a reason, in the same commit as the spec that needs it.
 |---|---|
 | Hilt / Dagger / Koin | See DI above |
 | `material-icons-extended` | Several thousand vectors for the three this app uses — it put 31 MB into the debug APK. `material-icons-core` plus one local vector drawable covers it |
-| Room | The server owns the data (`architecture.md` §4). A local relational mirror implies a sync engine that v1 does not need. |
-| Retrofit / Ktor client | See HTTP above |
+| Room | The library is one JSON file loaded whole (`architecture.md` §4). Nothing queries it, so a relational store would be schema and migrations for no reader. |
+| OkHttp / Retrofit / Ktor | See HTTP above. There is nothing to talk to. |
 | Firebase (any) | No accounts, no analytics, no crash reporting in v1. Adding one is a privacy decision, not a convenience one. |
-| `androidx.security:security-crypto` | Deprecated by Jetpack. App-private DataStore with `allowBackup="false"` is the v1 bound, stated in `architecture.md` §5. |
+| `androidx.security:security-crypto` | Deprecated by Jetpack, and there is no secret left to hold: app-private storage with `allowBackup="false"` is the bound, stated in `architecture.md` §5. |
 | Material You / dynamic colour | The palette is parity with the web client. `dynamicLightColorScheme()` would replace it with wallpaper colours. |
 | Coil / Glide / Picasso | Nothing loads a remote image |
 | Any analytics or telemetry SDK | Single user, no product questions to answer |
@@ -58,12 +58,14 @@ the table below with a reason, in the same commit as the spec that needs it.
 
 | Permission | Needed by | Notes |
 |---|---|---|
-| `android.permission.INTERNET` | Everything from FEAT-001 | The v1 architecture is server-backed, so this is required — unlike the earlier local-only draft in `PRD.md` §4.1, which is superseded |
-| `<uses-feature android:name="android.hardware.usb.host" android:required="true" />` | FEAT-003 | Declared required: a device without USB host cannot do the thing the app exists for |
-| No storage permissions | — | Import/export, when it lands, uses the Storage Access Framework |
+| **No `android.permission.INTERNET`** | — | Deliberate, and load-bearing. The app has nothing to reach, and its absence makes "your recipes stay on this phone" a claim the manifest enforces rather than a promise the code makes |
+| `android.permission.WAKE_LOCK` | FEAT-006 | Held for the duration of a camera write and no longer |
+| `<uses-feature android:name="android.hardware.usb.host" android:required="true" />` | FEAT-005 | Declared required: a device without USB host cannot do the thing the app exists for |
+| No storage permissions | — | Export shares through a `FileProvider`; import reads through the Storage Access Framework |
 
-`android:allowBackup="false"` in the manifest, because the service token lives in app-private
-DataStore.
+`android:allowBackup="false"` in the manifest. It was there for the service token; it stays
+for the library, which is the only copy of the user's recipes and is not something to hand to
+a cloud backup by default.
 
 ## 5. Verification gates
 

@@ -23,9 +23,9 @@ import kotlinx.serialization.json.put
  *
  * **Three statuses, not the web client's five.** The reference has to handle a file whose
  * recipes carry ids, so it has an id-collision status and a three-way resolution per row.
- * Nothing read off a camera carries an id — `coding-standards.md` P2 forbids the phone
- * inventing one and `POST /api/import` assigns it — so that branch is unreachable here.
- * Building it anyway would be speculative (P8), and untestable besides.
+ * Nothing read off a camera carries an id — the repository assigns one on import — so that
+ * branch is unreachable here. Building it anyway would be speculative (P8), and untestable
+ * besides.
  */
 
 enum class ImportStatus {
@@ -144,11 +144,11 @@ fun summarise(rows: List<ImportRow>) = ImportSummary(
 )
 
 /**
- * The body for `POST /api/import` — the selected rows and nothing else.
+ * The body for `RecipeRepository.importAll` — the selected rows and nothing else.
  *
- * **No ids.** P2: the phone never invents one the server would assign, and
- * `src/server/api/import.post.ts` fills it in. `resolutions` is empty and always will be:
- * with no ids there is nothing to collide, so there is nothing to resolve.
+ * **No ids.** A slot read off a camera has none, and the repository assigns one as it
+ * writes. `resolutions` is empty and always will be: with no ids there is nothing to
+ * collide, so there is nothing to resolve.
  */
 fun importBody(rows: List<ImportRow>): JsonObject = buildJsonObject {
     put(

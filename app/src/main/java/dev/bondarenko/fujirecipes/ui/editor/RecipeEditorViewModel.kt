@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import dev.bondarenko.fujirecipes.core.AppContainer
-import dev.bondarenko.fujirecipes.core.net.ApiError
-import dev.bondarenko.fujirecipes.core.net.ApiResult
+import dev.bondarenko.fujirecipes.core.result.LibraryError
+import dev.bondarenko.fujirecipes.core.result.LibraryResult
 import dev.bondarenko.fujirecipes.data.fields.FieldContext
 import dev.bondarenko.fujirecipes.data.fields.RecipeFields
 import dev.bondarenko.fujirecipes.data.fields.RecipeValidation
@@ -38,7 +38,7 @@ data class EditorUiState(
     val settings: JsonObject = JsonObject(emptyMap()),
     val problems: List<RecipeValidation.Problem> = emptyList(),
     val isSaving: Boolean = false,
-    val saveError: ApiError? = null,
+    val saveError: LibraryError? = null,
     val isDirty: Boolean = false,
     val notFound: Boolean = false,
 ) {
@@ -192,21 +192,21 @@ class RecipeEditorViewModel(
                 repository.create(createBody(current))
             } else {
                 val diff = diffAgainst(existing, current)
-                // Nothing actually changed — a PATCH with an empty body would still bump
-                // `updatedAt` and reorder the "recently updated" sort for no reason.
+                // Nothing actually changed — an empty update would still bump `updatedAt`
+                // and reorder the "recently updated" sort for no reason.
                 if (diff.isEmpty()) {
-                    ApiResult.Success(existing)
+                    LibraryResult.Success(existing)
                 } else {
                     repository.update(existing.id, diff)
                 }
             }
 
             when (result) {
-                is ApiResult.Success -> {
+                is LibraryResult.Success -> {
                     _state.update { it.copy(isSaving = false, isDirty = false) }
                     onSaved(result.value.id)
                 }
-                is ApiResult.Failure -> {
+                is LibraryResult.Failure -> {
                     // Everything the user typed stays in state; only the flags move.
                     _state.update { it.copy(isSaving = false, saveError = result.error) }
                 }
@@ -220,18 +220,18 @@ class RecipeEditorViewModel(
 
         viewModelScope.launch {
             when (val result = repository.delete(id)) {
-                is ApiResult.Success -> {
+                is LibraryResult.Success -> {
                     _state.update { it.copy(isSaving = false, isDirty = false) }
                     onDeleted()
                 }
-                is ApiResult.Failure ->
+                is LibraryResult.Failure ->
                     _state.update { it.copy(isSaving = false, saveError = result.error) }
             }
         }
     }
 
     companion object {
-        /** The create body: what the user chose. The server assigns everything else. */
+        /** The create body: what the user chose. The repository assigns everything else. */
         internal fun createBody(state: EditorUiState): JsonObject = buildJsonObject {
             put("name", state.name.trim())
             put("notes", state.notes)
@@ -241,7 +241,7 @@ class RecipeEditorViewModel(
         }
 
         /**
-         * The PATCH body: **only** what changed.
+         * The update body: **only** what changed.
          *
          * `settings` is compared as a whole and sent whole when it differs, because a partial
          * settings object would be merged by neither side unambiguously — but the object

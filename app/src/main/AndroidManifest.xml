@@ -2,11 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-      Required from FEAT-001: the server owns the library (steering/architecture.md §4).
-      This supersedes PRD.md §4.1, which described a local-only app with no network.
+      No INTERNET permission, and that is the feature. The library is a file in app-private
+      storage (steering/architecture.md §4), so the app cannot reach the network even if a
+      dependency tried to — which is a claim the manifest makes checkable.
     -->
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!--
       FEAT-006: a partial wake lock is held for the duration of a write and no longer. Writes

@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The app opts out of backup entirely (`allowBackup="false"`), because the Access service
-  token lives in app-private DataStore — steering/architecture.md §5.
+  The app opts out of backup entirely (`allowBackup="false"`), because the library is the
+  only copy of the user's recipes and shipping it to a cloud backup by default is not a
+  decision to make silently — steering/architecture.md §5. Export is the backup story.
 
   These rules exist so the opt-out is explicit on both transports rather than inherited,
   and so a future partial opt-in has to be a deliberate edit here.

@@ -46,8 +46,8 @@ enum class FileRowStatus {
 /**
  * SF-012 — exactly three, no more and no fewer.
  *
- * The ids are the wire values `POST /api/import` accepts; a fourth option here would be one
- * the server refuses.
+ * The ids are the values `RecipeRepository.importAll` reads; a fourth option here would be
+ * one nothing acts on.
  */
 enum class Resolution(val id: String) {
     SKIP("skip"),
@@ -87,10 +87,11 @@ data class FileRow(
      * What the user may choose, which is not the same question for both kinds of collision.
      *
      * SF-012's three options are about an **id** collision: replacing means overwriting the
-     * recipe that holds that id. A configuration duplicate collides on nothing the server can
-     * key on — it is a different recipe that happens to be set up identically — so "Replace"
-     * would have nothing to replace, and the reference offering it there is why a skipped
-     * duplicate imports anyway on the web. Two honest options beat three where one is a lie.
+     * recipe that holds that id. A configuration duplicate collides on nothing that can be
+     * keyed on — it is a different recipe that happens to be set up identically — so
+     * "Replace" would have nothing to replace, and the reference offering it there is why a
+     * skipped duplicate imports anyway on the web. Two honest options beat three where one
+     * is a lie.
      */
     val resolutionOptions: List<Resolution>
         get() = when (status) {
@@ -207,9 +208,8 @@ private fun FileRow.settingsMap(): Map<String, Any?> =
 /**
  * SF-014's validation, against the one field table this app has (P3).
  *
- * **A missing key is not an error.** §4 fills missing keys with their defaults on import, and
- * the server's `normaliseSettings` is what does the filling — so `valid-minimal.json`, which
- * is a name and a simulation, has to come out valid here too.
+ * **A missing key is not an error.** §4 fills missing keys with their defaults on import — so
+ * `valid-minimal.json`, which is a name and a simulation, has to come out valid here too.
  *
  * The applicability context comes from the recipe's own simulation and white balance, so a
  * monochrome recipe is not failed for the colour value it does not have.
@@ -302,17 +302,16 @@ fun summarise(rows: List<FileRow>, resolutions: Map<Int, Resolution>) = FileImpo
 )
 
 /**
- * The body for `POST /api/import` (`contracts.md`).
+ * The body for `RecipeRepository.importAll`.
  *
- * `resolutions` is keyed by **recipe id**, which is what the endpoint expects, and only rows
- * that collide on an id appear in it: "recipes absent from `resolutions` and not conflicting
- * are imported".
+ * `resolutions` is keyed by **recipe id**, and only rows that collide on an id appear in it:
+ * recipes absent from `resolutions` and not conflicting are imported.
  *
- * **A skipped row without an id is dropped here rather than sent.** The reference sends
- * `resolutions` keyed by id and lets the server decide, which works for an id collision and
+ * **A skipped row without an id is dropped here rather than passed on.** The reference sends
+ * `resolutions` keyed by id and lets the importer decide, which works for an id collision and
  * silently fails for a configuration duplicate — that row has no colliding id, so nothing
- * keys it, and the server imports the recipe the user just chose to skip. Dropping it locally
- * is the only place that decision can be honoured.
+ * keys it, and the recipe the user just chose to skip is imported anyway. Dropping it here is
+ * the only place that decision can be honoured.
  */
 fun fileImportBody(rows: List<FileRow>, resolutions: Map<Int, Resolution>): JsonObject {
     val chosen = mutableMapOf<String, String>()
