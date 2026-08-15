@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Fujifilm's USB vendor id.
+
+  **Decimal.** `vendor-id` in this file is read as a decimal number, and 0x04CB is 1227.
+  Writing `0x04CB` here does not fail loudly — the filter simply never matches, the app never
+  launches on attach, and the one feature that justifies going native (`PRD.md` §8.2) is
+  quietly absent. `camera/usb/UsbBulkChannel.kt` carries the hexadecimal form.
+
+  No product-id: every Fujifilm body is a candidate, and the model table decides what the app
+  will actually write to.
+-->
+<resources>
+    <usb-device vendor-id="1227" />
+</resources>

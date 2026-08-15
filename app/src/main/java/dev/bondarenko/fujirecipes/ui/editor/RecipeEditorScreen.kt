@@ -401,6 +401,8 @@ private fun kotlinx.serialization.json.JsonObject.numberOrNull(key: String): Dou
 fun RecipeEditorRouteContent(
     recipeId: String?,
     duplicateOf: String?,
+    prefill: String? = null,
+    prefillName: String? = null,
     onBack: () -> Unit,
     onSaved: (String) -> Unit,
     onDeleted: () -> Unit,
@@ -408,7 +410,13 @@ fun RecipeEditorRouteContent(
 ) {
     val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
     val viewModel: RecipeEditorViewModel = viewModel(
-        factory = RecipeEditorViewModel.factory(container, recipeId, duplicateOf),
+        factory = RecipeEditorViewModel.factory(
+            container,
+            recipeId,
+            duplicateOf,
+            prefill,
+            prefillName,
+        ),
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
 

@@ -1,26 +1,50 @@
 package dev.bondarenko.fujirecipes.ui.connection
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -41,6 +65,7 @@ import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
  * so it answers 200 with no credentials at all — testing against it would report a revoked
  * token as a working connection, which is the exact failure this screen exists to catch.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConnectionScreen(
     state: ConnectionUiState,
@@ -52,111 +77,201 @@ fun ConnectionScreen(
     onToggleSecretVisible: () -> Unit,
     onTest: () -> Unit,
     onSave: () -> Unit,
+    onClearCredentials: (() -> Unit)? = null,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(contentPadding)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        if (onBack != null) {
-            TextButton(onClick = onBack, modifier = Modifier.padding(bottom = 4.dp)) {
-                Text(stringResource(R.string.action_back))
-            }
-        }
+    var confirmClear by remember { mutableStateOf(false) }
 
-        Text(
-            text = stringResource(R.string.connection_title),
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Text(
-            text = stringResource(R.string.connection_intro),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        OutlinedTextField(
-            value = state.baseUrl,
-            onValueChange = onBaseUrlChange,
-            label = { Text(stringResource(R.string.connection_base_url)) },
-            placeholder = { Text(stringResource(R.string.connection_base_url_hint)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Uri,
-                imeAction = ImeAction.Next,
-            ),
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        OutlinedTextField(
-            value = state.clientId,
-            onValueChange = onClientIdChange,
-            label = { Text(stringResource(R.string.connection_client_id)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        OutlinedTextField(
-            value = state.clientSecret,
-            onValueChange = onClientSecretChange,
-            label = { Text(stringResource(R.string.connection_client_secret)) },
-            singleLine = true,
-            visualTransformation = if (state.secretVisible) {
-                VisualTransformation.None
-            } else {
-                PasswordVisualTransformation()
+    Column(modifier = modifier.fillMaxSize()) {
+        TopAppBar(
+            title = {
+                Text(
+                    text = stringResource(R.string.connection_title),
+                    style = MaterialTheme.typography.titleLarge,
+                )
             },
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password,
-                imeAction = ImeAction.Done,
+            navigationIcon = {
+                if (onBack != null) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
+                    }
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
             ),
-            trailingIcon = {
-                TextButton(onClick = onToggleSecretVisible) {
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(
+                    start = 20.dp,
+                    end = 20.dp,
+                    top = 8.dp,
+                    bottom = contentPadding.calculateBottomPadding() + 24.dp,
+                ),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.connection_intro),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            OutlinedTextField(
+                value = state.baseUrl,
+                onValueChange = onBaseUrlChange,
+                label = { Text(stringResource(R.string.connection_base_url)) },
+                placeholder = { Text(stringResource(R.string.connection_base_url_hint)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Uri,
+                    imeAction = ImeAction.Next,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            OutlinedTextField(
+                value = state.clientId,
+                onValueChange = onClientIdChange,
+                label = { Text(stringResource(R.string.connection_client_id)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            OutlinedTextField(
+                value = state.clientSecret,
+                onValueChange = onClientSecretChange,
+                label = { Text(stringResource(R.string.connection_client_secret)) },
+                singleLine = true,
+                visualTransformation = if (state.secretVisible) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    imeAction = ImeAction.Done,
+                ),
+                trailingIcon = {
+                    TextButton(onClick = onToggleSecretVisible) {
+                        Text(
+                            stringResource(
+                                if (state.secretVisible) {
+                                    R.string.connection_hide_secret
+                                } else {
+                                    R.string.connection_show_secret
+                                },
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Button(
+                    onClick = onSave,
+                    enabled = state.isComplete && !state.isTesting,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.connection_save))
+                }
+                OutlinedButton(
+                    onClick = onTest,
+                    enabled = state.isComplete && !state.isTesting,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     Text(
                         stringResource(
-                            if (state.secretVisible) {
-                                R.string.connection_hide_secret
-                            } else {
-                                R.string.connection_show_secret
-                            },
+                            if (state.isTesting) R.string.connection_testing else R.string.connection_test,
                         ),
-                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
+            }
+
+            state.result?.let { result ->
+                Text(
+                    text = result.message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (result.isSuccess) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
+                )
+            }
+
+            if (state.isConfigured && onClearCredentials != null) {
+                Spacer(Modifier.height(8.dp))
+
+                Text(
+                    text = stringResource(R.string.settings_danger_zone),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error,
+                )
+
+                TextButton(
+                    onClick = { confirmClear = true },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.settings_clear_credentials),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+        }
+    }
+
+    if (confirmClear && onClearCredentials != null) {
+        AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            title = { Text(stringResource(R.string.settings_clear_title)) },
+            text = { Text(stringResource(R.string.settings_clear_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmClear = false
+                        onClearCredentials()
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_clear_confirm),
+                        fontWeight = FontWeight.Bold,
                     )
                 }
             },
-            modifier = Modifier.fillMaxWidth(),
+            dismissButton = {
+                TextButton(onClick = { confirmClear = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
         )
-
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(onClick = onSave, enabled = state.isComplete && !state.isTesting) {
-                Text(stringResource(R.string.connection_save))
-            }
-            OutlinedButton(onClick = onTest, enabled = state.isComplete && !state.isTesting) {
-                Text(
-                    stringResource(
-                        if (state.isTesting) R.string.connection_testing else R.string.connection_test,
-                    ),
-                )
-            }
-        }
-
-        state.result?.let { result ->
-            Text(
-                text = result.message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (result.isSuccess) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.error
-                },
-            )
-        }
     }
 }
 
@@ -181,6 +296,7 @@ fun ConnectionRouteContent(
         onToggleSecretVisible = viewModel::onToggleSecretVisible,
         onTest = viewModel::onTest,
         onSave = { viewModel.onSave(onSaved) },
+        onClearCredentials = viewModel::clearCredentials,
         contentPadding = contentPadding,
     )
 }
@@ -195,10 +311,13 @@ private fun ConnectionScreenPreview() {
                 baseUrl = "recipes.example.com",
                 clientId = "abc123.access",
                 clientSecret = "secret",
+                isConfigured = true,
                 result = ConnectionTestResult(false, "Cloudflare Access did not accept this service token."),
             ),
+            onBack = {},
             onBaseUrlChange = {}, onClientIdChange = {}, onClientSecretChange = {},
             onToggleSecretVisible = {}, onTest = {}, onSave = {},
+            onClearCredentials = {},
             contentPadding = PaddingValues(0.dp),
         )
     }

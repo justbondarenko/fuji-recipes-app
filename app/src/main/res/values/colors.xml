@@ -7,5 +7,5 @@
       The launcher icon's own backdrop, taken from the web client's favicon.svg
       (`<rect fill="#f6f6f4">`). Same mark, same ground — steering/design-system.md §6.
     -->
-    <color name="ic_launcher_background">#FFF6F6F4</color>
+    <color name="ic_launcher_background">#D7D2C9</color>
 </resources>

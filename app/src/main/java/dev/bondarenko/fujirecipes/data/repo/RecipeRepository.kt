@@ -2,6 +2,7 @@ package dev.bondarenko.fujirecipes.data.repo
 
 import dev.bondarenko.fujirecipes.core.net.ApiError
 import dev.bondarenko.fujirecipes.core.net.ApiResult
+import dev.bondarenko.fujirecipes.core.net.ImportResult
 import kotlinx.serialization.json.JsonObject
 import dev.bondarenko.fujirecipes.data.model.Recipe
 import kotlinx.coroutines.flow.Flow
@@ -29,6 +30,14 @@ interface RecipeRepository {
     suspend fun create(body: JsonObject): ApiResult<Recipe>
     suspend fun update(id: String, body: JsonObject): ApiResult<Recipe>
     suspend fun delete(id: String): ApiResult<Unit>
+
+    /**
+     * Import several recipes at once — FEAT-007.
+     *
+     * One call rather than a loop over [create], because `POST /api/import` is atomic: a
+     * failure rolls the whole thing back, so the library never ends up holding half a camera.
+     */
+    suspend fun importAll(body: JsonObject): ApiResult<ImportResult>
 }
 
 /**

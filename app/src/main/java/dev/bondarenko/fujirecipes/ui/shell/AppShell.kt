@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -51,18 +52,25 @@ import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
  * The chrome every top-level screen sits inside.
  *
  * Implements Material 3 Floating Toolbar specification (https://m3.material.io/components/toolbars/specs):
- * - A pill-shaped floating toolbar housing top-level navigation items with clear active indicators.
- * - A standalone separate Main Action FAB positioned beside the toolbar.
+ * - A pill-shaped floating toolbar centered at the bottom housing top-level navigation items.
+ * - Two fixed standalone FABs anchored to the bottom corners (USB status on the left, Create recipe on the right)
+ *   so toolbar width changes during tab transitions never shift them.
  */
 @Composable
 fun AppShell(
     showChrome: Boolean,
     isLibrarySelected: Boolean,
+    isReadSelected: Boolean,
     isMoreSelected: Boolean,
     onLibraryClick: () -> Unit,
+    onReadClick: () -> Unit,
     onMoreClick: () -> Unit,
     onCreateClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * The camera FAB indicator, anchored to the bottom-left corner of the chrome.
+     */
+    cameraChip: (@Composable () -> Unit)? = null,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     val systemBars = WindowInsets.navigationBars.asPaddingValues()
@@ -101,63 +109,86 @@ fun AppShell(
                     ),
             )
 
-            Row(
+            // Left FAB: USB Connection status (fixed in bottom-left corner)
+            if (cameraChip != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(
+                            start = BarMargin,
+                            bottom = systemBars.calculateBottomPadding() + BarMargin,
+                        ),
+                ) {
+                    cameraChip()
+                }
+            }
+
+            // Center: Material 3 Floating Navigation Toolbar (fixed at bottom-center)
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                tonalElevation = 3.dp,
+                shadowElevation = 4.dp,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = systemBars.calculateBottomPadding() + BarMargin)
-                    .padding(horizontal = BarMargin),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .height(56.dp),
             ) {
-                // Material 3 Floating Toolbar
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    tonalElevation = 3.dp,
-                    shadowElevation = 4.dp,
+                Row(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .animateContentSize()
+                        .padding(horizontal = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .animateContentSize()
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        FloatingToolbarItem(
-                            selected = isLibrarySelected,
-                            icon = rememberVectorPainter(Icons.AutoMirrored.Filled.List),
-                            label = stringResource(R.string.nav_library),
-                            contentDescription = stringResource(R.string.nav_library),
-                            onClick = onLibraryClick,
-                        )
-                        FloatingToolbarItem(
-                            selected = isMoreSelected,
-                            icon = rememberVectorPainter(Icons.Filled.Settings),
-                            label = stringResource(R.string.nav_more),
-                            contentDescription = stringResource(R.string.nav_more),
-                            onClick = onMoreClick,
-                        )
-                    }
-                }
-
-                // Main Action FAB, positioned outside the toolbar per M3 specs
-                FloatingActionButton(
-                    onClick = onCreateClick,
-                    shape = RoundedCornerShape(16.dp),
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    elevation = FloatingActionButtonDefaults.elevation(
-                        defaultElevation = 3.dp,
-                        pressedElevation = 6.dp,
-                    ),
-                    modifier = Modifier.size(56.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Add,
-                        contentDescription = stringResource(R.string.nav_create),
-                        modifier = Modifier.size(24.dp),
+                    FloatingToolbarItem(
+                        selected = isLibrarySelected,
+                        icon = rememberVectorPainter(Icons.AutoMirrored.Filled.List),
+                        label = stringResource(R.string.nav_library),
+                        contentDescription = stringResource(R.string.nav_library),
+                        onClick = onLibraryClick,
+                    )
+                    FloatingToolbarItem(
+                        selected = isReadSelected,
+                        icon = painterResource(R.drawable.ic_photo_camera),
+                        label = stringResource(R.string.nav_read),
+                        contentDescription = stringResource(R.string.nav_read),
+                        onClick = onReadClick,
+                    )
+                    FloatingToolbarItem(
+                        selected = isMoreSelected,
+                        icon = rememberVectorPainter(Icons.Filled.Settings),
+                        label = stringResource(R.string.nav_more),
+                        contentDescription = stringResource(R.string.nav_more),
+                        onClick = onMoreClick,
                     )
                 }
+            }
+
+            // Right FAB: Main Action Create Recipe (fixed in bottom-right corner)
+            FloatingActionButton(
+                onClick = onCreateClick,
+                shape = RoundedCornerShape(16.dp),
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                elevation = FloatingActionButtonDefaults.elevation(
+                    defaultElevation = 3.dp,
+                    pressedElevation = 6.dp,
+                ),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = BarMargin,
+                        bottom = systemBars.calculateBottomPadding() + BarMargin,
+                    )
+                    .size(56.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = stringResource(R.string.nav_create),
+                    modifier = Modifier.size(24.dp),
+                )
             }
         }
     }
@@ -229,8 +260,10 @@ private fun AppShellPreview() {
         AppShell(
             showChrome = true,
             isLibrarySelected = true,
+            isReadSelected = false,
             isMoreSelected = false,
             onLibraryClick = {},
+            onReadClick = {},
             onMoreClick = {},
             onCreateClick = {},
         ) { padding ->

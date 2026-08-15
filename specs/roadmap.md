@@ -28,9 +28,12 @@ Stages are sequential. A **GATE** must be fully closed before the next stage sta
 | FEAT-002 | Field source + recipe view | The canonical 27-field table, and a read-only screen to read a recipe on | **done** |
 | FEAT-003 | Recipe form | Create, edit, duplicate, delete; rating and tags in place | **done** |
 | FEAT-004 | Settings | Connection settings reachable at any time, and clearable | **done** |
-| FEAT-005 | Camera connection **GATE** | USB host, attach intent, PTP session, model detection, the connection indicator | **high** — reverse-engineered protocol |
-| FEAT-006 | Write to slot | Write plan, encoders, slot picker, progress, failure reporting | **high** |
-| FEAT-007 | Polish | Motion timing, haptics, reduced-motion fallback, dark-scheme audit, predictive back | none |
+| FEAT-005 | Camera connection **GATE** | USB host, attach intent, PTP session, model detection, the connection indicator | **done** — connects on hardware |
+| FEAT-006 | Write to slot | Write plan, encoders, slot picker, progress, failure reporting | **done** — writes to a slot on hardware |
+| **FEAT-007** | **Import from camera** ← *in progress* | More → Import: read C1–C7 off the body, review against the library with duplicate detection, import | low — the protocol half is done and verified |
+| **FEAT-008** | **Export recipes** ← *in progress* | More → Export: select recipes, build the canonical file, hand it to the OS share sheet. Plus a single-recipe export | low — the format is specified and shipped on the web |
+| **FEAT-009** | **Read a recipe from a photo** ← *in progress* | Bottom bar → Read: decode a JPEG's Fujifilm MakerNote, match it against the library by name, save it as a new recipe | medium — the MakerNote layout is reverse-engineered, but the reference has run against real files |
+| FEAT-010 | Polish | Motion timing, haptics, reduced-motion fallback, dark-scheme audit, predictive back | none |
 
 **FEAT-001 to FEAT-003 carry no protocol risk and ship a usable recipe manager.** That is
 deliberate: a hard slog in FEAT-005 must leave a working product behind, not a stalled one.
@@ -60,9 +63,11 @@ ordering cost nothing — the form (FEAT-003) now inherits a table that is alrea
 
 | Deferred | To | Why |
 |---|---|---|
+| ~~Reading a slot's full settings back as an importable recipe~~ | **FEAT-007** | Reversed. The recipes already on the body could not reach the library at all, which made the camera link one-way. The slot picker's name read (FEAT-006) proved the mechanism; FEAT-007 decodes the whole slot. |
 | Reorder / manual-order editing | v2 | The list *respects* manual order as a tiebreak and never offers it as a sort — matching the web client, which also does not offer it. Editing it needs `POST /:id/move` and a drag surface. |
 | Delete and duplicate | FEAT-003 | They belong with the editor, not the list |
-| Export / import | v2 | The web client is the backup surface and `P2` of the web constitution already guarantees it. Duplicating it on Android before the camera works is misordered. |
+| ~~Export as a file~~ | **FEAT-008** | Reversed. "The web client is the backup surface" holds right up until the phone is the device you have with you, which is this app's premise — and `PRD.md` C2 calls export the backup *guarantee*, not a convenience. Building the file locally also means it works with no signal, which a backup has to. |
+| Import **from a file** | v2 | Still deferred, and it is the larger half: ZIP traversal rules (SF-015), the migration chain (SF-007) and the conflict flow. Importing *from the camera* is FEAT-007 and is a different thing — the data is on a device in the bag, not in a file that already has a home. |
 | Offline **writes** | v2 | See `architecture.md` §4. Needs a queue, and a queue needs conflict resolution. |
 | Sensor-generation filter | won't do | The column was dropped in D1 migration 0002. The web client has no such filter either. |
 | Tablet layouts, Wear OS, widgets | won't do | `PRD.md` §3 non-goals stand |
@@ -124,3 +129,35 @@ wants one is a later feature, so nothing is blocked today:
 `compileSdk` 37 / Compose beta, or accept standard Material 3 for v1 and revisit when the
 Expressive line goes stable. `ui/theme/Theme.kt` carries the swap instructions either way —
 it is a one-call change plus a `motionScheme` argument that is already computed.
+
+## 7. The camera stages, re-rated
+
+Written when FEAT-005 started, and it corrects §1's own risk column.
+
+Both camera stages were rated **high** on the premise that the protocol was reverse-engineered
+and partly unverified — `PRD.md` C3, and `steering/architecture.md` §8 C3 say the same. That
+premise is out of date, and the correction is worth recording because it is the reason these
+two stages are being attempted together.
+
+`fuji-recipes-book` shipped a **working, unit-tested WebUSB PTP implementation**:
+`camera/usb/{ptp,transport,session,payload,write}.ts`, `camera/{models,encoding,write-plan,read-slot}.ts`,
+and roughly 2,600 lines of tests including a fake camera that speaks PTP back. Its stage 32
+resolved every property code from `eggricesoy/filmkit` @ `9e3bbcf`, cross-checked against an
+X100VI, and its stage 37 replaced the plan-time write order with the observed one.
+
+So the Android work is a **transcription against a known-good reference**, not protocol
+archaeology. What remains genuinely unknown is narrower and named:
+
+| Still unverified | Where it bites |
+|---|---|
+| WebUSB and `android.hardware.usb` differ in claim and endpoint behaviour | FEAT-005 T-08. The reference's ranked-interface and discovered-endpoint logic exists *because* of real claim failures, and is carried over rather than simplified. |
+| Property codes are verified on X-Trans V (X100VI) only | `propertyCodesVerifiedFor` is transcribed with the tables; an unverified generation says so rather than pretending. |
+| GFX is assumed, not observed | `GFX_FIELD_SET_VERIFIED = false` travels with the transcription. |
+
+**One branch, two feature folders.** `coding-standards.md`'s Git section says one feature
+folder, one branch. FEAT-005 and FEAT-006 share `feat/FEAT-005-camera-connection`, at the
+owner's decision: they transcribe one reference module, and splitting them would mean porting
+`encoding.ts` twice or merging a connection that cannot yet do anything. The gate property is
+kept instead of the branch rule — FEAT-005 T-18 is a complete, installable, shippable stage on
+its own, so a slog in FEAT-006 still leaves a working product behind. That was always the point
+of the ordering.

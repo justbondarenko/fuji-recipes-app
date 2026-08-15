@@ -44,7 +44,9 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -71,6 +73,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
+import dev.bondarenko.fujirecipes.camera.canWrite
+import dev.bondarenko.fujirecipes.core.share.ShareFile
+import dev.bondarenko.fujirecipes.ui.camera.WriteSheetHost
 import dev.bondarenko.fujirecipes.data.fields.FieldFormatting
 import dev.bondarenko.fujirecipes.data.fields.FieldGroup
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
@@ -97,7 +102,8 @@ fun RecipeViewBottomSheet(
     onEdit: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
+    val context = LocalContext.current
+    val container = (context.applicationContext as FujiRecipesApp).container
     val viewModel: RecipeViewModel =
         viewModel(factory = RecipeViewModel.factory(container, recipeId), key = recipeId)
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -111,6 +117,9 @@ fun RecipeViewBottomSheet(
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         modifier = modifier,
     ) {
+        val camera by container.cameraController.state.collectAsStateWithLifecycle()
+        var writeOpen by remember { mutableStateOf(false) }
+
         RecipeViewContent(
             state = state,
             onClose = onDismiss,
@@ -118,7 +127,18 @@ fun RecipeViewBottomSheet(
             onChangedOnlyChange = viewModel::onChangedOnlyChange,
             onRatingChange = viewModel::onRatingChange,
             onTagsChange = viewModel::onTagsChange,
+            onWriteToCamera = { writeOpen = true },
+            canWriteToCamera = camera.canWrite,
+            onExportRecipe = {
+                viewModel.buildExport { filename, content ->
+                    ShareFile.share(context, filename, content)
+                }
+            },
         )
+
+        if (writeOpen) {
+            WriteSheetHost(recipeId = recipeId, onDismiss = { writeOpen = false })
+        }
     }
 }
 
@@ -134,6 +154,9 @@ fun RecipeViewScreen(
     onChangedOnlyChange: (Boolean) -> Unit,
     onRatingChange: (Int) -> Unit = {},
     onTagsChange: (List<String>) -> Unit = {},
+    onWriteToCamera: () -> Unit = {},
+    canWriteToCamera: Boolean = false,
+    onExportRecipe: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -184,6 +207,9 @@ fun RecipeViewScreen(
             onChangedOnlyChange = onChangedOnlyChange,
             onRatingChange = onRatingChange,
             onTagsChange = onTagsChange,
+            onWriteToCamera = onWriteToCamera,
+            canWriteToCamera = canWriteToCamera,
+            onExportRecipe = onExportRecipe,
         )
     }
 }
@@ -199,6 +225,9 @@ fun RecipeViewContent(
     onChangedOnlyChange: (Boolean) -> Unit,
     onRatingChange: (Int) -> Unit = {},
     onTagsChange: (List<String>) -> Unit = {},
+    onWriteToCamera: () -> Unit = {},
+    canWriteToCamera: Boolean = false,
+    onExportRecipe: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     when {
@@ -230,6 +259,9 @@ fun RecipeViewContent(
                 onChangedOnlyChange = onChangedOnlyChange,
                 onRatingChange = onRatingChange,
                 onTagsChange = onTagsChange,
+                onWriteToCamera = onWriteToCamera,
+                canWriteToCamera = canWriteToCamera,
+                onExportRecipe = onExportRecipe,
                 modifier = modifier,
             )
         }
@@ -246,6 +278,9 @@ private fun RecipeBentoBody(
     onChangedOnlyChange: (Boolean) -> Unit,
     onRatingChange: (Int) -> Unit,
     onTagsChange: (List<String>) -> Unit,
+    onWriteToCamera: () -> Unit,
+    canWriteToCamera: Boolean,
+    onExportRecipe: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val recipe = state.recipe ?: return
@@ -262,6 +297,9 @@ private fun RecipeBentoBody(
                 onEdit = onEdit,
                 onRatingChange = onRatingChange,
                 onTagsChange = onTagsChange,
+                onWriteToCamera = onWriteToCamera,
+                canWriteToCamera = canWriteToCamera,
+                onExportRecipe = onExportRecipe,
             )
         }
 
@@ -354,6 +392,32 @@ private fun RecipeBentoBody(
                 )
             }
         }
+
+        /**
+         * Export this one — FEAT-008 T-14.
+         *
+         * Beside "copy as text" because they answer the same question in two registers: text
+         * for a message someone reads, a file for an app that will import it.
+         */
+        item {
+            OutlinedButton(
+                onClick = onExportRecipe,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_cloud_sync),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.action_export_recipe),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        }
     }
 }
 
@@ -368,6 +432,9 @@ private fun RecipeHeaderBlock(
     onEdit: () -> Unit,
     onRatingChange: (Int) -> Unit,
     onTagsChange: (List<String>) -> Unit,
+    onWriteToCamera: () -> Unit,
+    canWriteToCamera: Boolean,
+    onExportRecipe: () -> Unit,
 ) {
     val sim = FilmSimulations.byId(recipe.filmSimulationId)
     val shape = RoundedCornerShape(20.dp)
@@ -464,9 +531,18 @@ private fun RecipeHeaderBlock(
 
                 TagInput(tags = recipe.tags, onTagsChange = onTagsChange)
 
+                /**
+                 * The write action — FEAT-006 T-13.
+                 *
+                 * Disabled rather than hidden: the recipe screen is where someone goes *to*
+                 * write, and a button that has quietly vanished reads as a missing feature
+                 * rather than as a camera that is not plugged in. The reason lives one place
+                 * up — the shell's camera chip names the state and its sheet explains it,
+                 * which keeps one answer to "why can I not write" rather than two.
+                 */
                 Button(
-                    onClick = {},
-                    enabled = false,
+                    onClick = onWriteToCamera,
+                    enabled = canWriteToCamera,
                     modifier = Modifier.fillMaxWidth(),
                     contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
                 ) {
@@ -656,10 +732,14 @@ fun RecipeViewRouteContent(
     onBack: () -> Unit,
     onEdit: () -> Unit,
 ) {
-    val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
+    val context = LocalContext.current
+    val container = (context.applicationContext as FujiRecipesApp).container
     val viewModel: RecipeViewModel =
         viewModel(factory = RecipeViewModel.factory(container, recipeId))
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    val camera by container.cameraController.state.collectAsStateWithLifecycle()
+    var writeOpen by remember { mutableStateOf(false) }
 
     RecipeViewScreen(
         state = state,
@@ -668,7 +748,18 @@ fun RecipeViewRouteContent(
         onChangedOnlyChange = viewModel::onChangedOnlyChange,
         onRatingChange = viewModel::onRatingChange,
         onTagsChange = viewModel::onTagsChange,
+        onWriteToCamera = { writeOpen = true },
+        canWriteToCamera = camera.canWrite,
+        onExportRecipe = {
+            viewModel.buildExport { filename, content ->
+                ShareFile.share(context, filename, content)
+            }
+        },
     )
+
+    if (writeOpen) {
+        WriteSheetHost(recipeId = recipeId, onDismiss = { writeOpen = false })
+    }
 }
 
 // --- previews ---

@@ -1,6 +1,7 @@
 package dev.bondarenko.fujirecipes.core
 
 import android.content.Context
+import dev.bondarenko.fujirecipes.camera.CameraController
 import dev.bondarenko.fujirecipes.core.cache.SnapshotCache
 import dev.bondarenko.fujirecipes.core.net.ApiClient
 import dev.bondarenko.fujirecipes.core.settings.ConnectionSettings
@@ -47,6 +48,13 @@ class AppContainer(context: Context) {
     val snapshotCache: SnapshotCache by lazy {
         SnapshotCache(File(applicationContext.filesDir, SnapshotCache.FILE_NAME))
     }
+
+    /**
+     * The camera connection, above the nav graph so it survives navigation
+     * (`architecture.md` §3). Lazy like everything else: a launch that never touches the
+     * camera never registers a USB receiver.
+     */
+    val cameraController: CameraController by lazy { CameraController(applicationContext) }
 
     val recipeRepository: RecipeRepository by lazy {
         NetworkRecipeRepository(

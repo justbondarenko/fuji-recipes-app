@@ -21,6 +21,7 @@
     <string name="action_clear_all">Clear all</string>
     <string name="action_clear_search">Clear search</string>
     <string name="action_write_to_camera">Write to camera</string>
+    <string name="action_write">Write</string>
     <string name="rating_of_five">Rated %1$d out of 5</string>
     <plurals name="count_total">
         <item quantity="one">%1$d recipe</item>
@@ -116,11 +117,146 @@
     <string name="settings_connection">Connection</string>
     <string name="settings_about">About</string>
     <string name="settings_version">Version %1$s</string>
+    <string name="settings_danger_zone">Danger zone</string>
     <string name="settings_clear_credentials">Clear credentials</string>
     <string name="settings_clear_credentials_subtitle">Remove the stored token from this device</string>
     <string name="settings_clear_title">Clear stored credentials?</string>
     <string name="settings_clear_body">The server address and service token will be removed from this phone. Your library is not affected, and the token itself is not revoked — do that in the Cloudflare dashboard if you need to.</string>
     <string name="settings_clear_confirm">Clear</string>
+
+    <!-- Camera — FEAT-005. The chip's six states are PRD §7.2's. -->
+    <string name="camera_chip_no_usb">No USB</string>
+    <string name="camera_chip_connect">Connect</string>
+    <string name="camera_chip_connecting">Connecting</string>
+    <string name="camera_chip_connected">Camera</string>
+    <string name="camera_chip_writing">Writing…</string>
+    <string name="camera_chip_error">Error</string>
+    <string name="camera_chip_description">Camera: %1$s</string>
+
+    <string name="camera_sheet_title">Camera</string>
+    <string name="camera_state_no_usb_title">This phone has no USB host support</string>
+    <string name="camera_state_no_usb_body">Writing to a camera needs USB host mode, which this device does not have. Storing and editing recipes works normally.</string>
+    <string name="camera_state_disconnected_title">No camera connected</string>
+    <string name="camera_state_disconnected_body">Connect the camera with a USB-C cable and set its USB mode to the RAW-conversion/backup mode.</string>
+    <string name="camera_state_attached_body">A Fujifilm camera is attached. Connect to read which body it is.</string>
+    <string name="camera_state_connecting_title">Connecting…</string>
+    <string name="camera_state_connecting_body">Opening a session with the camera.</string>
+    <string name="camera_state_error_title">The camera could not be reached</string>
+    <string name="camera_ptp_code">Camera response: %1$s</string>
+    <string name="camera_writes_available">Ready to write recipes to C1–C7.</string>
+    <string name="camera_action_connect">Connect</string>
+    <string name="camera_action_retry">Try again</string>
+    <string name="camera_action_disconnect">Disconnect</string>
+    <string name="camera_slot_note">Writing to a slot leaves its image size, quality, smooth skin, long-exposure NR and colour space as they were — a slot is not reset before it is written.</string>
+
+    <!-- Write to camera — FEAT-006. The stages are PRD §7.4's. -->
+    <string name="write_title">Write to camera</string>
+    <string name="write_connect_body">Connect the camera before writing “%1$s” to a slot.</string>
+    <string name="write_refused_title">This body cannot take a write</string>
+    <string name="write_dropped_title">Some parameters will not be written</string>
+    <string name="write_dropped_body">This camera cannot take the following. The rest of the recipe will be written.</string>
+    <string name="write_anyway">Write anyway</string>
+    <string name="write_pick_slot">Choose a slot</string>
+    <string name="write_slot_name">C%1$d</string>
+    <string name="write_slot_reading">Reading…</string>
+    <!-- Not "Empty": the camera reported a blank name, which is not the same as an empty slot. -->
+    <string name="write_slot_unnamed">No name set</string>
+    <string name="write_slot_unreadable">The camera did not answer</string>
+    <string name="write_slot_unknown">Unknown</string>
+    <string name="write_slot_refresh">Read the slots again</string>
+    <string name="write_confirm_title">Replace what is in C%1$d?</string>
+    <string name="write_confirm_named">C%1$d currently holds “%2$s”. Writing “%3$s” replaces it, and the old settings cannot be recovered from the camera.</string>
+    <string name="write_confirm_unknown">The camera would not say what C%1$d holds, so this may replace a recipe that is not stored anywhere else.</string>
+    <string name="write_confirm_action">Write to C%1$d</string>
+    <string name="write_progress_count">%1$d / %2$d</string>
+    <string name="write_progress_title">Writing to C%1$d</string>
+    <string name="write_done_title">Written to C%1$d</string>
+    <string name="write_done_body">%1$d of %2$d properties written and read back.</string>
+    <string name="write_failed_title">The write did not finish</string>
+    <string name="write_cancel_title">Stop the write?</string>
+    <string name="write_cancel_body">The slot is being changed right now. Stopping leaves it partly written, which is neither the old recipe nor the new one.</string>
+    <string name="write_cancel_confirm">Stop writing</string>
+    <string name="write_cancel_keep">Keep writing</string>
+    <string name="action_done">Done</string>
+
+    <!-- Import from camera — FEAT-007 -->
+    <string name="import_title">Import</string>
+    <string name="import_subtitle">Read the recipes saved in your camera\'s C1–C7 slots</string>
+    <string name="import_needs_camera_title">Connect your camera</string>
+    <string name="import_needs_camera_body">Import reads the custom recipe slots saved on the camera itself. Connect it with a USB-C cable, set its USB mode to the RAW-conversion/backup mode, and this screen will be ready.</string>
+    <string name="import_ready_title">Ready to read %1$s</string>
+    <string name="import_ready_title_generic">Ready to read the camera</string>
+    <string name="import_ready_body">Reading looks at all seven custom slots and does not change anything on the camera. It works with no signal.</string>
+    <string name="import_action_read">Read the slots</string>
+    <string name="import_reading">Reading slot C%1$d of %2$d…</string>
+    <string name="import_empty_title">No custom recipes saved</string>
+    <string name="import_empty_body">The camera\'s custom slots are empty, so there is nothing to import. Recipes appear here once they are saved to C1–C7 on the body.</string>
+    <string name="import_nothing_new">Everything on the camera is already in your library. The slots are listed below if you want a second copy of one anyway.</string>
+    <string name="import_summary">%1$d found · %2$d selected</string>
+    <string name="import_status_new">New</string>
+    <string name="import_status_duplicate">Already in your library as “%1$s”</string>
+    <string name="import_status_name">Another recipe is called “%1$s”. This will be imported as a second one.</string>
+    <string name="import_action_import">Import %1$d</string>
+    <string name="import_action_import_none">Select something to import</string>
+    <string name="import_importing">Importing…</string>
+    <string name="import_done_title">Imported %1$d</string>
+    <string name="import_done_body">They are in your library now.</string>
+    <string name="import_failed_title">Nothing was imported</string>
+    <string name="import_action_back_to_review">Back to the list</string>
+    <string name="import_action_read_again">Read again</string>
+
+    <!-- Export — FEAT-008 -->
+    <string name="export_title">Export</string>
+    <string name="export_subtitle">Save your recipes to a file and share it anywhere</string>
+    <string name="export_intro">Builds the file on this phone, so it works with no signal. The share sheet takes it from there — Files, Drive, a message, anything installed.</string>
+    <string name="export_loading">Loading your library…</string>
+    <string name="export_empty_title">Nothing to export yet</string>
+    <string name="export_empty_body">Recipes you add will appear here, ready to save to a file.</string>
+    <string name="export_selected">%1$d of %2$d selected</string>
+    <string name="export_select_all">Select all</string>
+    <string name="export_select_none">Select none</string>
+    <string name="export_format">Format</string>
+    <string name="export_format_json">One JSON file</string>
+    <string name="export_format_json_hint">Every selected recipe in a single file. The easiest to keep and to read back in.</string>
+    <string name="export_format_zip">ZIP of JSON files</string>
+    <string name="export_format_zip_hint">One file per recipe inside an archive. Better when you want to pick individual recipes out later.</string>
+    <string name="export_action">Export %1$s</string>
+    <string name="export_action_none">Choose at least one recipe</string>
+    <string name="export_failed">The export could not be prepared, so nothing left the app: %1$s</string>
+    <string name="action_export_recipe">Export this recipe</string>
+
+    <!-- Read a recipe from a photo — FEAT-009 -->
+    <string name="nav_read">Read</string>
+    <string name="photo_title">Read a recipe from a photo</string>
+    <string name="photo_intro">Choose a JPEG from your Fujifilm camera and this reads the recipe it was shot with, then tells you whether it is one you already have. It happens on this phone, with no signal needed.</string>
+    <string name="photo_action_choose">Choose a photo</string>
+    <string name="photo_action_another">Read another photo</string>
+    <string name="photo_reading">Reading the photo…</string>
+    <string name="photo_shot_on">Shot on %1$s</string>
+    <string name="photo_settings">What the photo says</string>
+
+    <string name="photo_match_exact_title">You already have this: “%1$s”</string>
+    <string name="photo_match_exact_body">Every setting the photo carries matches that recipe.</string>
+    <string name="photo_match_near_title">Close to “%1$s” — %2$d%%</string>
+    <string name="photo_match_near_body">Everything matches except the following.</string>
+    <string name="photo_match_none_title">Not one of your recipes</string>
+    <string name="photo_match_none_body">Nothing in your library matches closely enough to name. You can save this as a new recipe.</string>
+    <string name="photo_match_empty_body">Your library is empty, so there is nothing to compare against yet.</string>
+    <string name="photo_difference">%1$s · photo %2$s, saved %3$s</string>
+    <string name="photo_action_open_match">Open “%1$s”</string>
+    <string name="photo_action_view_recipe">View recipe</string>
+    <string name="photo_action_save">Save as a new recipe</string>
+
+    <string name="photo_error_not_jpeg_title">That is not a JPEG</string>
+    <string name="photo_error_not_jpeg_body">This reads the recipe out of a JPEG your camera wrote. A RAF file is not one — if you shoot RAW+JPEG, choose the JPEG.</string>
+    <string name="photo_error_too_large_title">That photo is too large</string>
+    <string name="photo_error_too_large_body">Photos up to 50 MB can be read. A camera JPEG is far smaller than that, so this is usually a RAW file.</string>
+    <string name="photo_error_no_exif_title">This photo carries no metadata</string>
+    <string name="photo_error_no_exif_body">Its EXIF has been stripped, which usually means it was edited, exported or sent through an app that removes it. The original from the camera will still have it.</string>
+    <string name="photo_error_not_fuji_title">Not a Fujifilm photo</string>
+    <string name="photo_error_not_fuji_body">This photo has metadata, but not the Fujifilm recipe block. Only JPEGs written by a Fujifilm camera carry it.</string>
+    <string name="photo_error_unreadable_title">This photo could not be read</string>
+    <string name="photo_error_unreadable_body">It looks like a Fujifilm JPEG, but its recipe block is not in a form this app can walk. If the file was re-saved by another app, try the camera original.</string>
 
     <!-- Placeholders, replaced as their features land -->
     <string name="placeholder_editor_title">Recipe</string>

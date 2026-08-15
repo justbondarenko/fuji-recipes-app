@@ -24,6 +24,7 @@ data class ConnectionUiState(
     val clientSecret: String = "",
     val secretVisible: Boolean = false,
     val isTesting: Boolean = false,
+    val isConfigured: Boolean = false,
     val result: ConnectionTestResult? = null,
 ) {
     /** All three or none — a half-set credential only ever produces a confusing 403. */
@@ -55,6 +56,7 @@ class ConnectionViewModel(
                     baseUrl = current.baseUrl,
                     clientId = current.clientId,
                     clientSecret = current.clientSecret,
+                    isConfigured = current.isConfigured,
                 )
             }
         }
@@ -106,7 +108,23 @@ class ConnectionViewModel(
         val current = _state.value
         viewModelScope.launch {
             settings.save(current.baseUrl, current.clientId, current.clientSecret)
+            _state.update { it.copy(isConfigured = true) }
             onSaved()
+        }
+    }
+
+    fun clearCredentials() {
+        viewModelScope.launch {
+            settings.clear()
+            _state.update {
+                it.copy(
+                    baseUrl = "",
+                    clientId = "",
+                    clientSecret = "",
+                    result = null,
+                    isConfigured = false,
+                )
+            }
         }
     }
 
