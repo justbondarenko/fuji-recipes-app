@@ -9,13 +9,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -102,7 +104,10 @@ fun ExportScreen(
                 top = 8.dp,
                 bottom = 24.dp + contentPadding.calculateBottomPadding(),
             ),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            // Tight, because the recipe rows below form one segmented block and stepped
+            // corners only read as a group when the rows nearly touch. Everything that is not
+            // a row asks for its own breathing space with `SectionGap`.
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             when {
             !state.hasLoaded -> item { Body(stringResource(R.string.export_loading)) }
@@ -115,18 +120,26 @@ fun ExportScreen(
             }
 
             else -> {
-                item { Body(stringResource(R.string.export_intro)) }
+                item { Body(stringResource(R.string.export_intro), Modifier.padding(SectionGap)) }
 
                 state.error?.let { message -> item { Panel(message, alert = true) } }
 
-                item { FormatChoice(state.kind, onChooseKind) }
+                item {
+                    FormatChoice(
+                        state.kind,
+                        onChooseKind,
+                        modifier = Modifier.padding(bottom = SectionGap),
+                    )
+                }
 
                 item { SelectionHeader(state, onSelectAll, onSelectNone) }
 
-                items(state.recipes, key = { it.id }) { recipe ->
+                itemsIndexed(state.recipes, key = { _, it -> it.id }) { index, recipe ->
                     RecipeRow(
                         recipe = recipe,
                         selected = recipe.id in state.selected,
+                        index = index,
+                        count = state.recipes.size,
                         onToggle = { onToggle(recipe.id) },
                     )
                 }
@@ -135,7 +148,9 @@ fun ExportScreen(
                     Button(
                         onClick = onExport,
                         enabled = state.canExport,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = SectionGap),
                     ) {
                         Text(
                             if (state.canExport) {
@@ -156,8 +171,12 @@ fun ExportScreen(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun FormatChoice(kind: ExportKind, onChoose: (ExportKind) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+private fun FormatChoice(
+    kind: ExportKind,
+    onChoose: (ExportKind) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
@@ -219,43 +238,52 @@ private fun SelectionHeader(
     }
 }
 
+/**
+ * One recipe in the M3 multi-select list, sectioned variant.
+ *
+ * `index` and `count` are what make the rows read as one block rather than a stack of cards:
+ * `ListItemDefaults.segmentedShapes` rounds the outer corners of the first and last rows and
+ * squares the ones between them.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun RecipeRow(recipe: Recipe, selected: Boolean, onToggle: () -> Unit) {
-    Surface(
+private fun RecipeRow(
+    recipe: Recipe,
+    selected: Boolean,
+    index: Int,
+    count: Int,
+    onToggle: () -> Unit,
+) {
+    ListItem(
         onClick = onToggle,
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        selected = selected,
+        shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
+        colors = ListItemDefaults.segmentedColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
         modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Checkbox(checked = selected, onCheckedChange = { onToggle() })
-            FilmSimBadge(simulationId = recipe.filmSimulationId, size = 40.dp)
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = recipe.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = FilmSimulations.byId(recipe.filmSimulationId)?.label.orEmpty(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+        leadingContent = {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // The row itself toggles, so the box is a state readout, not a second target.
+                Checkbox(checked = selected, onCheckedChange = null)
+                FilmSimBadge(simulationId = recipe.filmSimulationId, size = 40.dp)
             }
-        }
+        },
+        supportingContent = {
+            Text(FilmSimulations.byId(recipe.filmSimulationId)?.label.orEmpty())
+        },
+    ) {
+        Text(text = recipe.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
 @Composable
-private fun Body(text: String) {
+private fun Body(text: String, modifier: Modifier = Modifier) {
     Text(
+        modifier = modifier,
         text = text,
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -388,3 +416,5 @@ private fun ExportFailedPreview() = PreviewScreen(
         error = "No space left on device",
     ),
 )
+
+private val SectionGap = 10.dp

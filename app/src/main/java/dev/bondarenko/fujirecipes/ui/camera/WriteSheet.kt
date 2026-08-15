@@ -20,6 +20,9 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -283,30 +286,6 @@ private fun DroppedRow(dropped: DroppedField) {
     }
 }
 
-/**
- * Computes corner shape for segmented slot choices:
- * - Top element: rounded top corners (16dp), subtle bottom corners (4dp)
- * - Bottom element: subtle top corners (4dp), rounded bottom corners (16dp)
- * - Middle elements: subtle corners (4dp)
- * - Single element: all corners rounded (16dp)
- */
-fun slotItemShape(index: Int, total: Int): RoundedCornerShape = when {
-    total <= 1 -> RoundedCornerShape(16.dp)
-    index == 0 -> RoundedCornerShape(
-        topStart = 16.dp,
-        topEnd = 16.dp,
-        bottomStart = 4.dp,
-        bottomEnd = 4.dp,
-    )
-    index == total - 1 -> RoundedCornerShape(
-        topStart = 4.dp,
-        topEnd = 4.dp,
-        bottomStart = 16.dp,
-        bottomEnd = 16.dp,
-    )
-    else -> RoundedCornerShape(4.dp)
-}
-
 // ─── Stage 3 ────────────────────────────────────────────────────────────────
 
 @Composable
@@ -360,11 +339,11 @@ private fun PickerStage(
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         slots.forEachIndexed { index, slot ->
-            val shape = slotItemShape(index, slots.size)
             SegmentedSlotItem(
                 state = slot,
                 isSelected = slot.slot == selectedSlot,
-                shape = shape,
+                index = index,
+                count = slots.size,
                 onClick = { onSelectSlot(slot.slot) },
             )
         }
@@ -398,50 +377,40 @@ private fun PickerStage(
 }
 
 /**
- * One slot item inside an M3 Segmented Single-Select List.
+ * One slot in the M3 single-select list, segmented variant.
+ *
+ * The stepped corner radii that mark first / middle / last are
+ * `ListItemDefaults.segmentedShapes`, and the selected-vs-not container and text roles are
+ * `segmentedColors` — both were hand-computed here before.
+ *
+ * The `C1`…`C7` badge stays custom: it is the camera's own label for the slot, and no list
+ * component supplies one.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SegmentedSlotItem(
     state: SlotState,
     isSelected: Boolean,
-    shape: Shape,
+    index: Int,
+    count: Int,
     onClick: () -> Unit,
 ) {
-    val enabled = state.status != SlotStatus.READING
-
-    Surface(
+    ListItem(
         onClick = onClick,
-        enabled = enabled,
-        shape = shape,
-        color = if (isSelected) {
-            MaterialTheme.colorScheme.secondaryContainer
-        } else if (state.occupied) {
-            MaterialTheme.colorScheme.surfaceContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
-        },
-        contentColor = if (isSelected) {
-            MaterialTheme.colorScheme.onSecondaryContainer
-        } else {
-            MaterialTheme.colorScheme.onSurface
-        },
+        selected = isSelected,
+        enabled = state.status != SlotStatus.READING,
+        shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
+        colors = ListItemDefaults.segmentedColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
         modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        leadingContent = {
             Surface(
                 shape = CircleShape,
                 color = if (isSelected) {
                     MaterialTheme.colorScheme.primary
-                } else if (state.occupied) {
-                    MaterialTheme.colorScheme.surfaceContainerHighest
                 } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
+                    MaterialTheme.colorScheme.surfaceContainerHighest
                 },
                 contentColor = if (isSelected) {
                     MaterialTheme.colorScheme.onPrimary
@@ -458,36 +427,21 @@ private fun SegmentedSlotItem(
                     )
                 }
             }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text(
-                    text = state.name ?: stringResource(state.status.labelRes()),
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                    ),
-                    color = if (isSelected) {
-                        MaterialTheme.colorScheme.onSecondaryContainer
-                    } else if (state.occupied) {
-                        MaterialTheme.colorScheme.onSurface
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-
+        },
+        trailingContent = {
             if (state.status == SlotStatus.READING) {
                 Text(
                     text = stringResource(R.string.write_slot_reading),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        }
+        },
+    ) {
+        Text(
+            text = state.name ?: stringResource(state.status.labelRes()),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
