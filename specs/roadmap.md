@@ -32,7 +32,8 @@ Stages are sequential. A **GATE** must be fully closed before the next stage sta
 | FEAT-006 | Write to slot | Write plan, encoders, slot picker, progress, failure reporting | **done** — writes to a slot on hardware |
 | **FEAT-007** | **Import from camera** ← *in progress* | More → Import: read C1–C7 off the body, review against the library with duplicate detection, import | low — the protocol half is done and verified |
 | **FEAT-008** | **Export recipes** ← *in progress* | More → Export: select recipes, build the canonical file, hand it to the OS share sheet. Plus a single-recipe export | low — the format is specified and shipped on the web |
-| FEAT-009 | Polish | Motion timing, haptics, reduced-motion fallback, dark-scheme audit, predictive back | none |
+| **FEAT-009** | **Read a recipe from a photo** ← *in progress* | Bottom bar → Read: decode a JPEG's Fujifilm MakerNote, match it against the library by name, save it as a new recipe | medium — the MakerNote layout is reverse-engineered, but the reference has run against real files |
+| FEAT-010 | Polish | Motion timing, haptics, reduced-motion fallback, dark-scheme audit, predictive back | none |
 
 **FEAT-001 to FEAT-003 carry no protocol risk and ship a usable recipe manager.** That is
 deliberate: a hard slog in FEAT-005 must leave a working product behind, not a stalled one.
