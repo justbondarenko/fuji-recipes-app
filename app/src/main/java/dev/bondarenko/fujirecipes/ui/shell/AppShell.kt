@@ -81,9 +81,12 @@ fun AppShell(
     onParseTextClick: () -> Unit,
     modifier: Modifier = Modifier,
     /**
-     * The camera FAB indicator, anchored to the bottom-left corner of the chrome.
+     * The camera status, rendered as the third item of the toolbar.
+     *
+     * A slot rather than a `CameraState` parameter, so the shell keeps knowing nothing about
+     * USB — see `CameraToolbarItem`, which builds it out of [FloatingToolbarItem].
      */
-    cameraChip: (@Composable () -> Unit)? = null,
+    cameraItem: (@Composable () -> Unit)? = null,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     val systemBars = WindowInsets.navigationBars.asPaddingValues()
@@ -159,25 +162,21 @@ fun AppShell(
                     ),
             )
 
-            // Left FAB: USB Connection status (fixed in bottom-left corner)
-            if (cameraChip != null) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = BarMargin, bottom = barBaseline),
-                ) {
-                    cameraChip()
-                }
-            }
-
-            // Center: Material 3 Floating Navigation Toolbar (fixed at bottom-center)
+            /**
+             * The toolbar, now carrying the camera status that used to be a second FAB.
+             *
+             * The create FAB stays a sibling rather than going in the toolbar's own
+             * `floatingActionButton` slot: `FloatingActionButtonMenu` re-applies its bottom
+             * inset inside that slot too, which put it 12dp above the toolbar's edge. It is
+             * a menu that grows upward, not the single FAB the slot is specified for.
+             */
             HorizontalFloatingToolbar(
                 expanded = true,
                 expandedShadowElevation = ToolbarElevation,
                 collapsedShadowElevation = ToolbarElevation,
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = barBaseline - ToolbarOwnInset),
+                    .align(Alignment.BottomStart)
+                    .padding(start = BarMargin, bottom = barBaseline - ToolbarOwnInset),
             ) {
                 FloatingToolbarItem(
                     selected = isLibrarySelected,
@@ -193,6 +192,10 @@ fun AppShell(
                     contentDescription = stringResource(R.string.nav_read),
                     onClick = onReadClick,
                 )
+                // Third, before settings: the camera is closer to the work than the settings
+                // are. The shell still knows nothing about USB — it renders whatever the slot
+                // hands it.
+                cameraItem?.invoke()
                 FloatingToolbarItem(
                     selected = isMoreSelected,
                     icon = rememberVectorPainter(Icons.Filled.Settings),
@@ -202,7 +205,7 @@ fun AppShell(
                 )
             }
 
-            // Right FAB: the create menu (fixed in bottom-right corner)
+            // The one FAB, on the same baseline as the toolbar — see `barBaseline`.
             CreateFabMenu(
                 expanded = menuExpanded,
                 onExpandedChange = { menuExpanded = it },
@@ -216,7 +219,10 @@ fun AppShell(
                 },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = BarMargin, bottom = barBaseline - FabMenuOwnInset),
+                    .padding(
+                        end = BarMargin - FabMenuOwnInset,
+                        bottom = barBaseline - FabMenuOwnInset,
+                    ),
             )
         }
     }
@@ -288,19 +294,24 @@ private fun CreateFabMenu(
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun FloatingToolbarItem(
+internal fun FloatingToolbarItem(
     selected: Boolean,
     icon: Painter,
     label: String,
     contentDescription: String,
     onClick: () -> Unit,
+    /**
+     * Overrides the unselected content colour, for an item that carries state as well as a
+     * destination. Selected still wins: a selected item reads as selected first.
+     */
+    tint: Color? = null,
 ) {
     ToggleButton(
         checked = selected,
         onCheckedChange = { onClick() },
         colors = ToggleButtonDefaults.toggleButtonColors(
             containerColor = Color.Transparent,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            contentColor = tint ?: MaterialTheme.colorScheme.onSurfaceVariant,
             checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
             checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
         ),

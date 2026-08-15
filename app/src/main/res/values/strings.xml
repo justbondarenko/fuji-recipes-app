@@ -22,6 +22,7 @@
     <string name="action_clear_search">Clear search</string>
     <string name="action_write_to_camera">Write to camera</string>
     <string name="action_write">Write</string>
+    <string name="camera_not_connected_tooltip">Connect camera via USB to write recipes</string>
     <string name="rating_of_five">Rated %1$d out of 5</string>
     <plurals name="count_total">
         <item quantity="one">%1$d recipe</item>
@@ -115,6 +116,9 @@
 
     <!-- Settings -->
     <string name="settings_connection">Connection</string>
+    <string name="settings_backup_restore">Backup &amp; Restore</string>
+    <string name="settings_import_camera_title">Import from camera</string>
+    <string name="settings_import_camera_subtitle">Import saved presets</string>
     <string name="settings_about">About</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_danger_zone">Danger zone</string>
@@ -133,6 +137,7 @@
     <string name="camera_chip_error">Error</string>
     <string name="camera_chip_description">Camera: %1$s</string>
 
+    <string name="camera_item_description">Camera: %1$s</string>
     <string name="camera_sheet_title">Camera</string>
     <string name="camera_state_no_usb_title">This phone has no USB host support</string>
     <string name="camera_state_no_usb_body">Writing to a camera needs USB host mode, which this device does not have. Storing and editing recipes works normally.</string>

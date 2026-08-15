@@ -2,20 +2,23 @@ package dev.bondarenko.fujirecipes.ui.camera
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,6 +26,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.camera.CameraModels
 import dev.bondarenko.fujirecipes.camera.CameraState
@@ -30,37 +35,62 @@ import dev.bondarenko.fujirecipes.camera.ptp.responseName
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 
 /**
- * What the camera chip opens — `FEAT-005` 01-functional §20.
+ * The camera's own screen — reached from the third toolbar item.
  *
  * Says what is connected, whether a write can be offered, and when it cannot, why. The two
  * reasons a write is unavailable are kept distinguishable here as well as in the model table:
  * a body without slot registers will never take one, which is not the same as a body this
  * build has not met.
+ *
+ * A destination rather than the bottom sheet it used to be. The status moved into the toolbar
+ * when the second FAB went away, and a toolbar item that opens a sheet behaves unlike its
+ * three neighbours, which all navigate.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CameraSheet(
+fun CameraScreen(
     state: CameraState,
     isCameraAttached: Boolean,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
-    onDismiss: () -> Unit,
+    onBack: () -> Unit,
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(),
-    ) {
-        CameraSheetContent(
+    Column(modifier = modifier.fillMaxSize()) {
+        TopAppBar(
+            title = {
+                Text(
+                    text = stringResource(R.string.camera_sheet_title),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.action_back),
+                    )
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+            ),
+        )
+
+        CameraStatusContent(
             state = state,
             isCameraAttached = isCameraAttached,
             onConnect = onConnect,
             onDisconnect = onDisconnect,
+            modifier = Modifier.padding(bottom = contentPadding.calculateBottomPadding()),
         )
     }
 }
 
 @Composable
-fun CameraSheetContent(
+fun CameraStatusContent(
     state: CameraState,
     isCameraAttached: Boolean,
     onConnect: () -> Unit,
@@ -203,9 +233,9 @@ private fun body(state: CameraState, isCameraAttached: Boolean): String? = when 
 @Preview(name = "Camera sheet — connected", showBackground = true)
 @Preview(name = "Camera sheet — connected, dark", showBackground = true, uiMode = 0x20)
 @Composable
-private fun CameraSheetConnectedPreview() {
+private fun CameraStatusConnectedPreview() {
     FujiTheme {
-        CameraSheetContent(
+        CameraStatusContent(
             state = CameraState.Connected(CameraModels.identify("X100VI")),
             isCameraAttached = true,
             onConnect = {},
@@ -216,9 +246,9 @@ private fun CameraSheetConnectedPreview() {
 
 @Preview(name = "Camera sheet — unrecognised body", showBackground = true)
 @Composable
-private fun CameraSheetUnrecognisedPreview() {
+private fun CameraStatusUnrecognisedPreview() {
     FujiTheme {
-        CameraSheetContent(
+        CameraStatusContent(
             state = CameraState.Connected(CameraModels.identify("X-T99")),
             isCameraAttached = true,
             onConnect = {},
@@ -229,9 +259,9 @@ private fun CameraSheetUnrecognisedPreview() {
 
 @Preview(name = "Camera sheet — no slots", showBackground = true)
 @Composable
-private fun CameraSheetNoSlotsPreview() {
+private fun CameraStatusNoSlotsPreview() {
     FujiTheme {
-        CameraSheetContent(
+        CameraStatusContent(
             state = CameraState.Connected(CameraModels.identify("X-T2")),
             isCameraAttached = true,
             onConnect = {},
@@ -242,9 +272,9 @@ private fun CameraSheetNoSlotsPreview() {
 
 @Preview(name = "Camera sheet — error", showBackground = true)
 @Composable
-private fun CameraSheetErrorPreview() {
+private fun CameraStatusErrorPreview() {
     FujiTheme {
-        CameraSheetContent(
+        CameraStatusContent(
             state = CameraState.Error(
                 "The camera could not be claimed. Another app is probably holding it.",
                 ptpCode = 0x2019,
@@ -258,9 +288,9 @@ private fun CameraSheetErrorPreview() {
 
 @Preview(name = "Camera sheet — disconnected", showBackground = true)
 @Composable
-private fun CameraSheetDisconnectedPreview() {
+private fun CameraStatusDisconnectedPreview() {
     FujiTheme {
-        CameraSheetContent(
+        CameraStatusContent(
             state = CameraState.Disconnected,
             isCameraAttached = false,
             onConnect = {},
@@ -271,9 +301,9 @@ private fun CameraSheetDisconnectedPreview() {
 
 @Preview(name = "Camera sheet — no USB host", showBackground = true)
 @Composable
-private fun CameraSheetNoUsbPreview() {
+private fun CameraStatusNoUsbPreview() {
     FujiTheme {
-        CameraSheetContent(
+        CameraStatusContent(
             state = CameraState.NoUsbHost,
             isCameraAttached = false,
             onConnect = {},

@@ -1,39 +1,40 @@
-# Task: FEAT-011 — create a recipe from pasted text
-
-Branch: `feat/FEAT-011-recipe-from-text`
+# Task: Visual Fixes & Material 3 Tooltips for Inactive Camera Actions
 
 ## Goal
 
-The web client can turn a pasted Fuji X Weekly / forum / notes recipe into a filled-in
-creation form. Bring the same to Android, reached from a Material 3 FAB menu
-(https://m3.material.io/components/fab-menu/overview) that replaces the single create FAB
-with two options: **Parse text** and **Manual**.
+Apply visual and UX fixes across Recipe View, Settings, and Library screens:
+1. Consolidate Recipe View actions into a floating toolbar with a separate FAB for "Write to camera". Remove actions from top app bar, card header, and bottom of view.
+2. Reduce rating star spacing and tag row vertical distance in Recipe View.
+3. Rename Settings "Import from camera" title and subtitle ("Import saved presets").
+4. Rename Settings section to "Backup & Restore".
+5. Seed example data to the emulator.
+6. Use square shape (`RoundedCornerShape(16.dp)`) for Recipe View FAB.
+7. Inform user why "Write to camera" is inactive via Material 3 Plain Tooltip ("Connect camera via USB to write recipes").
 
 ## Plan Items
 
-- [x] 1. Port `fuji-recipes-book/src/utils/recipe-text-parser.ts` to a pure Kotlin file under `data/text/` <!-- id: 1 -->
-- [x] 2. Port the sibling's parser spec as a JVM unit test <!-- id: 2 -->
-- [x] 3. Turn the right-hand FAB into a FAB menu (scrim, two labelled items, rotating icon, back to dismiss) <!-- id: 3 -->
-- [x] 4. A paste sheet that shows what was recognised before committing, and opens the editor pre-filled <!-- id: 4 -->
-- [x] 5. Tests, lint, and an end-to-end run on the emulator <!-- id: 5 -->
+- [x] 1. Add string resources in `strings.xml` for Settings backup & restore, camera import, and tooltip <!-- id: 1 -->
+- [x] 2. Update `SettingsScreen.kt` section header and card title/subtitle <!-- id: 2 -->
+- [x] 3. Update `EditorControls.kt` for tighter `RatingInput` stars and `TagInput` row spacing <!-- id: 3 -->
+- [x] 4. Refactor `RecipeViewScreen.kt` to remove legacy action locations and add floating toolbar + FAB <!-- id: 4 -->
+- [x] 5. Populate sample recipes in emulator cache and verify on device <!-- id: 5 -->
+- [x] 6. Update Recipe View FAB to use square shape (`RoundedCornerShape(16.dp)`) <!-- id: 6 -->
+- [x] 7. Implement Material 3 Tooltips for "Write to camera" on Recipe View FAB and Library Swipe Action when camera is disconnected <!-- id: 7 -->
+- [x] 8. Run automated tests and verify on emulator with screenshots <!-- id: 8 -->
 
 ## Review & Verification
 
 ### What changed
 
-1. **[`data/text/RecipeTextParser.kt`](app/src/main/java/dev/bondarenko/fujirecipes/data/text/RecipeTextParser.kt)** — a line-for-line port of the web parser, returning name + a `JsonObject` of `RecipeFields` ids. No Android imports, so it is testable on the JVM (P9). `sensorGeneration` is detected but discarded: D1 migration 0002 dropped the column, and the detection only survives because it decides whether a line is a setting or the title.
-2. **[`ui/shell/AppShell.kt`](app/src/main/java/dev/bondarenko/fujirecipes/ui/shell/AppShell.kt)** — the create FAB became a FAB menu: scrim, two pill items, the plus rotating 45° into a close, `BackHandler` to dismiss. Hand-built because `FloatingActionButtonMenu` first ships in material3 1.5.0-alpha, which pulls compose-foundation 1.12 and the AGP 9 / compileSdk 37 move `libs.versions.toml` is deliberately pinned away from.
-3. **[`ui/editor/PasteRecipeSheet.kt`](app/src/main/java/dev/bondarenko/fujirecipes/ui/editor/PasteRecipeSheet.kt)** — the paste surface. The recognised-count is live on every keystroke, because the failure it guards against is a paste that parses to almost nothing and silently opens an empty form.
-4. **[`MainActivity.kt`](app/src/main/java/dev/bondarenko/fujirecipes/MainActivity.kt)** — the sheet is state, not a route: a destination of its own would leave an empty text box in the back stack behind every recipe made from a paste. Import reuses `RecipeEditorRoute(prefill, prefillName)`, already built for FEAT-009.
-
-### One deliberate deviation from the source
-
-The web parser tests `1/3` before `-1/3`, and `"-1/3"` contains `"1/3"`, so its negative
-exposure-compensation branches are unreachable — `-1/3 EV` arrives as `+0.333`. The Kotlin
-port tests the negatives first and has a test for it. Worth fixing on the web side too.
-
-### Verification
-
-- `./gradlew :app:testDebugUnitTest` — green, including 10 new parser cases ported from the sibling's spec.
-- `./gradlew :app:lintDebug` — green.
-- On the emulator, end to end: FAB → menu opens with a scrim → **Parse text** → sheet → *Insert an example* reports "Found 15 settings" → **Fill the form** opens the editor with Classic Chrome, DR400, highlight −1, shadow 1.5, colour +2, sharpness 0, high ISO NR −2, clarity −2, grain Strong/Small, CC Strong, FX blue Weak, WB Auto with R +2 / B −3. **Manual** opens an empty form at the documented defaults.
+1. **[`strings.xml`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/res/values/strings.xml)**:
+   - Added `camera_not_connected_tooltip`: `"Connect camera via USB to write recipes"`.
+2. **[`RecipeViewScreen.kt`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/java/dev/bondarenko/fujirecipes/ui/recipe/RecipeViewScreen.kt)**:
+   - Wrapped `FloatingActionButton` in `TooltipBox` with `PlainTooltip`.
+   - Used `TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above)` and `tooltipState = rememberTooltipState(isPersistent = true)`.
+   - On tap when `canWriteToCamera == false`, launches `tooltipState.show()`.
+3. **[`LibraryScreen.kt`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/java/dev/bondarenko/fujirecipes/ui/library/LibraryScreen.kt)**:
+   - Wrapped `SwipeAction` for Write in `TooltipBox` with `PlainTooltip` for consistent feedback when swiping and tapping Write while disconnected.
+4. **Verification**:
+   - Built and installed on emulator (`Pixel_10_Pro_XL`).
+   - Verified that tapping or long-pressing the inactive Write FAB renders the Material 3 Plain Tooltip above the button.
+   - Ran `./gradlew compileDebugKotlin testDebugUnitTest` — `BUILD SUCCESSFUL`.
