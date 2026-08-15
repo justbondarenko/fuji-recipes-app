@@ -12,6 +12,7 @@ import dev.bondarenko.fujirecipes.ui.connection.ConnectionRouteContent
 import dev.bondarenko.fujirecipes.ui.library.LibraryRouteContent
 import dev.bondarenko.fujirecipes.ui.editor.RecipeEditorRouteContent
 import dev.bondarenko.fujirecipes.ui.exporting.ExportRouteContent
+import dev.bondarenko.fujirecipes.ui.importing.FileImportRouteContent
 import dev.bondarenko.fujirecipes.ui.importing.ImportRouteContent
 import dev.bondarenko.fujirecipes.ui.photo.PhotoReaderRouteContent
 import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewRouteContent
@@ -74,6 +75,10 @@ data object ImportRoute
 /** More → Export: build a file from the library and hand it to the share sheet (FEAT-008). */
 @Serializable
 data object ExportRoute
+
+/** More → Import a file: read back an export this app or the web client wrote (FEAT-012). */
+@Serializable
+data object FileImportRoute
 
 @Composable
 fun FujiNavHost(
@@ -152,6 +157,7 @@ fun FujiNavHost(
             SettingsRouteContent(
                 onOpenConnection = { navController.navigate(ConnectionRoute()) },
                 onOpenImport = { navController.navigate(ImportRoute) },
+                onOpenFileImport = { navController.navigate(FileImportRoute) },
                 onOpenExport = { navController.navigate(ExportRoute) },
                 contentPadding = contentPadding,
             )
@@ -164,6 +170,20 @@ fun FujiNavHost(
                     navController.navigate(
                         RecipeEditorRoute(id = null, prefill = prefill, prefillName = name),
                     )
+                },
+                contentPadding = contentPadding,
+            )
+        }
+
+        composable<FileImportRoute> {
+            FileImportRouteContent(
+                onBack = { navController.popBackStack() },
+                // Finishing an import means going to look at what landed.
+                onDone = {
+                    navController.navigate(LibraryRoute) {
+                        popUpTo(LibraryRoute) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 },
                 contentPadding = contentPadding,
             )
