@@ -45,6 +45,7 @@ import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.camera.CameraModels
 import dev.bondarenko.fujirecipes.camera.CameraState
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
+import dev.bondarenko.fujirecipes.ui.theme.LocalReducedMotion
 
 /**
  * The camera indicator — `PRD.md` §7.2.
@@ -162,9 +163,16 @@ private fun CameraChipIcon.painter(): Painter = when (this) {
  * `LoadingIndicator` — the Expressive shape-morphing loader `PRD.md` §7.2 asks for — is
  * `internal` at material3 1.4.0 (`tech-stack.md` §6). This is the honest stand-in until the
  * toolchain moves; the swap is one composable.
+ *
+ * **Honours reduced motion** (`design-system.md` §5), and this is the first continuously
+ * animating thing in the app, so it is the first place `LocalReducedMotion` earns its keep.
+ * Nothing is lost when it is off: the state still has its own icon and its own words, which
+ * is the rule the chip is built on.
  */
 @Composable
 private fun Modifier.spin(): Modifier {
+    if (LocalReducedMotion.current) return this
+
     val transition = rememberInfiniteTransition(label = "camera-chip-spin")
     val angle by transition.animateFloat(
         initialValue = 0f,
