@@ -116,19 +116,44 @@ class RecipeMatcherTest {
     }
 
     @Test
-    fun `a field the recipe does not carry is a mismatch, named as not set`() {
-        // Six of seven match; the seventh is a clarity the saved recipe never had. Enough
-        // fields agree for it to still be offered, which is the case worth reporting.
-        val photo = photoOfKodachrome.copy(
+    fun `a field the recipe does not carry is compared against that field's default`() {
+        // The recipe stores no clarity, which means clarity 0 — so a photo shot at +2 differs
+        // from it, and the difference is named against the default rather than "nothing".
+        val differs = photoOfKodachrome.copy(
             settings = photoOfKodachrome.settings + ("clarity" to 2),
         )
 
-        val match = findMatches(photo, listOf(kodachrome)).best!!
+        val difference = findMatches(differs, listOf(kodachrome)).best!!.mismatches.single()
 
-        val difference = match.mismatches.single()
         assertEquals("clarity", difference.fieldId)
         assertEquals("+2", difference.photoValue)
-        assertEquals("Not set", difference.savedValue)
+        assertEquals("0", difference.savedValue)
+    }
+
+    /**
+     * The case a device run found, and the reason for the defaulting rule: a sparsely-stored
+     * recipe scored 2/7 against a photo carrying seven settings, so an exact match was being
+     * reported as "not one of your recipes".
+     */
+    @Test
+    fun `a photo at the defaults matches a recipe that stores none of them`() {
+        val sparse = recipe("d", "Sparse", "{\"filmSimulation\":\"classic-chrome\"}")
+
+        val photo = PhotoRecipe(
+            settings = mapOf(
+                "filmSimulation" to "classic-chrome",
+                // Each of these is its field's default, so the sparse recipe means them too.
+                "sharpness" to 0,
+                "highlightTone" to 0.0,
+                "shadowTone" to 0.0,
+                "clarity" to 0,
+            ),
+        )
+
+        val match = findMatches(photo, listOf(sparse)).best!!
+
+        assertTrue(match.isExact, "a photo at the defaults did not match a recipe storing none")
+        assertEquals("Sparse", match.recipe.name)
     }
 
     // ─── Ordering and the floor ─────────────────────────────────────────────

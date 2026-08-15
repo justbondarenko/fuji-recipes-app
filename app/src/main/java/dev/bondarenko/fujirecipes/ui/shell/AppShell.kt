@@ -58,8 +58,10 @@ import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 fun AppShell(
     showChrome: Boolean,
     isLibrarySelected: Boolean,
+    isReadSelected: Boolean,
     isMoreSelected: Boolean,
     onLibraryClick: () -> Unit,
+    onReadClick: () -> Unit,
     onMoreClick: () -> Unit,
     onCreateClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -154,6 +156,13 @@ fun AppShell(
                             label = stringResource(R.string.nav_library),
                             contentDescription = stringResource(R.string.nav_library),
                             onClick = onLibraryClick,
+                        )
+                        FloatingToolbarItem(
+                            selected = isReadSelected,
+                            icon = painterResource(R.drawable.ic_photo_camera),
+                            label = stringResource(R.string.nav_read),
+                            contentDescription = stringResource(R.string.nav_read),
+                            onClick = onReadClick,
                         )
                         FloatingToolbarItem(
                             selected = isMoreSelected,
@@ -257,8 +266,10 @@ private fun AppShellPreview() {
         AppShell(
             showChrome = true,
             isLibrarySelected = true,
+            isReadSelected = false,
             isMoreSelected = false,
             onLibraryClick = {},
+            onReadClick = {},
             onMoreClick = {},
             onCreateClick = {},
         ) { padding ->

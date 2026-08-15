@@ -18,10 +18,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
@@ -72,6 +74,9 @@ class RecipeEditorViewModel(
     private val recipeId: String?,
     private val duplicateOf: String?,
     private val repository: RecipeRepository,
+    /** Settings decoded from a photo (FEAT-009), as JSON. Only ever set on a create. */
+    private val prefill: String? = null,
+    private val prefillName: String? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(EditorUiState(isLoading = true))
@@ -88,10 +93,21 @@ class RecipeEditorViewModel(
         val sourceId = recipeId ?: duplicateOf
 
         if (sourceId == null) {
+            // A create can start from a photo. The decoded settings go **over** the defaults
+            // rather than replacing them, so a field the photo did not carry keeps its
+            // default and the form is complete either way.
+            val decoded = prefill
+                ?.let { runCatching { Json.parseToJsonElement(it).jsonObject }.getOrNull() }
+
             _state.value = EditorUiState(
                 isLoading = false,
                 isNew = true,
-                settings = defaultSettings(),
+                name = prefillName.orEmpty(),
+                settings = if (decoded == null) {
+                    defaultSettings()
+                } else {
+                    JsonObject(defaultSettings() + decoded)
+                },
             )
             return
         }
@@ -250,10 +266,18 @@ class RecipeEditorViewModel(
             container: AppContainer,
             recipeId: String?,
             duplicateOf: String?,
+            prefill: String? = null,
+            prefillName: String? = null,
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                RecipeEditorViewModel(recipeId, duplicateOf, container.recipeRepository) as T
+                RecipeEditorViewModel(
+                    recipeId,
+                    duplicateOf,
+                    container.recipeRepository,
+                    prefill,
+                    prefillName,
+                ) as T
         }
     }
 }

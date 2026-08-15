@@ -96,7 +96,21 @@ private fun score(
     val mismatches = mutableListOf<FieldMismatch>()
 
     compared.forEach { (fieldId, photoValue) ->
+        /**
+         * A field the recipe does not store is that field's **default**, not "nothing".
+         *
+         * A recipe that omits `sharpness` is a recipe shot at sharpness 0 — that is what the
+         * camera does with it — so a photo reporting 0 matches it. Comparing against "not
+         * set" instead marks it a mismatch, which on a sparsely-stored recipe drags an exact
+         * match below the threshold and reports "not one of yours" about a recipe that is.
+         *
+         * Found on a device rather than in a test: a seeded recipe storing two settings
+         * scored 2/7 against a photo carrying seven. This is also the rule
+         * `camera/plan/RecipeConfig.kt` already applies to the import duplicate check, so the
+         * two "are these the same settings?" questions now answer the same way.
+         */
         val saved = recipe.settings.plainValue(fieldId)
+            ?: RecipeFields.byId(fieldId)?.defaultValue
 
         if (sameValue(photoValue, saved)) {
             matched += 1

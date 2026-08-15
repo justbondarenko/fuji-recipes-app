@@ -23,6 +23,7 @@ import dev.bondarenko.fujirecipes.ui.nav.ConnectionRoute
 import dev.bondarenko.fujirecipes.ui.nav.FujiNavHost
 import dev.bondarenko.fujirecipes.ui.nav.LibraryRoute
 import dev.bondarenko.fujirecipes.ui.nav.MoreRoute
+import dev.bondarenko.fujirecipes.ui.nav.PhotoRoute
 import dev.bondarenko.fujirecipes.ui.nav.RecipeEditorRoute
 import dev.bondarenko.fujirecipes.ui.nav.RecipeViewRoute
 import dev.bondarenko.fujirecipes.ui.shell.AppShell
@@ -106,6 +107,7 @@ private fun FujiApp(startDestination: Any) {
         AppShell(
             showChrome = showChrome,
             isLibrarySelected = destination?.hasRoute<LibraryRoute>() == true,
+            isReadSelected = destination?.hasRoute<PhotoRoute>() == true,
             isMoreSelected = destination?.hasRoute<MoreRoute>() == true,
             onLibraryClick = {
                 navController.navigate(LibraryRoute) {
@@ -113,6 +115,7 @@ private fun FujiApp(startDestination: Any) {
                     launchSingleTop = true
                 }
             },
+            onReadClick = { navController.navigate(PhotoRoute) { launchSingleTop = true } },
             onMoreClick = { navController.navigate(MoreRoute) { launchSingleTop = true } },
             onCreateClick = { navController.navigate(RecipeEditorRoute(id = null)) },
             cameraChip = { CameraChipHost() },

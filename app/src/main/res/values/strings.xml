@@ -223,6 +223,38 @@
     <string name="export_failed">The export could not be prepared, so nothing left the app: %1$s</string>
     <string name="action_export_recipe">Export this recipe</string>
 
+    <!-- Read a recipe from a photo — FEAT-009 -->
+    <string name="nav_read">Read</string>
+    <string name="photo_title">Read a recipe from a photo</string>
+    <string name="photo_intro">Choose a JPEG from your Fujifilm camera and this reads the recipe it was shot with, then tells you whether it is one you already have. It happens on this phone, with no signal needed.</string>
+    <string name="photo_action_choose">Choose a photo</string>
+    <string name="photo_action_another">Read another photo</string>
+    <string name="photo_reading">Reading the photo…</string>
+    <string name="photo_shot_on">Shot on %1$s</string>
+    <string name="photo_settings">What the photo says</string>
+
+    <string name="photo_match_exact_title">You already have this: “%1$s”</string>
+    <string name="photo_match_exact_body">Every setting the photo carries matches that recipe.</string>
+    <string name="photo_match_near_title">Close to “%1$s” — %2$d%%</string>
+    <string name="photo_match_near_body">Everything matches except the following.</string>
+    <string name="photo_match_none_title">Not one of your recipes</string>
+    <string name="photo_match_none_body">Nothing in your library matches closely enough to name. You can save this as a new recipe.</string>
+    <string name="photo_match_empty_body">Your library is empty, so there is nothing to compare against yet.</string>
+    <string name="photo_difference">%1$s · photo %2$s, saved %3$s</string>
+    <string name="photo_action_open_match">Open “%1$s”</string>
+    <string name="photo_action_save">Save as a new recipe</string>
+
+    <string name="photo_error_not_jpeg_title">That is not a JPEG</string>
+    <string name="photo_error_not_jpeg_body">This reads the recipe out of a JPEG your camera wrote. A RAF file is not one — if you shoot RAW+JPEG, choose the JPEG.</string>
+    <string name="photo_error_too_large_title">That photo is too large</string>
+    <string name="photo_error_too_large_body">Photos up to 50 MB can be read. A camera JPEG is far smaller than that, so this is usually a RAW file.</string>
+    <string name="photo_error_no_exif_title">This photo carries no metadata</string>
+    <string name="photo_error_no_exif_body">Its EXIF has been stripped, which usually means it was edited, exported or sent through an app that removes it. The original from the camera will still have it.</string>
+    <string name="photo_error_not_fuji_title">Not a Fujifilm photo</string>
+    <string name="photo_error_not_fuji_body">This photo has metadata, but not the Fujifilm recipe block. Only JPEGs written by a Fujifilm camera carry it.</string>
+    <string name="photo_error_unreadable_title">This photo could not be read</string>
+    <string name="photo_error_unreadable_body">It looks like a Fujifilm JPEG, but its recipe block is not in a form this app can walk. If the file was re-saved by another app, try the camera original.</string>
+
     <!-- Placeholders, replaced as their features land -->
     <string name="placeholder_editor_title">Recipe</string>
     <string name="placeholder_editor_body">Create and edit go here (FEAT-002).</string>

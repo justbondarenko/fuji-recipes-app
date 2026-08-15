@@ -13,6 +13,7 @@ import dev.bondarenko.fujirecipes.ui.library.LibraryRouteContent
 import dev.bondarenko.fujirecipes.ui.editor.RecipeEditorRouteContent
 import dev.bondarenko.fujirecipes.ui.exporting.ExportRouteContent
 import dev.bondarenko.fujirecipes.ui.importing.ImportRouteContent
+import dev.bondarenko.fujirecipes.ui.photo.PhotoReaderRouteContent
 import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewRouteContent
 import dev.bondarenko.fujirecipes.ui.settings.SettingsRouteContent
 import kotlinx.serialization.Serializable
@@ -42,12 +43,26 @@ data object LibraryRoute
  * `duplicateOf` names a recipe to copy: the form loads from it but saves as new, so the
  * original is untouched. Both null on a plain create.
  */
+/**
+ * `prefill` carries settings decoded from a photo (FEAT-009) as JSON, for a create that
+ * starts from something rather than from nothing. A route argument rather than a holder on
+ * `AppContainer`, so it survives process death like every other argument here.
+ */
 @Serializable
-data class RecipeEditorRoute(val id: String? = null, val duplicateOf: String? = null)
+data class RecipeEditorRoute(
+    val id: String? = null,
+    val duplicateOf: String? = null,
+    val prefill: String? = null,
+    val prefillName: String? = null,
+)
 
 /** Read-only. Reached by tapping a card; its Edit action leads to [RecipeEditorRoute]. */
 @Serializable
 data class RecipeViewRoute(val id: String)
+
+/** Bottom bar → Read: decode a photo's MakerNote and match it (FEAT-009). */
+@Serializable
+data object PhotoRoute
 
 @Serializable
 data object MoreRoute
@@ -112,6 +127,8 @@ fun FujiNavHost(
             RecipeEditorRouteContent(
                 recipeId = route.id,
                 duplicateOf = route.duplicateOf,
+                prefill = route.prefill,
+                prefillName = route.prefillName,
                 onBack = { navController.popBackStack() },
                 onSaved = { id ->
                     // Back to the recipe just saved, replacing the form so back does not
@@ -136,6 +153,18 @@ fun FujiNavHost(
                 onOpenConnection = { navController.navigate(ConnectionRoute()) },
                 onOpenImport = { navController.navigate(ImportRoute) },
                 onOpenExport = { navController.navigate(ExportRoute) },
+                contentPadding = contentPadding,
+            )
+        }
+
+        composable<PhotoRoute> {
+            PhotoReaderRouteContent(
+                onOpenRecipe = { id -> navController.navigate(RecipeViewRoute(id)) },
+                onSaveAsNew = { prefill, name ->
+                    navController.navigate(
+                        RecipeEditorRoute(id = null, prefill = prefill, prefillName = name),
+                    )
+                },
                 contentPadding = contentPadding,
             )
         }
