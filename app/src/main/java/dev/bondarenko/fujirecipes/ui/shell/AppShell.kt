@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,10 +27,11 @@ import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
-import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -155,9 +155,8 @@ fun AppShell(
              * rather than a pair of hand-measured inset constants. The toolbar reads slightly
              * left of centre because what is centred is the whole bar.
              *
-             * Vibrant rather than standard: `m3.material.io/components/toolbars/guidelines`
-             * pairs a vibrant container with a contrasting FAB, and
-             * `VibrantFloatingActionButton` is the FAB built to sit against it.
+             * Standard container, vibrant FAB: the bar is mostly wayfinding and should recede,
+             * so the emphasis goes to the one action on it.
              */
             HorizontalFloatingToolbar(
                 expanded = true,
@@ -258,8 +257,9 @@ private fun CreateRecipeDialog(
  * and the label that used to appear on the selected item widened the bar every time you
  * changed tab. The name survives as the content description, so it still reaches TalkBack.
  *
- * A thin adapter over `ToggleButton` — the shape morph on selection, the press physics and
- * the container/content colour roles all come from M3 Expressive.
+ * A thin adapter over `IconToggleButton` rather than `ToggleButton`: with the label gone this
+ * is an icon-only control, and `ToggleButton` is a text button carrying text-button metrics.
+ * The shape morph on selection, the press physics and the colour roles come from M3.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -274,21 +274,18 @@ internal fun FloatingToolbarItem(
      */
     tint: Color? = null,
 ) {
-    ToggleButton(
+    IconToggleButton(
         checked = selected,
         onCheckedChange = { onClick() },
-        colors = ToggleButtonDefaults.toggleButtonColors(
+        shapes = IconButtonDefaults.toggleableShapes(),
+        colors = IconButtonDefaults.iconToggleButtonColors(
             containerColor = Color.Transparent,
             contentColor = tint ?: LocalContentColor.current,
             checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
             checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
         ),
     ) {
-        Icon(
-            painter = icon,
-            contentDescription = contentDescription,
-            modifier = Modifier.size(ToggleButtonDefaults.IconSize),
-        )
+        Icon(painter = icon, contentDescription = contentDescription)
     }
 }
 
