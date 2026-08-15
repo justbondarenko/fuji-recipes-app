@@ -1,6 +1,7 @@
 package dev.bondarenko.fujirecipes.ui.camera
 
 import dev.bondarenko.fujirecipes.camera.CameraState
+import dev.bondarenko.fujirecipes.camera.plan.FIRST_SLOT
 import dev.bondarenko.fujirecipes.camera.plan.SlotCaution
 import dev.bondarenko.fujirecipes.camera.plan.SlotState
 import dev.bondarenko.fujirecipes.camera.plan.WritePlan
@@ -82,7 +83,23 @@ data class WriteUiState(
     val slots: List<SlotState> = slotStates(emptyList(), loading = true),
     /** Set when the read failed as a whole, rather than one slot at a time. */
     val slotsError: String? = null,
+    /**
+     * The slot the picker is pointing at. Part of the write's own state rather than the
+     * composable's, so it lives and dies with the write attempt — see [enteringPicker].
+     */
+    val selectedSlot: Int = FIRST_SLOT,
 )
+
+/**
+ * The picker, as it must look every time it is reached.
+ *
+ * The selection is deliberately *not* carried over from an earlier write. A slot chosen for
+ * the last recipe is a destructive default for this one: the button would offer to overwrite
+ * C6 for a user who never asked about C6, and the only thing standing between them and a lost
+ * recipe would be reading a number they have no reason to expect changed.
+ */
+fun WriteUiState.enteringPicker(): WriteUiState =
+    copy(stage = WriteStage.Picker, selectedSlot = FIRST_SLOT)
 
 /**
  * Where the sheet opens.
