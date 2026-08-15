@@ -63,7 +63,10 @@ one to someone.
    reads as §3's order.
 9. A key the stored recipe does not have is **left out**, not filled with its default.
    Defaults are filled on *import*; inventing them here would put values in a file the
-   photographer never chose.
+   photographer never chose. This bites inside `settings`, which this client holds verbatim
+   as the server sent it — a recipe that never set a clarity exports without a clarity key.
+   The recipe's own top-level fields (`name`, `notes`, `rating`, `tags`) are columns the
+   server always stores, so they are always present and always exported.
 10. Filenames (SF-018): `fuji-recipes-YYYY-MM-DD.json` or `.zip` for a multi-recipe export,
     `<slugified-name>.json` for one. The date is **UTC**, matching every other timestamp in
     the format.
