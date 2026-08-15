@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
@@ -53,8 +54,9 @@ import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
  * The chrome every top-level screen sits inside.
  *
  * Implements the Material 3 floating toolbar
- * (https://m3.material.io/components/toolbars/guidelines): one vibrant toolbar of icon-only
- * items, owning a contrasting FAB through its own slot, and the pair centred as a unit.
+ * (https://m3.material.io/components/toolbars/guidelines): a standard toolbar of icon-only
+ * items owning a vibrant FAB through its own slot, and the pair centred as a unit. The colour
+ * carries the emphasis — the bar recedes, the one action on it does not.
  *
  * Creating a recipe asks which way first — from pasted text, or from an empty form — in a
  * dialog rather than a FAB menu.
@@ -159,12 +161,13 @@ fun AppShell(
              */
             HorizontalFloatingToolbar(
                 expanded = true,
-                colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
+                colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
                 expandedShadowElevation = ToolbarElevation,
                 collapsedShadowElevation = ToolbarElevation,
                 floatingActionButton = {
                     FloatingToolbarDefaults.VibrantFloatingActionButton(
                         onClick = { createOpen = true },
+                        shape = FabShape,
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Add,
@@ -291,6 +294,9 @@ internal fun FloatingToolbarItem(
 
 private val BarHeight = 56.dp
 private val BarMargin = 16.dp
+
+/// The FAB is a squircle, not a circle: M3 shapes the toolbar's FAB as a rounded square.
+private val FabShape = RoundedCornerShape(16.dp)
 
 /// Bottom inset `HorizontalFloatingToolbar` reserves inside its own bounds.
 private val ToolbarOwnInset = 8.dp
