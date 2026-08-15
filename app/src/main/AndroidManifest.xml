@@ -8,6 +8,14 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!--
+      FEAT-005. Declared required: a device without USB host cannot do the thing the app
+      exists for (`steering/tech-stack.md` §4).
+    -->
+    <uses-feature
+        android:name="android.hardware.usb.host"
+        android:required="true" />
+
     <application
         android:name=".FujiRecipesApp"
         android:allowBackup="false"
@@ -19,16 +27,35 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.FujiRecipes.Starting">
 
+        <!--
+          `singleTop`: a camera plugged in while the app is open must arrive at `onNewIntent`
+          on the running activity, rather than launching a second copy on top of the one
+          holding the connection.
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.FujiRecipes.Starting"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!--
+              The feature that justifies going native (`PRD.md` §8.2): plug the camera in and
+              the app opens already connected. Launching this way grants USB permission
+              implicitly for that connection, so no dialog appears.
+            -->
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/device_filter" />
         </activity>
     </application>
 
