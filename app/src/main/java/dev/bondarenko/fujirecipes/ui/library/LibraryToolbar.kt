@@ -119,7 +119,6 @@ fun LibraryToolbar(
          * thing in this app looks like.
          */
         
-        // TODO: UPGRADE TO M3E - Replace with AppBarRow with Search functionality
         Box(
             modifier = Modifier
                 .fillMaxWidth()

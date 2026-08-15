@@ -83,11 +83,11 @@ fun SettingsScreen(
             showChevron = true,
         )
 
-        SectionHeader(stringResource(R.string.import_title))
+        SectionHeader(stringResource(R.string.settings_backup_restore))
 
         SettingsCard(
-            title = stringResource(R.string.import_title),
-            subtitle = stringResource(R.string.import_subtitle),
+            title = stringResource(R.string.settings_import_camera_title),
+            subtitle = stringResource(R.string.settings_import_camera_subtitle),
             icon = painterResource(R.drawable.ic_photo_camera),
             onClick = onOpenImport,
             showChevron = true,

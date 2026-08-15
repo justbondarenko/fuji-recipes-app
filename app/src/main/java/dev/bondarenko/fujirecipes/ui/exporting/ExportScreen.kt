@@ -59,8 +59,6 @@ import kotlinx.serialization.json.put
  * need to.
  */
 
-// TODO: UPGRADE TO M3E - Updgrade export AND import pages to use ListItem from Material 3 expressive https://m3.material.io/components/lists/specs single- or multi-select controls depending on usage, sectioned variant
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExportScreen(

@@ -13,7 +13,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Badge
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,8 +33,6 @@ import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
-
-import androidx.compose.ui.graphics.Shape
 
 /** What a card needs. A plain holder, so a preview and a test can build one. */
 data class RecipeCardModel(
@@ -50,51 +52,45 @@ data class RecipeCardModel(
  * - rating 0 shows **no** pill, not a zero
  * - no tags shows **no** tag row
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun RecipeCard(
     recipe: RecipeCardModel,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(16.dp),
+    shapes: ListItemShapes? = null,
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(cardColor())
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        FilmSimBadge(
-            simulationId = recipe.filmSimulationId,
-            size = 48.dp,
-            shape = CircleShape,
-        )
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
-            Text(
-                text = recipe.name,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                ),
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+    ListItem(
+        onClick = onClick,
+        shapes = shapes ?: ListItemDefaults.segmentedShapes(index = 0, count = 1),
+        colors = ListItemDefaults.segmentedColors(containerColor = cardColor()),
+        modifier = modifier.fillMaxWidth(),
+        leadingContent = {
+            FilmSimBadge(
+                simulationId = recipe.filmSimulationId,
+                size = 48.dp,
+                shape = CircleShape,
             )
-
-            if (recipe.tags.isNotEmpty()) {
-                TagRow(recipe.tags, modifier = Modifier.padding(top = 2.dp))
-            }
-        }
-
-        if (recipe.rating > 0) {
-            RatingBadge(recipe.rating)
-        }
+        },
+        supportingContent = if (recipe.tags.isEmpty()) {
+            null
+        } else {
+            { TagRow(recipe.tags) }
+        },
+        trailingContent = if (recipe.rating == 0) {
+            null
+        } else {
+            { RatingBadge(recipe.rating) }
+        },
+    ) {
+        Text(
+            text = recipe.name,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.SemiBold,
+            ),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
