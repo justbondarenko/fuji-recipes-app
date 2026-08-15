@@ -35,6 +35,7 @@ Stages are sequential. A **GATE** must be fully closed before the next stage sta
 | **FEAT-009** | **Read a recipe from a photo** ← *in progress* | Bottom bar → Read: decode a JPEG's Fujifilm MakerNote, match it against the library by name, save it as a new recipe | medium — the MakerNote layout is reverse-engineered, but the reference has run against real files |
 | FEAT-010 | Polish | Motion timing, haptics, reduced-motion fallback, dark-scheme audit, predictive back | none |
 | **FEAT-011** | **Create a recipe from pasted text** | The create FAB becomes a FAB menu: paste a recipe from Fuji X Weekly, a forum or notes, and the form opens filled in | low — the parser is a port of one the web client already ships |
+| **FEAT-012** | **Import a file** | More → Import a file: read back a `.json` or `.zip` this app or the web client exported, review it against the library, resolve id collisions, import | low — the format is specified, and the reference implementation is the one the web client ships |
 
 **FEAT-001 to FEAT-003 carry no protocol risk and ship a usable recipe manager.** That is
 deliberate: a hard slog in FEAT-005 must leave a working product behind, not a stalled one.
@@ -68,7 +69,7 @@ ordering cost nothing — the form (FEAT-003) now inherits a table that is alrea
 | Reorder / manual-order editing | v2 | The list *respects* manual order as a tiebreak and never offers it as a sort — matching the web client, which also does not offer it. Editing it needs `POST /:id/move` and a drag surface. |
 | Delete and duplicate | FEAT-003 | They belong with the editor, not the list |
 | ~~Export as a file~~ | **FEAT-008** | Reversed. "The web client is the backup surface" holds right up until the phone is the device you have with you, which is this app's premise — and `PRD.md` C2 calls export the backup *guarantee*, not a convenience. Building the file locally also means it works with no signal, which a backup has to. |
-| Import **from a file** | v2 | Still deferred, and it is the larger half: ZIP traversal rules (SF-015), the migration chain (SF-007) and the conflict flow. Importing *from the camera* is FEAT-007 and is a different thing — the data is on a device in the bag, not in a file that already has a home. |
+| ~~Import **from a file**~~ | **FEAT-012** | Reversed. Export shipped in FEAT-008 and the files it writes could only be read by the web client, which makes this phone a device that can make a backup and not restore one. The parts that made it "the larger half" — ZIP traversal (SF-015), the migration chain (SF-007), the conflict flow (SF-010 to SF-014) — are all specified, and skipping them is what leaves a backup unreadable. |
 | Offline **writes** | v2 | See `architecture.md` §4. Needs a queue, and a queue needs conflict resolution. |
 | Sensor-generation filter | won't do | The column was dropped in D1 migration 0002. The web client has no such filter either. |
 | Tablet layouts, Wear OS, widgets | won't do | `PRD.md` §3 non-goals stand |

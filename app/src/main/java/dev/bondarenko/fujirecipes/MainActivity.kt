@@ -22,6 +22,7 @@ import dev.bondarenko.fujirecipes.ui.camera.CameraChipHost
 import dev.bondarenko.fujirecipes.ui.editor.PasteRecipeSheet
 import dev.bondarenko.fujirecipes.ui.nav.ConnectionRoute
 import dev.bondarenko.fujirecipes.ui.nav.ExportRoute
+import dev.bondarenko.fujirecipes.ui.nav.FileImportRoute
 import dev.bondarenko.fujirecipes.ui.nav.FujiNavHost
 import dev.bondarenko.fujirecipes.ui.nav.ImportRoute
 import dev.bondarenko.fujirecipes.ui.nav.LibraryRoute
@@ -107,8 +108,10 @@ private fun FujiApp(startDestination: Any) {
         // under a recipe would invite leaving the thing you just opened.
         val onRecipeView = destination?.hasRoute<RecipeViewRoute>() == true
         val onImport = destination?.hasRoute<ImportRoute>() == true
+        val onFileImport = destination?.hasRoute<FileImportRoute>() == true
         val onExport = destination?.hasRoute<ExportRoute>() == true
-        val showChrome = !onConnection && !onEditor && !onRecipeView && !onImport && !onExport
+        val showChrome =
+            !onConnection && !onEditor && !onRecipeView && !onImport && !onFileImport && !onExport
 
         // Not a route: the sheet is a way of starting the editor, and giving it a destination
         // of its own would put an empty text box in the back stack behind every recipe made

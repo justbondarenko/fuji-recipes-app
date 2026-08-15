@@ -32,9 +32,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,6 +62,7 @@ import dev.bondarenko.fujirecipes.camera.plan.slotStates
 import dev.bondarenko.fujirecipes.camera.usb.WriteOutcome
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
+import java.util.UUID
 
 /**
  * The write flow — `PRD.md` §7.4.
@@ -75,7 +74,22 @@ import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
 @Composable
 fun WriteSheetHost(recipeId: String, onDismiss: () -> Unit) {
     val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
+
+    /**
+     * One view model per *write attempt*, not per screen.
+     *
+     * The store owner here is the surrounding navigation entry, which outlives the sheet. With
+     * the default key, the second write from the same screen reuses the first write's view
+     * model — the recipe it was built for, the slot it ended on, the stage it finished in — so
+     * opening the sheet for another recipe showed the previous write's outcome instead of a
+     * picker. A key that changes each time the sheet opens makes every attempt start over.
+     *
+     * `rememberSaveable`, so a rotation mid-write returns to the write that is running rather
+     * than starting a second one against a half-written slot.
+     */
+    val attemptKey = rememberSaveable { UUID.randomUUID().toString() }
     val viewModel: WriteViewModel = viewModel(
+        key = attemptKey,
         factory = WriteViewModel.factory(container, recipeId),
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -106,6 +120,7 @@ fun WriteSheetHost(recipeId: String, onDismiss: () -> Unit) {
             onConnect = viewModel::connect,
             onAcceptCompatibility = viewModel::acceptCompatibility,
             onChooseSlot = viewModel::chooseSlot,
+            onSelectSlot = viewModel::selectSlot,
             onRefreshSlots = viewModel::refreshSlots,
             onBackToPicker = viewModel::backToPicker,
             onConfirm = viewModel::confirm,
@@ -124,6 +139,7 @@ fun WriteSheetContent(
     onConnect: () -> Unit,
     onAcceptCompatibility: () -> Unit,
     onChooseSlot: (Int) -> Unit,
+    onSelectSlot: (Int) -> Unit,
     onRefreshSlots: () -> Unit,
     onBackToPicker: () -> Unit,
     onConfirm: (Int) -> Unit,
@@ -159,6 +175,8 @@ fun WriteSheetContent(
                 slots = state.slots,
                 slotsError = state.slotsError,
                 recipeName = state.recipeName,
+                selectedSlot = state.selectedSlot,
+                onSelectSlot = onSelectSlot,
                 onConfirm = onConfirm,
                 onRefresh = onRefreshSlots,
             )
@@ -296,11 +314,11 @@ private fun PickerStage(
     slots: List<SlotState>,
     slotsError: String?,
     recipeName: String,
+    selectedSlot: Int,
+    onSelectSlot: (Int) -> Unit,
     onConfirm: (Int) -> Unit,
     onRefresh: () -> Unit,
 ) {
-    var selectedSlot by rememberSaveable { mutableIntStateOf(1) }
-
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -347,7 +365,7 @@ private fun PickerStage(
                 state = slot,
                 isSelected = slot.slot == selectedSlot,
                 shape = shape,
-                onClick = { selectedSlot = slot.slot },
+                onClick = { onSelectSlot(slot.slot) },
             )
         }
     }
@@ -685,7 +703,7 @@ private fun PreviewSheet(state: WriteUiState) {
             WriteSheetContent(
                 state = state,
                 onConnect = {}, onAcceptCompatibility = {}, onChooseSlot = {},
-                onRefreshSlots = {},
+                onSelectSlot = {}, onRefreshSlots = {},
                 onBackToPicker = {}, onConfirm = {}, onRetry = {}, onRequestCancel = {},
                 onDismissCancel = {}, onConfirmCancel = {}, onDone = {},
             )

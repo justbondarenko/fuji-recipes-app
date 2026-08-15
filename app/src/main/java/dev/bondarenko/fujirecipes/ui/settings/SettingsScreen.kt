@@ -53,6 +53,7 @@ fun SettingsScreen(
     state: SettingsUiState,
     onOpenConnection: () -> Unit,
     onOpenImport: () -> Unit,
+    onOpenFileImport: () -> Unit,
     onOpenExport: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
@@ -89,6 +90,14 @@ fun SettingsScreen(
             subtitle = stringResource(R.string.import_subtitle),
             icon = painterResource(R.drawable.ic_photo_camera),
             onClick = onOpenImport,
+            showChevron = true,
+        )
+
+        SettingsCard(
+            title = stringResource(R.string.file_import_title),
+            subtitle = stringResource(R.string.file_import_subtitle),
+            icon = painterResource(R.drawable.ic_content_copy),
+            onClick = onOpenFileImport,
             showChevron = true,
         )
 
@@ -205,6 +214,7 @@ private fun SettingsCard(
 fun SettingsRouteContent(
     onOpenConnection: () -> Unit,
     onOpenImport: () -> Unit,
+    onOpenFileImport: () -> Unit,
     onOpenExport: () -> Unit,
     contentPadding: PaddingValues,
 ) {
@@ -216,6 +226,7 @@ fun SettingsRouteContent(
         state = state,
         onOpenConnection = onOpenConnection,
         onOpenImport = onOpenImport,
+        onOpenFileImport = onOpenFileImport,
         onOpenExport = onOpenExport,
         contentPadding = contentPadding,
     )
@@ -230,6 +241,7 @@ private fun SettingsPreview() {
             state = SettingsUiState(host = "recipes.example.com", isConfigured = true),
             onOpenConnection = {},
             onOpenImport = {},
+            onOpenFileImport = {},
             onOpenExport = {},
             contentPadding = PaddingValues(0.dp),
         )
@@ -244,6 +256,7 @@ private fun SettingsUnconfiguredPreview() {
             state = SettingsUiState(),
             onOpenConnection = {},
             onOpenImport = {},
+            onOpenFileImport = {},
             onOpenExport = {},
             contentPadding = PaddingValues(0.dp),
         )

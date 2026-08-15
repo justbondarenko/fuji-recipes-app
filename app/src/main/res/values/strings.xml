@@ -275,6 +275,46 @@
     <string name="paste_detected_none">Nothing recognised yet</string>
     <string name="paste_action">Fill the form</string>
 
+    <!-- Import from a file — FEAT-012 -->
+    <string name="file_import_title">Import a file</string>
+    <string name="file_import_subtitle">Read back a library or a recipe this app exported</string>
+    <string name="file_import_ready_title">Choose an export file</string>
+    <string name="file_import_ready_body">Reads the .json and .zip files this app\'s Export produces, and the same files from the web app. Nothing is written until you have seen what is in it.</string>
+    <string name="file_import_action_choose">Choose a file</string>
+    <string name="file_import_action_choose_another">Choose another file</string>
+    <string name="file_import_reading">Reading the file…</string>
+    <string name="file_import_summary">%1$s · %2$d found</string>
+    <string name="file_import_summary_untitled">%1$d found</string>
+    <string name="file_import_count_new">%1$d new</string>
+    <string name="file_import_count_decide">%1$d to decide</string>
+    <string name="file_import_count_warning">%1$d sharing a name</string>
+    <string name="file_import_count_invalid">%1$d that cannot be imported</string>
+    <string name="file_import_from_entry">From %1$s</string>
+
+    <string name="file_import_status_new">New</string>
+    <string name="file_import_status_conflict">Replaces “%1$s” — same recipe, already in your library</string>
+    <string name="file_import_status_duplicate">Identical to “%1$s”, which you already have</string>
+    <string name="file_import_status_name">Another recipe is called “%1$s”. This imports as a second one.</string>
+    <string name="file_import_status_invalid">Cannot be imported</string>
+
+    <string name="file_import_resolution_skip">Skip</string>
+    <string name="file_import_resolution_replace">Replace</string>
+    <string name="file_import_resolution_keep_both">Keep both</string>
+    <string name="file_import_undecided">%1$d of these need a decision before anything can be imported.</string>
+
+    <string name="file_import_action_import">Import %1$d</string>
+    <string name="file_import_action_import_none">Nothing here can be imported</string>
+    <string name="file_import_importing">Importing…</string>
+    <string name="file_import_done_title">Imported %1$d</string>
+    <string name="file_import_done_body">They are in your library now.</string>
+    <string name="file_import_done_detail">%1$d replaced · %2$d skipped</string>
+    <string name="file_import_done_failed">The server refused %1$d of them; they are named above.</string>
+    <string name="file_import_server_failure">Recipe %1$d — %2$s: %3$s</string>
+
+    <string name="file_import_rejected_title">This file was not imported</string>
+    <string name="file_import_failed_title">Nothing was imported</string>
+    <string name="file_import_action_back_to_review">Back to the list</string>
+
     <!-- Placeholders, replaced as their features land -->
     <string name="placeholder_editor_title">Recipe</string>
     <string name="placeholder_editor_body">Create and edit go here (FEAT-002).</string>

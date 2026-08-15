@@ -3,7 +3,9 @@ package dev.bondarenko.fujirecipes.ui.camera
 import dev.bondarenko.fujirecipes.camera.CameraModels
 import dev.bondarenko.fujirecipes.camera.CameraState
 import dev.bondarenko.fujirecipes.camera.plan.DroppedField
+import dev.bondarenko.fujirecipes.camera.plan.FIRST_SLOT
 import dev.bondarenko.fujirecipes.camera.plan.WritePlan
+import dev.bondarenko.fujirecipes.camera.usb.WriteOutcome
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -61,6 +63,31 @@ class WriteSheetStateTest {
         val writing = CameraState.Writing(slot = 3, done = 4, total = 17, current = "Clarity")
 
         assertEquals(WriteStage.Connect, openingStage(writing, clean))
+    }
+
+    /**
+     * The bug this guards: a slot picked for one recipe was still picked for the next one, so
+     * the write button offered a slot the user had never looked at on this attempt.
+     */
+    @Test
+    fun `reaching the picker forgets the slot an earlier write chose`() {
+        val afterAWrite = WriteUiState(
+            stage = WriteStage.Done(
+                WriteOutcome(slot = 6, written = 17, total = 17, slotTouched = true),
+            ),
+            selectedSlot = 6,
+        )
+
+        val picker = afterAWrite.enteringPicker()
+
+        assertEquals(WriteStage.Picker, picker.stage)
+        assertEquals(FIRST_SLOT, picker.selectedSlot)
+    }
+
+    /** Nothing is chosen for the user before they have chosen it. */
+    @Test
+    fun `a fresh write attempt points at the first slot`() {
+        assertEquals(FIRST_SLOT, WriteUiState(stage = WriteStage.Picker).selectedSlot)
     }
 
     @Test
