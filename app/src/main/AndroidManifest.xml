@@ -64,6 +64,25 @@
                 android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
                 android:resource="@xml/device_filter" />
         </activity>
+
+        <!--
+          FEAT-008: exports are shared as content:// URIs so the OS share sheet can hand them
+          to Files, Drive, mail or anything else installed.
+
+          `exported="false"` with `grantUriPermissions="true"` is the pair that matters: no app
+          can reach this provider on its own, and a receiving app only gets a one-shot read
+          grant for the single file the user chose to share. `@xml/file_paths` scopes it to one
+          cache subdirectory.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

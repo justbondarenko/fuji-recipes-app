@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What the FileProvider is allowed to hand out — FEAT-008 T-10.
+
+  Exactly one directory: `export/` inside the app's cache. Not `cache-path path="."`, and
+  certainly not `root-path` — a provider's scope is the list of files any app the user shares
+  to could be granted, and there is no reason for that list to include the snapshot cache or
+  the DataStore holding the Access service token.
+
+  No storage permission accompanies this, and none is needed: the file never leaves app-private
+  storage. It is read through a `content://` URI that carries a one-shot read grant.
+-->
+<paths>
+    <cache-path
+        name="exports"
+        path="export/" />
+</paths>
