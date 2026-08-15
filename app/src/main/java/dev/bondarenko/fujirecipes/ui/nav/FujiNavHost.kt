@@ -11,6 +11,7 @@ import dev.bondarenko.fujirecipes.ui.common.PlaceholderScreen
 import dev.bondarenko.fujirecipes.ui.connection.ConnectionRouteContent
 import dev.bondarenko.fujirecipes.ui.library.LibraryRouteContent
 import dev.bondarenko.fujirecipes.ui.editor.RecipeEditorRouteContent
+import dev.bondarenko.fujirecipes.ui.exporting.ExportRouteContent
 import dev.bondarenko.fujirecipes.ui.importing.ImportRouteContent
 import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewRouteContent
 import dev.bondarenko.fujirecipes.ui.settings.SettingsRouteContent
@@ -54,6 +55,10 @@ data object MoreRoute
 /** More → Import: read the camera's C1–C7 into the library (FEAT-007). */
 @Serializable
 data object ImportRoute
+
+/** More → Export: build a file from the library and hand it to the share sheet (FEAT-008). */
+@Serializable
+data object ExportRoute
 
 @Composable
 fun FujiNavHost(
@@ -130,8 +135,13 @@ fun FujiNavHost(
             SettingsRouteContent(
                 onOpenConnection = { navController.navigate(ConnectionRoute()) },
                 onOpenImport = { navController.navigate(ImportRoute) },
+                onOpenExport = { navController.navigate(ExportRoute) },
                 contentPadding = contentPadding,
             )
+        }
+
+        composable<ExportRoute> {
+            ExportRouteContent(contentPadding = contentPadding)
         }
 
         composable<ImportRoute> {

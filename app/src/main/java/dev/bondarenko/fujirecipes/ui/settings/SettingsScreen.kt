@@ -59,6 +59,7 @@ fun SettingsScreen(
     state: SettingsUiState,
     onOpenConnection: () -> Unit,
     onOpenImport: () -> Unit,
+    onOpenExport: () -> Unit,
     onClearCredentials: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
@@ -97,6 +98,14 @@ fun SettingsScreen(
             subtitle = stringResource(R.string.import_subtitle),
             icon = painterResource(R.drawable.ic_photo_camera),
             onClick = onOpenImport,
+            showChevron = true,
+        )
+
+        SettingsCard(
+            title = stringResource(R.string.export_title),
+            subtitle = stringResource(R.string.export_subtitle),
+            icon = painterResource(R.drawable.ic_cloud_sync),
+            onClick = onOpenExport,
             showChevron = true,
         )
 
@@ -241,6 +250,7 @@ private fun SettingsCard(
 fun SettingsRouteContent(
     onOpenConnection: () -> Unit,
     onOpenImport: () -> Unit,
+    onOpenExport: () -> Unit,
     contentPadding: PaddingValues,
 ) {
     val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
@@ -251,6 +261,7 @@ fun SettingsRouteContent(
         state = state,
         onOpenConnection = onOpenConnection,
         onOpenImport = onOpenImport,
+        onOpenExport = onOpenExport,
         onClearCredentials = viewModel::clearCredentials,
         contentPadding = contentPadding,
     )
@@ -265,6 +276,7 @@ private fun SettingsPreview() {
             state = SettingsUiState(host = "recipes.example.com", isConfigured = true),
             onOpenConnection = {},
             onOpenImport = {},
+            onOpenExport = {},
             onClearCredentials = {},
             contentPadding = PaddingValues(0.dp),
         )
@@ -279,6 +291,7 @@ private fun SettingsUnconfiguredPreview() {
             state = SettingsUiState(),
             onOpenConnection = {},
             onOpenImport = {},
+            onOpenExport = {},
             onClearCredentials = {},
             contentPadding = PaddingValues(0.dp),
         )

@@ -203,6 +203,26 @@
     <string name="import_action_back_to_review">Back to the list</string>
     <string name="import_action_read_again">Read again</string>
 
+    <!-- Export — FEAT-008 -->
+    <string name="export_title">Export</string>
+    <string name="export_subtitle">Save your recipes to a file and share it anywhere</string>
+    <string name="export_intro">Builds the file on this phone, so it works with no signal. The share sheet takes it from there — Files, Drive, a message, anything installed.</string>
+    <string name="export_loading">Loading your library…</string>
+    <string name="export_empty_title">Nothing to export yet</string>
+    <string name="export_empty_body">Recipes you add will appear here, ready to save to a file.</string>
+    <string name="export_selected">%1$d of %2$d selected</string>
+    <string name="export_select_all">Select all</string>
+    <string name="export_select_none">Select none</string>
+    <string name="export_format">Format</string>
+    <string name="export_format_json">One JSON file</string>
+    <string name="export_format_json_hint">Every selected recipe in a single file. The easiest to keep and to read back in.</string>
+    <string name="export_format_zip">ZIP of JSON files</string>
+    <string name="export_format_zip_hint">One file per recipe inside an archive. Better when you want to pick individual recipes out later.</string>
+    <string name="export_action">Export %1$s</string>
+    <string name="export_action_none">Choose at least one recipe</string>
+    <string name="export_failed">The export could not be prepared, so nothing left the app: %1$s</string>
+    <string name="action_export_recipe">Export this recipe</string>
+
     <!-- Placeholders, replaced as their features land -->
     <string name="placeholder_editor_title">Recipe</string>
     <string name="placeholder_editor_body">Create and edit go here (FEAT-002).</string>
