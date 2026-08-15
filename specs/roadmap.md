@@ -30,7 +30,8 @@ Stages are sequential. A **GATE** must be fully closed before the next stage sta
 | FEAT-004 | Settings | Connection settings reachable at any time, and clearable | **done** |
 | FEAT-005 | Camera connection **GATE** | USB host, attach intent, PTP session, model detection, the connection indicator | **done** — connects on hardware |
 | FEAT-006 | Write to slot | Write plan, encoders, slot picker, progress, failure reporting | **done** — writes to a slot on hardware |
-| FEAT-007 | Polish | Motion timing, haptics, reduced-motion fallback, dark-scheme audit, predictive back | none |
+| **FEAT-007** | **Import from camera** ← *in progress* | More → Import: read C1–C7 off the body, review against the library with duplicate detection, import | low — the protocol half is done and verified |
+| FEAT-008 | Polish | Motion timing, haptics, reduced-motion fallback, dark-scheme audit, predictive back | none |
 
 **FEAT-001 to FEAT-003 carry no protocol risk and ship a usable recipe manager.** That is
 deliberate: a hard slog in FEAT-005 must leave a working product behind, not a stalled one.
@@ -60,10 +61,10 @@ ordering cost nothing — the form (FEAT-003) now inherits a table that is alrea
 
 | Deferred | To | Why |
 |---|---|---|
-| Reading a slot's full settings back as an importable recipe | v2 | The write sheet reads slot **names** from the camera — a write is a destructive act and the picker has to show the device's own answer. Decoding every property back into a recipe is the import path, which this client does not have. |
+| ~~Reading a slot's full settings back as an importable recipe~~ | **FEAT-007** | Reversed. The recipes already on the body could not reach the library at all, which made the camera link one-way. The slot picker's name read (FEAT-006) proved the mechanism; FEAT-007 decodes the whole slot. |
 | Reorder / manual-order editing | v2 | The list *respects* manual order as a tiebreak and never offers it as a sort — matching the web client, which also does not offer it. Editing it needs `POST /:id/move` and a drag surface. |
 | Delete and duplicate | FEAT-003 | They belong with the editor, not the list |
-| Export / import | v2 | The web client is the backup surface and `P2` of the web constitution already guarantees it. Duplicating it on Android before the camera works is misordered. |
+| Export / import **as files** | v2 | The web client is the backup surface and `P2` of the web constitution already guarantees it. Importing *from the camera* is FEAT-007 and is a different thing: the data is on a device in the bag, not in a file that already has a home. |
 | Offline **writes** | v2 | See `architecture.md` §4. Needs a queue, and a queue needs conflict resolution. |
 | Sensor-generation filter | won't do | The column was dropped in D1 migration 0002. The web client has no such filter either. |
 | Tablet layouts, Wear OS, widgets | won't do | `PRD.md` §3 non-goals stand |
