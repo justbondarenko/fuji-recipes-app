@@ -20,7 +20,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dev.bondarenko.fujirecipes.ui.camera.CameraChipHost
 import dev.bondarenko.fujirecipes.ui.nav.ConnectionRoute
+import dev.bondarenko.fujirecipes.ui.nav.ExportRoute
 import dev.bondarenko.fujirecipes.ui.nav.FujiNavHost
+import dev.bondarenko.fujirecipes.ui.nav.ImportRoute
 import dev.bondarenko.fujirecipes.ui.nav.LibraryRoute
 import dev.bondarenko.fujirecipes.ui.nav.MoreRoute
 import dev.bondarenko.fujirecipes.ui.nav.PhotoRoute
@@ -95,14 +97,17 @@ private fun FujiApp(startDestination: Any) {
         /**
          * The shell chrome is hidden wherever it would be wrong rather than wherever it
          * happens to look busy: connection setup is reached before there is a library to
-         * navigate to, and the editor owns its own bottom bar (FEAT-002).
+         * navigate to, the editor owns its own bottom bar (FEAT-002), and subpages have their
+         * own top app bar.
          */
         val onConnection = destination?.hasRoute<ConnectionRoute>() == true
         val onEditor = destination?.hasRoute<RecipeEditorRoute>() == true
         // The view screen carries its own top bar and back affordance, and a bottom nav
         // under a recipe would invite leaving the thing you just opened.
         val onRecipeView = destination?.hasRoute<RecipeViewRoute>() == true
-        val showChrome = !onConnection && !onEditor && !onRecipeView
+        val onImport = destination?.hasRoute<ImportRoute>() == true
+        val onExport = destination?.hasRoute<ExportRoute>() == true
+        val showChrome = !onConnection && !onEditor && !onRecipeView && !onImport && !onExport
 
         AppShell(
             showChrome = showChrome,

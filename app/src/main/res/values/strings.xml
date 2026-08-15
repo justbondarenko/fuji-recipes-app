@@ -116,6 +116,7 @@
     <string name="settings_connection">Connection</string>
     <string name="settings_about">About</string>
     <string name="settings_version">Version %1$s</string>
+    <string name="settings_danger_zone">Danger zone</string>
     <string name="settings_clear_credentials">Clear credentials</string>
     <string name="settings_clear_credentials_subtitle">Remove the stored token from this device</string>
     <string name="settings_clear_title">Clear stored credentials?</string>
@@ -178,7 +179,7 @@
     <string name="action_done">Done</string>
 
     <!-- Import from camera — FEAT-007 -->
-    <string name="import_title">Import from camera</string>
+    <string name="import_title">Import</string>
     <string name="import_subtitle">Read the recipes saved in your camera\'s C1–C7 slots</string>
     <string name="import_needs_camera_title">Connect your camera</string>
     <string name="import_needs_camera_body">Import reads the custom recipe slots saved on the camera itself. Connect it with a USB-C cable, set its USB mode to the RAW-conversion/backup mode, and this screen will be ready.</string>
@@ -242,6 +243,7 @@
     <string name="photo_match_empty_body">Your library is empty, so there is nothing to compare against yet.</string>
     <string name="photo_difference">%1$s · photo %2$s, saved %3$s</string>
     <string name="photo_action_open_match">Open “%1$s”</string>
+    <string name="photo_action_view_recipe">View recipe</string>
     <string name="photo_action_save">Save as a new recipe</string>
 
     <string name="photo_error_not_jpeg_title">That is not a JPEG</string>

@@ -3,6 +3,7 @@ package dev.bondarenko.fujirecipes.ui.photo
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,8 +15,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -25,20 +32,24 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
+import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.photo.MatchResult
 import dev.bondarenko.fujirecipes.data.photo.PhotoReadFailure
 import dev.bondarenko.fujirecipes.data.photo.PhotoRecipe
+import dev.bondarenko.fujirecipes.data.photo.RecipeMatch
 import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
-import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
-import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
+import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -59,55 +70,166 @@ fun PhotoReaderScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            start = 16.dp,
-            end = 16.dp,
-            top = 12.dp + contentPadding.calculateTopPadding(),
-            bottom = 24.dp + contentPadding.calculateBottomPadding(),
-        ),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item { SectionHeader(stringResource(R.string.photo_title)) }
-
-        when (val stage = state.stage) {
-            PhotoReaderStage.Empty -> item {
-                LibraryPanel(
-                    title = stringResource(R.string.photo_action_choose),
-                    body = stringResource(R.string.photo_intro),
-                    primaryLabel = stringResource(R.string.photo_action_choose),
-                    onPrimary = onChoosePhoto,
-                )
-            }
-
-            PhotoReaderStage.Reading -> item {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                    Body(stringResource(R.string.photo_reading))
-                }
-            }
-
-            is PhotoReaderStage.Failed -> item {
-                val (title, body) = stage.reason.message()
-                LibraryPanel(
-                    title = title,
-                    body = body,
-                    primaryLabel = stringResource(R.string.photo_action_choose),
-                    onPrimary = onChoosePhoto,
-                )
-            }
-
-            is PhotoReaderStage.Result -> resultItems(
-                recipe = stage.recipe,
-                matches = stage.matches,
-                onOpenRecipe = onOpenRecipe,
-                onSaveAsNew = onSaveAsNew,
+    when (val stage = state.stage) {
+        PhotoReaderStage.Empty -> {
+            EmptyPhotoReaderState(
                 onChoosePhoto = onChoosePhoto,
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(contentPadding),
             )
+        }
+
+        PhotoReaderStage.Reading -> {
+            ReadingPhotoState(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(contentPadding),
+            )
+        }
+
+        is PhotoReaderStage.Failed -> {
+            FailedPhotoState(
+                reason = stage.reason,
+                onChoosePhoto = onChoosePhoto,
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(contentPadding),
+            )
+        }
+
+        is PhotoReaderStage.Result -> {
+            LazyColumn(
+                modifier = modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 12.dp + contentPadding.calculateTopPadding(),
+                    bottom = 24.dp + contentPadding.calculateBottomPadding(),
+                ),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                item { SectionHeader(stringResource(R.string.photo_title)) }
+
+                resultItems(
+                    recipe = stage.recipe,
+                    matches = stage.matches,
+                    onOpenRecipe = onOpenRecipe,
+                    onSaveAsNew = onSaveAsNew,
+                    onChoosePhoto = onChoosePhoto,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyPhotoReaderState(
+    onChoosePhoto: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 28.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_photo_camera),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(56.dp),
+            )
+
+            Text(
+                text = stringResource(R.string.photo_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+
+            Text(
+                text = stringResource(R.string.photo_intro),
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Button(
+                onClick = onChoosePhoto,
+                modifier = Modifier.padding(top = 8.dp),
+            ) {
+                Text(stringResource(R.string.photo_action_choose))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReadingPhotoState(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            CircularProgressIndicator(modifier = Modifier.size(36.dp))
+            Text(
+                text = stringResource(R.string.photo_reading),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+    }
+}
+
+@Composable
+private fun FailedPhotoState(
+    reason: PhotoReadFailure,
+    onChoosePhoto: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val (title, body) = reason.message()
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Button(
+                onClick = onChoosePhoto,
+                modifier = Modifier.padding(top = 8.dp),
+            ) {
+                Text(stringResource(R.string.photo_action_choose))
+            }
         }
     }
 }
@@ -119,12 +241,19 @@ private fun androidx.compose.foundation.lazy.LazyListScope.resultItems(
     onSaveAsNew: () -> Unit,
     onChoosePhoto: () -> Unit,
 ) {
-    // The answer first. The settings are evidence for it and sit underneath.
-    item { MatchPanel(matches, onOpenRecipe) }
-
+    val best = matches.best
     item {
-        Button(onClick = onSaveAsNew, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.photo_action_save))
+        if (best != null) {
+            MatchedRecipeCard(
+                match = best,
+                onOpenRecipe = onOpenRecipe,
+                onSaveAsNew = onSaveAsNew,
+            )
+        } else {
+            NoMatchCard(
+                matches = matches,
+                onSaveAsNew = onSaveAsNew,
+            )
         }
     }
 
@@ -146,64 +275,200 @@ private fun androidx.compose.foundation.lazy.LazyListScope.resultItems(
 }
 
 @Composable
-private fun MatchPanel(matches: MatchResult, onOpenRecipe: (String) -> Unit) {
-    val best = matches.best
+private fun MatchedRecipeCard(
+    match: RecipeMatch,
+    onOpenRecipe: (String) -> Unit,
+    onSaveAsNew: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val recipe = match.recipe
+    val shape = RoundedCornerShape(20.dp)
 
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        when {
-            best == null -> {
-                Panel(
-                    title = stringResource(R.string.photo_match_none_title),
-                    body = if (matches.recipesChecked == 0) {
-                        stringResource(R.string.photo_match_empty_body)
-                    } else {
-                        stringResource(R.string.photo_match_none_body)
-                    },
+    Surface(
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+        tonalElevation = 1.dp,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                FilmSimBadge(
+                    simulationId = recipe.filmSimulationId,
+                    size = 52.dp,
+                    shape = CircleShape,
                 )
-            }
 
-            best.isExact -> {
-                Panel(
-                    title = stringResource(R.string.photo_match_exact_title, best.recipe.name),
-                    body = stringResource(R.string.photo_match_exact_body),
-                    highlight = true,
-                )
-                Button(
-                    onClick = { onOpenRecipe(best.recipe.id) },
-                    modifier = Modifier.fillMaxWidth(),
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
                 ) {
-                    Text(stringResource(R.string.photo_action_open_match, best.recipe.name))
+                    Text(
+                        text = recipe.name,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = FilmSimulations.labelFor(recipe.filmSimulationId),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+
+                        if (recipe.rating > 0) {
+                            RatingBadge(rating = recipe.rating)
+                        }
+                    }
                 }
             }
 
-            else -> {
-                Panel(
-                    title = stringResource(
-                        R.string.photo_match_near_title,
-                        best.recipe.name,
-                        best.percentage,
-                    ),
-                    body = stringResource(R.string.photo_match_near_body),
-                    highlight = true,
+            // Match description / differences
+            if (match.isExact) {
+                Text(
+                    text = stringResource(R.string.photo_match_exact_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                // What differs, named. This is the part that teaches you something.
-                best.mismatches.forEach { difference ->
-                    Body(
-                        stringResource(
+            } else {
+                Text(
+                    text = stringResource(
+                        R.string.photo_match_near_title,
+                        recipe.name,
+                        match.percentage,
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+
+                match.mismatches.forEach { difference ->
+                    Text(
+                        text = stringResource(
                             R.string.photo_difference,
                             difference.label,
                             difference.photoValue,
                             difference.savedValue,
                         ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+
+            // Horizontally aligned action buttons
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 OutlinedButton(
-                    onClick = { onOpenRecipe(best.recipe.id) },
-                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onSaveAsNew,
+                    modifier = Modifier.weight(1f),
                 ) {
-                    Text(stringResource(R.string.photo_action_open_match, best.recipe.name))
+                    Text(stringResource(R.string.photo_action_save))
+                }
+
+                Button(
+                    onClick = { onOpenRecipe(recipe.id) },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.photo_action_view_recipe))
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun NoMatchCard(
+    matches: MatchResult,
+    onSaveAsNew: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+        tonalElevation = 1.dp,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.photo_match_none_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = if (matches.recipesChecked == 0) {
+                    stringResource(R.string.photo_match_empty_body)
+                } else {
+                    stringResource(R.string.photo_match_none_body)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Button(
+                onClick = onSaveAsNew,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.photo_action_save))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RatingBadge(
+    rating: Int,
+    modifier: Modifier = Modifier,
+) {
+    Badge(
+        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        modifier = modifier,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+        ) {
+            Text(
+                text = rating.toString(),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontFeatureSettings = TabularFigures,
+                ),
+            )
+            Icon(
+                imageVector = Icons.Filled.Star,
+                contentDescription = stringResource(R.string.rating_of_five, rating),
+                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                modifier = Modifier.size(11.dp),
+            )
         }
     }
 }
@@ -246,8 +511,6 @@ private fun PhotoReadFailure.message(): Pair<String, String> = when (this) {
     PhotoReadFailure.TOO_LARGE -> stringResource(R.string.photo_error_too_large_title) to
         stringResource(R.string.photo_error_too_large_body)
 
-    // These two are different facts and must not read the same (P5): one photo was stripped,
-    // the other came from someone else's camera.
     PhotoReadFailure.NO_EXIF -> stringResource(R.string.photo_error_no_exif_title) to
         stringResource(R.string.photo_error_no_exif_body)
 
@@ -265,43 +528,6 @@ private fun Body(text: String) {
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-}
-
-@Composable
-private fun Panel(title: String, body: String, highlight: Boolean = false) {
-    Surface(
-        shape = MaterialTheme.shapes.medium,
-        color = if (highlight) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerHigh
-        },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = if (highlight) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
-            )
-            Text(
-                text = body,
-                style = MaterialTheme.typography.bodySmall,
-                color = if (highlight) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-            )
-        }
-    }
 }
 
 @Composable
@@ -325,12 +551,6 @@ fun PhotoReaderRouteContent(
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    /**
-     * The system photo picker — **no storage permission**.
-     *
-     * `PickVisualMedia` hands back a one-shot read grant for the single image chosen, which is
-     * both less to ask for and less to explain than `READ_MEDIA_IMAGES`.
-     */
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
     ) { uri -> uri?.let { viewModel.read(it.toString()) } }

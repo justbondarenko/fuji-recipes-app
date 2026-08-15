@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -15,24 +17,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -60,12 +54,9 @@ fun SettingsScreen(
     onOpenConnection: () -> Unit,
     onOpenImport: () -> Unit,
     onOpenExport: () -> Unit,
-    onClearCredentials: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
-    var confirmClear by remember { mutableStateOf(false) }
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -109,52 +100,16 @@ fun SettingsScreen(
             showChevron = true,
         )
 
-        if (state.isConfigured) {
-            SettingsCard(
-                title = stringResource(R.string.settings_clear_credentials),
-                subtitle = stringResource(R.string.settings_clear_credentials_subtitle),
-                icon = rememberVectorPainter(Icons.Filled.Delete),
-                onClick = { confirmClear = true },
-                danger = true,
-            )
-        }
+        androidx.compose.foundation.layout.Spacer(Modifier.height(16.dp))
 
-        SectionHeader(stringResource(R.string.settings_about))
-
-        SettingsCard(
-            title = stringResource(R.string.app_name),
-            subtitle = stringResource(R.string.settings_version, BuildConfig.VERSION_NAME),
-            icon = painterResource(R.drawable.ic_photo_camera),
-            onClick = null,
-        )
-    }
-
-    if (confirmClear) {
-        AlertDialog(
-            onDismissRequest = { confirmClear = false },
-            title = { Text(stringResource(R.string.settings_clear_title)) },
-            text = { Text(stringResource(R.string.settings_clear_body)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        confirmClear = false
-                        onClearCredentials()
-                    },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
-                    ),
-                ) {
-                    Text(
-                        text = stringResource(R.string.settings_clear_confirm),
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmClear = false }) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-            },
+        Text(
+            text = stringResource(R.string.settings_version, BuildConfig.VERSION_NAME),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
         )
     }
 }
@@ -262,7 +217,6 @@ fun SettingsRouteContent(
         onOpenConnection = onOpenConnection,
         onOpenImport = onOpenImport,
         onOpenExport = onOpenExport,
-        onClearCredentials = viewModel::clearCredentials,
         contentPadding = contentPadding,
     )
 }
@@ -277,7 +231,6 @@ private fun SettingsPreview() {
             onOpenConnection = {},
             onOpenImport = {},
             onOpenExport = {},
-            onClearCredentials = {},
             contentPadding = PaddingValues(0.dp),
         )
     }
@@ -292,8 +245,8 @@ private fun SettingsUnconfiguredPreview() {
             onOpenConnection = {},
             onOpenImport = {},
             onOpenExport = {},
-            onClearCredentials = {},
             contentPadding = PaddingValues(0.dp),
         )
     }
 }
+

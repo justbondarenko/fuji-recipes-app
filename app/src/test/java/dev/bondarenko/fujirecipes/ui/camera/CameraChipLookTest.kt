@@ -33,12 +33,11 @@ class CameraChipLookTest {
     fun `every state has its own icon`() {
         val icons = states.map { cameraChipLook(it).icon }
 
-        // Writing and Connected share the camera glyph deliberately — the progress bar is
-        // Writing's own signal — so the distinct count is one less than the state count.
+        // Writing and Connected share CAMERA, NoUsbHost and Disconnected share USB.
         assertEquals(
-            states.size - 1,
+            4,
             icons.toSet().size,
-            "two states other than Connected/Writing share an icon",
+            "states map to the expected distinct icons (USB, CONNECTING, CAMERA, WARNING)",
         )
     }
 

@@ -49,7 +49,7 @@ fun cameraChipLook(state: CameraState): CameraChipLook = when (state) {
     // acts on (P5); the sheet explains why.
     CameraState.NoUsbHost -> CameraChipLook(
         labelRes = R.string.camera_chip_no_usb,
-        icon = CameraChipIcon.INFO,
+        icon = CameraChipIcon.USB,
         tone = CameraChipTone.NEUTRAL,
     )
 

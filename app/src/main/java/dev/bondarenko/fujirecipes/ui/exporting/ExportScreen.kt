@@ -10,8 +10,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -19,6 +24,8 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -36,7 +43,6 @@ import dev.bondarenko.fujirecipes.core.share.ShareFile
 import dev.bondarenko.fujirecipes.data.exporting.ExportKind
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.model.Recipe
-import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
 import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -50,9 +56,11 @@ import kotlinx.serialization.json.put
  * whole design: this screen knows nothing about Drive, mail or the file system, and does not
  * need to.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExportScreen(
     state: ExportUiState,
+    onBack: () -> Unit,
     onToggle: (String) -> Unit,
     onSelectAll: () -> Unit,
     onSelectNone: () -> Unit,
@@ -61,19 +69,39 @@ fun ExportScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            start = 16.dp,
-            end = 16.dp,
-            top = 12.dp + contentPadding.calculateTopPadding(),
-            bottom = 24.dp + contentPadding.calculateBottomPadding(),
-        ),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item { SectionHeader(stringResource(R.string.export_title)) }
+    Column(modifier = modifier.fillMaxSize()) {
+        TopAppBar(
+            title = {
+                Text(
+                    text = stringResource(R.string.export_title),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.action_back),
+                    )
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+            ),
+        )
 
-        when {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = 8.dp,
+                bottom = 24.dp + contentPadding.calculateBottomPadding(),
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            when {
             !state.hasLoaded -> item { Body(stringResource(R.string.export_loading)) }
 
             state.isEmptyLibrary -> item {
@@ -120,6 +148,7 @@ fun ExportScreen(
             }
         }
     }
+}
 }
 
 @Composable
@@ -249,7 +278,10 @@ private fun Panel(text: String, alert: Boolean = false) {
 }
 
 @Composable
-fun ExportRouteContent(contentPadding: PaddingValues) {
+fun ExportRouteContent(
+    onBack: () -> Unit,
+    contentPadding: PaddingValues,
+) {
     val context = LocalContext.current
     val container = (context.applicationContext as FujiRecipesApp).container
     val viewModel: ExportViewModel = viewModel(factory = ExportViewModel.factory(container))
@@ -257,6 +289,7 @@ fun ExportRouteContent(contentPadding: PaddingValues) {
 
     ExportScreen(
         state = state,
+        onBack = onBack,
         onToggle = viewModel::toggle,
         onSelectAll = viewModel::selectAll,
         onSelectNone = viewModel::selectNone,
@@ -295,6 +328,7 @@ private fun PreviewScreen(state: ExportUiState) {
         Box(modifier = Modifier.fillMaxSize()) {
             ExportScreen(
                 state = state,
+                onBack = {},
                 onToggle = {}, onSelectAll = {}, onSelectNone = {}, onChooseKind = {},
                 onExport = {},
                 contentPadding = PaddingValues(0.dp),

@@ -11,14 +11,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -35,7 +42,6 @@ import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.importing.ImportRow
 import dev.bondarenko.fujirecipes.data.importing.ImportStatus
-import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
 import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -47,9 +53,11 @@ import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
  * shows one thing to decide and one action, because the whole flow happens with a camera
  * hanging off the phone by a cable.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImportScreen(
     state: ImportUiState,
+    onBack: () -> Unit,
     onConnect: () -> Unit,
     onRead: () -> Unit,
     onToggle: (Int) -> Unit,
@@ -59,19 +67,39 @@ fun ImportScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(
-            start = 16.dp,
-            end = 16.dp,
-            top = 12.dp + contentPadding.calculateTopPadding(),
-            bottom = 24.dp + contentPadding.calculateBottomPadding(),
-        ),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item { SectionHeader(stringResource(R.string.import_title)) }
+    Column(modifier = modifier.fillMaxSize()) {
+        TopAppBar(
+            title = {
+                Text(
+                    text = stringResource(R.string.import_title),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.action_back),
+                    )
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                titleContentColor = MaterialTheme.colorScheme.onSurface,
+            ),
+        )
 
-        when (val stage = state.stage) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = 8.dp,
+                bottom = 24.dp + contentPadding.calculateBottomPadding(),
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            when (val stage = state.stage) {
             ImportStage.NeedsCamera -> item {
                 LibraryPanel(
                     title = stringResource(R.string.import_needs_camera_title),
@@ -121,6 +149,7 @@ fun ImportScreen(
             }
         }
     }
+}
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.reviewItems(
@@ -287,13 +316,18 @@ private fun Note(text: String) {
 }
 
 @Composable
-fun ImportRouteContent(onDone: () -> Unit, contentPadding: PaddingValues) {
+fun ImportRouteContent(
+    onBack: () -> Unit,
+    onDone: () -> Unit,
+    contentPadding: PaddingValues,
+) {
     val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
     val viewModel: ImportViewModel = viewModel(factory = ImportViewModel.factory(container))
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     ImportScreen(
         state = state,
+        onBack = onBack,
         onConnect = viewModel::connect,
         onRead = viewModel::read,
         onToggle = viewModel::toggle,
@@ -338,6 +372,7 @@ private fun PreviewScreen(state: ImportUiState) {
         Box(modifier = Modifier.fillMaxSize()) {
             ImportScreen(
                 state = state,
+                onBack = {},
                 onConnect = {}, onRead = {}, onToggle = {}, onImport = {},
                 onBackToReview = {}, onDone = {},
                 contentPadding = PaddingValues(0.dp),

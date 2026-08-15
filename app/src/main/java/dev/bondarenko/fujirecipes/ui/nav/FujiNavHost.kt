@@ -170,11 +170,15 @@ fun FujiNavHost(
         }
 
         composable<ExportRoute> {
-            ExportRouteContent(contentPadding = contentPadding)
+            ExportRouteContent(
+                onBack = { navController.popBackStack() },
+                contentPadding = contentPadding,
+            )
         }
 
         composable<ImportRoute> {
             ImportRouteContent(
+                onBack = { navController.popBackStack() },
                 // Finishing an import means going to look at what landed.
                 onDone = {
                     navController.navigate(LibraryRoute) {

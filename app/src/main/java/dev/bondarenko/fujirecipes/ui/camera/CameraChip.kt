@@ -8,20 +8,26 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -48,14 +54,58 @@ import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.LocalReducedMotion
 
 /**
- * The camera indicator — `PRD.md` §7.2.
- *
- * A pill in the shell, tappable, opening the camera sheet. It renders exactly what
- * [cameraChipLook] returns: the words, the icon and the tone are decided there, where they can
- * be tested.
- *
- * It lives in the shell rather than on one screen because the connection is global: the state
- * it shows survives navigation, and so should the thing showing it.
+ * The camera indicator FAB — sitting on the bottom-left of the shell chrome.
+ */
+@Composable
+fun CameraFab(
+    state: CameraState,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val look = cameraChipLook(state)
+    val label = look.modelLabel ?: stringResource(look.labelRes)
+    val colors = look.tone.colors()
+
+    FloatingActionButton(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        containerColor = colors.container,
+        contentColor = colors.content,
+        elevation = FloatingActionButtonDefaults.elevation(
+            defaultElevation = 3.dp,
+            pressedElevation = 6.dp,
+        ),
+        modifier = modifier
+            .size(56.dp)
+            .semantics {
+                contentDescription = "Camera: $label"
+            },
+    ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+            Icon(
+                painter = look.icon.painter(),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(24.dp)
+                    .then(if (look.spinning) Modifier.spin() else Modifier),
+            )
+
+            // Circular progress indicator when writing to the camera
+            look.progress?.let { fraction ->
+                CircularProgressIndicator(
+                    progress = { fraction.coerceIn(0f, 1f) },
+                    color = colors.content,
+                    strokeWidth = 3.dp,
+                    trackColor = colors.content.copy(alpha = 0.24f),
+                    modifier = Modifier.size(44.dp),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The single source of truth on the screen for what the camera is doing.
  */
 @Composable
 fun CameraChip(
@@ -121,31 +171,34 @@ fun CameraChip(
 private data class ChipColors(val container: Color, val content: Color)
 
 @Composable
-private fun CameraChipTone.colors(): ChipColors = when (this) {
-    CameraChipTone.NEUTRAL -> ChipColors(
-        MaterialTheme.colorScheme.surfaceContainerHighest,
-        MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+private fun CameraChipTone.colors(): ChipColors {
+    val dark = isSystemInDarkTheme()
+    return when (this) {
+        CameraChipTone.NEUTRAL -> ChipColors(
+            container = if (dark) Color(0xFF451A03) else Color(0xFFFEF3C7),
+            content = if (dark) Color(0xFFFDE68A) else Color(0xFF92400E),
+        )
 
-    CameraChipTone.MUTED -> ChipColors(
-        MaterialTheme.colorScheme.surfaceContainerHigh,
-        MaterialTheme.colorScheme.onSurface,
-    )
+        CameraChipTone.MUTED -> ChipColors(
+            container = MaterialTheme.colorScheme.surfaceContainerHigh,
+            content = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
-    CameraChipTone.WAITING -> ChipColors(
-        MaterialTheme.colorScheme.tertiaryContainer,
-        MaterialTheme.colorScheme.onTertiaryContainer,
-    )
+        CameraChipTone.WAITING -> ChipColors(
+            container = MaterialTheme.colorScheme.tertiaryContainer,
+            content = MaterialTheme.colorScheme.onTertiaryContainer,
+        )
 
-    CameraChipTone.READY -> ChipColors(
-        MaterialTheme.colorScheme.primaryContainer,
-        MaterialTheme.colorScheme.onPrimaryContainer,
-    )
+        CameraChipTone.READY -> ChipColors(
+            container = if (dark) Color(0xFF1B5E20) else Color(0xFF2E7D32),
+            content = Color(0xFFFFFFFF),
+        )
 
-    CameraChipTone.ALERT -> ChipColors(
-        MaterialTheme.colorScheme.errorContainer,
-        MaterialTheme.colorScheme.onErrorContainer,
-    )
+        CameraChipTone.ALERT -> ChipColors(
+            container = MaterialTheme.colorScheme.errorContainer,
+            content = MaterialTheme.colorScheme.onErrorContainer,
+        )
+    }
 }
 
 @Composable
@@ -159,15 +212,6 @@ private fun CameraChipIcon.painter(): Painter = when (this) {
 
 /**
  * A plain rotation for the waiting states.
- *
- * `LoadingIndicator` — the Expressive shape-morphing loader `PRD.md` §7.2 asks for — is
- * `internal` at material3 1.4.0 (`tech-stack.md` §6). This is the honest stand-in until the
- * toolchain moves; the swap is one composable.
- *
- * **Honours reduced motion** (`design-system.md` §5), and this is the first continuously
- * animating thing in the app, so it is the first place `LocalReducedMotion` earns its keep.
- * Nothing is lost when it is off: the state still has its own icon and its own words, which
- * is the rule the chip is built on.
  */
 @Composable
 private fun Modifier.spin(): Modifier {
@@ -186,21 +230,21 @@ private fun Modifier.spin(): Modifier {
     return rotate(angle)
 }
 
-@Preview(name = "Camera chip — light", showBackground = true)
-@Preview(name = "Camera chip — dark", showBackground = true, uiMode = 0x20)
+@Preview(name = "Camera FAB — light", showBackground = true)
+@Preview(name = "Camera FAB — dark", showBackground = true, uiMode = 0x20)
 @Composable
-private fun CameraChipPreview() {
+private fun CameraFabPreview() {
     FujiTheme {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(16.dp).width(220.dp),
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(16.dp),
         ) {
-            CameraChip(CameraState.NoUsbHost, {})
-            CameraChip(CameraState.Disconnected, {})
-            CameraChip(CameraState.Connecting, {})
-            CameraChip(CameraState.Connected(CameraModels.identify("X100VI")), {})
-            CameraChip(CameraState.Writing(slot = 3, done = 7, total = 17, current = "Clarity"), {})
-            CameraChip(CameraState.Error("Device busy", ptpCode = 0x2019), {})
+            CameraFab(CameraState.NoUsbHost, {})
+            CameraFab(CameraState.Disconnected, {})
+            CameraFab(CameraState.Connecting, {})
+            CameraFab(CameraState.Connected(CameraModels.identify("X100VI")), {})
+            CameraFab(CameraState.Writing(slot = 3, done = 7, total = 17, current = "Clarity"), {})
+            CameraFab(CameraState.Error("Device busy", ptpCode = 0x2019), {})
         }
     }
 }

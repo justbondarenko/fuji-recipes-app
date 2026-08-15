@@ -30,7 +30,7 @@ fun CameraChipHost() {
     val state by controller.state.collectAsStateWithLifecycle()
     var sheetOpen by remember { mutableStateOf(false) }
 
-    CameraChip(state = state, onClick = { sheetOpen = true })
+    CameraFab(state = state, onClick = { sheetOpen = true })
 
     if (sheetOpen) {
         CameraSheet(
