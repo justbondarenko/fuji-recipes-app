@@ -18,11 +18,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -56,6 +56,9 @@ import kotlinx.serialization.json.put
  * whole design: this screen knows nothing about Drive, mail or the file system, and does not
  * need to.
  */
+
+// TODO: UPGRADE TO M3E - Updgrade export AND import pages to use ListItem from Material 3 expressive https://m3.material.io/components/lists/specs single- or multi-select controls depending on usage, sectioned variant
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExportScreen(
@@ -151,21 +154,27 @@ fun ExportScreen(
 }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun FormatChoice(kind: ExportKind, onChoose: (ExportKind) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            SegmentedButton(
-                selected = kind == ExportKind.JSON,
-                onClick = { onChoose(ExportKind.JSON) },
-                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+        ) {
+            ToggleButton(
+                checked = kind == ExportKind.JSON,
+                onCheckedChange = { onChoose(ExportKind.JSON) },
+                shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
+                modifier = Modifier.weight(1f),
             ) {
                 Text(stringResource(R.string.export_format_json))
             }
-            SegmentedButton(
-                selected = kind == ExportKind.ZIP,
-                onClick = { onChoose(ExportKind.ZIP) },
-                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+            ToggleButton(
+                checked = kind == ExportKind.ZIP,
+                onCheckedChange = { onChoose(ExportKind.ZIP) },
+                shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
+                modifier = Modifier.weight(1f),
             ) {
                 Text(stringResource(R.string.export_format_zip))
             }

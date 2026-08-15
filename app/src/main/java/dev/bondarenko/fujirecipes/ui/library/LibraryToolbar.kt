@@ -51,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -117,6 +118,8 @@ fun LibraryToolbar(
          * (`surfaceContainerLow` with a hairline outline), which is what every other raised
          * thing in this app looks like.
          */
+        
+        // TODO: UPGRADE TO M3E - Replace with AppBarRow with Search functionality
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -363,7 +366,7 @@ private fun FiltersSheet(
             )
         }
 
-        RatingButtonGroup(
+        RatingFilterChips(
             selectedRating = state.filters.minRating,
             onRatingChange = { newRating ->
                 onFiltersChange(state.filters.copy(minRating = newRating))
@@ -403,78 +406,38 @@ private fun FiltersSheet(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+/**
+ * Minimum rating, as filter chips.
+ *
+ * Chips rather than a button group, so every control in this sheet is the same kind of thing
+ * — rating, simulation and tags all read and clear the same way. The one behavioural
+ * difference is that this axis is single-choice: picking a rating replaces the previous one,
+ * and picking the current one clears the axis, which is what `0` means here.
+ */
 @Composable
-private fun RatingButtonGroup(
+private fun RatingFilterChips(
     selectedRating: Int,
     onRatingChange: (Int) -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+    FilterGroup(
+        label = stringResource(R.string.filter_min_rating),
+        icon = rememberVectorPainter(Icons.Filled.Star),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Star,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = stringResource(R.string.filter_min_rating),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        val count = 5
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            (1..5).forEachIndexed { index, rating ->
-                val selected = selectedRating == rating
-
-                ToggleButton(
-                    checked = selected,
-                    // Tapping the selected rating clears the filter, so this is not a plain
-                    // toggle — the group is single-choice with an off state.
-                    onCheckedChange = { onRatingChange(if (selected) 0 else rating) },
-                    modifier = Modifier.weight(1f),
-                    shapes = when (index) {
-                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                        count - 1 -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                    },
-                    // The sheet already sits on a light container, so ToggleButton's default
-                    // unchecked tone disappears into it. These are the roles the group had
-                    // before the swap.
-                    colors = ToggleButtonDefaults.toggleButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        checkedContainerColor = MaterialTheme.colorScheme.primary,
-                        checkedContentColor = MaterialTheme.colorScheme.onPrimary,
-                    ),
-                    contentPadding = PaddingValues(horizontal = 4.dp),
-                ) {
+        (1..5).forEach { rating ->
+            val selected = selectedRating == rating
+            FilterChip(
+                selected = selected,
+                onClick = { onRatingChange(if (selected) 0 else rating) },
+                label = { Text(rating.toString()) },
+                leadingIcon = selectedCheck(selected),
+                trailingIcon = {
                     Icon(
-                        imageVector = if (selected) Icons.Filled.Check else Icons.Filled.Star,
+                        imageVector = Icons.Filled.Star,
                         contentDescription = null,
-                        modifier = Modifier.size(ToggleButtonDefaults.IconSize),
+                        modifier = Modifier.size(FilterChipDefaults.IconSize),
                     )
-                    Spacer(Modifier.width(ToggleButtonDefaults.IconSpacing))
-                    Text(
-                        text = rating.toString(),
-                        style = MaterialTheme.typography.labelMedium,
-                        maxLines = 1,
-                    )
-                }
-            }
+                },
+            )
         }
     }
 }
