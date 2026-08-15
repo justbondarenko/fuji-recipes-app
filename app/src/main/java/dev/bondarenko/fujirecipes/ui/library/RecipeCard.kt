@@ -88,14 +88,6 @@ fun RecipeCard(
                 overflow = TextOverflow.Ellipsis,
             )
 
-            Text(
-                text = FilmSimulations.labelFor(recipe.filmSimulationId),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-
             if (recipe.tags.isNotEmpty()) {
                 TagRow(recipe.tags, modifier = Modifier.padding(top = 2.dp))
             }

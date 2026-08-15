@@ -42,6 +42,8 @@ import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.core.net.ApiError
 import dev.bondarenko.fujirecipes.data.library.LibraryFilters
 import dev.bondarenko.fujirecipes.data.library.SortId
+import dev.bondarenko.fujirecipes.camera.canWrite
+import dev.bondarenko.fujirecipes.ui.camera.WriteSheetHost
 import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewBottomSheet
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
@@ -68,6 +70,7 @@ fun LibraryScreen(
     onOpenConnection: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
+    canWriteToCamera: Boolean = false,
 ) {
     // Which row is slid open, owned here rather than by each row.
     var openRowId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -75,6 +78,8 @@ fun LibraryScreen(
     var activeRecipeId by rememberSaveable { mutableStateOf<String?>(null) }
     // Which recipe is pending confirmation for deletion from swipe action
     var recipePendingDelete by remember { mutableStateOf<RecipeCardModel?>(null) }
+    // Which recipe is currently open in the Write to Camera sheet
+    var writeRecipeId by rememberSaveable { mutableStateOf<String?>(null) }
 
     PullToRefreshBox(
         isRefreshing = state.isRefreshing,
@@ -134,7 +139,7 @@ fun LibraryScreen(
                                     R.plurals.no_matches_body,
                                     state.totalCount,
                                     state.totalCount,
-                                ),
+                                    ),
                                 primaryLabel = stringResource(R.string.action_clear_filters),
                                 onPrimary = onClearSearchAndFilters,
                             )
@@ -153,24 +158,29 @@ fun LibraryScreen(
                                     // edge, edit nearest it.
                                     SwipeAction(
                                         icon = rememberVectorPainter(Icons.Filled.Delete),
-                                        contentDescription = stringResource(R.string.action_delete),
+                                        label = stringResource(R.string.action_delete),
                                         onClick = { recipePendingDelete = recipe },
+                                        position = ButtonGroupPosition.Start,
                                         container = MaterialTheme.colorScheme.errorContainer,
                                         content = MaterialTheme.colorScheme.onErrorContainer,
                                     )
                                     SwipeAction(
                                         icon = painterResource(R.drawable.ic_photo_camera),
-                                        contentDescription = stringResource(R.string.action_write_to_camera),
-                                        onClick = {},
-                                        // Shown but inert until FEAT-006. A control that
-                                        // appears between builds is harder to learn than one
-                                        // that is visibly not ready.
-                                        enabled = false,
+                                        label = stringResource(R.string.action_write),
+                                        onClick = {
+                                            openRowId = null
+                                            writeRecipeId = recipe.id
+                                        },
+                                        position = ButtonGroupPosition.Middle,
+                                        enabled = canWriteToCamera,
+                                        container = MaterialTheme.colorScheme.primaryContainer,
+                                        content = MaterialTheme.colorScheme.onPrimaryContainer,
                                     )
                                     SwipeAction(
                                         icon = rememberVectorPainter(Icons.Filled.Edit),
-                                        contentDescription = stringResource(R.string.action_edit),
+                                        label = stringResource(R.string.action_edit),
                                         onClick = { onEditRecipe(recipe.id) },
+                                        position = ButtonGroupPosition.End,
                                     )
                                 },
                             ) {
@@ -203,6 +213,13 @@ fun LibraryScreen(
                 activeRecipeId = null
                 onEditRecipe(id)
             },
+        )
+    }
+
+    writeRecipeId?.let { recipeId ->
+        WriteSheetHost(
+            recipeId = recipeId,
+            onDismiss = { writeRecipeId = null },
         )
     }
 
@@ -247,6 +264,7 @@ fun LibraryRouteContent(
     val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
     val viewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.factory(container))
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val camera by container.cameraController.state.collectAsStateWithLifecycle()
 
     LibraryScreen(
         state = state,
@@ -261,6 +279,7 @@ fun LibraryRouteContent(
         onCreateRecipe = onCreateRecipe,
         onOpenConnection = onOpenConnection,
         contentPadding = contentPadding,
+        canWriteToCamera = camera.canWrite,
     )
 }
 

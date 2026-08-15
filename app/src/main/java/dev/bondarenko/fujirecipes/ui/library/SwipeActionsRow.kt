@@ -3,7 +3,6 @@ package dev.bondarenko.fujirecipes.ui.library
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
@@ -21,22 +20,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
@@ -44,15 +44,13 @@ import kotlin.math.roundToInt
 /** Which way the row is resting. */
 enum class SwipeState { Closed, Open }
 
+/** Position of a button within an M3 Connected Button Group. */
+enum class ButtonGroupPosition { Start, Middle, End, Standalone }
+
 /**
  * A list row that slides aside to reveal its actions — M3 lists, swipe behaviour.
  *
- * Not `SwipeToDismissBox`: that commits an action when the swipe passes a threshold, which
- * is right for one destructive gesture and wrong for a menu of three. This holds open at an
- * anchor so the actions can be read and then chosen, and a tap anywhere else closes it.
- *
- * **Only one row is open at a time.** Two rows open at once is how a delete gets pressed on
- * the wrong recipe, so opening this one asks the caller to close whatever was open.
+ * Implements Material 3 Connected Button Group standard variant with rounded connected shapes.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -107,7 +105,7 @@ fun SwipeActionsRow(
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
                 .onSizeChanged { actionsWidth = it.width },
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Spacer(Modifier.width(8.dp))
@@ -118,14 +116,6 @@ fun SwipeActionsRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset {
-                    /**
-                     * `offset`, not `requireOffset()`.
-                     *
-                     * The anchors depend on measuring the action row, so they are set after
-                     * the first layout pass — and `requireOffset()` throws outright if it is
-                     * read before then. It is NaN on that first frame, which means "resting
-                     * closed", so that is what it draws.
-                     */
                     val x = state.offset.takeIf { !it.isNaN() } ?: 0f
                     IntOffset(x.roundToInt(), 0)
                 }
@@ -140,35 +130,60 @@ fun SwipeActionsRow(
 object RowScopeActions
 
 /**
- * One revealed action as an M3 Expressive round narrow icon button.
- *
- * Disabled actions are shown rather than hidden: "write to camera" exists and is coming
- * (FEAT-006), and a row whose action set changes shape between builds is harder to learn
- * than one where a control is visibly not ready yet.
+ * One revealed action as an M3 Connected Button Group item with horizontal icon + label.
  */
 @Composable
 fun RowScopeActions.SwipeAction(
     icon: Painter,
-    contentDescription: String,
+    label: String,
     onClick: () -> Unit,
+    position: ButtonGroupPosition = ButtonGroupPosition.Standalone,
     enabled: Boolean = true,
-    container: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.secondaryContainer,
-    content: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSecondaryContainer,
+    container: Color = MaterialTheme.colorScheme.secondaryContainer,
+    content: Color = MaterialTheme.colorScheme.onSecondaryContainer,
 ) {
-    FilledIconButton(
+    val shape = when (position) {
+        ButtonGroupPosition.Start -> RoundedCornerShape(
+            topStart = 24.dp,
+            bottomStart = 24.dp,
+            topEnd = 8.dp,
+            bottomEnd = 8.dp,
+        )
+        ButtonGroupPosition.Middle -> RoundedCornerShape(percent = 50)
+        ButtonGroupPosition.End -> RoundedCornerShape(
+            topStart = 8.dp,
+            bottomStart = 8.dp,
+            topEnd = 24.dp,
+            bottomEnd = 24.dp,
+        )
+        ButtonGroupPosition.Standalone -> RoundedCornerShape(percent = 50)
+    }
+
+    Surface(
         onClick = onClick,
         enabled = enabled,
-        shape = RoundedCornerShape(percent = 50),
-        colors = IconButtonDefaults.filledIconButtonColors(
-            containerColor = container,
-            contentColor = content,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
-        ),
-        modifier = Modifier
-            .width(36.dp)
-            .height(52.dp),
+        shape = shape,
+        color = if (enabled) container else MaterialTheme.colorScheme.surfaceContainerHighest,
+        contentColor = if (enabled) content else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+        tonalElevation = 1.dp,
+        modifier = Modifier.height(48.dp),
     ) {
-        Icon(icon, contentDescription = contentDescription, modifier = Modifier.size(20.dp))
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = icon,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+            )
+        }
     }
 }

@@ -21,6 +21,7 @@
     <string name="action_clear_all">Clear all</string>
     <string name="action_clear_search">Clear search</string>
     <string name="action_write_to_camera">Write to camera</string>
+    <string name="action_write">Write</string>
     <string name="rating_of_five">Rated %1$d out of 5</string>
     <plurals name="count_total">
         <item quantity="one">%1$d recipe</item>

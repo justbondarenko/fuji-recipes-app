@@ -14,10 +14,14 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -28,14 +32,19 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -49,6 +58,7 @@ import dev.bondarenko.fujirecipes.camera.plan.SlotNameReading
 import dev.bondarenko.fujirecipes.camera.plan.SlotState
 import dev.bondarenko.fujirecipes.camera.plan.SlotStatus
 import dev.bondarenko.fujirecipes.camera.plan.WritePlan
+import dev.bondarenko.fujirecipes.camera.plan.slotCaution
 import dev.bondarenko.fujirecipes.camera.plan.slotStates
 import dev.bondarenko.fujirecipes.camera.usb.WriteOutcome
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -147,7 +157,8 @@ fun WriteSheetContent(
             WriteStage.Picker -> PickerStage(
                 slots = state.slots,
                 slotsError = state.slotsError,
-                onChooseSlot = onChooseSlot,
+                recipeName = state.recipeName,
+                onConfirm = onConfirm,
                 onRefresh = onRefreshSlots,
             )
 
@@ -259,67 +270,181 @@ private fun DroppedRow(dropped: DroppedField) {
 private fun PickerStage(
     slots: List<SlotState>,
     slotsError: String?,
-    onChooseSlot: (Int) -> Unit,
+    recipeName: String,
+    onConfirm: (Int) -> Unit,
     onRefresh: () -> Unit,
 ) {
-    StageHeader(stringResource(R.string.write_pick_slot))
+    var selectedSlot by rememberSaveable { mutableIntStateOf(1) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_photo_camera),
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = stringResource(R.string.write_pick_slot),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+
+        IconButton(
+            onClick = onRefresh,
+            modifier = Modifier.size(40.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = stringResource(R.string.write_slot_refresh),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 
     slotsError?.let { Panel(it, alert = true) }
 
-    // A row per slot rather than seven buttons in a line: each one carries what the camera
-    // says is in it, and that is the whole point of the stage. `ButtonGroup` — the Expressive
-    // component `PRD.md` §7.4 asks for — is internal at material3 1.4.0 (`tech-stack.md` §6),
-    // and would not have carried a second line anyway.
-    slots.forEach { slot -> SlotRow(slot, onClick = { onChooseSlot(slot.slot) }) }
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(4.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            slots.forEach { slot ->
+                SegmentedSlotItem(
+                    state = slot,
+                    isSelected = slot.slot == selectedSlot,
+                    onClick = { selectedSlot = slot.slot },
+                )
+            }
+        }
+    }
 
-    TextButton(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
-        Text(stringResource(R.string.write_slot_refresh))
+    val selectedSlotState = slots.firstOrNull { it.slot == selectedSlot }
+    val caution = selectedSlotState?.let { slotCaution(it) }
+
+    if (caution != null) {
+        Panel(
+            text = when (caution) {
+                is SlotCaution.Named -> stringResource(
+                    R.string.write_confirm_named,
+                    selectedSlot,
+                    caution.recipeName,
+                    recipeName,
+                )
+                is SlotCaution.Unknown -> stringResource(R.string.write_confirm_unknown, selectedSlot)
+            },
+            alert = true,
+        )
+    }
+
+    Button(
+        onClick = { onConfirm(selectedSlot) },
+        enabled = selectedSlotState != null && selectedSlotState.status != SlotStatus.READING,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(stringResource(R.string.write_confirm_action, selectedSlot))
     }
 }
 
 /**
- * One slot, as the camera described it.
- *
- * The four states after a read are kept visibly apart, because "the camera says nothing is
- * named here" and "the camera would not tell us" lead to different decisions — merging them is
- * how someone writes over a recipe after being shown an empty-looking slot.
+ * One slot item inside an M3 Segmented Single-Select List.
  */
 @Composable
-private fun SlotRow(state: SlotState, onClick: () -> Unit) {
+private fun SegmentedSlotItem(
+    state: SlotState,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    val enabled = state.status != SlotStatus.READING
+
     Surface(
         onClick = onClick,
-        // A slot that is still being read is not a decision anyone can make yet.
-        enabled = state.status != SlotStatus.READING,
-        shape = MaterialTheme.shapes.small,
-        color = if (state.occupied) {
-            MaterialTheme.colorScheme.surfaceContainerHighest
+        enabled = enabled,
+        shape = RoundedCornerShape(16.dp),
+        color = if (isSelected) {
+            MaterialTheme.colorScheme.secondaryContainer
         } else {
-            MaterialTheme.colorScheme.surfaceContainerHigh
+            Color.Transparent
         },
-        contentColor = MaterialTheme.colorScheme.onSurface,
+        contentColor = if (isSelected) {
+            MaterialTheme.colorScheme.onSecondaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        },
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = stringResource(R.string.write_slot_name, state.slot),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = state.name ?: stringResource(state.status.labelRes()),
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (state.occupied) {
-                    MaterialTheme.colorScheme.onSurface
+            Surface(
+                shape = CircleShape,
+                color = if (isSelected) {
+                    MaterialTheme.colorScheme.primary
+                } else if (state.occupied) {
+                    MaterialTheme.colorScheme.surfaceContainerHighest
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                },
+                contentColor = if (isSelected) {
+                    MaterialTheme.colorScheme.onPrimary
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+                modifier = Modifier.size(28.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "C${state.slot}",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = state.name ?: stringResource(state.status.labelRes()),
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                    ),
+                    color = if (isSelected) {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    } else if (state.occupied) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            if (state.status == SlotStatus.READING) {
+                Text(
+                    text = stringResource(R.string.write_slot_reading),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
