@@ -12,11 +12,14 @@ import dev.bondarenko.fujirecipes.data.fields.FieldGroup
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.fields.RecipeFields
 import dev.bondarenko.fujirecipes.data.model.Recipe
+import dev.bondarenko.fujirecipes.data.exporting.exportRecipe
+import dev.bondarenko.fujirecipes.data.exporting.recipeExportFilename
 import dev.bondarenko.fujirecipes.data.repo.RecipeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -127,6 +130,25 @@ class RecipeViewModel(
     }
 
     fun onDismissError() = saveError.update { null }
+
+    /**
+     * Builds this recipe as a file — FEAT-008 T-14.
+     *
+     * A **bare recipe object, not an envelope**: SF-005 has import accept exactly that shape,
+     * and it makes the file readable at a glance, which is the whole point of exporting one
+     * rather than the library.
+     *
+     * Here rather than in the composable because it needs the stored [Recipe], and the screen
+     * only ever sees the header projection.
+     */
+    fun buildExport(onReady: (filename: String, content: String) -> Unit) {
+        viewModelScope.launch {
+            val recipe = repository.library.first { it.hasLoaded }
+                .recipes.firstOrNull { it.id == recipeId } ?: return@launch
+
+            onReady(recipeExportFilename(recipe), exportRecipe(recipe))
+        }
+    }
 
     companion object {
         /**
