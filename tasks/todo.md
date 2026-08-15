@@ -1,4 +1,4 @@
-# Task: FEAT-005 + FEAT-006 — camera connection and write to slot
+# Task: FEAT-005 → FEAT-007 — the camera link, both directions
 
 **Branch:** `feat/FEAT-005-camera-connection` (both features, see `specs/roadmap.md` §7)
 **Specs:** `specs/features/FEAT-005-camera-connection/`, `specs/features/FEAT-006-write-to-slot/`
@@ -28,8 +28,10 @@ This is a transcription, not protocol archaeology.
       request <!-- id: 10 -->
 - [x] 11. **Hardware pass on an X-T50** — connects, is identified, launches on attach, and
       writes to a slot. FEAT-005 T-18 and FEAT-006 T-15 <!-- id: 11 -->
-- [ ] 12. Compare C6 on the camera against the recipe screen — the only check that proves the
-      properties mean what the tables say <!-- id: 12 -->
+- [x] 12. **FEAT-007 — import from camera.** More → Import reads C1–C7, decodes each slot,
+      reviews against the library with duplicate detection, imports the chosen ones <!-- id: 12 -->
+- [ ] 13. Read the slots on the X-T50 and compare against the camera's own menu — the only
+      check that proves the properties mean what the tables say <!-- id: 13 -->
 
 ## Notes carried through implementation
 
@@ -58,7 +60,7 @@ resolved every property code against an X100VI in its stage 32. Re-rated to **me
 ### Gate
 
 `./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug` — green.
-**318 unit tests**, 0 failures. Camera-specific:
+**385 unit tests**, 0 failures. Camera-specific:
 
 | Suite | Tests | Covers |
 |---|---|---|
@@ -73,6 +75,10 @@ resolved every property code against an X100VI in its stage 32. Re-rated to **me
 | `WriteSheetStateTest` | 7 | Which stage the sheet opens on |
 | `SlotStatesTest` | 12 | The four post-read slot states, and which need a second tap |
 | `SlotReaderTest` | 7 | Reading C1–C7 off the body without turning a failure into a fact |
+| `SlotRecipeReaderTest` | 14 | Reading a whole slot back as a recipe (FEAT-007) |
+| `RecipeConfigTest` | 17 | Whether two recipes are the same camera configuration |
+| `ImportReviewTest` | 17 | New / already-held / name-clash, and what gets sent |
+| `ApiClientImportTest` | 9 | `POST /api/import`, against MockWebServer |
 | `CameraPurityTest` | 1 | P4, structurally |
 
 ### Verified on the Pixel 10 Pro XL emulator
@@ -142,6 +148,31 @@ write, and no partial-slot warning was raised.
 
 Every layer of this project now has hardware behind it except one claim, below.
 
+### FEAT-007 — the link now runs both ways
+
+**More → Import** reads C1–C7 off the body, decodes each slot, reviews it against the library
+and imports what you choose. Ported from `read-slot.ts`, `recipe-config-equal.ts` and
+`import-review.ts`.
+
+Three decisions worth keeping:
+
+- **The phone sends no recipe ids.** P2 forbids inventing one the server would assign, and
+  `shared/schemas/recipe.ts` makes `id` optional while `import.post.ts:143` is
+  `input.id ?? randomUUID()`. The web client generates a UUID per slot only to satisfy its own
+  client-side schema check. Consequence: an imported slot cannot collide by id, so the
+  contract's whole `resolutions` mechanism is unreachable and five statuses collapse to three.
+- **Duplicates are matched on configuration, not on name.** Settings are normalised — defaults
+  filled, inapplicable fields dropped — and compared over the fields that apply to that
+  simulation and body. Without normalisation every import looks new, because a camera reports
+  every property it holds and a hand-typed recipe omits whatever was left at its default.
+- **There is no "replace".** Identical settings are what made a row a duplicate, so replacing
+  would change nothing. Skip or import-anyway are the two real choices, and a duplicate is
+  listed and selectable rather than hidden.
+
+One bug the tests caught rather than the field: `getOrPut` re-invokes its lambda on a `null`
+value, so a property the body *refused* was being asked for again by every field sharing its
+code. The refusal has to be cached too.
+
 ### The one claim still unproven — that the properties *mean* what the tables say
 
 Property **existence** was confirmed on this body by the sibling repo's dump (all nineteen,
@@ -156,6 +187,16 @@ property would look identical from the phone: sent, accepted, read back unchange
 That is the only check that crosses from "the camera stored what I sent" to "the camera stored
 what I meant", and it needs doing once — after that, every encoder is pinned by a test and a
 change to one breaks it.
+
+**FEAT-007 makes this much easier.** More → Import now reads all seven slots and decodes them
+on screen, so the comparison is the app's own list against the camera's menu rather than
+against a recipe you have to remember writing. Two readings settle it at once:
+
+- **C6**, which this app wrote. Every value should come back as it was sent — that closes the
+  round trip through the encoders.
+- **Any slot the app did not write.** That one is the real test of *meaning*: nothing about it
+  came from this build's assumptions, so if its decoded recipe matches what the camera's menu
+  shows, the property→field mapping is right rather than merely self-consistent.
 
 Two smaller things worth reading off the same write:
 
