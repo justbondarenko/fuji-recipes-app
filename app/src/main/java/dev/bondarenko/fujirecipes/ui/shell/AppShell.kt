@@ -1,16 +1,9 @@
 package dev.bondarenko.fujirecipes.ui.shell
 
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,17 +13,18 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FloatingActionButtonMenu
-import androidx.compose.material3.FloatingActionButtonMenuItem
-import androidx.compose.material3.ToggleFloatingActionButton
-import androidx.compose.material3.ToggleFloatingActionButtonDefaults
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -44,7 +38,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
@@ -59,13 +52,12 @@ import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 /**
  * The chrome every top-level screen sits inside.
  *
- * Implements Material 3 Floating Toolbar specification (https://m3.material.io/components/toolbars/specs):
- * - A pill-shaped floating toolbar centered at the bottom housing top-level navigation items.
- * - Two fixed standalone FABs anchored to the bottom corners (USB status on the left, Create recipe on the right)
- *   so toolbar width changes during tab transitions never shift them.
+ * Implements the Material 3 floating toolbar
+ * (https://m3.material.io/components/toolbars/guidelines): one vibrant toolbar of icon-only
+ * items, owning a contrasting FAB through its own slot, and the pair centred as a unit.
  *
- * The right FAB is a Material 3 FAB menu (https://m3.material.io/components/fab-menu/overview):
- * there are two ways to start a recipe now — from pasted text, or from an empty form.
+ * Creating a recipe asks which way first — from pasted text, or from an empty form — in a
+ * dialog rather than a FAB menu.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -93,22 +85,32 @@ fun AppShell(
     val statusBar = WindowInsets.statusBars.asPaddingValues()
 
     /**
-     * Where the bottom edge of every floating thing lands.
+     * Where the bar's bottom edge lands.
      *
-     * The two FABs and the toolbar each subtract whatever bottom inset their own component
-     * already reserves, so all three bottoms end up on this line. Measured on device rather
-     * than guessed: with one shared padding they sat at 2872 / 2848 / 2824 px — an 8dp
-     * staircase, because `HorizontalFloatingToolbar` reserves 8dp under itself and
-     * `FloatingActionButtonMenu` reserves 16dp under its button.
+     * `HorizontalFloatingToolbar` reserves 8dp under itself, so the padding makes that up to
+     * leave a true [BarMargin] of air. One constant now that the toolbar owns the FAB —
+     * there is no second element with an inset of its own to reconcile.
      */
-    val barBaseline = systemBars.calculateBottomPadding() + BarMargin
+    val barBaseline = systemBars.calculateBottomPadding() + BarMargin - ToolbarOwnInset
 
-    // Deliberately not saved across process death: an open menu is a gesture in progress,
-    // and restoring one over a freshly drawn library would read as the app doing something
-    // on its own.
-    var menuExpanded by remember { mutableStateOf(false) }
+    // Deliberately not saved across process death: a half-made choice is a gesture in
+    // progress, and restoring the dialog over a freshly drawn library would read as the app
+    // doing something on its own.
+    var createOpen by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = menuExpanded) { menuExpanded = false }
+    if (createOpen) {
+        CreateRecipeDialog(
+            onDismiss = { createOpen = false },
+            onParseTextClick = {
+                createOpen = false
+                onParseTextClick()
+            },
+            onManualClick = {
+                createOpen = false
+                onCreateClick()
+            },
+        )
+    }
 
     Box(
         modifier = modifier
@@ -128,25 +130,6 @@ fun AppShell(
         )
 
         if (showChrome) {
-            // The FAB menu's scrim. Under the chrome and over the content: what is behind it
-            // must be dimmed and untappable, while the menu itself stays lit.
-            AnimatedVisibility(
-                visible = menuExpanded,
-                enter = fadeIn(tween(MenuDurationMs)),
-                exit = fadeOut(tween(MenuDurationMs)),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.4f))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = { menuExpanded = false },
-                        ),
-                )
-            }
-
             // Gradient status bar scrim to protect system status bar legibility while scrolling
             Box(
                 modifier = Modifier
@@ -163,32 +146,45 @@ fun AppShell(
             )
 
             /**
-             * The toolbar, now carrying the camera status that used to be a second FAB.
+             * The bar: one toolbar that owns its FAB, centred as a unit.
              *
-             * The create FAB stays a sibling rather than going in the toolbar's own
-             * `floatingActionButton` slot: `FloatingActionButtonMenu` re-applies its bottom
-             * inset inside that slot too, which put it 12dp above the toolbar's edge. It is
-             * a menu that grows upward, not the single FAB the slot is specified for.
+             * `floatingActionButton` is the slot M3 specifies for exactly this, so the gap
+             * between toolbar and FAB, and their shared baseline, are the component's business
+             * rather than a pair of hand-measured inset constants. The toolbar reads slightly
+             * left of centre because what is centred is the whole bar.
+             *
+             * Vibrant rather than standard: `m3.material.io/components/toolbars/guidelines`
+             * pairs a vibrant container with a contrasting FAB, and
+             * `VibrantFloatingActionButton` is the FAB built to sit against it.
              */
             HorizontalFloatingToolbar(
                 expanded = true,
+                colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
                 expandedShadowElevation = ToolbarElevation,
                 collapsedShadowElevation = ToolbarElevation,
+                floatingActionButton = {
+                    FloatingToolbarDefaults.VibrantFloatingActionButton(
+                        onClick = { createOpen = true },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = stringResource(R.string.nav_create),
+                        )
+                    }
+                },
                 modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = BarMargin, bottom = barBaseline - ToolbarOwnInset),
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = barBaseline),
             ) {
                 FloatingToolbarItem(
                     selected = isLibrarySelected,
                     icon = rememberVectorPainter(Icons.AutoMirrored.Filled.List),
-                    label = stringResource(R.string.nav_library),
                     contentDescription = stringResource(R.string.nav_library),
                     onClick = onLibraryClick,
                 )
                 FloatingToolbarItem(
                     selected = isReadSelected,
                     icon = painterResource(R.drawable.ic_photo_camera),
-                    label = stringResource(R.string.nav_read),
                     contentDescription = stringResource(R.string.nav_read),
                     onClick = onReadClick,
                 )
@@ -199,105 +195,74 @@ fun AppShell(
                 FloatingToolbarItem(
                     selected = isMoreSelected,
                     icon = rememberVectorPainter(Icons.Filled.Settings),
-                    label = stringResource(R.string.nav_more),
                     contentDescription = stringResource(R.string.nav_more),
                     onClick = onMoreClick,
                 )
             }
-
-            // The one FAB, on the same baseline as the toolbar — see `barBaseline`.
-            CreateFabMenu(
-                expanded = menuExpanded,
-                onExpandedChange = { menuExpanded = it },
-                onParseTextClick = {
-                    menuExpanded = false
-                    onParseTextClick()
-                },
-                onManualClick = {
-                    menuExpanded = false
-                    onCreateClick()
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(
-                        end = BarMargin - FabMenuOwnInset,
-                        bottom = barBaseline - FabMenuOwnInset,
-                    ),
-            )
         }
     }
 }
 
 /**
- * The Material 3 FAB menu (https://m3.material.io/components/fab-menu/overview).
+ * Two ways to start a recipe, as a dialog.
  *
- * The stagger, the item pills and the plus-to-close morph are all component behaviour —
- * `ToggleFloatingActionButton` hands its own animation progress to the icon, so the rotation
- * tracks the container morph instead of running on a parallel timer.
- *
- * The scrim stays in `AppShell`: the component dims nothing, and what is behind an open menu
- * must be untappable.
+ * This was a `FloatingActionButtonMenu` behind a `ToggleFloatingActionButton`, which meant the
+ * bar carried a component that expands upward, brings its own scrim and reserves its own
+ * insets — for a choice between two things. A plain FAB and a dialog say the same thing, and
+ * let the toolbar own its FAB slot the way M3 specifies.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun CreateFabMenu(
-    expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit,
+private fun CreateRecipeDialog(
+    onDismiss: () -> Unit,
     onParseTextClick: () -> Unit,
     onManualClick: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    FloatingActionButtonMenu(
-        expanded = expanded,
-        modifier = modifier,
-        button = {
-            ToggleFloatingActionButton(
-                checked = expanded,
-                onCheckedChange = onExpandedChange,
-                containerColor = ToggleFloatingActionButtonDefaults.containerColor(
-                    initialColor = MaterialTheme.colorScheme.primaryContainer,
-                    finalColor = MaterialTheme.colorScheme.primaryContainer,
-                ),
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Add,
-                    contentDescription = stringResource(
-                        if (expanded) R.string.create_menu_close else R.string.nav_create,
-                    ),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.rotate(checkedProgress * 45f),
-                )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.nav_create)) },
+        text = {
+            Column {
+                ListItem(
+                    onClick = onParseTextClick,
+                    leadingContent = {
+                        Icon(painterResource(R.drawable.ic_content_paste), contentDescription = null)
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                ) {
+                    Text(stringResource(R.string.create_from_text))
+                }
+                ListItem(
+                    onClick = onManualClick,
+                    leadingContent = {
+                        Icon(Icons.Filled.Edit, contentDescription = null)
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                ) {
+                    Text(stringResource(R.string.create_manually))
+                }
             }
         },
-    ) {
-        // Declaration order is bottom-up: the last item sits nearest the FAB, which is the
-        // one nearest the thumb.
-        FloatingActionButtonMenuItem(
-            onClick = onParseTextClick,
-            icon = { Icon(painterResource(R.drawable.ic_content_paste), contentDescription = null) },
-            text = { Text(stringResource(R.string.create_from_text)) },
-        )
-        FloatingActionButtonMenuItem(
-            onClick = onManualClick,
-            icon = { Icon(rememberVectorPainter(Icons.Filled.Edit), contentDescription = null) },
-            text = { Text(stringResource(R.string.create_manually)) },
-        )
-    }
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
 }
 
 /**
  * Individual item inside the Material 3 Floating Toolbar.
  *
+ * Icon only: `m3.material.io/components/toolbars/guidelines` shows toolbars as rows of icons,
+ * and the label that used to appear on the selected item widened the bar every time you
+ * changed tab. The name survives as the content description, so it still reaches TalkBack.
+ *
  * A thin adapter over `ToggleButton` — the shape morph on selection, the press physics and
- * the container/content colour roles all come from M3 Expressive now. The only thing left
- * here is the icon-plus-label-when-selected arrangement, which is this app's choice.
+ * the container/content colour roles all come from M3 Expressive.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun FloatingToolbarItem(
     selected: Boolean,
     icon: Painter,
-    label: String,
     contentDescription: String,
     onClick: () -> Unit,
     /**
@@ -311,7 +276,7 @@ internal fun FloatingToolbarItem(
         onCheckedChange = { onClick() },
         colors = ToggleButtonDefaults.toggleButtonColors(
             containerColor = Color.Transparent,
-            contentColor = tint ?: MaterialTheme.colorScheme.onSurfaceVariant,
+            contentColor = tint ?: LocalContentColor.current,
             checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
             checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
         ),
@@ -321,10 +286,6 @@ internal fun FloatingToolbarItem(
             contentDescription = contentDescription,
             modifier = Modifier.size(ToggleButtonDefaults.IconSize),
         )
-        if (selected) {
-            Spacer(Modifier.width(ToggleButtonDefaults.IconSpacing))
-            Text(text = label, style = MaterialTheme.typography.labelLarge)
-        }
     }
 }
 
@@ -334,14 +295,9 @@ private val BarMargin = 16.dp
 /// Bottom inset `HorizontalFloatingToolbar` reserves inside its own bounds.
 private val ToolbarOwnInset = 8.dp
 
-/// Bottom inset `FloatingActionButtonMenu` reserves under its button.
-private val FabMenuOwnInset = 16.dp
-
 // The toolbar floats over scrolling content, so it needs to read as above it rather than
 // printed on it. M3's default is 3.dp.
 private val ToolbarElevation = 6.dp
-
-private const val MenuDurationMs = 180
 
 @Preview(name = "Shell — light", showBackground = true, heightDp = 400)
 @Preview(name = "Shell — dark", showBackground = true, uiMode = 0x20, heightDp = 400)

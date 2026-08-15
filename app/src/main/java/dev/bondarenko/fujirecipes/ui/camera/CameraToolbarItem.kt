@@ -48,7 +48,6 @@ fun CameraToolbarItem(
     FloatingToolbarItem(
         selected = selected,
         icon = look.icon.painter(),
-        label = label,
         contentDescription = stringResource(R.string.camera_item_description, label),
         onClick = onClick,
         tint = look.tone.accent(),
