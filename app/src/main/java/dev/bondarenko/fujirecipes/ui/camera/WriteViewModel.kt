@@ -12,6 +12,7 @@ import dev.bondarenko.fujirecipes.camera.WriteResult
 import dev.bondarenko.fujirecipes.camera.plan.FIRST_SLOT
 import dev.bondarenko.fujirecipes.camera.plan.WritePlan
 import dev.bondarenko.fujirecipes.camera.plan.buildWritePlan
+import dev.bondarenko.fujirecipes.camera.plan.SlotStatus
 import dev.bondarenko.fujirecipes.camera.plan.slotCaution
 import dev.bondarenko.fujirecipes.camera.plan.slotStates
 import dev.bondarenko.fujirecipes.core.AppContainer
@@ -142,7 +143,15 @@ class WriteViewModel(
      * a confirmation in front of all seven slots of an untouched camera is one nobody reads.
      */
     fun chooseSlot(slot: Int) {
-        val caution = slotCaution(_state.value.slots.firstOrNull { it.slot == slot })
+        val state = _state.value.slots.firstOrNull { it.slot == slot }
+
+        // A slot still being read is not a choice anyone can make yet, and it must not fall
+        // through to the no-caution branch — `slotCaution` answers null for it, which would
+        // start a write with no confirmation. The picker also disables the row; this is the
+        // half that has to hold, because the other half is a rendering decision.
+        if (state == null || state.status == SlotStatus.READING) return
+
+        val caution = slotCaution(state)
 
         if (caution == null) {
             confirm(slot)
