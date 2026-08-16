@@ -110,11 +110,11 @@ fun RecipeCard(
 
 // 💡 ROW SPACING KNOBS — all of the list row's breathing space, in one place.
 /** Air above and below each row's content. */
-private val RowVerticalPadding = 14.dp
+private val RowVerticalPadding = 20.dp
 /** Air at the left and right edges of a row. */
-private val RowHorizontalPadding = 16.dp
+private val RowHorizontalPadding = 18.dp
 /** The gap between the recipe name and its tag row. */
-private val TitleToTagsGap = 6.dp
+private val TitleToTagsGap = 10.dp
 
 /** Cards sit one step off the page, and the step is not symmetrical between schemes. */
 @Composable

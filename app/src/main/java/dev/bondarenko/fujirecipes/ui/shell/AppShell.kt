@@ -11,16 +11,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.toShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.LocalContentColor
@@ -38,8 +43,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
@@ -212,6 +219,7 @@ fun AppShell(
  * insets — for a choice between two things. A plain FAB and a dialog say the same thing, and
  * let the toolbar own its FAB slot the way M3 specifies.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun CreateRecipeDialog(
     onDismiss: () -> Unit,
@@ -220,27 +228,46 @@ private fun CreateRecipeDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        // The hero icon slot from `m3.material.io/components/dialogs/specs` — centred above
+        // the headline, and the reason the headline centres with it.
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(DialogHeroSize)
+                    .clip(MaterialShapes.Cookie9Sided.toShape())
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(DialogHeroIconSize),
+                )
+            }
+        },
         title = { Text(stringResource(R.string.nav_create)) },
         text = {
-            Column {
-                ListItem(
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = stringResource(R.string.create_intro),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                CreateOption(
+                    icon = painterResource(R.drawable.ic_content_paste),
+                    title = stringResource(R.string.create_from_text),
+                    body = stringResource(R.string.create_from_text_body),
+                    shape = MaterialShapes.Pill.toShape(),
                     onClick = onParseTextClick,
-                    leadingContent = {
-                        Icon(painterResource(R.drawable.ic_content_paste), contentDescription = null)
-                    },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                ) {
-                    Text(stringResource(R.string.create_from_text))
-                }
-                ListItem(
+                )
+                CreateOption(
+                    icon = rememberVectorPainter(Icons.Filled.Edit),
+                    title = stringResource(R.string.create_manually),
+                    body = stringResource(R.string.create_manually_body),
+                    shape = MaterialShapes.Square.toShape(),
                     onClick = onManualClick,
-                    leadingContent = {
-                        Icon(Icons.Filled.Edit, contentDescription = null)
-                    },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                ) {
-                    Text(stringResource(R.string.create_manually))
-                }
+                )
             }
         },
         confirmButton = {
@@ -248,6 +275,72 @@ private fun CreateRecipeDialog(
         },
     )
 }
+
+/**
+ * One way to start a recipe.
+ *
+ * A card rather than a list row: the two are a choice, not a menu, and each carries a line
+ * saying what it does. The shape on the icon is the same device the pages use — a glyph in an
+ * M3 shape rather than a bare icon in a circle.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun CreateOption(
+    icon: Painter,
+    title: String,
+    body: String,
+    shape: Shape,
+    onClick: () -> Unit,
+) {
+    Card(
+        onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(DialogOptionPadding),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(DialogOptionIconSlot)
+                    .clip(shape)
+                    .background(MaterialTheme.colorScheme.secondaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = body,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+// 💡 CREATE DIALOG SIZES.
+/** The hero shape above the headline. */
+private val DialogHeroSize = 56.dp
+private val DialogHeroIconSize = 28.dp
+/** The shaped glyph on each option. */
+private val DialogOptionIconSlot = 44.dp
+private val DialogOptionPadding = 14.dp
 
 /**
  * Individual item inside the Material 3 Floating Toolbar.

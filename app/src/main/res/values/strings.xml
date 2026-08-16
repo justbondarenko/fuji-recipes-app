@@ -266,7 +266,10 @@
 
     <!-- Create a recipe from pasted text — FEAT-011 -->
     <string name="create_from_text">Parse text</string>
+    <string name="create_from_text_body">Paste a recipe from a forum or a note and let the app read the settings out of it.</string>
     <string name="create_manually">Manual</string>
+    <string name="create_manually_body">Start from an empty form and set each parameter yourself.</string>
+    <string name="create_intro">Two ways to start. Both open the same editor.</string>
     <string name="create_menu_close">Close the create menu</string>
     <string name="paste_title">Create from text</string>
     <string name="paste_intro">Paste a recipe from Fuji X Weekly, a forum or your own notes. What it recognises goes into the form, and you can change anything before saving.</string>

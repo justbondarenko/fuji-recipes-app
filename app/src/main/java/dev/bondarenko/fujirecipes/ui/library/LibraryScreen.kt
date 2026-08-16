@@ -108,7 +108,9 @@ fun LibraryScreen(
                 top = 12.dp + contentPadding.calculateTopPadding(),
                 bottom = 12.dp + contentPadding.calculateBottomPadding(),
             ),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
+            // 💡 GAP BETWEEN ROWS — kept small so the segmented corners still read as one
+            //    block; past about 8dp they stop looking joined.
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             when {
                 // Nothing on screen and a failure: the error *is* the screen. Crucially a
