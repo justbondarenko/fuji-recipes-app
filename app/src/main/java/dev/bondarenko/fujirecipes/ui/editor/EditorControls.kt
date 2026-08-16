@@ -1,17 +1,15 @@
 package dev.bondarenko.fujirecipes.ui.editor
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -27,22 +25,26 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.InputChip
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
@@ -279,6 +282,7 @@ fun EnumDropdown(
  * A Material 3 Expressive connected single-choice button group for enum fields with
  * a small set of options (e.g. Dynamic Range, Grain, Color Chrome) placed below the label.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun EnumButtonGroup(
     field: EnumFieldDef,
@@ -303,87 +307,47 @@ fun EnumButtonGroup(
             color = MaterialTheme.colorScheme.onSurface,
         )
 
+        // The corner morph on selection, the neighbour squeeze on press and the colour
+        // cross-fade are all ButtonGroup/ToggleButton behaviour now — the shapes below only
+        // say which position in the group each button holds.
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             field.options.forEachIndexed { index, option ->
                 val selected = option.id == current
 
-                // M3 Expressive morphing corner radii:
-                // - Selected item is always full-pill (24.dp / 50%)
-                // - Outer edges of first/last items have 24.dp radius
-                // - Inner adjacent edges have 8.dp radius
-                val topStart = if (selected || index == 0) 24.dp else 8.dp
-                val bottomStart = if (selected || index == 0) 24.dp else 8.dp
-                val topEnd = if (selected || index == count - 1) 24.dp else 8.dp
-                val bottomEnd = if (selected || index == count - 1) 24.dp else 8.dp
-
-                val animTopStart by animateDpAsState(targetValue = topStart, label = "topStart")
-                val animBottomStart by animateDpAsState(targetValue = bottomStart, label = "bottomStart")
-                val animTopEnd by animateDpAsState(targetValue = topEnd, label = "topEnd")
-                val animBottomEnd by animateDpAsState(targetValue = bottomEnd, label = "bottomEnd")
-
-                val shape = RoundedCornerShape(
-                    topStart = animTopStart,
-                    bottomStart = animBottomStart,
-                    topEnd = animTopEnd,
-                    bottomEnd = animBottomEnd,
-                )
-
-                val targetContainerColor = if (selected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHighest
-                }
-                val containerColor by animateColorAsState(
-                    targetValue = targetContainerColor,
-                    label = "containerColor",
-                )
-
-                val targetContentColor = if (selected) {
-                    MaterialTheme.colorScheme.onPrimary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-                val contentColor by animateColorAsState(
-                    targetValue = targetContentColor,
-                    label = "contentColor",
-                )
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                        .clip(shape)
-                        .background(containerColor)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(),
-                        ) { onValueChange(option.id) },
-                    contentAlignment = Alignment.Center,
+                ToggleButton(
+                    checked = selected,
+                    onCheckedChange = { onValueChange(option.id) },
+                    modifier = Modifier.weight(1f),
+                    shapes = when (index) {
+                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                        count - 1 -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                    },
+                    colors = ToggleButtonDefaults.toggleButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        checkedContainerColor = MaterialTheme.colorScheme.primary,
+                        checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.padding(horizontal = 4.dp),
-                    ) {
-                        if (selected) {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = contentColor,
-                            )
-                        }
-                        Text(
-                            text = option.label,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = contentColor,
-                            maxLines = 1,
+                    if (selected) {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(ToggleButtonDefaults.IconSize),
                         )
+                        Spacer(Modifier.width(ToggleButtonDefaults.IconSpacing))
                     }
+                    Text(
+                        text = option.label,
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                    )
                 }
             }
         }
@@ -449,22 +413,38 @@ fun FilmSimulationPicker(
  *
  * Tapping the current value clears it, so 0 is reachable without a separate control.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun RatingInput(
     rating: Int,
     onRatingChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+    // The default 48dp interactive minimum is what set the stars so far apart: each button
+    // reserved that much width around a 20dp glyph. Relaxing it lets the gap be the gap.
+    //
+    // 💡 STAR SPACING — `RatingStarGap` is half a star wide; raise it to loosen the row.
+    // 💡 STAR SIZE — `RatingStarSize` drives both the glyph and the tap target.
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(RatingStarGap),
+    ) {
         (1..5).forEach { star ->
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(bounded = false, radius = 20.dp),
-                    ) { onRatingChange(if (rating == star) 0 else star) },
-                contentAlignment = Alignment.Center,
+            // IconToggleButton rather than a 28dp Box with a ripple hung off it: a star is a
+            // toggle, and the hand-built version was under the 48dp minimum touch target and
+            // carried no toggle semantics for TalkBack.
+            IconToggleButton(
+                checked = star <= rating,
+                onCheckedChange = { onRatingChange(if (rating == star) 0 else star) },
+                colors = IconButtonDefaults.iconToggleButtonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = MaterialTheme.colorScheme.outline,
+                    checkedContainerColor = Color.Transparent,
+                    checkedContentColor = MaterialTheme.colorScheme.tertiary,
+                ),
+                modifier = Modifier.size(RatingStarSize),
             ) {
                 Icon(
                     painter = if (star <= rating) {
@@ -473,17 +453,19 @@ fun RatingInput(
                         painterResource(R.drawable.ic_star_border)
                     },
                     contentDescription = stringResource(R.string.rating_of_five, star),
-                    tint = if (star <= rating) {
-                        MaterialTheme.colorScheme.tertiary
-                    } else {
-                        MaterialTheme.colorScheme.outline
-                    },
-                    modifier = Modifier.size(22.dp),
+                    modifier = Modifier.size(RatingStarSize),
                 )
             }
         }
     }
+    }
 }
+
+/** 💡 The star glyph, and the button around it. */
+private val RatingStarSize = 24.dp
+
+/** 💡 Half a star, per the header design. */
+private val RatingStarGap = RatingStarSize / 2
 
 /**
  * Tags — FEAT-003 T-09, reworked after design review.
@@ -500,7 +482,26 @@ fun TagInput(
     onTagsChange: (List<String>) -> Unit,
     modifier: Modifier = Modifier,
     error: String? = null,
+    /**
+     * Show at most this many, with a `+N` chip that unfolds the rest. Null shows them all.
+     *
+     * The chips stay a cloud rather than becoming a list when expanded — a `FlowRow` that
+     * wraps is the same shape either way, just taller.
+     */
+    collapsedLimit: Int? = null,
+    /** 💡 TAG CLOUD ALIGNMENT — `Alignment.Start` in a form, `CenterHorizontally` in a header. */
+    horizontalAlignment: Alignment.Horizontal = Alignment.Start,
 ) {
+    // Keyed on the tag count so adding or removing one re-collapses rather than leaving the
+    // "+N" chip claiming a number that is no longer true.
+    var expanded by remember(tags.size) { mutableStateOf(false) }
+    val hidden = if (collapsedLimit == null || expanded) {
+        0
+    } else {
+        (tags.size - collapsedLimit).coerceAtLeast(0)
+    }
+    val visibleTags = if (hidden > 0) tags.take(collapsedLimit!!) else tags
+
     var adding by remember { mutableStateOf(false) }
     var entry by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
@@ -514,37 +515,48 @@ fun TagInput(
         adding = false
     }
 
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            tags.forEach { tag ->
-                InputChip(
-                    selected = false,
-                    onClick = { onTagsChange(tags - tag) },
-                    label = { Text(tag) },
-                    trailingIcon = {
-                        Icon(
-                            Icons.Filled.Clear,
-                            contentDescription = stringResource(R.string.remove_tag, tag),
-                            modifier = Modifier.size(16.dp),
-                        )
-                    },
-                )
-            }
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp, horizontalAlignment),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                visibleTags.forEach { tag ->
+                    InputChip(
+                        selected = false,
+                        onClick = { onTagsChange(tags - tag) },
+                        label = { Text(tag) },
+                        trailingIcon = {
+                            Icon(
+                                Icons.Filled.Clear,
+                                contentDescription = stringResource(R.string.remove_tag, tag),
+                                modifier = Modifier.size(16.dp),
+                            )
+                        },
+                    )
+                }
 
-            if (!adding) {
-                AssistChip(
-                    onClick = { adding = true },
-                    label = {
-                        Icon(
-                            Icons.Filled.Add,
-                            contentDescription = stringResource(R.string.add_tag),
-                            modifier = Modifier.size(18.dp),
-                        )
-                    },
-                )
+                if (hidden > 0) {
+                    // 💡 OVERFLOW CHIP — the "+4" that unfolds the rest of the cloud.
+                    AssistChip(
+                        onClick = { expanded = true },
+                        label = { Text("+$hidden") },
+                    )
+                }
+
+                if (!adding) {
+                    AssistChip(
+                        onClick = { adding = true },
+                        label = {
+                            Icon(
+                                Icons.Filled.Add,
+                                contentDescription = stringResource(R.string.add_tag),
+                                modifier = Modifier.size(18.dp),
+                            )
+                        },
+                    )
+                }
             }
         }
 

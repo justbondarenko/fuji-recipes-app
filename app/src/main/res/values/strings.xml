@@ -22,6 +22,7 @@
     <string name="action_clear_search">Clear search</string>
     <string name="action_write_to_camera">Write to camera</string>
     <string name="action_write">Write</string>
+    <string name="camera_not_connected_tooltip">Connect camera via USB to write recipes</string>
     <string name="rating_of_five">Rated %1$d out of 5</string>
     <plurals name="count_total">
         <item quantity="one">%1$d recipe</item>
@@ -105,6 +106,7 @@
     <string name="action_save">Save</string>
     <string name="action_delete">Delete</string>
     <string name="action_duplicate">Duplicate</string>
+    <string name="action_more">More actions</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_discard">Discard</string>
     <string name="action_keep_editing">Keep editing</string>
@@ -115,6 +117,9 @@
 
     <!-- Settings -->
     <string name="settings_connection">Connection</string>
+    <string name="settings_backup_restore">Backup &amp; Restore</string>
+    <string name="settings_import_camera_title">Import from camera</string>
+    <string name="settings_import_camera_subtitle">Import saved presets</string>
     <string name="settings_about">About</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_danger_zone">Danger zone</string>
@@ -133,6 +138,7 @@
     <string name="camera_chip_error">Error</string>
     <string name="camera_chip_description">Camera: %1$s</string>
 
+    <string name="camera_item_description">Camera: %1$s</string>
     <string name="camera_sheet_title">Camera</string>
     <string name="camera_state_no_usb_title">This phone has no USB host support</string>
     <string name="camera_state_no_usb_body">Writing to a camera needs USB host mode, which this device does not have. Storing and editing recipes works normally.</string>
@@ -260,7 +266,10 @@
 
     <!-- Create a recipe from pasted text — FEAT-011 -->
     <string name="create_from_text">Parse text</string>
+    <string name="create_from_text_body">Paste a recipe from a forum or a note and let the app read the settings out of it.</string>
     <string name="create_manually">Manual</string>
+    <string name="create_manually_body">Start from an empty form and set each parameter yourself.</string>
+    <string name="create_intro">Two ways to start. Both open the same editor.</string>
     <string name="create_menu_close">Close the create menu</string>
     <string name="paste_title">Create from text</string>
     <string name="paste_intro">Paste a recipe from Fuji X Weekly, a forum or your own notes. What it recognises goes into the form, and you can change anything before saving.</string>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Material Symbols 'bookmark_stacks' (outlined, wght 400) — the library, as a stack of
+  saved things.
+
+  A local vector rather than `material-icons-extended`: that artifact ships several thousand
+  paths for the handful this app uses and put tens of megabytes into the debug APK
+  (`steering/tech-stack.md` §3).
+
+  Material Symbols are drawn on a 960 grid with a -960..0 y-axis, so the group shifts that
+  into Android's 0..960 viewport. The path is Google's own, unmodified.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="960" android:viewportHeight="960">
+    <group android:translateY="960">
+        <path
+            android:fillColor="@android:color/white"
+            android:pathData="M480-240 63-467l84-46 333 182 333-182 84 46-417 227Zm0 160L63-307l84-46 333 182 333-182 84 46L480-80Zm0-320L40-640l440-240 40 22v178h327l73 40-440 240Zm0-91 200-109H440v-167L207-640l273 149Zm-40-109Z" />
+    </group>
+</vector>

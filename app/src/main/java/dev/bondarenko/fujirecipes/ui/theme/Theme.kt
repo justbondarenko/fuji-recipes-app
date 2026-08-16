@@ -4,7 +4,9 @@ import android.content.ContentResolver
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
@@ -34,6 +36,7 @@ internal fun animationsDisabled(resolver: ContentResolver): Boolean =
  * The app's theme: Material 3 with Material You dynamic color support on Android 12+ (API 31+),
  * falling back to the curated Fuji palette on older Android versions or when dynamic color is disabled.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FujiTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -52,8 +55,9 @@ fun FujiTheme(
     }
 
     CompositionLocalProvider(LocalReducedMotion provides reducedMotion) {
-        MaterialTheme(
+        MaterialExpressiveTheme(
             colorScheme = colorScheme,
+            motionScheme = if (reducedMotion) MotionScheme.standard() else MotionScheme.expressive(),
             typography = FujiTypography,
             shapes = FujiShapes,
             content = content,

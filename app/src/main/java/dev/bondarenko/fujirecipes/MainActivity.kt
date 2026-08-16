@@ -1,5 +1,4 @@
 package dev.bondarenko.fujirecipes
-
 import android.content.Intent
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
@@ -18,11 +17,12 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import dev.bondarenko.fujirecipes.ui.camera.CameraChipHost
 import dev.bondarenko.fujirecipes.ui.editor.PasteRecipeSheet
 import dev.bondarenko.fujirecipes.ui.nav.ConnectionRoute
 import dev.bondarenko.fujirecipes.ui.nav.ExportRoute
 import dev.bondarenko.fujirecipes.ui.nav.FileImportRoute
+import dev.bondarenko.fujirecipes.ui.camera.CameraToolbarItemHost
+import dev.bondarenko.fujirecipes.ui.nav.CameraRoute
 import dev.bondarenko.fujirecipes.ui.nav.FujiNavHost
 import dev.bondarenko.fujirecipes.ui.nav.ImportRoute
 import dev.bondarenko.fujirecipes.ui.nav.LibraryRoute
@@ -32,7 +32,6 @@ import dev.bondarenko.fujirecipes.ui.nav.RecipeEditorRoute
 import dev.bondarenko.fujirecipes.ui.nav.RecipeViewRoute
 import dev.bondarenko.fujirecipes.ui.shell.AppShell
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splash = installSplashScreen()
@@ -41,35 +40,31 @@ class MainActivity : ComponentActivity() {
         // discovered in a release build.
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-
         var startDestination by mutableStateOf<Any?>(null)
-
         // The splash stays up until the stored connection has been read, because the
         // alternative is showing the library for one frame and replacing it with setup —
         // which reads as the app losing the library rather than never having had one.
         splash.setKeepOnScreenCondition { startDestination == null }
-
         setContent {
             val container = (application as FujiRecipesApp).container
-
             LaunchedEffect(Unit) {
-                startDestination = if (container.connectionSettings.current().isConfigured) {
+                startDestination = if (
+                    container.useDemoData ||
+                    container.connectionSettings.current().isConfigured
+                ) {
                     LibraryRoute
                 } else {
                     ConnectionRoute(firstRun = true)
                 }
             }
-
             startDestination?.let { FujiApp(it) }
         }
     }
-
     /** A camera plugged in while the app was already running comes through here. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         connectIfLaunchedByCamera(intent)
     }
-
     /**
      * The attach-intent path (`PRD.md` §8.2).
      *
@@ -79,7 +74,6 @@ class MainActivity : ComponentActivity() {
      */
     private fun connectIfLaunchedByCamera(intent: Intent) {
         if (intent.action != UsbManager.ACTION_USB_DEVICE_ATTACHED) return
-
         val device = IntentCompat.getParcelableExtra(
             intent,
             UsbManager.EXTRA_DEVICE,
@@ -88,14 +82,12 @@ class MainActivity : ComponentActivity() {
         (application as FujiRecipesApp).container.cameraController.onDeviceAttached(device)
     }
 }
-
 @Composable
 private fun FujiApp(startDestination: Any) {
     FujiTheme {
         val navController = rememberNavController()
         val backStackEntry by navController.currentBackStackEntryAsState()
         val destination = backStackEntry?.destination
-
         /**
          * The shell chrome is hidden wherever it would be wrong rather than wherever it
          * happens to look busy: connection setup is reached before there is a library to
@@ -112,12 +104,10 @@ private fun FujiApp(startDestination: Any) {
         val onExport = destination?.hasRoute<ExportRoute>() == true
         val showChrome =
             !onConnection && !onEditor && !onRecipeView && !onImport && !onFileImport && !onExport
-
         // Not a route: the sheet is a way of starting the editor, and giving it a destination
         // of its own would put an empty text box in the back stack behind every recipe made
         // from a paste.
         var showPasteSheet by remember { mutableStateOf(false) }
-
         if (showPasteSheet) {
             PasteRecipeSheet(
                 onDismiss = { showPasteSheet = false },
@@ -133,7 +123,6 @@ private fun FujiApp(startDestination: Any) {
                 },
             )
         }
-
         AppShell(
             showChrome = showChrome,
             isLibrarySelected = destination?.hasRoute<LibraryRoute>() == true,
@@ -149,7 +138,12 @@ private fun FujiApp(startDestination: Any) {
             onMoreClick = { navController.navigate(MoreRoute) { launchSingleTop = true } },
             onCreateClick = { navController.navigate(RecipeEditorRoute(id = null)) },
             onParseTextClick = { showPasteSheet = true },
-            cameraChip = { CameraChipHost() },
+            cameraItem = {
+                CameraToolbarItemHost(
+                    selected = destination?.hasRoute<CameraRoute>() == true,
+                    onClick = { navController.navigate(CameraRoute) { launchSingleTop = true } },
+                )
+            },
         ) { contentPadding ->
             FujiNavHost(
                 navController = navController,

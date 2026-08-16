@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,7 +14,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Badge
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,8 +34,6 @@ import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
-
-import androidx.compose.ui.graphics.Shape
 
 /** What a card needs. A plain holder, so a preview and a test can build one. */
 data class RecipeCardModel(
@@ -50,53 +53,68 @@ data class RecipeCardModel(
  * - rating 0 shows **no** pill, not a zero
  * - no tags shows **no** tag row
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun RecipeCard(
     recipe: RecipeCardModel,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(16.dp),
+    shapes: ListItemShapes? = null,
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(cardColor())
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        FilmSimBadge(
-            simulationId = recipe.filmSimulationId,
-            size = 48.dp,
-            shape = CircleShape,
-        )
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
-        ) {
-            Text(
-                text = recipe.name,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                ),
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+    ListItem(
+        onClick = onClick,
+        shapes = shapes ?: ListItemDefaults.segmentedShapes(index = 0, count = 1),
+        colors = ListItemDefaults.segmentedColors(containerColor = cardColor()),
+        // 💡 ROW PADDING — how much air the whole row has. Raise `RowVerticalPadding` for a
+        //    taller, calmer list; lower it to fit more recipes on screen.
+        contentPadding = PaddingValues(
+            horizontal = RowHorizontalPadding,
+            vertical = RowVerticalPadding,
+        ),
+        modifier = modifier.fillMaxWidth(),
+        leadingContent = {
+            // 💡 FILM SIMULATION BADGE SIZE — the round swatch on the left.
+            FilmSimBadge(
+                simulationId = recipe.filmSimulationId,
+                size = 48.dp,
+                shape = CircleShape,
             )
-
-            if (recipe.tags.isNotEmpty()) {
-                TagRow(recipe.tags, modifier = Modifier.padding(top = 2.dp))
+        },
+        supportingContent = if (recipe.tags.isEmpty()) {
+            null
+        } else {
+            {
+                // 💡 GAP BETWEEN TITLE AND TAGS — `TitleToTagsGap` below.
+                TagRow(recipe.tags, modifier = Modifier.padding(top = TitleToTagsGap))
             }
-        }
-
-        if (recipe.rating > 0) {
-            RatingBadge(recipe.rating)
-        }
+        },
+        trailingContent = if (recipe.rating == 0) {
+            null
+        } else {
+            { RatingBadge(recipe.rating) }
+        },
+    ) {
+        // 💡 RECIPE NAME (the list row title):
+        //    - Size: change `titleLarge` to `titleMedium` (smaller) or `headlineSmall` (bigger)
+        //    - Weight: `FontWeight.SemiBold` -> `Bold` / `Medium` / `Normal`
+        Text(
+            text = recipe.name,
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.SemiBold,
+            ),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
+
+// 💡 ROW SPACING KNOBS — all of the list row's breathing space, in one place.
+/** Air above and below each row's content. */
+private val RowVerticalPadding = 20.dp
+/** Air at the left and right edges of a row. */
+private val RowHorizontalPadding = 18.dp
+/** The gap between the recipe name and its tag row. */
+private val TitleToTagsGap = 10.dp
 
 /** Cards sit one step off the page, and the step is not symmetrical between schemes. */
 @Composable
@@ -115,27 +133,34 @@ private fun RatingBadge(
     Badge(
         containerColor = MaterialTheme.colorScheme.tertiaryContainer,
         contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-        modifier = modifier,
+        // 💡 RATING PILL SIZE — the padding is what makes the pill bigger, not the text.
+        modifier = modifier.padding(horizontal = 4.dp, vertical = 6.dp),
     ) {
+        // 💡 RATING NUMBER — `labelMedium` -> `labelSmall` (smaller) / `labelLarge` (bigger).
         Text(
             text = rating.toString(),
-            style = MaterialTheme.typography.labelSmall.copy(
+            style = MaterialTheme.typography.labelMedium.copy(
                 fontWeight = FontWeight.Bold,
                 fontFeatureSettings = TabularFigures,
             ),
         )
+        // 💡 RATING STAR SIZE — keep it a touch under the number's cap height.
         Icon(
             imageVector = Icons.Filled.Star,
             contentDescription = stringResource(R.string.rating_of_five, rating),
             tint = MaterialTheme.colorScheme.onTertiaryContainer,
             modifier = Modifier
-                .padding(start = 2.dp)
-                .size(11.dp),
+                .padding(start = 3.dp)
+                .size(13.dp),
         )
     }
 }
 
-/** At most five, then a `+n`. A row of twenty chips is not a card, it is a paragraph. */
+/**
+ * At most five, then a `+n`. A row of twenty chips is not a card, it is a paragraph.
+ *
+ * 💡 TAG SPACING — `Arrangement.spacedBy` is the gap between chips.
+ */
 @Composable
 private fun TagRow(tags: List<String>, modifier: Modifier = Modifier) {
     val visible = tags.take(MAX_VISIBLE_TAGS)
@@ -154,6 +179,7 @@ private const val MAX_VISIBLE_TAGS = 5
 
 @Composable
 private fun TagChip(text: String) {
+    // 💡 TAG CHIP — `labelSmall` is the text size; the padding below is the chip's size.
     Text(
         text = text,
         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
@@ -162,7 +188,7 @@ private fun TagChip(text: String) {
         modifier = Modifier
             .clip(RoundedCornerShape(50))
             .background(MaterialTheme.colorScheme.secondaryContainer)
-            .padding(horizontal = 8.dp, vertical = 2.dp),
+            .padding(horizontal = 8.dp, vertical = 3.dp),
     )
 }
 

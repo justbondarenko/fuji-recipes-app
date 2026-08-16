@@ -19,16 +19,24 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
@@ -50,30 +58,6 @@ import dev.bondarenko.fujirecipes.ui.camera.WriteSheetHost
 import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewBottomSheet
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
-
-/**
- * Computes corner shape for segmented list elements:
- * - Top element: rounded top corners (16dp), subtle bottom corners (4dp)
- * - Bottom element: subtle top corners (4dp), rounded bottom corners (16dp)
- * - Middle elements: subtle corners (4dp)
- * - Single element: all corners rounded (16dp)
- */
-fun recipeItemShape(index: Int, total: Int): RoundedCornerShape = when {
-    total <= 1 -> RoundedCornerShape(16.dp)
-    index == 0 -> RoundedCornerShape(
-        topStart = 16.dp,
-        topEnd = 16.dp,
-        bottomStart = 4.dp,
-        bottomEnd = 4.dp,
-    )
-    index == total - 1 -> RoundedCornerShape(
-        topStart = 4.dp,
-        topEnd = 4.dp,
-        bottomStart = 16.dp,
-        bottomEnd = 16.dp,
-    )
-    else -> RoundedCornerShape(4.dp)
-}
 
 /**
  * The list — FEAT-001 T-19, T-20, T-22.
@@ -107,6 +91,7 @@ fun LibraryScreen(
     var recipePendingDelete by remember { mutableStateOf<RecipeCardModel?>(null) }
     // Which recipe is currently open in the Write to Camera sheet
     var writeRecipeId by rememberSaveable { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
 
     PullToRefreshBox(
         isRefreshing = state.isRefreshing,
@@ -123,7 +108,9 @@ fun LibraryScreen(
                 top = 12.dp + contentPadding.calculateTopPadding(),
                 bottom = 12.dp + contentPadding.calculateBottomPadding(),
             ),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
+            // 💡 GAP BETWEEN ROWS — kept small so the segmented corners still read as one
+            //    block; past about 8dp they stop looking joined.
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             when {
                 // Nothing on screen and a failure: the error *is* the screen. Crucially a
@@ -136,7 +123,9 @@ fun LibraryScreen(
                     )
                 }
 
-                !state.hasLoaded -> item { LibraryLoading() }
+                // fillParentMaxSize so the indicator centres against the viewport, not against
+                // its own height at the top of the list.
+                !state.hasLoaded -> item { LibraryLoading(Modifier.fillParentMaxSize()) }
 
                 state.isEmptyLibrary -> item {
                     LibraryPanel(
@@ -176,7 +165,6 @@ fun LibraryScreen(
                         }
                     } else {
                         itemsIndexed(state.visible, key = { _, recipe -> recipe.id }) { index, recipe ->
-                            val itemShape = recipeItemShape(index, state.visible.size)
                             SwipeActionsRow(
                                 isOpen = openRowId == recipe.id,
                                 // One at a time: two rows open at once is how a delete gets
@@ -195,18 +183,35 @@ fun LibraryScreen(
                                         container = MaterialTheme.colorScheme.errorContainer,
                                         content = MaterialTheme.colorScheme.onErrorContainer,
                                     )
-                                    SwipeAction(
-                                        icon = painterResource(R.drawable.ic_photo_camera),
-                                        label = stringResource(R.string.action_write),
-                                        onClick = {
-                                            openRowId = null
-                                            writeRecipeId = recipe.id
+                                    val writeTooltipState = rememberTooltipState(isPersistent = true)
+                                    TooltipBox(
+                                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                                        tooltip = {
+                                            PlainTooltip {
+                                                Text(stringResource(R.string.camera_not_connected_tooltip))
+                                            }
                                         },
-                                        position = ButtonGroupPosition.Middle,
-                                        enabled = canWriteToCamera,
-                                        container = MaterialTheme.colorScheme.primaryContainer,
-                                        content = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    )
+                                        state = writeTooltipState,
+                                    ) {
+                                        SwipeAction(
+                                            icon = painterResource(R.drawable.ic_photo_camera),
+                                            label = stringResource(R.string.action_write),
+                                            onClick = {
+                                                if (canWriteToCamera) {
+                                                    openRowId = null
+                                                    writeRecipeId = recipe.id
+                                                } else {
+                                                    coroutineScope.launch {
+                                                        writeTooltipState.show()
+                                                    }
+                                                }
+                                            },
+                                            position = ButtonGroupPosition.Middle,
+                                            enabled = true,
+                                            container = if (canWriteToCamera) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                            content = if (canWriteToCamera) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                                        )
+                                    }
                                     SwipeAction(
                                         icon = rememberVectorPainter(Icons.Filled.Edit),
                                         label = stringResource(R.string.action_edit),
@@ -217,7 +222,10 @@ fun LibraryScreen(
                             ) {
                                 RecipeCard(
                                     recipe = recipe,
-                                    shape = itemShape,
+                                    shapes = ListItemDefaults.segmentedShapes(
+                                        index = index,
+                                        count = state.visible.size,
+                                    ),
                                     onClick = {
                                         activeRecipeId = recipe.id
                                         onOpenRecipe(recipe.id)
