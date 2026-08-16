@@ -121,7 +121,9 @@ fun LibraryScreen(
                     )
                 }
 
-                !state.hasLoaded -> item { LibraryLoading() }
+                // fillParentMaxSize so the indicator centres against the viewport, not against
+                // its own height at the top of the list.
+                !state.hasLoaded -> item { LibraryLoading(Modifier.fillParentMaxSize()) }
 
                 state.isEmptyLibrary -> item {
                     LibraryPanel(
