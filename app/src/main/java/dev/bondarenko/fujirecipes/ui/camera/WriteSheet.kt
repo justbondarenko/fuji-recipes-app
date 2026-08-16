@@ -3,18 +3,15 @@ package dev.bondarenko.fujirecipes.ui.camera
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
@@ -38,9 +35,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -63,6 +57,7 @@ import dev.bondarenko.fujirecipes.camera.plan.WritePlan
 import dev.bondarenko.fujirecipes.camera.plan.slotCaution
 import dev.bondarenko.fujirecipes.camera.plan.slotStates
 import dev.bondarenko.fujirecipes.camera.usb.WriteOutcome
+import dev.bondarenko.fujirecipes.ui.common.FujiProgressIndicator
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
 import java.util.UUID
@@ -517,24 +512,11 @@ private fun ProgressStage(stage: WriteStage.Progress) {
         )
     }
 
-    // `LinearWavyProgressIndicator` — the wave being the visual signal that something is
-    // genuinely happening on the wire — is internal at material3 1.4.0 (`tech-stack.md` §6).
-    val fraction = if (stage.total == 0) 0f else stage.done.toFloat() / stage.total
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(6.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(fraction.coerceIn(0f, 1f))
-                .height(6.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary),
-        )
-    }
+    // The wave is the point: it says something is happening on the wire, which a flat bar
+    // resting at 40% cannot distinguish from a stalled one.
+    FujiProgressIndicator(
+        progress = { if (stage.total == 0) 0f else stage.done.toFloat() / stage.total },
+    )
 }
 
 // ─── Stage 6 ────────────────────────────────────────────────────────────────

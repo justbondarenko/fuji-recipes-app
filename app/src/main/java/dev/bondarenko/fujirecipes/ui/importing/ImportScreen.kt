@@ -18,11 +18,9 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -46,6 +44,8 @@ import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.importing.ImportRow
 import dev.bondarenko.fujirecipes.data.importing.ImportStatus
+import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
+import dev.bondarenko.fujirecipes.ui.common.FujiProgressIndicator
 import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
 import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -288,11 +288,8 @@ private fun ReadingPanel(stage: ImportStage.Reading) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        LinearProgressIndicator(
-            progress = {
-                if (stage.total == 0) 0f else stage.current.toFloat() / stage.total
-            },
-            modifier = Modifier.fillMaxWidth(),
+        FujiProgressIndicator(
+            progress = { if (stage.total == 0) 0f else stage.current.toFloat() / stage.total },
         )
     }
 }
@@ -303,7 +300,7 @@ private fun Waiting(label: String) {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CircularProgressIndicator(modifier = Modifier.size(20.dp))
+        FujiLoadingIndicator(size = 20.dp)
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
