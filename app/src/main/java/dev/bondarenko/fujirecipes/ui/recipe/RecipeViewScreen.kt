@@ -1,6 +1,7 @@
 package dev.bondarenko.fujirecipes.ui.recipe
 
 import android.widget.Toast
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -618,17 +619,33 @@ private fun BentoParameterTile(
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(
-                text = row.label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // Null for the fields with no glyph of their own — ISO bounds and the two
+                // monochromatic shifts — which then read as label-only tiles rather than
+                // borrowing a neighbour's icon.
+                fieldIcon(row.fieldId)?.let { icon ->
+                    Icon(
+                        painter = painterResource(icon),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                Text(
+                    text = row.label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
 
             Text(
                 text = row.value,
-                style = MaterialTheme.typography.titleMedium.copy(
+                style = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight.Bold,
                     fontFeatureSettings = TabularFigures,
                 ),
@@ -647,6 +664,32 @@ private fun BentoParameterTile(
 /**
  * Full-width Bento Card for recipe notes with auto-detected clickable URLs.
  */
+/**
+ * The glyph for a parameter, keyed by the field id from `RecipeFields`.
+ *
+ * Keyed by id rather than label so a copy change cannot silently drop an icon. Null is a
+ * legitimate answer: the ISO bounds and the two monochromatic shifts have no glyph that says
+ * anything a nearby one does not, and a wrong icon is worse than none.
+ */
+@DrawableRes
+private fun fieldIcon(id: String): Int? = when (id) {
+    "filmSimulation" -> R.drawable.ic_camera_roll
+    "dynamicRange", "dRangePriority" -> R.drawable.ic_contrast
+    "highlightTone" -> R.drawable.ic_tonality
+    "shadowTone" -> R.drawable.ic_tonality_2
+    "color" -> R.drawable.ic_palette
+    "sharpness" -> R.drawable.ic_details
+    "highIsoNR" -> R.drawable.ic_deblur
+    "clarity" -> R.drawable.ic_diamond
+    "grainEffect" -> R.drawable.ic_grain
+    "grainSize" -> R.drawable.ic_transition_dissolve
+    "colorChromeEffect", "colorChromeFxBlue" -> R.drawable.ic_colors
+    "whiteBalance", "colorTemperature" -> R.drawable.ic_wb_auto
+    "wbShiftRed", "wbShiftBlue" -> R.drawable.ic_discover_tune
+    "exposureCompensation" -> R.drawable.ic_exposure
+    else -> null
+}
+
 @Composable
 private fun BentoNotesCard(notes: String, modifier: Modifier = Modifier) {
     val primaryColor = MaterialTheme.colorScheme.primary

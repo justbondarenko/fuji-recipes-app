@@ -104,7 +104,7 @@ fun SettingsScreen(
         SettingsCard(
             title = stringResource(R.string.export_title),
             subtitle = stringResource(R.string.export_subtitle),
-            icon = painterResource(R.drawable.ic_file_save),
+            icon = painterResource(R.drawable.ic_file_export),
             onClick = onOpenExport,
             showChevron = true,
         )
