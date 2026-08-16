@@ -468,7 +468,24 @@ fun TagInput(
     onTagsChange: (List<String>) -> Unit,
     modifier: Modifier = Modifier,
     error: String? = null,
+    /**
+     * Show at most this many, with a `+N` chip that unfolds the rest. Null shows them all.
+     *
+     * The chips stay a cloud rather than becoming a list when expanded — a `FlowRow` that
+     * wraps is the same shape either way, just taller.
+     */
+    collapsedLimit: Int? = null,
 ) {
+    // Keyed on the tag count so adding or removing one re-collapses rather than leaving the
+    // "+N" chip claiming a number that is no longer true.
+    var expanded by remember(tags.size) { mutableStateOf(false) }
+    val hidden = if (collapsedLimit == null || expanded) {
+        0
+    } else {
+        (tags.size - collapsedLimit).coerceAtLeast(0)
+    }
+    val visibleTags = if (hidden > 0) tags.take(collapsedLimit!!) else tags
+
     var adding by remember { mutableStateOf(false) }
     var entry by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
@@ -488,7 +505,7 @@ fun TagInput(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                tags.forEach { tag ->
+                visibleTags.forEach { tag ->
                     InputChip(
                         selected = false,
                         onClick = { onTagsChange(tags - tag) },
@@ -500,6 +517,14 @@ fun TagInput(
                                 modifier = Modifier.size(16.dp),
                             )
                         },
+                    )
+                }
+
+                if (hidden > 0) {
+                    // 💡 OVERFLOW CHIP — the "+4" that unfolds the rest of the cloud.
+                    AssistChip(
+                        onClick = { expanded = true },
+                        label = { Text("+$hidden") },
                     )
                 }
 

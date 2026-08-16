@@ -2,8 +2,6 @@ package dev.bondarenko.fujirecipes.ui.recipe
 
 import android.widget.Toast
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,7 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -35,7 +32,9 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.toShape
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Switch
@@ -56,9 +55,6 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -84,7 +80,6 @@ import dev.bondarenko.fujirecipes.core.share.ShareFile
 import dev.bondarenko.fujirecipes.ui.camera.WriteSheetHost
 import dev.bondarenko.fujirecipes.data.fields.FieldFormatting
 import dev.bondarenko.fujirecipes.data.fields.FieldGroup
-import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
 import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.common.errorMessageFor
@@ -463,100 +458,82 @@ private fun RecipeBentoBody(
 }
 
 /**
- * Header card containing recipe thumbnail, name, simulation, rating, and tags
- * with a blurred film simulation frosted glass background.
+ * The recipe's header — no container, just the pieces on the page background.
+ *
+ * The card, its border, the blurred simulation frame and the frosted scrim are all gone: they
+ * framed content that is already the top of its own screen, and the frame was doing more
+ * visual work than the recipe was.
+ *
+ * Stacked rather than side by side — simulation, name, rating, tags — so a long name has the
+ * full width and the tag cloud can wrap under it.
  */
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun RecipeHeaderBlock(
     recipe: RecipeHeader,
     onRatingChange: (Int) -> Unit,
     onTagsChange: (List<String>) -> Unit,
 ) {
-    val sim = FilmSimulations.byId(recipe.filmSimulationId)
-    val shape = RoundedCornerShape(20.dp)
+    // A different M3 shape each time the screen opens. `remember` with no key is exactly the
+    // scope wanted: stable while you are reading, re-rolled on the next open.
+    val polygon = remember { HeaderShapes.random() }
 
-    Card(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        shape = shape,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-        ),
+        // 💡 HEADER SPACING — the gap between simulation, name, rating and tags.
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            // Blurred film simulation background image
-            if (sim?.image != null) {
-                Image(
-                    painter = painterResource(sim.image),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .matchParentSize()
-                        .blur(24.dp)
-                        .graphicsLayer(scaleX = 1.15f, scaleY = 1.15f),
-                )
-            } else if (recipe.filmSimulationId != null) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(FilmSimulations.swatchFor(recipe.filmSimulationId).copy(alpha = 0.35f)),
-                )
-            }
+        // 💡 FILM SIMULATION SIZE — the shaped swatch at the top.
+        FilmSimBadge(
+            simulationId = recipe.filmSimulationId,
+            size = 96.dp,
+            shape = polygon.toShape(),
+        )
 
-            // Frosted glass translucent scrim overlay to ensure crisp contrast and readability
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)),
-            )
+        // 💡 RECIPE NAME:
+        //    - Size: `headlineMediumEmphasized` -> `headlineSmallEmphasized` (smaller) or
+        //      `headlineLargeEmphasized` (bigger). The `Emphasized` suffix is M3's heavier,
+        //      tighter cut — dropping it gives the plain weight.
+        //    - Colour: `primary` follows the device palette on Android 12+, the same way
+        //      every other accent in the app does.
+        Text(
+            text = recipe.name,
+            style = MaterialTheme.typography.headlineMediumEmphasized,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    FilmSimBadge(
-                        simulationId = recipe.filmSimulationId,
-                        size = 56.dp,
-                        shape = CircleShape,
-                    )
+        RatingInput(rating = recipe.rating, onRatingChange = onRatingChange)
 
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        Text(
-                            text = recipe.name,
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = recipe.filmSimulationLabel,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-
-                RatingInput(rating = recipe.rating, onRatingChange = onRatingChange)
-
-                TagInput(tags = recipe.tags, onTagsChange = onTagsChange)
-            }
-        }
+        // 💡 TAGS SHOWN BEFORE "+N" — raise to reveal more before the fold.
+        TagInput(
+            tags = recipe.tags,
+            onTagsChange = onTagsChange,
+            collapsedLimit = HeaderVisibleTags,
+        )
     }
 }
+
+/**
+ * The shapes a recipe's simulation swatch can take.
+ *
+ * One is picked at random per open, so the same recipe is not always the same silhouette —
+ * the variety is the point, and every one of these is an M3 shape rather than a rounded
+ * rectangle pretending to be interesting.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private val HeaderShapes = listOf(
+    MaterialShapes.Arch,
+    MaterialShapes.Square,
+    MaterialShapes.Circle,
+    MaterialShapes.Pill,
+    MaterialShapes.Pentagon,
+    MaterialShapes.Gem,
+)
+
+/** 💡 How many tags show before the `+N` chip. */
+private const val HeaderVisibleTags = 3
 
 /**
  * 2-column Bento Grid for section parameters.
