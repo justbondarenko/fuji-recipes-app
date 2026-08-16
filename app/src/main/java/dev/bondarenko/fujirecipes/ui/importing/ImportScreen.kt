@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -44,8 +45,6 @@ import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.importing.ImportRow
 import dev.bondarenko.fujirecipes.data.importing.ImportStatus
-import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
-import dev.bondarenko.fujirecipes.ui.common.FujiProgressIndicator
 import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
 import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -127,11 +126,27 @@ fun ImportScreen(
                 )
             }
 
-            is ImportStage.Reading -> item { ReadingPanel(stage) }
+            is ImportStage.Reading -> item {
+                CenteredLoading(
+                    label = stringResource(R.string.import_reading, stage.current, stage.total),
+                    // Reading knows which slot it is on, so the indicator says so rather than
+                    // spinning anonymously through seven of them.
+                    progress = {
+                        if (stage.total == 0) 0f else stage.current.toFloat() / stage.total
+                    },
+                    modifier = Modifier.fillParentMaxSize(),
+                )
+            }
 
             ImportStage.Review -> reviewItems(state, onToggle, onImport, onRead)
 
-            ImportStage.Importing -> item { Waiting(stringResource(R.string.import_importing)) }
+            ImportStage.Importing -> item {
+                CenteredLoading(
+                    label = stringResource(R.string.import_importing),
+                    progress = null,
+                    modifier = Modifier.fillParentMaxSize(),
+                )
+            }
 
             is ImportStage.Done -> item {
                 LibraryPanel(
@@ -280,32 +295,38 @@ private fun ImportRow.statusText(): String = when (status) {
         stringResource(R.string.import_status_name, existingName.orEmpty())
 }
 
+/**
+ * Waiting on the camera, in the middle of the screen.
+ *
+ * M3's contained loading indicator rather than a bar pinned under a line of text: reading
+ * C1-C7 and importing them are whole-screen waits with nothing else to look at, so the
+ * indicator is the content and belongs in the optical centre, not stacked at the top.
+ *
+ * [progress] is null when there is nothing to count.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun ReadingPanel(stage: ImportStage.Reading) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            text = stringResource(R.string.import_reading, stage.current, stage.total),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        FujiProgressIndicator(
-            progress = { if (stage.total == 0) 0f else stage.current.toFloat() / stage.total },
-        )
-    }
-}
-
-@Composable
-private fun Waiting(label: String) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        FujiLoadingIndicator(size = 20.dp)
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+private fun CenteredLoading(
+    label: String,
+    progress: (() -> Float)?,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            if (progress == null) {
+                ContainedLoadingIndicator()
+            } else {
+                ContainedLoadingIndicator(progress = { progress().coerceIn(0f, 1f) })
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
