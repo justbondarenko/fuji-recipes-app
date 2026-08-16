@@ -21,7 +21,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.toShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -36,6 +39,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -46,6 +50,7 @@ import dev.bondarenko.fujirecipes.data.photo.MatchResult
 import dev.bondarenko.fujirecipes.data.photo.PhotoReadFailure
 import dev.bondarenko.fujirecipes.data.photo.PhotoRecipe
 import dev.bondarenko.fujirecipes.data.photo.RecipeMatch
+import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
 import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
@@ -123,52 +128,24 @@ fun PhotoReaderScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun EmptyPhotoReaderState(
     onChoosePhoto: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 28.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_photo_camera),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(56.dp),
-            )
-
-            Text(
-                text = stringResource(R.string.photo_title),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-
-            Text(
-                text = stringResource(R.string.photo_intro),
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            Button(
-                onClick = onChoosePhoto,
-                modifier = Modifier.padding(top = 8.dp),
-            ) {
-                Text(stringResource(R.string.photo_action_choose))
-            }
-        }
-    }
+    FujiIconPanel(
+        // The same glyph as the Read item in the toolbar.
+        icon = painterResource(R.drawable.ic_image_search),
+        shape = MaterialShapes.Pill.toShape(),
+        // Wider than tall, or the pill normalises into a squircle and stops being a pill.
+        shapeSize = DpSize(200.dp, 120.dp),
+        title = stringResource(R.string.photo_title),
+        body = stringResource(R.string.photo_intro),
+        actionLabel = stringResource(R.string.photo_action_choose),
+        onAction = onChoosePhoto,
+        modifier = modifier,
+    )
 }
 
 @Composable

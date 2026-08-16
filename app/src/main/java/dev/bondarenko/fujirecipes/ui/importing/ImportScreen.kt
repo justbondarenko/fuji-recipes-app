@@ -17,6 +17,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.toShape
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -33,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -45,6 +48,7 @@ import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.importing.ImportRow
 import dev.bondarenko.fujirecipes.data.importing.ImportStatus
 import dev.bondarenko.fujirecipes.ui.common.FujiCenteredLoading
+import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
 import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -107,22 +111,24 @@ fun ImportScreen(
         ) {
             when (val stage = state.stage) {
             ImportStage.NeedsCamera -> item {
-                LibraryPanel(
+                ImportPanel(
                     title = stringResource(R.string.import_needs_camera_title),
                     body = stringResource(R.string.import_needs_camera_body),
-                    primaryLabel = stringResource(R.string.camera_action_connect),
-                    onPrimary = onConnect,
+                    actionLabel = stringResource(R.string.camera_action_connect),
+                    onAction = onConnect,
+                    modifier = Modifier.fillParentMaxSize(),
                 )
             }
 
             ImportStage.Ready -> item {
-                LibraryPanel(
+                ImportPanel(
                     title = state.cameraModel?.let {
                         stringResource(R.string.import_ready_title, it)
                     } ?: stringResource(R.string.import_ready_title_generic),
                     body = stringResource(R.string.import_ready_body),
-                    primaryLabel = stringResource(R.string.import_action_read),
-                    onPrimary = onRead,
+                    actionLabel = stringResource(R.string.import_action_read),
+                    onAction = onRead,
+                    modifier = Modifier.fillParentMaxSize(),
                 )
             }
 
@@ -172,6 +178,30 @@ fun ImportScreen(
         }
     }
 }
+}
+
+/**
+ * This screen's identity: recipes coming down off the camera, so the arrow points down —
+ * `MaterialShapes.Arrow` starts at 270°, and 90° is that turned through 180°.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ImportPanel(
+    title: String,
+    body: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FujiIconPanel(
+        icon = painterResource(R.drawable.ic_linked_camera),
+        shape = MaterialShapes.Arrow.toShape(startAngle = 90),
+        title = title,
+        body = body,
+        actionLabel = actionLabel,
+        onAction = onAction,
+        modifier = modifier,
+    )
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.reviewItems(

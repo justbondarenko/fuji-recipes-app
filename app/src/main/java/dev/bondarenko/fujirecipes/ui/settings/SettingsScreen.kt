@@ -88,7 +88,7 @@ fun SettingsScreen(
         SettingsCard(
             title = stringResource(R.string.settings_import_camera_title),
             subtitle = stringResource(R.string.settings_import_camera_subtitle),
-            icon = painterResource(R.drawable.ic_photo_camera),
+            icon = painterResource(R.drawable.ic_linked_camera),
             onClick = onOpenImport,
             showChevron = true,
         )
@@ -96,7 +96,7 @@ fun SettingsScreen(
         SettingsCard(
             title = stringResource(R.string.file_import_title),
             subtitle = stringResource(R.string.file_import_subtitle),
-            icon = painterResource(R.drawable.ic_content_copy),
+            icon = painterResource(R.drawable.ic_file_save),
             onClick = onOpenFileImport,
             showChevron = true,
         )
@@ -104,7 +104,7 @@ fun SettingsScreen(
         SettingsCard(
             title = stringResource(R.string.export_title),
             subtitle = stringResource(R.string.export_subtitle),
-            icon = painterResource(R.drawable.ic_cloud_sync),
+            icon = painterResource(R.drawable.ic_file_save),
             onClick = onOpenExport,
             showChevron = true,
         )

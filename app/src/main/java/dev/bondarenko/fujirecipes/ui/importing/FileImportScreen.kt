@@ -24,6 +24,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.toShape
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -37,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -49,6 +52,7 @@ import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.importing.FileRow
 import dev.bondarenko.fujirecipes.data.importing.FileRowStatus
 import dev.bondarenko.fujirecipes.data.importing.Resolution
+import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
 import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
 import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
@@ -63,7 +67,7 @@ import kotlinx.coroutines.withContext
  * different is the review — a file carries ids, so a row can collide with a recipe the library
  * already has, and SF-012 says that collision is the user's decision rather than the app's.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FileImportScreen(
     state: FileImportUiState,
@@ -111,11 +115,16 @@ fun FileImportScreen(
         ) {
             when (val stage = state.stage) {
                 FileImportStage.Ready -> item {
-                    LibraryPanel(
+                    // Same arrow-down as importing from the camera: both bring recipes in,
+                    // and only the source differs.
+                    FujiIconPanel(
+                        icon = painterResource(R.drawable.ic_file_save),
+                        shape = MaterialShapes.Arrow.toShape(startAngle = 90),
                         title = stringResource(R.string.file_import_ready_title),
                         body = stringResource(R.string.file_import_ready_body),
-                        primaryLabel = stringResource(R.string.file_import_action_choose),
-                        onPrimary = onChoose,
+                        actionLabel = stringResource(R.string.file_import_action_choose),
+                        onAction = onChoose,
+                        modifier = Modifier.fillParentMaxSize(),
                     )
                 }
 

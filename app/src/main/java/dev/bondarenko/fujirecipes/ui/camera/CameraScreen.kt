@@ -1,32 +1,24 @@
 package dev.bondarenko.fujirecipes.ui.camera
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.toShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.font.FontWeight
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.camera.CameraModels
 import dev.bondarenko.fujirecipes.camera.CameraState
+import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.camera.ptp.responseName
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 
@@ -51,32 +43,31 @@ fun CameraScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
-    // Laid out like Settings, the destination beside it in the toolbar: a plain heading, no
-    // app bar and no back arrow. Nothing navigated here, so there is nothing to go back from.
-    Column(
+    // No heading of its own: the panel's title already names the state, and a fixed "Camera"
+    // above it would say the same thing twice. No app bar or back arrow either — this is a
+    // top-level destination, so nothing navigated here.
+    CameraStatusContent(
+        state = state,
+        isCameraAttached = isCameraAttached,
+        onConnect = onConnect,
+        onDisconnect = onDisconnect,
         modifier = modifier
             .fillMaxSize()
-            .padding(contentPadding)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Text(
-            text = stringResource(R.string.camera_sheet_title),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-
-        CameraStatusContent(
-            state = state,
-            isCameraAttached = isCameraAttached,
-            onConnect = onConnect,
-            onDisconnect = onDisconnect,
-        )
-    }
+            .padding(contentPadding),
+    )
 }
 
+/**
+ * The camera's state, in the same centred panel every other single-purpose page uses.
+ *
+ * Pentagon is this page's shape, and it is filled with the toolbar item's own colour for the
+ * state — green connected, amber no-host, error red — so the thing you pressed and the thing
+ * you arrived at agree. Same for the glyph: `cameraChipLook` drives both.
+ *
+ * The layout holds for every state. Only the words, the colour and the single action change;
+ * a state with nothing to offer (no USB host, mid-connect, mid-write) simply has no button.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CameraStatusContent(
     state: CameraState,
@@ -85,91 +76,69 @@ fun CameraStatusContent(
     onDisconnect: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // No padding or insets of its own any more: the sheet it used to sit in needed those, a
-    // screen supplies them from outside.
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_photo_camera),
-                contentDescription = null,
-                modifier = Modifier.size(22.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = title(state),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
+    val look = cameraChipLook(state)
+    val accent = look.tone.accent()
+    val action = action(state)
 
-        body(state, isCameraAttached)?.let { body ->
-            Text(
-                text = body,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+    FujiIconPanel(
+        icon = look.icon.painter(),
+        shape = MaterialShapes.Pentagon.toShape(),
+        title = title(state),
+        body = body(state, isCameraAttached),
+        // The nav item's state colour fills the shape; the glyph sits on it in the surface
+        // colour so it stays legible against every tone.
+        containerColor = accent,
+        contentColor = MaterialTheme.colorScheme.surface,
+        actionLabel = action?.label?.let { stringResource(it) },
+        onAction = when (action?.kind) {
+            ActionKind.CONNECT -> onConnect
+            ActionKind.DISCONNECT -> onDisconnect
+            null -> null
+        },
+        actionIsPrimary = action?.kind != ActionKind.DISCONNECT,
+        modifier = modifier,
+        extra = {
+            // The camera's own response code, when it gave one. "The camera said DeviceBusy"
+            // tells the user to close the app holding the device; "connection failed" tells
+            // them nothing (P5).
+            (state as? CameraState.Error)?.ptpCode?.let { code ->
+                Note(stringResource(R.string.camera_ptp_code, responseName(code)))
+            }
 
-        // The camera's own response code, when it gave one. "The camera said DeviceBusy" tells
-        // the user to close the app holding the device; "connection failed" tells them
-        // nothing (P5).
-        (state as? CameraState.Error)?.ptpCode?.let { code ->
-            Note(stringResource(R.string.camera_ptp_code, responseName(code)))
-        }
-
-        if (state is CameraState.Connected) {
-            Note(
-                if (state.identity.writable) {
-                    stringResource(R.string.camera_writes_available)
-                } else {
-                    // Either "no custom slots" or "this build does not know this body" — the
-                    // model table decides which, and they must not read the same.
-                    state.identity.note.orEmpty()
-                },
-            )
-            if (state.identity.writable) Note(stringResource(R.string.camera_slot_note))
-        }
-
-        Actions(state = state, onConnect = onConnect, onDisconnect = onDisconnect)
-    }
+            if (state is CameraState.Connected) {
+                Note(
+                    if (state.identity.writable) {
+                        stringResource(R.string.camera_writes_available)
+                    } else {
+                        // Either "no custom slots" or "this build does not know this body" —
+                        // the model table decides which, and they must not read the same.
+                        state.identity.note.orEmpty()
+                    },
+                )
+                if (state.identity.writable) Note(stringResource(R.string.camera_slot_note))
+            }
+        },
+    )
 }
 
-@Composable
-private fun Actions(
-    state: CameraState,
-    onConnect: () -> Unit,
-    onDisconnect: () -> Unit,
-) {
-    when (state) {
-        // No retry: this phone will not start having USB host support, and a button that
-        // cannot work is a lie someone acts on.
-        CameraState.NoUsbHost, CameraState.Connecting -> Unit
+private enum class ActionKind { CONNECT, DISCONNECT }
 
-        CameraState.Disconnected -> Button(onClick = onConnect, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.camera_action_connect))
-        }
+private data class CameraAction(val label: Int, val kind: ActionKind)
 
-        is CameraState.Error -> Button(onClick = onConnect, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.camera_action_retry))
-        }
-
-        is CameraState.Connected -> OutlinedButton(
-            onClick = onDisconnect,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.camera_action_disconnect))
-        }
-
-        // Nothing is offered mid-write. Cancelling belongs to the write sheet, which owns the
-        // operation and can warn about a partly written slot.
-        is CameraState.Writing -> Unit
-    }
+/**
+ * The one thing this state offers, or nothing.
+ *
+ * No retry for a phone without USB host support: it will not start having it, and a button
+ * that cannot work is a lie someone acts on. Nothing mid-write either — cancelling belongs to
+ * the write sheet, which owns the operation and can warn about a partly written slot.
+ */
+private fun action(state: CameraState): CameraAction? = when (state) {
+    CameraState.NoUsbHost, CameraState.Connecting -> null
+    is CameraState.Writing -> null
+    CameraState.Disconnected -> CameraAction(R.string.camera_action_connect, ActionKind.CONNECT)
+    is CameraState.Error -> CameraAction(R.string.camera_action_retry, ActionKind.CONNECT)
+    is CameraState.Connected ->
+        CameraAction(R.string.camera_action_disconnect, ActionKind.DISCONNECT)
 }
 
 @Composable

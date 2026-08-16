@@ -62,7 +62,7 @@ fun CameraToolbarItem(
  * `MUTED` deliberately to the ordinary toolbar role, because "no camera" should not shout.
  */
 @Composable
-private fun CameraChipTone.accent(): Color {
+internal fun CameraChipTone.accent(): Color {
     val dark = isSystemInDarkTheme()
     return when (this) {
         CameraChipTone.NEUTRAL -> if (dark) Color(0xFFFDE68A) else Color(0xFF92400E)
@@ -74,7 +74,7 @@ private fun CameraChipTone.accent(): Color {
 }
 
 @Composable
-private fun CameraChipIcon.painter(): Painter = when (this) {
+internal fun CameraChipIcon.painter(): Painter = when (this) {
     CameraChipIcon.USB -> painterResource(R.drawable.ic_usb)
     CameraChipIcon.INFO -> rememberVectorPainter(Icons.Filled.Info)
     CameraChipIcon.CONNECTING -> rememberVectorPainter(Icons.Filled.Refresh)
