@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
@@ -180,13 +179,13 @@ fun AppShell(
             ) {
                 FloatingToolbarItem(
                     selected = isLibrarySelected,
-                    icon = rememberVectorPainter(Icons.AutoMirrored.Filled.List),
+                    icon = painterResource(R.drawable.ic_bookmark_stacks),
                     contentDescription = stringResource(R.string.nav_library),
                     onClick = onLibraryClick,
                 )
                 FloatingToolbarItem(
                     selected = isReadSelected,
-                    icon = painterResource(R.drawable.ic_photo_camera),
+                    icon = painterResource(R.drawable.ic_image_search),
                     contentDescription = stringResource(R.string.nav_read),
                     onClick = onReadClick,
                 )
