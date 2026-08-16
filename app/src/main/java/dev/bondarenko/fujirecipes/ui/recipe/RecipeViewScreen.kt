@@ -112,6 +112,7 @@ fun RecipeViewBottomSheet(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -126,7 +127,14 @@ fun RecipeViewBottomSheet(
         RecipeViewContent(
             state = state,
             onClose = onDismiss,
-            onEdit = { onEdit(recipeId) },
+            // Let the sheet slide out before the editor arrives. Calling onEdit straight
+            // away removes this composable in the same frame, so the sheet vanished rather
+            // than closing and the editor appeared to teleport in over the gap.
+            onEdit = {
+                scope.launch { sheetState.hide() }.invokeOnCompletion {
+                    if (!sheetState.isVisible) onEdit(recipeId)
+                }
+            },
             onChangedOnlyChange = viewModel::onChangedOnlyChange,
             onRatingChange = viewModel::onRatingChange,
             onTagsChange = viewModel::onTagsChange,

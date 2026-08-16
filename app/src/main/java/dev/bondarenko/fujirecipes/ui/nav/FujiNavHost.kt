@@ -1,12 +1,17 @@
 package dev.bondarenko.fujirecipes.ui.nav
 
 import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.IntOffset
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -109,12 +114,18 @@ private fun NavDestination?.toolbarIndex(): Int = when {
     else -> -1
 }
 
+/** 💡 The arriving screen starts slightly small and grows in; reversed on the way back. */
+private const val DepthScaleIn = 0.92f
+
+/** 💡 The departing screen grows past full size as it fades, which reads as passing under. */
+private const val DepthScaleOut = 1.06f
+
 /**
  * Which way the pair should slide, or null when the move is not along the toolbar.
  *
- * Anything involving a subpage — the editor, export, a recipe — has no position in the bar,
- * so it gets no direction and falls back to a fade. A slide there would imply a sideways
- * relationship that does not exist.
+ * Anything involving a subpage — the editor, export, a recipe — has no position in the bar, so
+ * it gets no direction and takes the depth transition instead. A sideways slide there would
+ * imply a peer relationship that does not exist.
  */
 private fun slideDirection(
     from: NavDestination?,
@@ -140,45 +151,48 @@ fun FujiNavHost(
     // these themselves.
     val reducedMotion = LocalReducedMotion.current
     val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
+    val scale = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
     val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+
+    /**
+     * Going deeper, or coming back up.
+     *
+     * Along the toolbar the pair slides sideways. Everywhere else the move is hierarchical —
+     * a recipe into its editor, settings into export — and that reads as depth rather than
+     * distance: the arriving screen grows into place while the one behind it recedes.
+     *
+     * A plain cross-fade was the previous answer and it looked like no transition at all,
+     * because the effects spring is quick enough to be imperceptible on a full-screen change.
+     */
+    fun AnimatedContentTransitionScope<NavBackStackEntry>.enter(forward: Boolean): EnterTransition {
+        val direction = slideDirection(initialState.destination, targetState.destination)
+        return when {
+            reducedMotion -> fadeIn(effects)
+            direction != null -> slideIntoContainer(direction, spatial)
+            else -> fadeIn(effects) +
+                scaleIn(initialScale = if (forward) DepthScaleIn else DepthScaleOut, animationSpec = scale)
+        }
+    }
+
+    fun AnimatedContentTransitionScope<NavBackStackEntry>.exit(forward: Boolean): ExitTransition {
+        val direction = slideDirection(initialState.destination, targetState.destination)
+        return when {
+            reducedMotion -> fadeOut(effects)
+            direction != null -> slideOutOfContainer(direction, spatial)
+            else -> fadeOut(effects) +
+                scaleOut(targetScale = if (forward) DepthScaleOut else DepthScaleIn, animationSpec = scale)
+        }
+    }
 
     NavHost(
         navController = navController,
         startDestination = startDestination,
-        enterTransition = {
-            val direction = slideDirection(initialState.destination, targetState.destination)
-            if (reducedMotion || direction == null) {
-                fadeIn(effects)
-            } else {
-                slideIntoContainer(direction, spatial)
-            }
-        },
-        exitTransition = {
-            val direction = slideDirection(initialState.destination, targetState.destination)
-            if (reducedMotion || direction == null) {
-                fadeOut(effects)
-            } else {
-                slideOutOfContainer(direction, spatial)
-            }
-        },
-        // Back along the bar is the same journey in reverse, and the index comparison already
-        // says which way that is — so pop reuses the same rule rather than a mirrored copy.
-        popEnterTransition = {
-            val direction = slideDirection(initialState.destination, targetState.destination)
-            if (reducedMotion || direction == null) {
-                fadeIn(effects)
-            } else {
-                slideIntoContainer(direction, spatial)
-            }
-        },
-        popExitTransition = {
-            val direction = slideDirection(initialState.destination, targetState.destination)
-            if (reducedMotion || direction == null) {
-                fadeOut(effects)
-            } else {
-                slideOutOfContainer(direction, spatial)
-            }
-        },
+        enterTransition = { enter(forward = true) },
+        exitTransition = { exit(forward = true) },
+        // Back along the bar is the same journey reversed, and the index comparison already
+        // says which way that is; back out of a subpage reverses the depth instead.
+        popEnterTransition = { enter(forward = false) },
+        popExitTransition = { exit(forward = false) },
     ) {
         composable<ConnectionRoute> { entry ->
             val route = entry.toRoute<ConnectionRoute>()
