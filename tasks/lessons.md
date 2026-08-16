@@ -1,5 +1,18 @@
 # Lessons Learned
 
+## Deploying Changes to Emulator
+
+### Pattern
+Compiling and running unit tests is not enough to verify UI changes. The user expects every UI or code change to be automatically deployed and pushed to the running Android emulator.
+
+### Rule
+1. After every change, check `adb devices` to find any running emulator or device.
+2. Build and install the debug APK via `export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"; ./gradlew installDebug`.
+3. Launch or restart the main activity using `adb shell am start -n dev.bondarenko.fujirecipes/.MainActivity`.
+4. Capture a screenshot or verify the UI state on the device when applicable.
+
+---
+
 ## Android USB Lifecycle Broadcasts (Android 14+)
 
 ### Pattern

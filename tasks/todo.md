@@ -1,36 +1,21 @@
-# Task: Remove DownArrow and Migrate Consumers to MaterialShapes.Pill
+# Task: Strip Custom Shapes and Use Standard Material 3 Defaults
 
 ## Goal
-Remove `DownArrow` polygon transformation workaround entirely. Migrate all former `DownArrow` consumers (`FileImportScreen`, `ImportScreen`, `LibraryScreen`) to use `MaterialShapes.Pill.toShape()`.
+Remove custom `FujiShapes` and `Shape.kt`. Rely entirely on default Material 3 `Shapes` in `MaterialExpressiveTheme`.
 
 ## Plan Items
 
-- [x] 1. Remove `DownArrow` and unused graphics/matrix imports from `IconPanel.kt` <!-- id: 1 -->
-- [x] 2. Update `FileImportScreen.kt` to use `MaterialShapes.Pill.toShape()` and remove `DownArrow` import <!-- id: 2 -->
-- [x] 3. Update `ImportScreen.kt` to use `MaterialShapes.Pill.toShape()` and remove `DownArrow` import <!-- id: 3 -->
-- [x] 4. Update `LibraryScreen.kt` to use `MaterialShapes.Pill.toShape()` and remove `DownArrow` import <!-- id: 4 -->
-- [x] 5. Run `./gradlew compileDebugKotlin testDebugUnitTest` to verify clean build <!-- id: 5 -->
+- [x] 1. Remove `shapes = FujiShapes` from `Theme.kt` <!-- id: 1 -->
+- [x] 2. Delete `Shape.kt` <!-- id: 2 -->
+- [x] 3. Remove manual `shape = RoundedCornerShape(16.dp)` from `AppShell.kt` and use M3 default `extendedFabShape` <!-- id: 3 -->
+- [x] 4. Run `./gradlew compileDebugKotlin testDebugUnitTest` to verify build & tests <!-- id: 4 -->
 
 ## Review & Verification
 
 ### What changed
-
-1. **[`IconPanel.kt`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/java/dev/bondarenko/fujirecipes/ui/common/IconPanel.kt)**:
-   - Removed `DownArrow` polygon matrix rotation workaround (`MaterialShapes.Arrow.transformed(Matrix().apply { postRotate(180f) })`).
-   - Removed unused `androidx.graphics.shapes.*` and `android.graphics.Matrix` imports.
-   - Updated KDoc to reference standard Material 3 Expressive shapes (`MaterialShapes.Pill`, `MaterialShapes.Pentagon`, `MaterialShapes.Square`).
-
-2. **[`FileImportScreen.kt`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/java/dev/bondarenko/fujirecipes/ui/importing/FileImportScreen.kt)**:
-   - Removed `DownArrow` import and added `MaterialShapes` import.
-   - Migrated `FujiIconPanel` shape to `MaterialShapes.Pill.toShape()`.
-
-3. **[`ImportScreen.kt`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/java/dev/bondarenko/fujirecipes/ui/importing/ImportScreen.kt)**:
-   - Removed `DownArrow` import and added `MaterialShapes` import.
-   - Migrated `ImportPanel` shape to `MaterialShapes.Pill.toShape()`.
-
-4. **[`LibraryScreen.kt`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/java/dev/bondarenko/fujirecipes/ui/library/LibraryScreen.kt)**:
-   - Removed `DownArrow` import and added `MaterialShapes` import.
-   - Migrated empty library `FujiIconPanel` shape to `MaterialShapes.Pill.toShape()`.
+1. **[`Theme.kt`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/java/dev/bondarenko/fujirecipes/ui/theme/Theme.kt)**: Removed custom `shapes = FujiShapes` from `MaterialExpressiveTheme`. The theme now uses the official default Material 3 shape scale (`extraSmall = 4.dp`, `small = 8.dp`, `medium = 12.dp`, `large = 16.dp`, `extraLarge = 28.dp`).
+2. **Deleted `Shape.kt`**: Removed custom shape file.
+3. **[`AppShell.kt`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/java/dev/bondarenko/fujirecipes/ui/shell/AppShell.kt)**: `ExtendedFloatingActionButton` now relies directly on standard M3 `FloatingActionButtonDefaults.extendedFabShape` (which maps to `shapes.large` = 16dp squircle) with no manual overrides.
 
 ### Verification
 - Executed `./gradlew compileDebugKotlin testDebugUnitTest`: **BUILD SUCCESSFUL** (all unit tests passed).

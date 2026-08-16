@@ -1,6 +1,7 @@
 package dev.bondarenko.fujirecipes.ui.camera
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
@@ -8,7 +9,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.bondarenko.fujirecipes.FujiRecipesApp
 
 /**
- * The toolbar item and the screen it opens, wired to the controller.
+ * The navigation bar item and the screen it opens, wired to the controller.
  *
  * The wiring lives here rather than in `AppShell` or `MainActivity` so the shell keeps knowing
  * nothing about the camera, and so `CameraToolbarItem` and `CameraStatusContent` stay
@@ -20,7 +21,7 @@ import dev.bondarenko.fujirecipes.FujiRecipesApp
  * which is the wrong way round.
  */
 @Composable
-fun CameraToolbarItemHost(selected: Boolean, onClick: () -> Unit) {
+fun RowScope.CameraToolbarItemHost(selected: Boolean, onClick: () -> Unit) {
     val state by cameraController().state.collectAsStateWithLifecycle()
 
     CameraToolbarItem(state = state, selected = selected, onClick = onClick)
