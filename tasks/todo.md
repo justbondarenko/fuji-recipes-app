@@ -1,31 +1,28 @@
-# Task: Remove All Film Simulation Containers/Swatches Across All Screens
+# Task: Reference Photos Enhancements
 
 ## Goal
-Completely remove the film simulation container/badge elements from the recipe list, recipe view, editor, importing/exporting flows, and photo reader screens.
+1. Tap on photo in Recipe View & Recipe Edit expands full-screen preview lightbox.
+2. During photo processing, show animation and text "Processing image(s)...".
+3. Disable Save button while images are processing.
+4. If edit is canceled, cancel processing job and clean up any newly staged orphan images.
+5. Relocate carousel to be right after title in both Recipe View and Recipe Edit.
 
 ## Plan Items
 
-- [x] 1. Update `RecipeCard.kt` to remove `leadingContent` (swatch container) from `ListItem` <!-- id: 1 -->
-- [x] 2. Update `RecipeViewScreen.kt` to remove `FilmSimBadge` and swatch spacing from `RecipeHeaderBlock` <!-- id: 2 -->
-- [x] 3. Update `EditorControls.kt` to remove `FilmSimBadge` from `FilmSimulationPicker` (picker row & dropdown items) <!-- id: 3 -->
-- [x] 4. Update `ImportScreen.kt` and `FileImportScreen.kt` to remove `FilmSimBadge` from row items <!-- id: 4 -->
-- [x] 5. Update `ExportScreen.kt` to remove `FilmSimBadge` from export row cards <!-- id: 5 -->
-- [x] 6. Update `PhotoReaderScreen.kt` to remove `FilmSimBadge` from matched recipe card & setting rows <!-- id: 6 -->
-- [x] 7. Delete `FilmSimBadge.kt` <!-- id: 7 -->
-- [x] 8. Verify compilation and tests with `./gradlew compileDebugKotlin testDebugUnitTest` <!-- id: 8 -->
-- [x] 9. Deploy to emulator (`installDebug`), launch, and verify UI with screenshots <!-- id: 9 -->
+- [x] 1. Add strings (`processing_images`, `close_preview`) to `strings.xml` <!-- id: 1 -->
+- [x] 2. Create `ImagePreviewDialog.kt` supporting full-screen swipeable preview with close button <!-- id: 2 -->
+- [x] 3. Update `RecipeEditorViewModel.kt` to manage processing job, track staged images, block save during processing, and clean up staged orphans on cancel/dismiss <!-- id: 3 -->
+- [x] 4. Update `EditorControls.kt` & `RecipeEditorScreen.kt` for processing copy/animation, save blocking, photo tap preview, and reordered layout (Title -> Photos -> Tags) <!-- id: 4 -->
+- [x] 5. Update `RecipeViewScreen.kt` to place carousel right after title/header and enable tap to expand preview <!-- id: 5 -->
+- [x] 6. Run `./gradlew testDebugUnitTest` <!-- id: 6 -->
+- [x] 7. Deploy to emulator (`installDebug`) and verify interactions <!-- id: 7 -->
 
 ## Review & Verification
-
-### What changed
-1. **[`RecipeCard.kt`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/java/dev/bondarenko/fujirecipes/ui/library/RecipeCard.kt)**: Removed `leadingContent` so library list cards start directly with title and tags.
-2. **[`RecipeViewScreen.kt`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/java/dev/bondarenko/fujirecipes/ui/recipe/RecipeViewScreen.kt)**: Removed top `FilmSimBadge` and spacing so recipe details start directly with the recipe name, stars, and tags.
-3. **[`EditorControls.kt`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/java/dev/bondarenko/fujirecipes/ui/editor/EditorControls.kt)**: Removed badges from both the picker field and the dropdown menu items in `FilmSimulationPicker`.
-4. **[`ExportScreen.kt`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/java/dev/bondarenko/fujirecipes/ui/exporting/ExportScreen.kt)** & **[`ImportScreen.kt`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/java/dev/bondarenko/fujirecipes/ui/importing/ImportScreen.kt)**: Removed badges from list items, retaining standard checkboxes.
-5. **[`FileImportScreen.kt`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/java/dev/bondarenko/fujirecipes/ui/importing/FileImportScreen.kt)**: Removed `leadingContent` badge.
-6. **[`PhotoReaderScreen.kt`](file:///Users/andrii/Developer/Personal/fuji-recipes-app/app/src/main/java/dev/bondarenko/fujirecipes/ui/photo/PhotoReaderScreen.kt)**: Removed badge from matched recipe card and setting rows.
-7. **Deleted `FilmSimBadge.kt`**: Completely removed the unused badge component.
-
-### Verification
-- `./gradlew testDebugUnitTest`: **BUILD SUCCESSFUL**.
-- Pushed and verified across all screens on emulator (`Pixel_10_Pro_XL(AVD)`).
+- Unit Tests: All 468 tests passed via `./gradlew testDebugUnitTest`.
+- Emulator UI Verification:
+  - Validated full-screen `ImagePreviewDialog` lightbox with horizontal paging, page indicator, and close button on photo tap in both Recipe View and Recipe Editor.
+  - Validated processing indicator with "Processing image(s)…" during background image compression/saving.
+  - Verified Save button is disabled and guarded while image processing is active.
+  - Verified cancellation stops processing job and removes newly staged image files from disk.
+  - Verified layout reordering: Carousel directly below Recipe Title in both View and Edit screens.
+  - Verified Recipe Card thumbnail displays 1st photo on the left.

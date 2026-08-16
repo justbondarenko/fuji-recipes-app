@@ -121,11 +121,26 @@ class RecipeEditorViewModelTest {
     }
 
     @Test
-    fun `a create body keeps unknown settings too`() {
-        val body = RecipeEditorViewModel.createBody(stateOf(stored))
+    fun `a create body includes images when present`() {
+        val body = RecipeEditorViewModel.createBody(stateOf(stored).copy(images = listOf("img1.webp", "img2.webp")))
+        assertEquals(setOf("name", "notes", "rating", "tags", "images", "settings"), body.keys)
         assertEquals(
-            "keep me",
-            body["settings"]?.jsonObject?.get("aFieldFromTheFuture")?.jsonPrimitive?.content,
+            listOf("img1.webp", "img2.webp"),
+            body["images"]?.jsonArray?.map { it.jsonPrimitive.content },
+        )
+    }
+
+    @Test
+    fun `changing images sends only the images`() {
+        val diff = RecipeEditorViewModel.diffAgainst(
+            stored,
+            stateOf(stored).copy(images = listOf("new_photo.webp")),
+        )
+        assertEquals(setOf("images"), diff.keys)
+        assertEquals(
+            listOf("new_photo.webp"),
+            diff["images"]?.jsonArray?.map { it.jsonPrimitive.content },
         )
     }
 }
+

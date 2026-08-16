@@ -1,7 +1,11 @@
 package dev.bondarenko.fujirecipes.ui.editor
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,11 +14,15 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -24,6 +32,9 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import dev.bondarenko.fujirecipes.core.store.ImageStore
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.DropdownMenu
@@ -612,6 +623,163 @@ private fun EditorControlsPreview() {
             FilmSimulationPicker(value = "classic-chrome", onValueChange = {})
             RatingInput(rating = 3, onRatingChange = {})
             TagInput(tags = listOf("street", "warm"), onTagsChange = {})
+        }
+    }
+}
+
+/**
+ * Section for selecting and managing up to 5 reference sample photos per recipe.
+ */
+@Composable
+fun RecipeImagePickerSection(
+    images: List<String>,
+    imageStore: ImageStore,
+    onAddImages: (List<android.net.Uri>) -> Unit,
+    onRemoveImage: (String) -> Unit,
+    isProcessing: Boolean = false,
+    onImageClick: (Int) -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(
+            maxItems = (ImageStore.MAX_IMAGES_PER_RECIPE - images.size).coerceAtLeast(1),
+        ),
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            onAddImages(uris)
+        }
+    }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.sample_photos_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = "${images.size}/${ImageStore.MAX_IMAGES_PER_RECIPE}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            contentPadding = PaddingValues(vertical = 4.dp),
+        ) {
+            itemsIndexed(images, key = { _, it -> it }) { index, imageName ->
+                Box(
+                    modifier = Modifier
+                        .size(width = 120.dp, height = 90.dp)
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                        .clickable { onImageClick(index) },
+                ) {
+                    val file = remember(imageName) { imageStore.getFile(imageName) }
+                    AsyncImage(
+                        model = file,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    IconButton(
+                        onClick = { onRemoveImage(imageName) },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp)
+                            .size(24.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
+                                shape = RoundedCornerShape(12.dp),
+                            ),
+                    ) {
+                        Icon(
+                            Icons.Filled.Clear,
+                            contentDescription = stringResource(R.string.action_delete),
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
+            }
+
+            if (isProcessing) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .size(width = 130.dp, height = 90.dp)
+                            .clip(MaterialTheme.shapes.medium)
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                                shape = MaterialTheme.shapes.medium,
+                            )
+                            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                            .padding(8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator(
+                                modifier = Modifier.size(24.dp),
+                            )
+                            Text(
+                                text = stringResource(R.string.processing_images),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                maxLines = 2,
+                            )
+                        }
+                    }
+                }
+            } else if (images.size < ImageStore.MAX_IMAGES_PER_RECIPE) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .size(width = 120.dp, height = 90.dp)
+                            .clip(MaterialTheme.shapes.medium)
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                                shape = MaterialTheme.shapes.medium,
+                            )
+                            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                            .clickable {
+                                launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.Add,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp),
+                            )
+                            Text(
+                                text = stringResource(R.string.add_photo),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

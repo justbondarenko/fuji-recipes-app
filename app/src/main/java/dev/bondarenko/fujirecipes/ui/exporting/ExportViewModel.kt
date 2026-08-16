@@ -6,11 +6,12 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.bondarenko.fujirecipes.core.AppContainer
+import dev.bondarenko.fujirecipes.core.store.ImageStore
 import dev.bondarenko.fujirecipes.data.exporting.ExportKind
 import dev.bondarenko.fujirecipes.data.exporting.archiveEntries
 import dev.bondarenko.fujirecipes.data.exporting.exportRecipes
 import dev.bondarenko.fujirecipes.data.exporting.libraryExportFilename
-import dev.bondarenko.fujirecipes.data.exporting.zipOf
+import dev.bondarenko.fujirecipes.data.exporting.zipOfBytes
 import dev.bondarenko.fujirecipes.data.model.Recipe
 import dev.bondarenko.fujirecipes.data.repo.RecipeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,7 +54,10 @@ data class ExportFile(val filename: String, val bytes: ByteArray) {
     override fun hashCode(): Int = 31 * filename.hashCode() + bytes.contentHashCode()
 }
 
-class ExportViewModel(repository: RecipeRepository) : ViewModel() {
+class ExportViewModel(
+    repository: RecipeRepository,
+    private val imageStore: ImageStore,
+) : ViewModel() {
 
     private val _state = MutableStateFlow(ExportUiState())
     val state: StateFlow<ExportUiState> = _state.asStateFlow()
@@ -124,7 +128,20 @@ class ExportViewModel(repository: RecipeRepository) : ViewModel() {
                 exportRecipes(chosen, at).toByteArray(Charsets.UTF_8),
             )
 
-            ExportKind.ZIP -> ExportFile(filename, zipOf(archiveEntries(chosen)))
+            ExportKind.ZIP -> {
+                val jsonEntries = archiveEntries(chosen)
+                val entries = mutableMapOf<String, ByteArray>()
+                jsonEntries.forEach { (k, v) ->
+                    entries[k] = v.toByteArray(Charsets.UTF_8)
+                }
+                chosen.flatMap { it.images }.distinct().forEach { imageName ->
+                    val file = imageStore.getFile(imageName)
+                    if (file.exists()) {
+                        entries["images/$imageName"] = file.readBytes()
+                    }
+                }
+                ExportFile(filename, zipOfBytes(entries))
+            }
         }
     }
 
@@ -134,7 +151,7 @@ class ExportViewModel(repository: RecipeRepository) : ViewModel() {
 
     companion object {
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
-            initializer { ExportViewModel(container.recipeRepository) }
+            initializer { ExportViewModel(container.recipeRepository, container.imageStore) }
         }
     }
 }

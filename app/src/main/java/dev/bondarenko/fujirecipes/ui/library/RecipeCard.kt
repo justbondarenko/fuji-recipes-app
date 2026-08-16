@@ -30,6 +30,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.remember
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
+import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -42,6 +49,7 @@ data class RecipeCardModel(
     val filmSimulationId: String?,
     val rating: Int,
     val tags: List<String>,
+    val firstImage: String? = null,
 )
 
 /**
@@ -72,6 +80,26 @@ fun RecipeCard(
             vertical = RowVerticalPadding,
         ),
         modifier = modifier.fillMaxWidth(),
+        leadingContent = if (recipe.firstImage != null) {
+            {
+                val context = LocalContext.current
+                val imageStore = remember(context) { (context.applicationContext as FujiRecipesApp).container.imageStore }
+                val file = remember(recipe.firstImage) { imageStore.getFile(recipe.firstImage) }
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(MaterialTheme.shapes.small)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                ) {
+                    AsyncImage(
+                        model = file,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
+        } else null,
         supportingContent = if (recipe.tags.isEmpty()) {
             null
         } else {

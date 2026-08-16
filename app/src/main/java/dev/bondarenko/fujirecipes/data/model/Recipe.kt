@@ -43,6 +43,7 @@ data class Recipe(
     override val tags: List<String> = emptyList(),
     override val sortKey: Double = 0.0,
     val settings: JsonObject = JsonObject(emptyMap()),
+    val images: List<String> = emptyList(),
     override val createdAt: String = "",
     override val updatedAt: String = "",
 
@@ -76,7 +77,7 @@ data class Recipe(
     companion object {
         /** Every key this class declares. Anything else on the wire is [extra]. */
         private val KNOWN_KEYS = setOf(
-            "id", "name", "notes", "rating", "tags", "sortKey", "settings",
+            "id", "name", "notes", "rating", "tags", "sortKey", "settings", "images",
             "createdAt", "updatedAt",
         )
 

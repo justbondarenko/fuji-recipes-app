@@ -33,6 +33,7 @@ import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SplitButtonDefaults
 import androidx.compose.material3.SplitButtonLayout
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -41,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -77,10 +79,13 @@ import kotlinx.serialization.json.doubleOrNull
 @Composable
 fun RecipeEditorScreen(
     state: EditorUiState,
+    imageStore: dev.bondarenko.fujirecipes.core.store.ImageStore,
     onNameChange: (String) -> Unit,
     onNotesChange: (String) -> Unit,
     onRatingChange: (Int) -> Unit,
     onTagsChange: (List<String>) -> Unit,
+    onAddImages: (List<android.net.Uri>) -> Unit,
+    onRemoveImage: (String) -> Unit,
     onSettingChange: (String, kotlinx.serialization.json.JsonElement?) -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit,
@@ -90,94 +95,109 @@ fun RecipeEditorScreen(
 ) {
     var confirmDiscard by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var previewImageIndex by rememberSaveable { mutableStateOf<Int?>(null) }
 
-    /**
-     * Leaving with unsaved work asks; leaving an untouched form does not.
-     *
-     * The second half matters: a guard that fires when nothing was typed teaches people to
-     * dismiss it without reading, which is how the one that mattered gets dismissed too.
-     */
     fun attemptBack() {
         if (state.isDirty) confirmDiscard = true else onBack()
     }
 
-    BackHandler(enabled = true) { attemptBack() }
+    BackHandler(enabled = state.isDirty) { attemptBack() }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        /**
-         * The **small top app bar** for an editing flow (`m3.material.io/components/app-bars`):
-         * back cancels, the title says what you are doing, and the confirming action lives in
-         * the bar itself.
-         *
-         * The subtitle is a `Column` in the `title` slot rather than the `subtitle` parameter,
-         * because that overload is `internal` at material3 1.4.0 — verified by compiling
-         * against it, not assumed.
-         */
-        TopAppBar(
-            title = {
-                Column {
-                    Text(
-                        text = stringResource(
-                            if (state.isNew) R.string.editor_new else R.string.editor_edit,
-                        ),
-                        style = MaterialTheme.typography.titleLarge,
-                    )
-                    // Which recipe, so the bar answers "what am I editing" as well as "what
-                    // am I doing". Omitted when there is no name yet to answer with.
-                    if (state.name.isNotBlank()) {
+    Scaffold(
+        modifier = modifier,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
                         Text(
-                            text = state.name,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                            text = stringResource(
+                                if (state.isNew) R.string.editor_new else R.string.editor_edit,
+                            ),
+                            style = MaterialTheme.typography.titleLarge,
+                        )
+                        // Which recipe, so the bar answers "what am I editing" as well as "what
+                        // am I doing". Omitted when there is no name yet to answer with.
+                        if (state.name.isNotBlank()) {
+                            Text(
+                                text = state.name,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                },
+                navigationIcon = {
+                    // Back *is* cancel, and it confirms when there is work to lose.
+                    IconButton(onClick = ::attemptBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_cancel),
                         )
                     }
-                }
-            },
-            navigationIcon = {
-                // Back *is* cancel, and it confirms when there is work to lose.
-                IconButton(onClick = ::attemptBack) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.action_cancel),
-                    )
-                }
-            },
-            actions = {
-                if (!state.notFound) {
-                    EditorActions(
-                        isSaving = state.isSaving,
-                        // A new recipe has nothing to duplicate and nothing to delete, so it
-                        // gets a plain button rather than a split one with an empty menu.
-                        hasSecondaryActions = !state.isNew,
-                        onSave = onSave,
-                        onDuplicate = onDuplicate,
-                        onDelete = { confirmDelete = true },
-                        modifier = Modifier.padding(end = 8.dp),
-                    )
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-                titleContentColor = MaterialTheme.colorScheme.onSurface,
-            ),
-        )
-
-        when {
-            state.isLoading -> Unit
-
-            state.notFound -> LibraryPanel(
-                title = stringResource(R.string.recipe_not_found_title),
-                body = stringResource(R.string.recipe_not_found_body),
-                primaryLabel = stringResource(R.string.action_back_to_list),
-                onPrimary = onBack,
-                modifier = Modifier.padding(16.dp),
+                },
+                actions = {
+                    if (!state.notFound) {
+                        EditorActions(
+                            isSaving = state.isSaving || state.isProcessingImage,
+                            // A new recipe has nothing to duplicate and nothing to delete, so it
+                            // gets a plain button rather than a split one with an empty menu.
+                            hasSecondaryActions = !state.isNew,
+                            onSave = onSave,
+                            onDuplicate = onDuplicate,
+                            onDelete = { confirmDelete = true },
+                            modifier = Modifier.padding(end = 8.dp),
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                ),
             )
+        },
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
+            when {
+                state.isLoading -> Unit
 
-            else -> EditorBody(
-                state, onNameChange, onNotesChange, onRatingChange,
-                onTagsChange, onSettingChange, onDuplicate,
+                state.notFound -> LibraryPanel(
+                    title = stringResource(R.string.recipe_not_found_title),
+                    body = stringResource(R.string.recipe_not_found_body),
+                    primaryLabel = stringResource(R.string.action_back_to_list),
+                    onPrimary = onBack,
+                    modifier = Modifier.padding(16.dp),
+                )
+
+                else -> EditorBody(
+                    state = state,
+                    imageStore = imageStore,
+                    onNameChange = onNameChange,
+                    onNotesChange = onNotesChange,
+                    onRatingChange = onRatingChange,
+                    onTagsChange = onTagsChange,
+                    onAddImages = onAddImages,
+                    onRemoveImage = onRemoveImage,
+                    onImageClick = { previewImageIndex = it },
+                    onSettingChange = onSettingChange,
+                    onDuplicate = onDuplicate,
+                )
+            }
+        }
+    }
+
+    previewImageIndex?.let { index ->
+        if (state.images.isNotEmpty()) {
+            dev.bondarenko.fujirecipes.ui.common.ImagePreviewDialog(
+                images = state.images,
+                initialIndex = index,
+                imageStore = imageStore,
+                onDismiss = { previewImageIndex = null },
             )
         }
     }
@@ -228,10 +248,14 @@ fun RecipeEditorScreen(
 @Composable
 private fun EditorBody(
     state: EditorUiState,
+    imageStore: dev.bondarenko.fujirecipes.core.store.ImageStore,
     onNameChange: (String) -> Unit,
     onNotesChange: (String) -> Unit,
     onRatingChange: (Int) -> Unit,
     onTagsChange: (List<String>) -> Unit,
+    onAddImages: (List<android.net.Uri>) -> Unit,
+    onRemoveImage: (String) -> Unit,
+    onImageClick: (Int) -> Unit,
     onSettingChange: (String, kotlinx.serialization.json.JsonElement?) -> Unit,
     onDuplicate: () -> Unit,
 ) {
@@ -254,6 +278,15 @@ private fun EditorBody(
                     supportingText = state.problemFor(RecipeValidation.NAME_FIELD)
                         ?.let { { Text(it) } },
                     modifier = Modifier.fillMaxWidth(),
+                )
+
+                RecipeImagePickerSection(
+                    images = state.images,
+                    imageStore = imageStore,
+                    onAddImages = onAddImages,
+                    onRemoveImage = onRemoveImage,
+                    isProcessing = state.isProcessingImage,
+                    onImageClick = onImageClick,
                 )
 
                 TagInput(
@@ -483,15 +516,21 @@ fun RecipeEditorRouteContent(
 
     RecipeEditorScreen(
         state = state,
+        imageStore = container.imageStore,
         onNameChange = viewModel::onNameChange,
         onNotesChange = viewModel::onNotesChange,
         onRatingChange = viewModel::onRatingChange,
         onTagsChange = viewModel::onTagsChange,
+        onAddImages = viewModel::onAddImages,
+        onRemoveImage = viewModel::onRemoveImage,
         onSettingChange = viewModel::onSettingChange,
         onSave = { viewModel.save(onSaved) },
         onDelete = { viewModel.delete(onDeleted) },
         onDuplicate = { recipeId?.let(onDuplicate) },
-        onBack = onBack,
+        onBack = {
+            viewModel.cancel()
+            onBack()
+        },
     )
 }
 
@@ -513,7 +552,9 @@ private fun RecipeEditorPreview() {
                     put("grainEffect", JsonPrimitive("off"))
                 },
             ),
+            imageStore = dev.bondarenko.fujirecipes.core.store.ImageStore(java.io.File("")),
             onNameChange = {}, onNotesChange = {}, onRatingChange = {}, onTagsChange = {},
+            onAddImages = {}, onRemoveImage = {},
             onSettingChange = { _, _ -> }, onSave = {}, onDelete = {}, onDuplicate = {},
             onBack = {},
         )

@@ -248,6 +248,15 @@ fun validateFileRecipe(entry: JsonElement): List<RecipeValidation.Problem> {
         }
     }
 
+    recipe["images"]?.let { images ->
+        val list = (images as? JsonArray)?.map { it.stringOrNull }
+        when {
+            list == null -> problems += RecipeValidation.Problem("images", "must be a list")
+            list.any { it == null } -> problems += RecipeValidation.Problem("images", "must be text")
+            else -> RecipeValidation.validateImages(list.filterNotNull())?.let(problems::add)
+        }
+    }
+
     val settings = recipe["settings"]
     if (settings != null && settings !is JsonObject) {
         problems += RecipeValidation.Problem("settings", "must be an object of parameters")

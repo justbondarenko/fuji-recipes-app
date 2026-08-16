@@ -33,3 +33,20 @@ fun zipOf(entries: Map<String, String>): ByteArray {
 
     return out.toByteArray()
 }
+
+/**
+ * Creates a zip archive with arbitrary byte contents (e.g., images + json files).
+ */
+fun zipOfBytes(entries: Map<String, ByteArray>): ByteArray {
+    val out = ByteArrayOutputStream()
+
+    ZipOutputStream(out).use { zip ->
+        entries.forEach { (name, content) ->
+            zip.putNextEntry(ZipEntry(name))
+            zip.write(content)
+            zip.closeEntry()
+        }
+    }
+
+    return out.toByteArray()
+}

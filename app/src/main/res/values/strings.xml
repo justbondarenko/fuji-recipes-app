@@ -92,6 +92,10 @@
     <string name="discard_body">You have unsaved edits to this recipe.</string>
     <string name="delete_title">Delete this recipe?</string>
     <string name="delete_body">“%1$s” will be removed from your library. This cannot be undone.</string>
+    <string name="sample_photos_title">Sample photos</string>
+    <string name="add_photo">Add photo</string>
+    <string name="processing_images">Processing image(s)…</string>
+    <string name="close_preview">Close preview</string>
 
     <!-- Settings -->
     <string name="settings_backup_restore">Backup &amp; Restore</string>

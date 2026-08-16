@@ -59,6 +59,7 @@ data class RecipeHeader(
     val rating: Int,
     val tags: List<String>,
     val notes: String,
+    val images: List<String> = emptyList(),
 )
 
 /**
@@ -170,6 +171,7 @@ class RecipeViewModel(
             rating = recipe.rating,
             tags = recipe.tags,
             notes = recipe.notes,
+            images = recipe.images,
         )
 
         /** Rows into groups, preserving the document's group order. */

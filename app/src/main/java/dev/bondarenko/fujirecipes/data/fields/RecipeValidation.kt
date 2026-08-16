@@ -23,11 +23,13 @@ object RecipeValidation {
     const val TAGS_MAX = 20
     const val TAG_MAX = 30
     const val RATING_MAX = 5
+    const val IMAGES_MAX = 5
 
     const val NAME_FIELD = "name"
     const val NOTES_FIELD = "notes"
     const val RATING_FIELD = "rating"
     const val TAGS_FIELD = "tags"
+    const val IMAGES_FIELD = "images"
 
     fun validateName(name: String): Problem? = when {
         name.isBlank() -> Problem(NAME_FIELD, "A recipe needs a name.")
@@ -55,6 +57,13 @@ object RecipeValidation {
         tags.any { it.length > TAG_MAX } ->
             Problem(TAGS_FIELD, "Keep tags to $TAG_MAX characters.")
         tags.size != tags.distinct().size -> Problem(TAGS_FIELD, "That tag is already on this recipe.")
+        else -> null
+    }
+
+    fun validateImages(images: List<String>): Problem? = when {
+        images.size > IMAGES_MAX -> Problem(IMAGES_FIELD, "Up to $IMAGES_MAX sample photos per recipe.")
+        images.any { it.isBlank() } -> Problem(IMAGES_FIELD, "An image filename cannot be empty.")
+        images.size != images.distinct().size -> Problem(IMAGES_FIELD, "Duplicate images are not allowed.")
         else -> null
     }
 

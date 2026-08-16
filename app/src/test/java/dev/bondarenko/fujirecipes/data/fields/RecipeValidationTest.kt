@@ -145,4 +145,17 @@ class RecipeValidationTest {
         )
         assertEquals(emptyList(), problems)
     }
+
+    @Test
+    fun `images are bounded in count and blank filenames are refused`() {
+        assertNull(RecipeValidation.validateImages(List(5) { "img$it.webp" }))
+        assertNotNull(RecipeValidation.validateImages(List(6) { "img$it.webp" }))
+        assertNotNull(RecipeValidation.validateImages(listOf("")))
+        assertNotNull(RecipeValidation.validateImages(listOf("   ")))
+    }
+
+    @Test
+    fun `duplicate image filenames are refused`() {
+        assertNotNull(RecipeValidation.validateImages(listOf("photo.webp", "photo.webp")))
+    }
 }
