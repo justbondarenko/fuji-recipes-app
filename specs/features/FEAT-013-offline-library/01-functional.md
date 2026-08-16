@@ -85,12 +85,21 @@ to read — which is the mechanism FEAT-008 and FEAT-012 already shipped.
     and keeps the original's `createdAt` and `sortKey`; `keep-both` lands beside it under a
     new id; `skip`, and an id collision nobody resolved, write nothing.
 
+### The empty library
+
+15. A library with nothing in it is drawn as a `FujiIconPanel` — the icon-shape-title-body-action
+    page the photo reader, both imports and the camera already use — rather than the bordered
+    card it was. Its action is **Import from camera**, because a first launch is rarely
+    someone who wants to type twenty parameters in and usually someone whose recipes are
+    already in C1–C7. Creating one by hand sits under it, quieter, and the create FAB is on
+    screen throughout either way.
+
 ### What does not change
 
-15. Every screen above the repository. The seam `architecture.md` §4 kept for exactly this
+16. Every screen above the repository. The seam `architecture.md` §4 kept for exactly this
     reason meant the library list, the recipe view, the editor, both import flows, export,
     the photo reader and the camera writer needed their result types renamed and nothing else.
-16. The export file format. It is shared with the web client and is now the only thing the
+17. The export file format. It is shared with the web client and is now the only thing the
     two projects have in common.
 
 ## Out of scope

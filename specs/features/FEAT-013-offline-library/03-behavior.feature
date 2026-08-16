@@ -18,11 +18,13 @@ Feature: Offline library
 
   # ── Reading ─────────────────────────────────────────────────────────────────
 
-  Scenario: An empty library says so rather than failing
+  Scenario: An empty library offers the fastest way to fill it
     Given no library file on the device
     When I open the library
     Then I am told there are no recipes yet
-    And I am offered to create one
+    # The same panel the photo reader and both imports use: one shape, one line, one action.
+    And the action offered is to import from the camera
+    And creating one by hand is offered underneath it
 
   Scenario: Recipes survive a restart
     Given a library of three recipes

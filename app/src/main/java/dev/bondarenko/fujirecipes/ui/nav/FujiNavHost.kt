@@ -186,6 +186,7 @@ fun FujiNavHost(
                 onOpenRecipe = {},
                 onEditRecipe = { id -> navController.navigate(RecipeEditorRoute(id)) },
                 onCreateRecipe = { navController.navigate(RecipeEditorRoute(null)) },
+                onImportFromCamera = { navController.navigate(ImportRoute) },
                 contentPadding = contentPadding,
             )
         }
