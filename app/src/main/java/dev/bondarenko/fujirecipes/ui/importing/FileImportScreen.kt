@@ -54,7 +54,6 @@ import dev.bondarenko.fujirecipes.data.importing.FileRowStatus
 import dev.bondarenko.fujirecipes.data.importing.Resolution
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
-import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
 import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import kotlinx.coroutines.Dispatchers
@@ -314,7 +313,6 @@ private fun FileRowCard(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         modifier = Modifier.fillMaxWidth(),
-        leadingContent = { FilmSimBadge(simulationId = row.filmSimulationId, size = 40.dp) },
         supportingContent = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(FilmSimulations.byId(row.filmSimulationId)?.label.orEmpty())

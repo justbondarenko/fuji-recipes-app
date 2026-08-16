@@ -72,14 +72,6 @@ fun RecipeCard(
             vertical = RowVerticalPadding,
         ),
         modifier = modifier.fillMaxWidth(),
-        leadingContent = {
-            // 💡 FILM SIMULATION BADGE SIZE — the round swatch on the left.
-            FilmSimBadge(
-                simulationId = recipe.filmSimulationId,
-                size = 48.dp,
-                shape = CircleShape,
-            )
-        },
         supportingContent = if (recipe.tags.isEmpty()) {
             null
         } else {

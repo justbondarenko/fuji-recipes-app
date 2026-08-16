@@ -86,7 +86,6 @@ import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.common.errorMessageFor
 import dev.bondarenko.fujirecipes.ui.editor.RatingInput
 import dev.bondarenko.fujirecipes.ui.editor.TagInput
-import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
 import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
@@ -488,16 +487,6 @@ private fun RecipeHeaderBlock(
         // 💡 HEADER ALIGNMENT — `CenterHorizontally` or `Start`.
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // 💡 FILM SIMULATION SIZE — the shaped swatch at the top.
-        FilmSimBadge(
-            simulationId = recipe.filmSimulationId,
-            size = HeaderSwatchSize,
-            shape = MaterialShapes.Square.toShape(),
-        )
-
-        // 💡 GAP: swatch → name
-        Spacer(Modifier.height(SwatchToNameGap))
-
         // 💡 RECIPE NAME:
         //    - Size: `headlineMediumEmphasized` -> `headlineSmallEmphasized` (smaller) or
         //      `headlineLargeEmphasized` (bigger). The `Emphasized` suffix is M3's heavier,
@@ -532,10 +521,6 @@ private fun RecipeHeaderBlock(
 }
 
 // 💡 HEADER SIZES AND GAPS — every measurement in the header, in one place.
-/** The shaped film simulation swatch. */
-private val HeaderSwatchSize = 120.dp
-/** Swatch to recipe name. */
-private val SwatchToNameGap = 14.dp
 /** Name to rating stars — deliberately tight, they read as one block. */
 private val NameToRatingGap = 4.dp
 /** Rating stars to the tag cloud. */

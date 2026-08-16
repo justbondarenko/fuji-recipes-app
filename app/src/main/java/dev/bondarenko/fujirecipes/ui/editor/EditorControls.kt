@@ -71,7 +71,6 @@ import dev.bondarenko.fujirecipes.data.fields.EnumFieldDef
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.fields.NumberField
 import dev.bondarenko.fujirecipes.data.fields.SensorGeneration
-import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
 import kotlin.math.abs
@@ -368,10 +367,6 @@ fun FilmSimulationPicker(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        FilmSimBadge(value, size = 32.dp)
-        // 💡 FIELD LABEL (Film simulation picker):
-        // - Change font style/size: `style = MaterialTheme.typography.bodyMedium` (or add `fontSize = 14.sp`)
-        // - Change font weight: add `fontWeight = FontWeight.SemiBold`
         Text(
             text = stringResource(R.string.field_film_simulation),
             style = MaterialTheme.typography.bodyMedium,
@@ -386,7 +381,6 @@ fun FilmSimulationPicker(
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 FilmSimulations.all.forEach { simulation ->
                     DropdownMenuItem(
-                        leadingIcon = { FilmSimBadge(simulation.id, size = 24.dp) },
                         text = { Text(simulation.label) },
                         trailingIcon = {
                             if (simulation.id == value) {
