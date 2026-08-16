@@ -420,10 +420,16 @@ fun RatingInput(
     onRatingChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // The default 48dp interactive minimum is what set the stars so far apart: each button
+    // reserved that much width around a 20dp glyph. Relaxing it lets the gap be the gap.
+    //
+    // 💡 STAR SPACING — `RatingStarGap` is half a star wide; raise it to loosen the row.
+    // 💡 STAR SIZE — `RatingStarSize` drives both the glyph and the tap target.
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(RatingStarGap),
     ) {
         (1..5).forEach { star ->
             // IconToggleButton rather than a 28dp Box with a ripple hung off it: a star is a
@@ -438,6 +444,7 @@ fun RatingInput(
                     checkedContainerColor = Color.Transparent,
                     checkedContentColor = MaterialTheme.colorScheme.tertiary,
                 ),
+                modifier = Modifier.size(RatingStarSize),
             ) {
                 Icon(
                     painter = if (star <= rating) {
@@ -446,12 +453,19 @@ fun RatingInput(
                         painterResource(R.drawable.ic_star_border)
                     },
                     contentDescription = stringResource(R.string.rating_of_five, star),
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(RatingStarSize),
                 )
             }
         }
     }
+    }
 }
+
+/** 💡 The star glyph, and the button around it. */
+private val RatingStarSize = 24.dp
+
+/** 💡 Half a star, per the header design. */
+private val RatingStarGap = RatingStarSize / 2
 
 /**
  * Tags — FEAT-003 T-09, reworked after design review.

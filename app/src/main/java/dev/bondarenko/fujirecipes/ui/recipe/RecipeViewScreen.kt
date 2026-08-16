@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -317,7 +318,7 @@ private fun RecipeFloatingToolbar(
 
             IconButton(onClick = onExportRecipe) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_cloud_sync),
+                    painter = painterResource(R.drawable.ic_file_export),
                     contentDescription = stringResource(R.string.action_export_recipe),
                 )
             }
@@ -474,21 +475,20 @@ private fun RecipeHeaderBlock(
     onRatingChange: (Int) -> Unit,
     onTagsChange: (List<String>) -> Unit,
 ) {
-    // A different M3 shape each time the screen opens. `remember` with no key is exactly the
-    // scope wanted: stable while you are reading, re-rolled on the next open.
-    val polygon = remember { HeaderShapes.random() }
-
     Column(
         modifier = Modifier.fillMaxWidth(),
-        // 💡 HEADER SPACING — the gap between simulation, name, rating and tags.
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        // 💡 HEADER ALIGNMENT — `CenterHorizontally` or `Start`.
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // 💡 FILM SIMULATION SIZE — the shaped swatch at the top.
         FilmSimBadge(
             simulationId = recipe.filmSimulationId,
-            size = 96.dp,
-            shape = polygon.toShape(),
+            size = HeaderSwatchSize,
+            shape = MaterialShapes.Square.toShape(),
         )
+
+        // 💡 GAP: swatch → name
+        Spacer(Modifier.height(SwatchToNameGap))
 
         // 💡 RECIPE NAME:
         //    - Size: `headlineMediumEmphasized` -> `headlineSmallEmphasized` (smaller) or
@@ -502,9 +502,16 @@ private fun RecipeHeaderBlock(
             color = MaterialTheme.colorScheme.primary,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
         )
 
+        // 💡 GAP: name → rating stars
+        Spacer(Modifier.height(NameToRatingGap))
+
         RatingInput(rating = recipe.rating, onRatingChange = onRatingChange)
+
+        // 💡 GAP: rating stars → tags
+        Spacer(Modifier.height(RatingToTagsGap))
 
         // 💡 TAGS SHOWN BEFORE "+N" — raise to reveal more before the fold.
         TagInput(
@@ -515,22 +522,15 @@ private fun RecipeHeaderBlock(
     }
 }
 
-/**
- * The shapes a recipe's simulation swatch can take.
- *
- * One is picked at random per open, so the same recipe is not always the same silhouette —
- * the variety is the point, and every one of these is an M3 shape rather than a rounded
- * rectangle pretending to be interesting.
- */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-private val HeaderShapes = listOf(
-    MaterialShapes.Arch,
-    MaterialShapes.Square,
-    MaterialShapes.Circle,
-    MaterialShapes.Pill,
-    MaterialShapes.Pentagon,
-    MaterialShapes.Gem,
-)
+// 💡 HEADER SIZES AND GAPS — every measurement in the header, in one place.
+/** The shaped film simulation swatch. */
+private val HeaderSwatchSize = 120.dp
+/** Swatch to recipe name. */
+private val SwatchToNameGap = 14.dp
+/** Name to rating stars — deliberately tight, they read as one block. */
+private val NameToRatingGap = 4.dp
+/** Rating stars to the tag cloud. */
+private val RatingToTagsGap = 12.dp
 
 /** 💡 How many tags show before the `+N` chip. */
 private const val HeaderVisibleTags = 3
