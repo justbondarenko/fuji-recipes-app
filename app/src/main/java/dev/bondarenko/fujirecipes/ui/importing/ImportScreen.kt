@@ -17,7 +17,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItem
-import dev.bondarenko.fujirecipes.ui.common.DownArrow
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.toShape
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -195,7 +195,7 @@ private fun ImportPanel(
 ) {
     FujiIconPanel(
         icon = painterResource(R.drawable.ic_linked_camera),
-        shape = DownArrow.toShape(),
+        shape = MaterialShapes.Pill.toShape(),
         title = title,
         body = body,
         actionLabel = actionLabel,
