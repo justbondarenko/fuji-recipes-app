@@ -1,10 +1,17 @@
 package dev.bondarenko.fujirecipes.ui.nav
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.IntOffset
+import androidx.navigation.NavDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.toRoute
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.ui.common.PlaceholderScreen
@@ -18,6 +25,7 @@ import dev.bondarenko.fujirecipes.ui.importing.ImportRouteContent
 import dev.bondarenko.fujirecipes.ui.photo.PhotoReaderRouteContent
 import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewRouteContent
 import dev.bondarenko.fujirecipes.ui.settings.SettingsRouteContent
+import dev.bondarenko.fujirecipes.ui.theme.LocalReducedMotion
 import kotlinx.serialization.Serializable
 
 /**
@@ -85,13 +93,93 @@ data object ExportRoute
 @Serializable
 data object FileImportRoute
 
+/**
+ * Where a destination sits in the toolbar, left to right, or -1 if it is not in the bar.
+ *
+ * Only used to work out which way a transition should travel: tapping something to the right
+ * of where you are slides the screens left, and vice versa, so the motion agrees with the
+ * thing you pressed. Keep in step with the item order in `AppShell`.
+ */
+private fun NavDestination?.toolbarIndex(): Int = when {
+    this == null -> -1
+    hasRoute<LibraryRoute>() -> 0
+    hasRoute<PhotoRoute>() -> 1
+    hasRoute<CameraRoute>() -> 2
+    hasRoute<MoreRoute>() -> 3
+    else -> -1
+}
+
+/**
+ * Which way the pair should slide, or null when the move is not along the toolbar.
+ *
+ * Anything involving a subpage — the editor, export, a recipe — has no position in the bar,
+ * so it gets no direction and falls back to a fade. A slide there would imply a sideways
+ * relationship that does not exist.
+ */
+private fun slideDirection(
+    from: NavDestination?,
+    to: NavDestination?,
+): AnimatedContentTransitionScope.SlideDirection? {
+    val start = from.toolbarIndex()
+    val end = to.toolbarIndex()
+    return when {
+        start < 0 || end < 0 || start == end -> null
+        // Start/End rather than Left/Right, so this still reads correctly in RTL.
+        end > start -> AnimatedContentTransitionScope.SlideDirection.Start
+        else -> AnimatedContentTransitionScope.SlideDirection.End
+    }
+}
+
 @Composable
 fun FujiNavHost(
     navController: NavHostController,
     startDestination: Any,
     contentPadding: PaddingValues,
 ) {
-    NavHost(navController = navController, startDestination = startDestination) {
+    // Hoisted: the transition lambdas below are not composable, so they cannot read either of
+    // these themselves.
+    val reducedMotion = LocalReducedMotion.current
+    val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
+    val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+
+    NavHost(
+        navController = navController,
+        startDestination = startDestination,
+        enterTransition = {
+            val direction = slideDirection(initialState.destination, targetState.destination)
+            if (reducedMotion || direction == null) {
+                fadeIn(effects)
+            } else {
+                slideIntoContainer(direction, spatial)
+            }
+        },
+        exitTransition = {
+            val direction = slideDirection(initialState.destination, targetState.destination)
+            if (reducedMotion || direction == null) {
+                fadeOut(effects)
+            } else {
+                slideOutOfContainer(direction, spatial)
+            }
+        },
+        // Back along the bar is the same journey in reverse, and the index comparison already
+        // says which way that is — so pop reuses the same rule rather than a mirrored copy.
+        popEnterTransition = {
+            val direction = slideDirection(initialState.destination, targetState.destination)
+            if (reducedMotion || direction == null) {
+                fadeIn(effects)
+            } else {
+                slideIntoContainer(direction, spatial)
+            }
+        },
+        popExitTransition = {
+            val direction = slideDirection(initialState.destination, targetState.destination)
+            if (reducedMotion || direction == null) {
+                fadeOut(effects)
+            } else {
+                slideOutOfContainer(direction, spatial)
+            }
+        },
+    ) {
         composable<ConnectionRoute> { entry ->
             val route = entry.toRoute<ConnectionRoute>()
             ConnectionRouteContent(
