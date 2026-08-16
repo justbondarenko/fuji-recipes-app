@@ -518,6 +518,7 @@ private fun RecipeHeaderBlock(
             tags = recipe.tags,
             onTagsChange = onTagsChange,
             collapsedLimit = HeaderVisibleTags,
+            horizontalAlignment = Alignment.CenterHorizontally,
         )
     }
 }

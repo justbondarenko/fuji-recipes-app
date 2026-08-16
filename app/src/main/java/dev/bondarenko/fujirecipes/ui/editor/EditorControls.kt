@@ -489,6 +489,8 @@ fun TagInput(
      * wraps is the same shape either way, just taller.
      */
     collapsedLimit: Int? = null,
+    /** 💡 TAG CLOUD ALIGNMENT — `Alignment.Start` in a form, `CenterHorizontally` in a header. */
+    horizontalAlignment: Alignment.Horizontal = Alignment.Start,
 ) {
     // Keyed on the tag count so adding or removing one re-collapses rather than leaving the
     // "+N" chip claiming a number that is no longer true.
@@ -516,7 +518,8 @@ fun TagInput(
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
             FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp, horizontalAlignment),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 visibleTags.forEach { tag ->

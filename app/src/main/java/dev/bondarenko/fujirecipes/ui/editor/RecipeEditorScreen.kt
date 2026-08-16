@@ -1,21 +1,16 @@
 package dev.bondarenko.fujirecipes.ui.editor
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -24,11 +19,17 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SplitButtonDefaults
+import androidx.compose.material3.SplitButtonLayout
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,11 +40,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -145,27 +143,16 @@ fun RecipeEditorScreen(
             },
             actions = {
                 if (!state.notFound) {
-                    Button(
-                        onClick = onSave,
-                        enabled = !state.isSaving,
+                    EditorActions(
+                        isSaving = state.isSaving,
+                        // A new recipe has nothing to duplicate and nothing to delete, so it
+                        // gets a plain button rather than a split one with an empty menu.
+                        hasSecondaryActions = !state.isNew,
+                        onSave = onSave,
+                        onDuplicate = onDuplicate,
+                        onDelete = { confirmDelete = true },
                         modifier = Modifier.padding(end = 8.dp),
-                        contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-                    ) {
-                        if (state.isSaving) {
-                            FujiLoadingIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                            )
-                        } else {
-                            Icon(
-                                Icons.Filled.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(stringResource(R.string.action_save))
-                        }
-                    }
+                    )
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
@@ -188,7 +175,6 @@ fun RecipeEditorScreen(
             else -> EditorBody(
                 state, onNameChange, onNotesChange, onRatingChange,
                 onTagsChange, onSettingChange, onDuplicate,
-                onRequestDelete = { confirmDelete = true },
             )
         }
     }
@@ -245,7 +231,6 @@ private fun EditorBody(
     onTagsChange: (List<String>) -> Unit,
     onSettingChange: (String, kotlinx.serialization.json.JsonElement?) -> Unit,
     onDuplicate: () -> Unit,
-    onRequestDelete: () -> Unit,
 ) {
     val context = state.fieldContext
     val applicable = RecipeFields.applicable(context)
@@ -360,33 +345,98 @@ private fun EditorBody(
             }
         }
 
-        // Saving lives in the app bar now. What is left down here is the pair of actions
-        // that end a recipe's life — and delete is last, where it cannot be hit on the way
-        // to something else.
-        if (!state.isNew) {
-            item {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    OutlinedButton(
-                        onClick = onDuplicate,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(stringResource(R.string.action_duplicate))
-                    }
+    }
+}
 
-                    TextButton(
-                        onClick = onRequestDelete,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error,
-                        ),
-                    ) {
-                        Text(stringResource(R.string.action_delete))
-                    }
+/**
+ * Save, duplicate and delete as one M3 split button.
+ *
+ * They were three controls in two places — save in the app bar, duplicate and delete adrift at
+ * the bottom of a long scrolling form, where reaching them meant scrolling past every field.
+ * A split button is the component for exactly this: one action you will almost always want,
+ * and its less common relatives behind the same control.
+ *
+ * Delete keeps its confirmation dialog, so the menu item is a request rather than the deed.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun EditorActions(
+    isSaving: Boolean,
+    hasSecondaryActions: Boolean,
+    onSave: () -> Unit,
+    onDuplicate: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+
+    // 💡 SAVE LABEL — icon plus text; drop the Text for an icon-only leading button.
+    val saveContent: @Composable RowScope.() -> Unit = {
+        if (isSaving) {
+            FujiLoadingIndicator(
+                modifier = Modifier.size(SplitButtonDefaults.LeadingIconSize),
+                color = MaterialTheme.colorScheme.onPrimary,
+            )
+        } else {
+            Icon(
+                Icons.Filled.Check,
+                contentDescription = null,
+                modifier = Modifier.size(SplitButtonDefaults.LeadingIconSize),
+            )
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(stringResource(R.string.action_save))
+        }
+    }
+
+    if (!hasSecondaryActions) {
+        Button(
+            onClick = onSave,
+            enabled = !isSaving,
+            modifier = modifier,
+            contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+            content = saveContent,
+        )
+        return
+    }
+
+    Box(modifier = modifier) {
+        SplitButtonLayout(
+            leadingButton = {
+                SplitButtonDefaults.LeadingButton(
+                    onClick = onSave,
+                    enabled = !isSaving,
+                    content = saveContent,
+                )
+            },
+            trailingButton = {
+                SplitButtonDefaults.TrailingButton(
+                    checked = menuOpen,
+                    onCheckedChange = { menuOpen = it },
+                ) {
+                    Icon(
+                        Icons.Filled.KeyboardArrowDown,
+                        contentDescription = stringResource(R.string.action_more),
+                        modifier = Modifier.size(SplitButtonDefaults.TrailingIconSize),
+                    )
                 }
-            }
+            },
+        )
+
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_duplicate)) },
+                onClick = { menuOpen = false; onDuplicate() },
+            )
+            // Last, and in the error colour: the one item here that cannot be undone.
+            DropdownMenuItem(
+                text = {
+                    Text(
+                        text = stringResource(R.string.action_delete),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                },
+                onClick = { menuOpen = false; onDelete() },
+            )
         }
     }
 }

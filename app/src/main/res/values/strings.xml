@@ -106,6 +106,7 @@
     <string name="action_save">Save</string>
     <string name="action_delete">Delete</string>
     <string name="action_duplicate">Duplicate</string>
+    <string name="action_more">More actions</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_discard">Discard</string>
     <string name="action_keep_editing">Keep editing</string>
