@@ -26,8 +26,27 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.DpSize
+import androidx.graphics.shapes.RoundedPolygon
+import androidx.graphics.shapes.transformed
+import android.graphics.Matrix
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.ui.unit.dp
+
+/**
+ * [MaterialShapes.Arrow] turned through 180°, so it points down.
+ *
+ * An actual rotation of the polygon. `toShape(startAngle)` only moves where the path starts —
+ * it keeps morphs continuous — and leaves the arrow pointing up, which is what it did here
+ * the first time. The Material Symbols polygons are centred on the origin, so rotating about
+ * (0, 0) is the whole job.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private val ShapeSize = 140.dp
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+val DownArrow: RoundedPolygon by lazy {
+    MaterialShapes.Arrow.transformed(Matrix().apply { postRotate(180f) })
+}
 
 /**
  * The standard shape of a page that has one thing to say and one thing to do.
@@ -37,9 +56,9 @@ import androidx.compose.ui.unit.dp
  * they now differ only in the parts that should differ — the shape, the icon and the words.
  *
  * The shape is the page's identity, per `m3.material.io/styles/shape/overview-principles`:
- * `MaterialShapes.Pill` for reading a photo, `Arrow` for the two imports, `Pentagon` for the
- * camera. Callers pass a [Shape] rather than a `RoundedPolygon`, so a rotated arrow is just
- * `MaterialShapes.Arrow.toShape(startAngle = 90)` at the call site.
+ * `MaterialShapes.Pill` for reading a photo, [DownArrow] for the two imports, `Pentagon` for
+ * the camera. Callers pass a [Shape] rather than a `RoundedPolygon`, so the call site reads
+ * `DownArrow.toShape()`.
  *
  * [icon] must be the same drawable the toolbar uses for that destination. A page that
  * announces itself with a different glyph than the item you pressed to get there reads as a
@@ -55,8 +74,6 @@ fun FujiIconPanel(
     body: String? = null,
     containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
     contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
-    /** Wider than tall for `Pill`, which otherwise normalises into a squircle. */
-    shapeSize: DpSize = DpSize(140.dp, 140.dp),
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
     /** False for a step away from the happy path — disconnecting, mainly. */
@@ -76,8 +93,10 @@ fun FujiIconPanel(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Box(
+                // Square, always. A shape stretched to a rectangle is no longer the shape M3
+                // drew — the pill was distorted when this took a DpSize.
                 modifier = Modifier
-                    .size(shapeSize)
+                    .size(ShapeSize)
                     .clip(shape)
                     .background(containerColor),
                 contentAlignment = Alignment.Center,
@@ -108,30 +127,24 @@ fun FujiIconPanel(
             }
 
             if (actionLabel != null && onAction != null) {
-                // The one action on the page, at M3's large button height rather than the
-                // default — it is the only thing to press, so it should not look like a
-                // footnote under the paragraph.
+                // M3's medium button: the one action on the page, sized by the spec rather
+                // than by a modifier of our own.
                 val buttonModifier = Modifier
                     .padding(top = 8.dp)
-                    .heightIn(min = ButtonDefaults.LargeContainerHeight)
-                val label: @Composable () -> Unit = {
-                    Text(text = actionLabel, style = MaterialTheme.typography.titleMedium)
-                }
+                    .heightIn(min = ButtonDefaults.MediumContainerHeight)
+                val padding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight)
+                val label: @Composable () -> Unit = { Text(actionLabel) }
                 if (actionIsPrimary) {
                     Button(
                         onClick = onAction,
                         modifier = buttonModifier,
-                        contentPadding = ButtonDefaults.contentPaddingFor(
-                            ButtonDefaults.LargeContainerHeight,
-                        ),
+                        contentPadding = padding,
                     ) { label() }
                 } else {
                     OutlinedButton(
                         onClick = onAction,
                         modifier = buttonModifier,
-                        contentPadding = ButtonDefaults.contentPaddingFor(
-                            ButtonDefaults.LargeContainerHeight,
-                        ),
+                        contentPadding = padding,
                     ) { label() }
                 }
             }

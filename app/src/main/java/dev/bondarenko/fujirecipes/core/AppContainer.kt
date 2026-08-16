@@ -6,6 +6,8 @@ import dev.bondarenko.fujirecipes.core.cache.SnapshotCache
 import dev.bondarenko.fujirecipes.core.net.ApiClient
 import dev.bondarenko.fujirecipes.core.settings.ConnectionSettings
 import dev.bondarenko.fujirecipes.core.settings.ViewPreferences
+import dev.bondarenko.fujirecipes.BuildConfig
+import dev.bondarenko.fujirecipes.data.repo.DemoRecipeRepository
 import dev.bondarenko.fujirecipes.data.repo.NetworkRecipeRepository
 import dev.bondarenko.fujirecipes.data.repo.RecipeRepository
 import kotlinx.coroutines.runBlocking
@@ -56,7 +58,20 @@ class AppContainer(context: Context) {
      */
     val cameraController: CameraController by lazy { CameraController(applicationContext) }
 
+    /**
+     * True when this build should stand in a fixture for the server.
+     *
+     * Debug only, and only with nothing configured — the case that otherwise parks you on the
+     * setup form with nothing to look at. A release build with no configuration still goes to
+     * setup, because there the form is the right answer.
+     */
+    val useDemoData: Boolean by lazy {
+        BuildConfig.DEBUG && !runBlocking { connectionSettings.current() }.isConfigured
+    }
+
     val recipeRepository: RecipeRepository by lazy {
+        if (useDemoData) return@lazy DemoRecipeRepository()
+
         NetworkRecipeRepository(
             api = apiClient,
             cache = snapshotCache,

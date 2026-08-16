@@ -24,7 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.MaterialShapes
+import dev.bondarenko.fujirecipes.ui.common.DownArrow
 import androidx.compose.material3.toShape
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -119,7 +119,7 @@ fun FileImportScreen(
                     // and only the source differs.
                     FujiIconPanel(
                         icon = painterResource(R.drawable.ic_file_save),
-                        shape = MaterialShapes.Arrow.toShape(startAngle = 90),
+                        shape = DownArrow.toShape(),
                         title = stringResource(R.string.file_import_ready_title),
                         body = stringResource(R.string.file_import_ready_body),
                         actionLabel = stringResource(R.string.file_import_action_choose),

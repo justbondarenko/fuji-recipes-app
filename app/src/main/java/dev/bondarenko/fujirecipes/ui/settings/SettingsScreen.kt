@@ -18,6 +18,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -25,7 +28,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -145,16 +147,12 @@ private fun SettingsCard(
         MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
     }
 
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
-        shape = shape,
-        color = containerColor,
-        border = BorderStroke(1.dp, borderColor),
-        tonalElevation = 1.dp,
-    ) {
+    // Card rather than Surface + clickable: the clickable overload gives the ripple, the
+    // minimum touch target and the button semantics that were being hand-assembled.
+    val cardColors = CardDefaults.cardColors(containerColor = containerColor)
+    val cardBorder = BorderStroke(1.dp, borderColor)
+    val cardModifier = modifier.fillMaxWidth()
+    val cardContent: @Composable ColumnScope.() -> Unit = {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -162,7 +160,7 @@ private fun SettingsCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Icon(
+        Icon(
                 painter = icon,
                 contentDescription = null,
                 tint = if (danger) {
@@ -207,6 +205,25 @@ private fun SettingsCard(
                 )
             }
         }
+    }
+
+    if (onClick != null) {
+        Card(
+            onClick = onClick,
+            modifier = cardModifier,
+            shape = shape,
+            colors = cardColors,
+            border = cardBorder,
+            content = cardContent,
+        )
+    } else {
+        Card(
+            modifier = cardModifier,
+            shape = shape,
+            colors = cardColors,
+            border = cardBorder,
+            content = cardContent,
+        )
     }
 }
 

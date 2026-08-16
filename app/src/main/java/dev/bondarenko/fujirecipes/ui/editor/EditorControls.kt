@@ -2,8 +2,6 @@ package dev.bondarenko.fujirecipes.ui.editor
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +32,8 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
@@ -55,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
@@ -412,6 +413,7 @@ fun FilmSimulationPicker(
  *
  * Tapping the current value clears it, so 0 is reachable without a separate control.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun RatingInput(
     rating: Int,
@@ -424,14 +426,18 @@ fun RatingInput(
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         (1..5).forEach { star ->
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(bounded = false, radius = 14.dp),
-                    ) { onRatingChange(if (rating == star) 0 else star) },
-                contentAlignment = Alignment.Center,
+            // IconToggleButton rather than a 28dp Box with a ripple hung off it: a star is a
+            // toggle, and the hand-built version was under the 48dp minimum touch target and
+            // carried no toggle semantics for TalkBack.
+            IconToggleButton(
+                checked = star <= rating,
+                onCheckedChange = { onRatingChange(if (rating == star) 0 else star) },
+                colors = IconButtonDefaults.iconToggleButtonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = MaterialTheme.colorScheme.outline,
+                    checkedContainerColor = Color.Transparent,
+                    checkedContentColor = MaterialTheme.colorScheme.tertiary,
+                ),
             ) {
                 Icon(
                     painter = if (star <= rating) {
@@ -440,11 +446,6 @@ fun RatingInput(
                         painterResource(R.drawable.ic_star_border)
                     },
                     contentDescription = stringResource(R.string.rating_of_five, star),
-                    tint = if (star <= rating) {
-                        MaterialTheme.colorScheme.tertiary
-                    } else {
-                        MaterialTheme.colorScheme.outline
-                    },
                     modifier = Modifier.size(20.dp),
                 )
             }

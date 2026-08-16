@@ -39,7 +39,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -138,8 +137,6 @@ private fun EmptyPhotoReaderState(
         // The same glyph as the Read item in the toolbar.
         icon = painterResource(R.drawable.ic_image_search),
         shape = MaterialShapes.Pill.toShape(),
-        // Wider than tall, or the pill normalises into a squircle and stops being a pill.
-        shapeSize = DpSize(200.dp, 120.dp),
         title = stringResource(R.string.photo_title),
         body = stringResource(R.string.photo_intro),
         actionLabel = stringResource(R.string.photo_action_choose),

@@ -48,7 +48,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             val container = (application as FujiRecipesApp).container
             LaunchedEffect(Unit) {
-                startDestination = if (container.connectionSettings.current().isConfigured) {
+                startDestination = if (
+                    container.useDemoData ||
+                    container.connectionSettings.current().isConfigured
+                ) {
                     LibraryRoute
                 } else {
                     ConnectionRoute(firstRun = true)

@@ -69,7 +69,6 @@ import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -170,10 +169,12 @@ fun RecipeViewScreen(
     Column(modifier = modifier.fillMaxSize()) {
         TopAppBar(
             title = {
+                // Plain text, not a target: the navigation icon beside it is the back
+                // affordance, and a bare clickable Text has no ripple, no minimum touch size
+                // and no button semantics for TalkBack.
                 Text(
                     text = stringResource(R.string.action_back_to_list),
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.clickable(onClick = onBack),
                 )
             },
             navigationIcon = {
@@ -617,7 +618,7 @@ private fun BentoParameterTile(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -645,8 +646,9 @@ private fun BentoParameterTile(
 
             Text(
                 text = row.value,
-                style = MaterialTheme.typography.headlineSmall.copy(
-                    fontWeight = FontWeight.Bold,
+                // Not bold: at this size the weight was shouting, and the label above it is
+                // already the quieter of the two.
+                style = MaterialTheme.typography.titleLarge.copy(
                     fontFeatureSettings = TabularFigures,
                 ),
                 color = if (row.isDefault) {
