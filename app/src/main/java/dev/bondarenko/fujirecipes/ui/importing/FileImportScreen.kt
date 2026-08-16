@@ -14,14 +14,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ListItem
+import dev.bondarenko.fujirecipes.ui.common.DownArrow
+import androidx.compose.material3.toShape
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -32,7 +37,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -45,6 +52,8 @@ import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.importing.FileRow
 import dev.bondarenko.fujirecipes.data.importing.FileRowStatus
 import dev.bondarenko.fujirecipes.data.importing.Resolution
+import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
+import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
 import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
 import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -58,7 +67,7 @@ import kotlinx.coroutines.withContext
  * different is the review — a file carries ids, so a row can collide with a recipe the library
  * already has, and SF-012 says that collision is the user's decision rather than the app's.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FileImportScreen(
     state: FileImportUiState,
@@ -101,15 +110,21 @@ fun FileImportScreen(
                 top = 8.dp,
                 bottom = 24.dp + contentPadding.calculateBottomPadding(),
             ),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            // Tight, so the file rows read as one segmented block; other items ask for space.
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             when (val stage = state.stage) {
                 FileImportStage.Ready -> item {
-                    LibraryPanel(
+                    // Same arrow-down as importing from the camera: both bring recipes in,
+                    // and only the source differs.
+                    FujiIconPanel(
+                        icon = painterResource(R.drawable.ic_file_save),
+                        shape = DownArrow.toShape(),
                         title = stringResource(R.string.file_import_ready_title),
                         body = stringResource(R.string.file_import_ready_body),
-                        primaryLabel = stringResource(R.string.file_import_action_choose),
-                        onPrimary = onChoose,
+                        actionLabel = stringResource(R.string.file_import_action_choose),
+                        onAction = onChoose,
+                        modifier = Modifier.fillParentMaxSize(),
                     )
                 }
 
@@ -176,10 +191,12 @@ private fun LazyListScope.reviewItems(
         item { Note(stringResource(R.string.file_import_undecided, summary.undecided)) }
     }
 
-    items(state.rows, key = { it.index }) { row ->
+    itemsIndexed(state.rows, key = { _, it -> it.index }) { index, row ->
         FileRowCard(
             row = row,
             resolution = state.resolutions[row.index],
+            index = index,
+            count = state.rows.size,
             onResolve = { onResolve(row.index, it) },
         )
     }
@@ -282,81 +299,66 @@ private fun countsLine(state: FileImportUiState): String {
     ).joinToString(" · ")
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun FileRowCard(
     row: FileRow,
     resolution: Resolution?,
+    index: Int,
+    count: Int,
     onResolve: (Resolution) -> Unit,
 ) {
-    Surface(
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    ListItem(
+        shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
+        colors = ListItemDefaults.segmentedColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
         modifier = Modifier.fillMaxWidth(),
+        leadingContent = { FilmSimBadge(simulationId = row.filmSimulationId, size = 40.dp) },
+        supportingContent = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(FilmSimulations.byId(row.filmSimulationId)?.label.orEmpty())
+                Text(
+                    text = row.statusText(),
+                    color = when (row.status) {
+                        // Invalid is the only status that costs the user a recipe. A
+                        // duplicate or a name clash is information.
+                        FileRowStatus.INVALID -> MaterialTheme.colorScheme.error
+                        else -> Color.Unspecified
+                    },
+                )
+                // SF-014: the failing field path, because "invalid" alone cannot be acted on.
+                row.errors.forEach { problem ->
+                    Text(
+                        text = listOfNotNull(problem.fieldId.takeIf { it.isNotEmpty() }, problem.message)
+                            .joinToString(" — "),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                row.source?.let {
+                    Text(stringResource(R.string.file_import_from_entry, it))
+                }
+
+                // The resolutions live inside the row because each conflict is decided on its
+                // own — a screen-level control could not say which file it applied to.
+                if (row.resolutionOptions.isNotEmpty()) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(top = 4.dp),
+                    ) {
+                        row.resolutionOptions.forEach { option ->
+                            FilterChip(
+                                selected = resolution == option,
+                                onClick = { onResolve(option) },
+                                label = { Text(option.label()) },
+                            )
+                        }
+                    }
+                }
+            }
+        },
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                FilmSimBadge(simulationId = row.filmSimulationId, size = 40.dp)
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = row.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = FilmSimulations.byId(row.filmSimulationId)?.label.orEmpty(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = row.statusText(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = when (row.status) {
-                            // Invalid is the only status that costs the user a recipe. A
-                            // duplicate or a name clash is information.
-                            FileRowStatus.INVALID -> MaterialTheme.colorScheme.error
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    )
-                    // SF-014: the failing field path, because "invalid" alone cannot be acted on.
-                    row.errors.forEach { problem ->
-                        Text(
-                            text = listOfNotNull(problem.fieldId.takeIf { it.isNotEmpty() }, problem.message)
-                                .joinToString(" — "),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-                    row.source?.let {
-                        Text(
-                            text = stringResource(R.string.file_import_from_entry, it),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        )
-                    }
-                }
-            }
-
-            if (row.resolutionOptions.isNotEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    row.resolutionOptions.forEach { option ->
-                        FilterChip(
-                            selected = resolution == option,
-                            onClick = { onResolve(option) },
-                            label = { Text(option.label()) },
-                        )
-                    }
-                }
-            }
-        }
+        Text(text = row.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -394,7 +396,7 @@ private fun Waiting(label: String) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            CircularProgressIndicator(modifier = Modifier.size(20.dp))
+            FujiLoadingIndicator(size = 20.dp)
             Text(text = label, style = MaterialTheme.typography.bodyMedium)
         }
     }

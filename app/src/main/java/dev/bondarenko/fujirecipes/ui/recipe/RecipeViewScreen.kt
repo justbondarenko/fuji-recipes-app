@@ -1,8 +1,7 @@
 package dev.bondarenko.fujirecipes.ui.recipe
 
 import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,43 +14,48 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.BottomSheetDefaults
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.toShape
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -62,7 +66,6 @@ import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -78,7 +81,7 @@ import dev.bondarenko.fujirecipes.core.share.ShareFile
 import dev.bondarenko.fujirecipes.ui.camera.WriteSheetHost
 import dev.bondarenko.fujirecipes.data.fields.FieldFormatting
 import dev.bondarenko.fujirecipes.data.fields.FieldGroup
-import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
+import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
 import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.common.errorMessageFor
 import dev.bondarenko.fujirecipes.ui.editor.RatingInput
@@ -109,6 +112,7 @@ fun RecipeViewBottomSheet(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -123,7 +127,14 @@ fun RecipeViewBottomSheet(
         RecipeViewContent(
             state = state,
             onClose = onDismiss,
-            onEdit = { onEdit(recipeId) },
+            // Let the sheet slide out before the editor arrives. Calling onEdit straight
+            // away removes this composable in the same frame, so the sheet vanished rather
+            // than closing and the editor appeared to teleport in over the gap.
+            onEdit = {
+                scope.launch { sheetState.hide() }.invokeOnCompletion {
+                    if (!sheetState.isVisible) onEdit(recipeId)
+                }
+            },
             onChangedOnlyChange = viewModel::onChangedOnlyChange,
             onRatingChange = viewModel::onRatingChange,
             onTagsChange = viewModel::onTagsChange,
@@ -162,10 +173,12 @@ fun RecipeViewScreen(
     Column(modifier = modifier.fillMaxSize()) {
         TopAppBar(
             title = {
+                // Plain text, not a target: the navigation icon beside it is the back
+                // affordance, and a bare clickable Text has no ripple, no minimum touch size
+                // and no button semantics for TalkBack.
                 Text(
                     text = stringResource(R.string.action_back_to_list),
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.clickable(onClick = onBack),
                 )
             },
             navigationIcon = {
@@ -174,24 +187,6 @@ fun RecipeViewScreen(
                         Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = stringResource(R.string.action_back),
                     )
-                }
-            },
-            actions = {
-                if (state.recipe != null) {
-                    FilledTonalIconButton(
-                        onClick = onEdit,
-                        shape = RoundedCornerShape(percent = 50),
-                        modifier = Modifier
-                            .padding(end = 8.dp)
-                            .width(36.dp)
-                            .height(48.dp),
-                    ) {
-                        Icon(
-                            Icons.Filled.Edit,
-                            contentDescription = stringResource(R.string.action_edit),
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
@@ -215,7 +210,8 @@ fun RecipeViewScreen(
 }
 
 /**
- * Shared Recipe View Content containing the Hero Card and Bento Grid parameters.
+ * Shared Recipe View Content containing the Hero Card, Bento Grid parameters,
+ * and the consolidated floating action toolbar + Write to Camera FAB.
  */
 @Composable
 fun RecipeViewContent(
@@ -238,7 +234,7 @@ fun RecipeViewContent(
                     .height(280.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator()
+                FujiLoadingIndicator()
             }
         }
 
@@ -253,17 +249,131 @@ fun RecipeViewContent(
         }
 
         else -> {
-            RecipeBentoBody(
-                state = state,
-                onEdit = onEdit,
-                onChangedOnlyChange = onChangedOnlyChange,
-                onRatingChange = onRatingChange,
-                onTagsChange = onTagsChange,
-                onWriteToCamera = onWriteToCamera,
-                canWriteToCamera = canWriteToCamera,
-                onExportRecipe = onExportRecipe,
-                modifier = modifier,
-            )
+            val recipe = state.recipe
+            Box(modifier = modifier.fillMaxSize()) {
+                RecipeBentoBody(
+                    state = state,
+                    onChangedOnlyChange = onChangedOnlyChange,
+                    onRatingChange = onRatingChange,
+                    onTagsChange = onTagsChange,
+                    modifier = Modifier.fillMaxSize(),
+                )
+
+                if (recipe != null) {
+                    RecipeFloatingToolbar(
+                        recipe = recipe,
+                        groups = state.groups,
+                        onEdit = onEdit,
+                        onExportRecipe = onExportRecipe,
+                        onWriteToCamera = onWriteToCamera,
+                        canWriteToCamera = canWriteToCamera,
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Consolidated floating actions: Floating Toolbar (Edit, Copy as text, Export)
+ * and adjacent FAB (Write to camera).
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun RecipeFloatingToolbar(
+    recipe: RecipeHeader,
+    groups: List<SettingsGroup>,
+    onEdit: () -> Unit,
+    onExportRecipe: () -> Unit,
+    onWriteToCamera: () -> Unit,
+    canWriteToCamera: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    val copiedMessage = stringResource(R.string.recipe_copied)
+    val tooltipState = rememberTooltipState(isPersistent = true)
+    val coroutineScope = rememberCoroutineScope()
+
+    Row(
+        modifier = modifier
+            .padding(horizontal = 16.dp, vertical = 16.dp)
+            .navigationBarsPadding(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        HorizontalFloatingToolbar(expanded = true) {
+            IconButton(onClick = onEdit) {
+                Icon(
+                    imageVector = Icons.Filled.Edit,
+                    contentDescription = stringResource(R.string.action_edit),
+                )
+            }
+
+            IconButton(
+                onClick = {
+                    val text = RecipeTextFormatter.format(recipe, groups)
+                    clipboardManager.setText(AnnotatedString(text))
+                    Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
+                },
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_content_copy),
+                    contentDescription = stringResource(R.string.action_copy_recipe),
+                )
+            }
+
+            IconButton(onClick = onExportRecipe) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_file_export),
+                    contentDescription = stringResource(R.string.action_export_recipe),
+                )
+            }
+        }
+
+        TooltipBox(
+            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+            tooltip = {
+                PlainTooltip {
+                    Text(stringResource(R.string.camera_not_connected_tooltip))
+                }
+            },
+            state = tooltipState,
+        ) {
+            FloatingActionButton(
+                onClick = {
+                    if (canWriteToCamera) {
+                        onWriteToCamera()
+                    } else {
+                        coroutineScope.launch {
+                            tooltipState.show()
+                        }
+                    }
+                },
+                shape = RoundedCornerShape(16.dp),
+                containerColor = if (canWriteToCamera) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                },
+                contentColor = if (canWriteToCamera) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                },
+                elevation = FloatingActionButtonDefaults.elevation(
+                    defaultElevation = 3.dp,
+                    pressedElevation = 6.dp,
+                ),
+                modifier = Modifier.size(56.dp),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_photo_camera),
+                    contentDescription = stringResource(R.string.action_write_to_camera),
+                    modifier = Modifier.size(24.dp),
+                )
+            }
         }
     }
 }
@@ -274,32 +384,24 @@ fun RecipeViewContent(
 @Composable
 private fun RecipeBentoBody(
     state: RecipeViewUiState,
-    onEdit: () -> Unit,
     onChangedOnlyChange: (Boolean) -> Unit,
     onRatingChange: (Int) -> Unit,
     onTagsChange: (List<String>) -> Unit,
-    onWriteToCamera: () -> Unit,
-    canWriteToCamera: Boolean,
-    onExportRecipe: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val recipe = state.recipe ?: return
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 36.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         // Hero Header Card
         item {
             RecipeHeaderBlock(
                 recipe = recipe,
-                onEdit = onEdit,
                 onRatingChange = onRatingChange,
                 onTagsChange = onTagsChange,
-                onWriteToCamera = onWriteToCamera,
-                canWriteToCamera = canWriteToCamera,
-                onExportRecipe = onExportRecipe,
             )
         }
 
@@ -361,203 +463,86 @@ private fun RecipeBentoBody(
                 BentoNotesCard(recipe.notes)
             }
         }
-
-        // Copy recipe as text action button at the very bottom
-        item {
-            val context = LocalContext.current
-            val clipboardManager = LocalClipboardManager.current
-            val copiedMessage = stringResource(R.string.recipe_copied)
-
-            OutlinedButton(
-                onClick = {
-                    val text = RecipeTextFormatter.format(recipe, state.groups)
-                    clipboardManager.setText(AnnotatedString(text))
-                    Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp),
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_content_copy),
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.action_copy_recipe),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-            }
-        }
-
-        /**
-         * Export this one — FEAT-008 T-14.
-         *
-         * Beside "copy as text" because they answer the same question in two registers: text
-         * for a message someone reads, a file for an app that will import it.
-         */
-        item {
-            OutlinedButton(
-                onClick = onExportRecipe,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_save_alt),
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.action_export_recipe),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-            }
-        }
     }
 }
 
 /**
- * Header card containing recipe thumbnail, name, simulation, rating, tags, and actions
- * with a blurred film simulation frosted glass background.
+ * The recipe's header — no container, just the pieces on the page background.
+ *
+ * The card, its border, the blurred simulation frame and the frosted scrim are all gone: they
+ * framed content that is already the top of its own screen, and the frame was doing more
+ * visual work than the recipe was.
+ *
+ * Stacked rather than side by side — simulation, name, rating, tags — so a long name has the
+ * full width and the tag cloud can wrap under it.
  */
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun RecipeHeaderBlock(
     recipe: RecipeHeader,
-    onEdit: () -> Unit,
     onRatingChange: (Int) -> Unit,
     onTagsChange: (List<String>) -> Unit,
-    onWriteToCamera: () -> Unit,
-    canWriteToCamera: Boolean,
-    onExportRecipe: () -> Unit,
 ) {
-    val sim = FilmSimulations.byId(recipe.filmSimulationId)
-    val shape = RoundedCornerShape(20.dp)
-
-    Card(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        shape = shape,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
-        border = BorderStroke(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-        ),
+        // 💡 HEADER ALIGNMENT — `CenterHorizontally` or `Start`.
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            // Blurred film simulation background image
-            if (sim?.image != null) {
-                Image(
-                    painter = painterResource(sim.image),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .matchParentSize()
-                        .blur(24.dp)
-                        .graphicsLayer(scaleX = 1.15f, scaleY = 1.15f),
-                )
-            } else if (recipe.filmSimulationId != null) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(FilmSimulations.swatchFor(recipe.filmSimulationId).copy(alpha = 0.35f)),
-                )
-            }
+        // 💡 FILM SIMULATION SIZE — the shaped swatch at the top.
+        FilmSimBadge(
+            simulationId = recipe.filmSimulationId,
+            size = HeaderSwatchSize,
+            shape = MaterialShapes.Square.toShape(),
+        )
 
-            // Frosted glass translucent scrim overlay to ensure crisp contrast and readability
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)),
-            )
+        // 💡 GAP: swatch → name
+        Spacer(Modifier.height(SwatchToNameGap))
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    FilmSimBadge(
-                        simulationId = recipe.filmSimulationId,
-                        size = 56.dp,
-                        shape = CircleShape,
-                    )
+        // 💡 RECIPE NAME:
+        //    - Size: `headlineMediumEmphasized` -> `headlineSmallEmphasized` (smaller) or
+        //      `headlineLargeEmphasized` (bigger). The `Emphasized` suffix is M3's heavier,
+        //      tighter cut — dropping it gives the plain weight.
+        //    - Colour: `primary` follows the device palette on Android 12+, the same way
+        //      every other accent in the app does.
+        Text(
+            text = recipe.name,
+            style = MaterialTheme.typography.headlineMediumEmphasized,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
 
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        Text(
-                            text = recipe.name,
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = recipe.filmSimulationLabel,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+        // 💡 GAP: name → rating stars
+        Spacer(Modifier.height(NameToRatingGap))
 
-                    FilledTonalIconButton(
-                        onClick = onEdit,
-                        shape = RoundedCornerShape(percent = 50),
-                        modifier = Modifier
-                            .width(36.dp)
-                            .height(48.dp),
-                    ) {
-                        Icon(
-                            Icons.Filled.Edit,
-                            contentDescription = stringResource(R.string.action_edit),
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                }
+        RatingInput(rating = recipe.rating, onRatingChange = onRatingChange)
 
-                RatingInput(rating = recipe.rating, onRatingChange = onRatingChange)
+        // 💡 GAP: rating stars → tags
+        Spacer(Modifier.height(RatingToTagsGap))
 
-                TagInput(tags = recipe.tags, onTagsChange = onTagsChange)
-
-                /**
-                 * The write action — FEAT-006 T-13.
-                 *
-                 * Disabled rather than hidden: the recipe screen is where someone goes *to*
-                 * write, and a button that has quietly vanished reads as a missing feature
-                 * rather than as a camera that is not plugged in. The reason lives one place
-                 * up — the shell's camera chip names the state and its sheet explains it,
-                 * which keeps one answer to "why can I not write" rather than two.
-                 */
-                Button(
-                    onClick = onWriteToCamera,
-                    enabled = canWriteToCamera,
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_photo_camera),
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.action_write_to_camera))
-                }
-            }
-        }
+        // 💡 TAGS SHOWN BEFORE "+N" — raise to reveal more before the fold.
+        TagInput(
+            tags = recipe.tags,
+            onTagsChange = onTagsChange,
+            collapsedLimit = HeaderVisibleTags,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        )
     }
 }
+
+// 💡 HEADER SIZES AND GAPS — every measurement in the header, in one place.
+/** The shaped film simulation swatch. */
+private val HeaderSwatchSize = 120.dp
+/** Swatch to recipe name. */
+private val SwatchToNameGap = 14.dp
+/** Name to rating stars — deliberately tight, they read as one block. */
+private val NameToRatingGap = 4.dp
+/** Rating stars to the tag cloud. */
+private val RatingToTagsGap = 12.dp
+
+/** 💡 How many tags show before the `+N` chip. */
+private const val HeaderVisibleTags = 3
 
 /**
  * 2-column Bento Grid for section parameters.
@@ -619,20 +604,37 @@ private fun BentoParameterTile(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(
-                text = row.label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // Null for the fields with no glyph of their own — ISO bounds and the two
+                // monochromatic shifts — which then read as label-only tiles rather than
+                // borrowing a neighbour's icon.
+                fieldIcon(row.fieldId)?.let { icon ->
+                    Icon(
+                        painter = painterResource(icon),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+                Text(
+                    text = row.label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
 
             Text(
                 text = row.value,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
+                // Not bold: at this size the weight was shouting, and the label above it is
+                // already the quieter of the two.
+                style = MaterialTheme.typography.titleLarge.copy(
                     fontFeatureSettings = TabularFigures,
                 ),
                 color = if (row.isDefault) {
@@ -650,6 +652,32 @@ private fun BentoParameterTile(
 /**
  * Full-width Bento Card for recipe notes with auto-detected clickable URLs.
  */
+/**
+ * The glyph for a parameter, keyed by the field id from `RecipeFields`.
+ *
+ * Keyed by id rather than label so a copy change cannot silently drop an icon. Null is a
+ * legitimate answer: the ISO bounds and the two monochromatic shifts have no glyph that says
+ * anything a nearby one does not, and a wrong icon is worse than none.
+ */
+@DrawableRes
+private fun fieldIcon(id: String): Int? = when (id) {
+    "filmSimulation" -> R.drawable.ic_camera_roll
+    "dynamicRange", "dRangePriority" -> R.drawable.ic_contrast
+    "highlightTone" -> R.drawable.ic_tonality
+    "shadowTone" -> R.drawable.ic_tonality_2
+    "color" -> R.drawable.ic_palette
+    "sharpness" -> R.drawable.ic_details
+    "highIsoNR" -> R.drawable.ic_deblur
+    "clarity" -> R.drawable.ic_diamond
+    "grainEffect" -> R.drawable.ic_grain
+    "grainSize" -> R.drawable.ic_transition_dissolve
+    "colorChromeEffect", "colorChromeFxBlue" -> R.drawable.ic_colors
+    "whiteBalance", "colorTemperature" -> R.drawable.ic_wb_auto
+    "wbShiftRed", "wbShiftBlue" -> R.drawable.ic_discover_tune
+    "exposureCompensation" -> R.drawable.ic_exposure
+    else -> null
+}
+
 @Composable
 private fun BentoNotesCard(notes: String, modifier: Modifier = Modifier) {
     val primaryColor = MaterialTheme.colorScheme.primary

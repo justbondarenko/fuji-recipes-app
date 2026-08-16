@@ -6,10 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -24,6 +21,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.core.result.LibraryError
+import dev.bondarenko.fujirecipes.ui.common.FujiCenteredLoading
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 
 /**
@@ -35,51 +33,19 @@ import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
  * that could not be read never renders as an empty one.**
  */
 
-/** Skeleton rows, so the layout does not jump when the recipes land. */
+/**
+ * The first load, before there is anything to show.
+ *
+ * M3's contained loading indicator in the middle of the screen, rather than the five skeleton
+ * rows this used to draw. Skeletons are worth their complexity when they trace the real layout
+ * closely enough to stop it jumping; five identical grey rows never matched a library of
+ * varying tag counts, so they bought the jump anyway and cost a fake row to maintain.
+ */
 @Composable
 fun LibraryLoading(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        repeat(5) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                    .border(
-                        1.dp,
-                        MaterialTheme.colorScheme.outlineVariant,
-                        MaterialTheme.shapes.medium,
-                    )
-                    .padding(14.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                Bar(width = 36.dp, height = 36.dp, shape = RoundedCornerShape(50))
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Bar(width = 160.dp, height = 16.dp)
-                    Bar(width = 100.dp, height = 12.dp)
-                }
-            }
-        }
-    }
+    FujiCenteredLoading(modifier = modifier)
 }
 
-@Composable
-private fun Bar(
-    width: androidx.compose.ui.unit.Dp,
-    height: androidx.compose.ui.unit.Dp,
-    shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(4.dp),
-) {
-    Column(
-        modifier = Modifier
-            .width(width)
-            .height(height)
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-    ) {}
-}
 
 /**
  * A panel: an icon-free headline, a line of body, and up to two actions.

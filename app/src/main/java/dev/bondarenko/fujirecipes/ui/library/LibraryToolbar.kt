@@ -1,11 +1,7 @@
 package dev.bondarenko.fujirecipes.ui.library
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,13 +10,13 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ripple
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
@@ -30,16 +26,19 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Badge
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -52,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -118,6 +118,7 @@ fun LibraryToolbar(
          * (`surfaceContainerLow` with a hairline outline), which is what every other raised
          * thing in this app looks like.
          */
+        
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -364,7 +365,7 @@ private fun FiltersSheet(
             )
         }
 
-        RatingButtonGroup(
+        RatingFilterChips(
             selectedRating = state.filters.minRating,
             onRatingChange = { newRating ->
                 onFiltersChange(state.filters.copy(minRating = newRating))
@@ -404,123 +405,38 @@ private fun FiltersSheet(
     }
 }
 
+/**
+ * Minimum rating, as filter chips.
+ *
+ * Chips rather than a button group, so every control in this sheet is the same kind of thing
+ * — rating, simulation and tags all read and clear the same way. The one behavioural
+ * difference is that this axis is single-choice: picking a rating replaces the previous one,
+ * and picking the current one clears the axis, which is what `0` means here.
+ */
 @Composable
-private fun RatingButtonGroup(
+private fun RatingFilterChips(
     selectedRating: Int,
     onRatingChange: (Int) -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+    FilterGroup(
+        label = stringResource(R.string.filter_min_rating),
+        icon = rememberVectorPainter(Icons.Filled.Star),
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Star,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        (1..5).forEach { rating ->
+            val selected = selectedRating == rating
+            FilterChip(
+                selected = selected,
+                onClick = { onRatingChange(if (selected) 0 else rating) },
+                label = { Text(rating.toString()) },
+                leadingIcon = selectedCheck(selected),
+                trailingIcon = {
+                    Icon(
+                        imageVector = Icons.Filled.Star,
+                        contentDescription = null,
+                        modifier = Modifier.size(FilterChipDefaults.IconSize),
+                    )
+                },
             )
-            Text(
-                text = stringResource(R.string.filter_min_rating),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        val count = 5
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            (1..5).forEachIndexed { index, rating ->
-                val selected = selectedRating == rating
-
-                // M3 Expressive morphing corner radii
-                val topStart = if (selected || index == 0) 24.dp else 8.dp
-                val bottomStart = if (selected || index == 0) 24.dp else 8.dp
-                val topEnd = if (selected || index == count - 1) 24.dp else 8.dp
-                val bottomEnd = if (selected || index == count - 1) 24.dp else 8.dp
-
-                val animTopStart by animateDpAsState(targetValue = topStart, label = "topStart")
-                val animBottomStart by animateDpAsState(targetValue = bottomStart, label = "bottomStart")
-                val animTopEnd by animateDpAsState(targetValue = topEnd, label = "topEnd")
-                val animBottomEnd by animateDpAsState(targetValue = bottomEnd, label = "bottomEnd")
-
-                val shape = RoundedCornerShape(
-                    topStart = animTopStart,
-                    bottomStart = animBottomStart,
-                    topEnd = animTopEnd,
-                    bottomEnd = animBottomEnd,
-                )
-
-                val targetContainerColor = if (selected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHighest
-                }
-                val containerColor by animateColorAsState(
-                    targetValue = targetContainerColor,
-                    label = "containerColor",
-                )
-
-                val targetContentColor = if (selected) {
-                    MaterialTheme.colorScheme.onPrimary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-                val contentColor by animateColorAsState(
-                    targetValue = targetContentColor,
-                    label = "contentColor",
-                )
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                        .clip(shape)
-                        .background(containerColor)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(),
-                        ) {
-                            onRatingChange(if (selected) 0 else rating)
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.padding(horizontal = 4.dp),
-                    ) {
-                        if (selected) {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = contentColor,
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Filled.Star,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = contentColor.copy(alpha = 0.6f),
-                            )
-                        }
-                        Text(
-                            text = rating.toString(),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = contentColor,
-                            maxLines = 1,
-                        )
-                    }
-                }
-            }
         }
     }
 }

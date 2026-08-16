@@ -46,6 +46,15 @@ class AppContainer(context: Context) {
      */
     val cameraController: CameraController by lazy { CameraController(applicationContext) }
 
+    /**
+     * The library.
+     *
+     * `DemoRecipeRepository` was deleted in this merge rather than carried across. It existed
+     * to stand in for the server in a debug build with nothing configured — the case that
+     * parked you on the setup form with nothing to look at. There is no setup form and no
+     * server now, and an in-memory fixture whose writes vanish on process death would
+     * contradict the one thing this repository is for.
+     */
     val recipeRepository: RecipeRepository by lazy {
         LocalRecipeRepository(
             store = libraryStore,

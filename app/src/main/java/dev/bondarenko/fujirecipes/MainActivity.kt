@@ -1,5 +1,4 @@
 package dev.bondarenko.fujirecipes
-
 import android.content.Intent
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
@@ -17,10 +16,11 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import dev.bondarenko.fujirecipes.ui.camera.CameraChipHost
 import dev.bondarenko.fujirecipes.ui.editor.PasteRecipeSheet
 import dev.bondarenko.fujirecipes.ui.nav.ExportRoute
 import dev.bondarenko.fujirecipes.ui.nav.FileImportRoute
+import dev.bondarenko.fujirecipes.ui.camera.CameraToolbarItemHost
+import dev.bondarenko.fujirecipes.ui.nav.CameraRoute
 import dev.bondarenko.fujirecipes.ui.nav.FujiNavHost
 import dev.bondarenko.fujirecipes.ui.nav.ImportRoute
 import dev.bondarenko.fujirecipes.ui.nav.LibraryRoute
@@ -30,7 +30,6 @@ import dev.bondarenko.fujirecipes.ui.nav.RecipeEditorRoute
 import dev.bondarenko.fujirecipes.ui.nav.RecipeViewRoute
 import dev.bondarenko.fujirecipes.ui.shell.AppShell
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -40,18 +39,16 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        // Straight to the library. There is no setup to do first: the recipes are a file on
-        // this phone, and the list screen draws its own loading and error states while the
-        // store is read.
+        // Straight to the library. There is nothing to decide first — no stored connection to
+        // read, no setup to do — so the splash is not held open for anything. The list screen
+        // draws its own loading and error states while the store is read.
         setContent { FujiApp() }
     }
-
     /** A camera plugged in while the app was already running comes through here. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         connectIfLaunchedByCamera(intent)
     }
-
     /**
      * The attach-intent path (`PRD.md` §8.2).
      *
@@ -61,7 +58,6 @@ class MainActivity : ComponentActivity() {
      */
     private fun connectIfLaunchedByCamera(intent: Intent) {
         if (intent.action != UsbManager.ACTION_USB_DEVICE_ATTACHED) return
-
         val device = IntentCompat.getParcelableExtra(
             intent,
             UsbManager.EXTRA_DEVICE,
@@ -70,14 +66,12 @@ class MainActivity : ComponentActivity() {
         (application as FujiRecipesApp).container.cameraController.onDeviceAttached(device)
     }
 }
-
 @Composable
 private fun FujiApp() {
     FujiTheme {
         val navController = rememberNavController()
         val backStackEntry by navController.currentBackStackEntryAsState()
         val destination = backStackEntry?.destination
-
         /**
          * The shell chrome is hidden wherever it would be wrong rather than wherever it
          * happens to look busy: the editor owns its own bottom bar (FEAT-002), and subpages
@@ -97,7 +91,6 @@ private fun FujiApp() {
         // of its own would put an empty text box in the back stack behind every recipe made
         // from a paste.
         var showPasteSheet by remember { mutableStateOf(false) }
-
         if (showPasteSheet) {
             PasteRecipeSheet(
                 onDismiss = { showPasteSheet = false },
@@ -113,7 +106,6 @@ private fun FujiApp() {
                 },
             )
         }
-
         AppShell(
             showChrome = showChrome,
             isLibrarySelected = destination?.hasRoute<LibraryRoute>() == true,
@@ -129,7 +121,12 @@ private fun FujiApp() {
             onMoreClick = { navController.navigate(MoreRoute) { launchSingleTop = true } },
             onCreateClick = { navController.navigate(RecipeEditorRoute(id = null)) },
             onParseTextClick = { showPasteSheet = true },
-            cameraChip = { CameraChipHost() },
+            cameraItem = {
+                CameraToolbarItemHost(
+                    selected = destination?.hasRoute<CameraRoute>() == true,
+                    onClick = { navController.navigate(CameraRoute) { launchSingleTop = true } },
+                )
+            },
         ) { contentPadding ->
             FujiNavHost(
                 navController = navController,

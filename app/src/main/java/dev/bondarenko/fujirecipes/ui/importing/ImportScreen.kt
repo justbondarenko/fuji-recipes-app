@@ -10,16 +10,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ListItem
+import dev.bondarenko.fujirecipes.ui.common.DownArrow
+import androidx.compose.material3.toShape
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -30,7 +33,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -42,6 +47,8 @@ import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.importing.ImportRow
 import dev.bondarenko.fujirecipes.data.importing.ImportStatus
+import dev.bondarenko.fujirecipes.ui.common.FujiCenteredLoading
+import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
 import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -97,34 +104,55 @@ fun ImportScreen(
                 top = 8.dp,
                 bottom = 24.dp + contentPadding.calculateBottomPadding(),
             ),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            // Tight, so the review rows read as one segmented block. Every other stage emits a
+            // single item, where spacing does not apply; the review stage asks for its own
+            // breathing space with `SectionGap`.
+            verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             when (val stage = state.stage) {
             ImportStage.NeedsCamera -> item {
-                LibraryPanel(
+                ImportPanel(
                     title = stringResource(R.string.import_needs_camera_title),
                     body = stringResource(R.string.import_needs_camera_body),
-                    primaryLabel = stringResource(R.string.camera_action_connect),
-                    onPrimary = onConnect,
+                    actionLabel = stringResource(R.string.camera_action_connect),
+                    onAction = onConnect,
+                    modifier = Modifier.fillParentMaxSize(),
                 )
             }
 
             ImportStage.Ready -> item {
-                LibraryPanel(
+                ImportPanel(
                     title = state.cameraModel?.let {
                         stringResource(R.string.import_ready_title, it)
                     } ?: stringResource(R.string.import_ready_title_generic),
                     body = stringResource(R.string.import_ready_body),
-                    primaryLabel = stringResource(R.string.import_action_read),
-                    onPrimary = onRead,
+                    actionLabel = stringResource(R.string.import_action_read),
+                    onAction = onRead,
+                    modifier = Modifier.fillParentMaxSize(),
                 )
             }
 
-            is ImportStage.Reading -> item { ReadingPanel(stage) }
+            is ImportStage.Reading -> item {
+                FujiCenteredLoading(
+                    label = stringResource(R.string.import_reading, stage.current, stage.total),
+                    // Reading knows which slot it is on, so the indicator says so rather than
+                    // spinning anonymously through seven of them.
+                    progress = {
+                        if (stage.total == 0) 0f else stage.current.toFloat() / stage.total
+                    },
+                    modifier = Modifier.fillParentMaxSize(),
+                )
+            }
 
             ImportStage.Review -> reviewItems(state, onToggle, onImport, onRead)
 
-            ImportStage.Importing -> item { Waiting(stringResource(R.string.import_importing)) }
+            ImportStage.Importing -> item {
+                FujiCenteredLoading(
+                    label = stringResource(R.string.import_importing),
+                    progress = null,
+                    modifier = Modifier.fillParentMaxSize(),
+                )
+            }
 
             is ImportStage.Done -> item {
                 LibraryPanel(
@@ -152,6 +180,30 @@ fun ImportScreen(
 }
 }
 
+/**
+ * This screen's identity: recipes coming down off the camera, so the arrow points down —
+ * `MaterialShapes.Arrow` starts at 270°, and 90° is that turned through 180°.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ImportPanel(
+    title: String,
+    body: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FujiIconPanel(
+        icon = painterResource(R.drawable.ic_linked_camera),
+        shape = DownArrow.toShape(),
+        title = title,
+        body = body,
+        actionLabel = actionLabel,
+        onAction = onAction,
+        modifier = modifier,
+    )
+}
+
 private fun androidx.compose.foundation.lazy.LazyListScope.reviewItems(
     state: ImportUiState,
     onToggle: (Int) -> Unit,
@@ -174,6 +226,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.reviewItems(
 
     item {
         Text(
+            modifier = Modifier.padding(bottom = SectionGap),
             text = stringResource(R.string.import_summary, summary.total, summary.selected),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -185,15 +238,20 @@ private fun androidx.compose.foundation.lazy.LazyListScope.reviewItems(
         item { Note(stringResource(R.string.import_nothing_new)) }
     }
 
-    items(state.rows, key = { it.slot }) { row ->
-        ImportRowCard(row = row, onToggle = { onToggle(row.slot) })
+    itemsIndexed(state.rows, key = { _, it -> it.slot }) { index, row ->
+        ImportRowCard(
+            row = row,
+            index = index,
+            count = state.rows.size,
+            onToggle = { onToggle(row.slot) },
+        )
     }
 
     item {
         Button(
             onClick = onImport,
             enabled = state.canImport,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(top = SectionGap),
         ) {
             Text(
                 if (state.canImport) {
@@ -212,48 +270,48 @@ private fun androidx.compose.foundation.lazy.LazyListScope.reviewItems(
     }
 }
 
+/** One slot in the M3 multi-select list, sectioned variant — the export list's twin. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun ImportRowCard(row: ImportRow, onToggle: () -> Unit) {
-    Surface(
+private fun ImportRowCard(row: ImportRow, index: Int, count: Int, onToggle: () -> Unit) {
+    ListItem(
         onClick = onToggle,
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        selected = row.selected,
+        shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
+        colors = ListItemDefaults.segmentedColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
         modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Checkbox(checked = row.selected, onCheckedChange = { onToggle() })
-
-            FilmSimBadge(simulationId = row.filmSimulationId, size = 40.dp)
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "C${row.slot} · ${row.name}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = FilmSimulations.byId(row.filmSimulationId)?.label.orEmpty(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+        leadingContent = {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // The row itself toggles, so the box is a state readout, not a second target.
+                Checkbox(checked = row.selected, onCheckedChange = null)
+                FilmSimBadge(simulationId = row.filmSimulationId, size = 40.dp)
+            }
+        },
+        supportingContent = {
+            Column {
+                Text(FilmSimulations.byId(row.filmSimulationId)?.label.orEmpty())
                 Text(
                     text = row.statusText(),
-                    style = MaterialTheme.typography.bodySmall,
                     color = when (row.status) {
                         // A duplicate is information, not an error: the recipe is safe, it is
                         // just already held. Only the name clash is worth a warning colour.
                         ImportStatus.NAME_WARNING -> MaterialTheme.colorScheme.error
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                        else -> Color.Unspecified
                     },
                 )
             }
-        }
+        },
+    ) {
+        Text(
+            text = "C${row.slot} · ${row.name}",
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -265,38 +323,6 @@ private fun ImportRow.statusText(): String = when (status) {
 
     ImportStatus.NAME_WARNING ->
         stringResource(R.string.import_status_name, existingName.orEmpty())
-}
-
-@Composable
-private fun ReadingPanel(stage: ImportStage.Reading) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            text = stringResource(R.string.import_reading, stage.current, stage.total),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        LinearProgressIndicator(
-            progress = {
-                if (stage.total == 0) 0f else stage.current.toFloat() / stage.total
-            },
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
-@Composable
-private fun Waiting(label: String) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        CircularProgressIndicator(modifier = Modifier.size(20.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
 }
 
 @Composable
@@ -438,3 +464,5 @@ private fun ImportOfflinePreview() = PreviewScreen(
         rows = previewRows,
     ),
 )
+
+private val SectionGap = 10.dp
