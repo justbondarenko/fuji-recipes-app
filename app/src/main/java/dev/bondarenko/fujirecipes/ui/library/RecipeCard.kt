@@ -13,13 +13,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Badge
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -130,34 +130,36 @@ private fun RatingBadge(
     rating: Int,
     modifier: Modifier = Modifier,
 ) {
-    Badge(
-        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.tertiaryContainer,
         contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-        // 💡 RATING PILL SIZE — the padding is what makes the pill bigger, not the text.
-        modifier = modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+        modifier = modifier,
     ) {
-        // 💡 RATING NUMBER — `labelMedium` -> `labelSmall` (smaller) / `labelLarge` (bigger).
-        Text(
-            text = rating.toString(),
-            style = MaterialTheme.typography.labelMedium.copy(
-                fontWeight = FontWeight.Bold,
-                fontFeatureSettings = TabularFigures,
-            ),
-        )
-        // 💡 RATING STAR SIZE — keep it a touch under the number's cap height.
-        Icon(
-            imageVector = Icons.Filled.Star,
-            contentDescription = stringResource(R.string.rating_of_five, rating),
-            tint = MaterialTheme.colorScheme.onTertiaryContainer,
-            modifier = Modifier
-                .padding(start = 3.dp)
-                .size(13.dp),
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+        ) {
+            Text(
+                text = rating.toString(),
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontFeatureSettings = TabularFigures,
+                ),
+            )
+            Icon(
+                imageVector = Icons.Filled.Star,
+                contentDescription = stringResource(R.string.rating_of_five, rating),
+                modifier = Modifier
+                    .padding(start = 3.dp)
+                    .size(15.dp),
+            )
+        }
     }
 }
 
 /**
- * At most five, then a `+n`. A row of twenty chips is not a card, it is a paragraph.
+ * At most three, then a `+n`. A row of twenty chips is not a card, it is a paragraph.
  *
  * 💡 TAG SPACING — `Arrangement.spacedBy` is the gap between chips.
  */
@@ -175,7 +177,7 @@ private fun TagRow(tags: List<String>, modifier: Modifier = Modifier) {
     }
 }
 
-private const val MAX_VISIBLE_TAGS = 5
+private const val MAX_VISIBLE_TAGS = 3
 
 @Composable
 private fun TagChip(text: String) {

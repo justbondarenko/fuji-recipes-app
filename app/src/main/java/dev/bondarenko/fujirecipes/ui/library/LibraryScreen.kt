@@ -148,6 +148,11 @@ fun LibraryScreen(
                         onAction = onImportFromCamera,
                         modifier = Modifier.fillParentMaxSize(),
                         extra = {
+                            Text(
+                                text = stringResource(R.string.empty_library_or),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                             TextButton(onClick = onCreateRecipe) {
                                 Text(stringResource(R.string.empty_library_create))
                             }
