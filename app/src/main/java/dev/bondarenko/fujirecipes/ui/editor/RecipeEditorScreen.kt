@@ -27,7 +27,9 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SplitButtonDefaults
 import androidx.compose.material3.SplitButtonLayout
 import androidx.compose.material3.OutlinedTextField
@@ -42,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -423,18 +426,26 @@ private fun EditorActions(
         )
 
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            // 💡 SECONDARY ACTION STYLE — each item's icon and colours are set here.
+            //    `MenuDefaults.itemColors` colours the label and the icon together, so a
+            //    destructive item reads as destructive before it is read at all.
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_duplicate)) },
+                leadingIcon = {
+                    Icon(painterResource(R.drawable.ic_content_copy), contentDescription = null)
+                },
                 onClick = { menuOpen = false; onDuplicate() },
             )
             // Last, and in the error colour: the one item here that cannot be undone.
             DropdownMenuItem(
-                text = {
-                    Text(
-                        text = stringResource(R.string.action_delete),
-                        color = MaterialTheme.colorScheme.error,
-                    )
+                text = { Text(stringResource(R.string.action_delete)) },
+                leadingIcon = {
+                    Icon(Icons.Filled.Delete, contentDescription = null)
                 },
+                colors = MenuDefaults.itemColors(
+                    textColor = MaterialTheme.colorScheme.error,
+                    leadingIconColor = MaterialTheme.colorScheme.error,
+                ),
                 onClick = { menuOpen = false; onDelete() },
             )
         }
