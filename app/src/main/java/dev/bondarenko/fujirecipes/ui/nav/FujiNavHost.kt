@@ -268,6 +268,16 @@ fun FujiNavHost(
         composable<ExportRoute> {
             ExportRouteContent(
                 onBack = { navController.popBackStack() },
+                // An empty library has nothing to export, so the page offers the one thing
+                // that fixes that. Replacing export in the back stack: coming back to a page
+                // that said "nothing to export" from the recipe you just made would be odd.
+                onOpenEditor = { prefill, prefillName ->
+                    navController.navigate(
+                        RecipeEditorRoute(id = null, prefill = prefill, prefillName = prefillName),
+                    ) {
+                        popUpTo<ExportRoute> { inclusive = true }
+                    }
+                },
                 contentPadding = contentPadding,
             )
         }

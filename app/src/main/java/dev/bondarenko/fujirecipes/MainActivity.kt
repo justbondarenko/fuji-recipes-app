@@ -16,7 +16,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import dev.bondarenko.fujirecipes.ui.editor.PasteRecipeSheet
+import dev.bondarenko.fujirecipes.ui.create.CreateRecipeFlow
 import dev.bondarenko.fujirecipes.ui.nav.ExportRoute
 import dev.bondarenko.fujirecipes.ui.nav.FileImportRoute
 import dev.bondarenko.fujirecipes.ui.camera.CameraToolbarItemHost
@@ -87,25 +87,20 @@ private fun FujiApp() {
         val showChrome =
             !onEditor && !onRecipeView && !onImport && !onFileImport && !onExport
 
-        // Not a route: the sheet is a way of starting the editor, and giving it a destination
-        // of its own would put an empty text box in the back stack behind every recipe made
-        // from a paste.
-        var showPasteSheet by remember { mutableStateOf(false) }
-        if (showPasteSheet) {
-            PasteRecipeSheet(
-                onDismiss = { showPasteSheet = false },
-                onImport = { parsed ->
-                    showPasteSheet = false
-                    navController.navigate(
-                        RecipeEditorRoute(
-                            id = null,
-                            prefill = parsed.settings.toString(),
-                            prefillName = parsed.name,
-                        ),
-                    )
-                },
-            )
-        }
+        // Not a route: the dialog and the sheet behind it are ways of *starting* the editor,
+        // and giving either a destination of its own would put a half-made choice in the back
+        // stack behind every recipe.
+        var creating by remember { mutableStateOf(false) }
+
+        CreateRecipeFlow(
+            visible = creating,
+            onDismiss = { creating = false },
+            onCreate = { prefill, prefillName ->
+                navController.navigate(
+                    RecipeEditorRoute(id = null, prefill = prefill, prefillName = prefillName),
+                )
+            },
+        )
         AppShell(
             showChrome = showChrome,
             isLibrarySelected = destination?.hasRoute<LibraryRoute>() == true,
@@ -119,8 +114,7 @@ private fun FujiApp() {
             },
             onReadClick = { navController.navigate(PhotoRoute) { launchSingleTop = true } },
             onMoreClick = { navController.navigate(MoreRoute) { launchSingleTop = true } },
-            onCreateClick = { navController.navigate(RecipeEditorRoute(id = null)) },
-            onParseTextClick = { showPasteSheet = true },
+            onCreateClick = { creating = true },
             cameraItem = {
                 CameraToolbarItemHost(
                     selected = destination?.hasRoute<CameraRoute>() == true,

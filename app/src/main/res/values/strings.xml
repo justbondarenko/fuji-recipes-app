@@ -188,7 +188,8 @@
     <string name="export_intro">Builds the file on this phone. The share sheet takes it from there — Files, Drive, a message, anything installed. This is how a library gets backed up or moved to another device.</string>
     <string name="export_loading">Loading your library…</string>
     <string name="export_empty_title">Nothing to export yet</string>
-    <string name="export_empty_body">Recipes you add will appear here, ready to save to a file.</string>
+    <string name="export_empty_body">Export saves your recipes to a file you can keep or move to another phone. Make your first one and it will be waiting here.</string>
+    <string name="export_empty_create">Create your first recipe</string>
     <string name="export_selected">%1$d of %2$d selected</string>
     <string name="export_select_all">Select all</string>
     <string name="export_select_none">Select none</string>

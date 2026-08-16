@@ -20,11 +20,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialShapes
-import androidx.compose.material3.toShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.FloatingToolbarDefaults
@@ -37,16 +32,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
@@ -77,8 +67,14 @@ fun AppShell(
     onLibraryClick: () -> Unit,
     onReadClick: () -> Unit,
     onMoreClick: () -> Unit,
+    /**
+     * The New recipe button was pressed.
+     *
+     * The shell reports the press and nothing more — `CreateRecipeFlow` owns the choice
+     * between pasting text and starting from an empty form, because the export screen offers
+     * the same choice and the two must not drift.
+     */
     onCreateClick: () -> Unit,
-    onParseTextClick: () -> Unit,
     modifier: Modifier = Modifier,
     /**
      * The camera status, rendered as the third item of the toolbar.
@@ -100,25 +96,6 @@ fun AppShell(
      * there is no second element with an inset of its own to reconcile.
      */
     val barBaseline = systemBars.calculateBottomPadding() + BarMargin - ToolbarOwnInset
-
-    // Deliberately not saved across process death: a half-made choice is a gesture in
-    // progress, and restoring the dialog over a freshly drawn library would read as the app
-    // doing something on its own.
-    var createOpen by remember { mutableStateOf(false) }
-
-    if (createOpen) {
-        CreateRecipeDialog(
-            onDismiss = { createOpen = false },
-            onParseTextClick = {
-                createOpen = false
-                onParseTextClick()
-            },
-            onManualClick = {
-                createOpen = false
-                onCreateClick()
-            },
-        )
-    }
 
     Box(
         modifier = modifier
@@ -171,7 +148,7 @@ fun AppShell(
                 collapsedShadowElevation = ToolbarElevation,
                 floatingActionButton = {
                     FloatingToolbarDefaults.VibrantFloatingActionButton(
-                        onClick = { createOpen = true },
+                        onClick = onCreateClick,
                         shape = FabShape,
                     ) {
                         Icon(
@@ -211,136 +188,6 @@ fun AppShell(
     }
 }
 
-/**
- * Two ways to start a recipe, as a dialog.
- *
- * This was a `FloatingActionButtonMenu` behind a `ToggleFloatingActionButton`, which meant the
- * bar carried a component that expands upward, brings its own scrim and reserves its own
- * insets — for a choice between two things. A plain FAB and a dialog say the same thing, and
- * let the toolbar own its FAB slot the way M3 specifies.
- */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun CreateRecipeDialog(
-    onDismiss: () -> Unit,
-    onParseTextClick: () -> Unit,
-    onManualClick: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        // The hero icon slot from `m3.material.io/components/dialogs/specs` — centred above
-        // the headline, and the reason the headline centres with it.
-        icon = {
-            Box(
-                modifier = Modifier
-                    .size(DialogHeroSize)
-                    .clip(MaterialShapes.Cookie9Sided.toShape())
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Add,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(DialogHeroIconSize),
-                )
-            }
-        },
-        title = { Text(stringResource(R.string.nav_create)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = stringResource(R.string.create_intro),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                CreateOption(
-                    icon = painterResource(R.drawable.ic_content_paste),
-                    title = stringResource(R.string.create_from_text),
-                    body = stringResource(R.string.create_from_text_body),
-                    shape = MaterialShapes.Pill.toShape(),
-                    onClick = onParseTextClick,
-                )
-                CreateOption(
-                    icon = rememberVectorPainter(Icons.Filled.Edit),
-                    title = stringResource(R.string.create_manually),
-                    body = stringResource(R.string.create_manually_body),
-                    shape = MaterialShapes.Square.toShape(),
-                    onClick = onManualClick,
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
-        },
-    )
-}
-
-/**
- * One way to start a recipe.
- *
- * A card rather than a list row: the two are a choice, not a menu, and each carries a line
- * saying what it does. The shape on the icon is the same device the pages use — a glyph in an
- * M3 shape rather than a bare icon in a circle.
- */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun CreateOption(
-    icon: Painter,
-    title: String,
-    body: String,
-    shape: Shape,
-    onClick: () -> Unit,
-) {
-    Card(
-        onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        ),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(DialogOptionPadding),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(DialogOptionIconSlot)
-                    .clip(shape)
-                    .background(MaterialTheme.colorScheme.secondaryContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = body,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-// 💡 CREATE DIALOG SIZES.
-/** The hero shape above the headline. */
-private val DialogHeroSize = 56.dp
-private val DialogHeroIconSize = 28.dp
-/** The shaped glyph on each option. */
-private val DialogOptionIconSlot = 44.dp
-private val DialogOptionPadding = 14.dp
 
 /**
  * Individual item inside the Material 3 Floating Toolbar.
@@ -408,7 +255,6 @@ private fun AppShellPreview() {
             onReadClick = {},
             onMoreClick = {},
             onCreateClick = {},
-            onParseTextClick = {},
         ) { padding ->
             dev.bondarenko.fujirecipes.ui.common.PlaceholderScreen(
                 titleRes = R.string.placeholder_more_title,
