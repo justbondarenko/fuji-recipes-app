@@ -25,20 +25,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.bondarenko.fujirecipes.BuildConfig
-import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -46,14 +41,12 @@ import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 /**
  * Settings — FEAT-004.
  *
- * Exists because the connection screen was reachable only by provoking a 403 once
- * credentials were saved. A token that has been rotated is an ordinary event; recovering
- * from it should not require breaking the app first.
+ * Everything that moves recipes into or out of this phone, in one place. It used to lead
+ * with a connection card; there is no connection now, and export and import are the whole
+ * of how a library gets off one device and onto another.
  */
 @Composable
 fun SettingsScreen(
-    state: SettingsUiState,
-    onOpenConnection: () -> Unit,
     onOpenImport: () -> Unit,
     onOpenFileImport: () -> Unit,
     onOpenExport: () -> Unit,
@@ -73,16 +66,6 @@ fun SettingsScreen(
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
-        )
-
-        SectionHeader(stringResource(R.string.settings_connection))
-
-        SettingsCard(
-            title = stringResource(R.string.connection_title),
-            subtitle = state.summary(),
-            icon = painterResource(R.drawable.ic_cloud_sync),
-            onClick = onOpenConnection,
-            showChevron = true,
         )
 
         SectionHeader(stringResource(R.string.settings_backup_restore))
@@ -112,6 +95,15 @@ fun SettingsScreen(
         )
 
         androidx.compose.foundation.layout.Spacer(Modifier.height(16.dp))
+
+        Text(
+            text = stringResource(R.string.settings_offline_note),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
+        )
 
         Text(
             text = stringResource(R.string.settings_version, BuildConfig.VERSION_NAME),
@@ -227,21 +219,18 @@ private fun SettingsCard(
     }
 }
 
+/**
+ * No ViewModel: with the connection gone this screen holds no state of its own, and the
+ * three destinations it offers are the navigator's business rather than a state object's.
+ */
 @Composable
 fun SettingsRouteContent(
-    onOpenConnection: () -> Unit,
     onOpenImport: () -> Unit,
     onOpenFileImport: () -> Unit,
     onOpenExport: () -> Unit,
     contentPadding: PaddingValues,
 ) {
-    val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
-    val viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(container))
-    val state by viewModel.state.collectAsStateWithLifecycle()
-
     SettingsScreen(
-        state = state,
-        onOpenConnection = onOpenConnection,
         onOpenImport = onOpenImport,
         onOpenFileImport = onOpenFileImport,
         onOpenExport = onOpenExport,
@@ -255,23 +244,6 @@ fun SettingsRouteContent(
 private fun SettingsPreview() {
     FujiTheme {
         SettingsScreen(
-            state = SettingsUiState(host = "recipes.example.com", isConfigured = true),
-            onOpenConnection = {},
-            onOpenImport = {},
-            onOpenFileImport = {},
-            onOpenExport = {},
-            contentPadding = PaddingValues(0.dp),
-        )
-    }
-}
-
-@Preview(name = "Settings — unconfigured", showBackground = true, heightDp = 500)
-@Composable
-private fun SettingsUnconfiguredPreview() {
-    FujiTheme {
-        SettingsScreen(
-            state = SettingsUiState(),
-            onOpenConnection = {},
             onOpenImport = {},
             onOpenFileImport = {},
             onOpenExport = {},

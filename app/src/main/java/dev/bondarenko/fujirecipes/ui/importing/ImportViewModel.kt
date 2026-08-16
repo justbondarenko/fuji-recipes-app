@@ -8,8 +8,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.bondarenko.fujirecipes.camera.CameraController
 import dev.bondarenko.fujirecipes.camera.CameraState
 import dev.bondarenko.fujirecipes.core.AppContainer
-import dev.bondarenko.fujirecipes.core.net.ApiError
-import dev.bondarenko.fujirecipes.core.net.ApiResult
+import dev.bondarenko.fujirecipes.core.result.LibraryError
+import dev.bondarenko.fujirecipes.core.result.LibraryResult
 import dev.bondarenko.fujirecipes.data.importing.ImportRow
 import dev.bondarenko.fujirecipes.data.importing.ImportSummary
 import dev.bondarenko.fujirecipes.data.importing.importBody
@@ -25,9 +25,9 @@ import kotlinx.coroutines.launch
 /**
  * The Import screen's state — FEAT-007 T-15.
  *
- * Reading is local and works with no signal; importing is a server write and does not
- * (`architecture.md` §4). Those two halves are deliberately separate stages, so a failed
- * import never costs the read that preceded it.
+ * Reading the camera and writing the library are both local now, but they stay separate
+ * stages for the reason they always were: a failed import must not cost the read that
+ * preceded it, and re-reading seven slots over USB is not free.
  */
 sealed interface ImportStage {
 
@@ -83,8 +83,8 @@ class ImportViewModel(
             controller.state.collect { camera ->
                 val stage = _state.value.stage
                 // Only the two waiting stages follow the connection. A review that has been
-                // read must survive the camera being unplugged — the rows are in memory and
-                // importing them needs the server, not the body.
+                // read must survive the camera being unplugged — the rows are in memory, and
+                // importing them touches nothing but this phone.
                 val follows = stage is ImportStage.NeedsCamera || stage is ImportStage.Ready
 
                 _state.value = _state.value.copy(
@@ -97,13 +97,7 @@ class ImportViewModel(
 
     fun connect() = controller.connect()
 
-    /**
-     * Reads every slot, then reviews what came back against the library.
-     *
-     * The library comes from the snapshot when there is no signal, which is the point: the
-     * duplicate check is as useful offline as on, because it compares against recipes the
-     * phone is already holding.
-     */
+    /** Reads every slot, then reviews what came back against the library. */
     fun read() {
         val total = 7
         _state.value = _state.value.copy(stage = ImportStage.Reading(0, total))
@@ -149,13 +143,13 @@ class ImportViewModel(
 
         viewModelScope.launch {
             _state.value = when (val result = repository.importAll(importBody(rows))) {
-                is ApiResult.Success -> _state.value.copy(
+                is LibraryResult.Success -> _state.value.copy(
                     stage = ImportStage.Done(result.value.imported),
                 )
 
-                is ApiResult.Failure -> _state.value.copy(
+                is LibraryResult.Failure -> _state.value.copy(
                     // The review stays in `rows`, so Retry costs nothing and the choices
-                    // survive — re-reading the camera to recover from a server error would be
+                    // survive — re-reading the camera to recover from a failed write would be
                     // punishing the wrong thing.
                     stage = ImportStage.Failed(messageFor(result.error)),
                 )
@@ -174,28 +168,26 @@ class ImportViewModel(
         )
     }
 
-    private fun messageFor(error: ApiError): String = when (error) {
-        // The distinction the whole screen turns on: the camera is local and the library is
-        // not. Reading needed no signal; saving does.
-        is ApiError.Network ->
-            "Saving needs a connection — reading the camera did not. Nothing was imported, " +
-                "and your choices are still here to try again."
+    private fun messageFor(error: LibraryError): String = when (error) {
+        is LibraryError.Storage ->
+            "Your library could not be saved to this phone, so nothing was imported" +
+                (error.message?.let { ": $it" } ?: ".") +
+                " What you read off the camera is still here to try again."
 
-        is ApiError.Forbidden ->
-            "The server refused the app's credentials, so nothing was imported. Check the " +
-                "connection settings."
+        is LibraryError.Unreadable ->
+            "The library already on this phone could not be read, so nothing was written to " +
+                "it. Importing on top of it would replace recipes that may still be " +
+                "recoverable."
 
-        is ApiError.ValidationFailed -> {
+        is LibraryError.Invalid -> {
             val field = error.fields.firstOrNull()
-            "The server refused a recipe" +
+            "A slot could not be saved as a recipe" +
                 (field?.let { " — ${it.path}: ${it.message}" } ?: "") +
                 ". Nothing was imported."
         }
 
-        is ApiError.StorageUnavailable ->
-            "The library is unreachable right now, so nothing was imported. Try again shortly."
-
-        else -> "The import failed, so nothing was written: ${error::class.simpleName}"
+        is LibraryError.NotFound ->
+            "A recipe this import replaces is no longer in your library. Nothing was imported."
     }
 
     companion object {

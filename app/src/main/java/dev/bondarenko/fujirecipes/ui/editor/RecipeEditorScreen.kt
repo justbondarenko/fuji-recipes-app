@@ -339,8 +339,8 @@ private fun EditorBody(
         if (state.saveError != null) {
             item {
                 Text(
-                    // Named per ApiError, so "no signal" and "token refused" are not the
-                    // same sentence (`coding-standards.md` P5).
+                    // Named per LibraryError, so "out of space" and "value out of range"
+                    // are not the same sentence (`coding-standards.md` P5).
                     text = errorMessageFor(state.saveError),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error,

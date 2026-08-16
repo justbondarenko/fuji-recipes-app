@@ -20,7 +20,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.bondarenko.fujirecipes.R
-import dev.bondarenko.fujirecipes.core.net.ApiError
+import dev.bondarenko.fujirecipes.core.result.LibraryError
 import dev.bondarenko.fujirecipes.ui.common.FujiCenteredLoading
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 
@@ -28,8 +28,9 @@ import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
  * The states the list can be in that are not "here are your recipes" — FEAT-001 T-21.
  *
  * Each is a distinct rendering with its own copy, because `coding-standards.md` P5 says a
- * refused token, a sleeping database and no signal have three different remedies. The one
- * that matters most is what is *not* here: **403 never renders as an empty library.**
+ * library file that will not parse, a phone with no room left and a value out of range have
+ * three different remedies. The one that matters most is what is *not* here: **a library
+ * that could not be read never renders as an empty one.**
  */
 
 /**
@@ -103,68 +104,45 @@ fun LibraryPanel(
 /**
  * A failure, named.
  *
- * The `when` is exhaustive over `ApiError` on purpose: a new case added to the sealed type
- * becomes a compile error here, which is how P8 stays true as the API grows rather than
- * decaying into a default branch that says "something went wrong".
+ * The `when` is exhaustive over `LibraryError` on purpose: a new case added to the sealed
+ * type becomes a compile error here, which is how P8 stays true as the store grows rather
+ * than decaying into a default branch that says "something went wrong".
  */
 @Composable
 fun LibraryErrorPanel(
-    error: ApiError,
+    error: LibraryError,
     onRetry: () -> Unit,
-    onOpenConnection: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val title: String
     val body: String
-    var primary: String? = stringResource(R.string.action_try_again)
-    var onPrimary: () -> Unit = onRetry
 
     when (error) {
-        is ApiError.Forbidden -> {
-            title = stringResource(R.string.error_forbidden_title)
-            body = error.message ?: stringResource(R.string.error_forbidden_body)
-            primary = stringResource(R.string.action_open_connection)
-            onPrimary = onOpenConnection
+        is LibraryError.Unreadable -> {
+            // The one failure where the app is holding recipes it cannot show. It must never
+            // read as an empty library — nothing has been lost, and nothing will be
+            // overwritten while this is true.
+            title = stringResource(R.string.error_unreadable_title)
+            body = error.message
+                ?.let { stringResource(R.string.error_unreadable_body_with_reason, it) }
+                ?: stringResource(R.string.error_unreadable_body)
         }
 
-        is ApiError.AccessUnconfigured -> {
-            // The server's gate, not the user's token, and not the database. The message
-            // names the missing Worker secrets, so it is shown rather than replaced.
-            title = stringResource(R.string.error_access_unconfigured_title)
-            body = error.message ?: stringResource(R.string.error_access_unconfigured_body)
-        }
-
-        is ApiError.StorageUnavailable -> {
+        is LibraryError.Storage -> {
             title = stringResource(R.string.error_storage_title)
-            body = stringResource(R.string.error_storage_body)
+            body = error.message
+                ?.let { stringResource(R.string.error_storage_body_with_reason, it) }
+                ?: stringResource(R.string.error_storage_body)
         }
 
-        is ApiError.Network -> {
-            title = stringResource(R.string.error_network_title)
-            body = stringResource(R.string.error_network_body)
+        is LibraryError.NotFound -> {
+            title = stringResource(R.string.error_not_found_title)
+            body = stringResource(R.string.error_not_found_body)
         }
 
-        is ApiError.Internal -> {
-            title = stringResource(R.string.error_internal_title)
-            body = error.requestId
-                ?.let { stringResource(R.string.error_internal_body_with_id, it) }
-                ?: stringResource(R.string.error_internal_body)
-        }
-
-        is ApiError.Malformed -> {
-            title = stringResource(R.string.error_malformed_title)
-            body = stringResource(R.string.error_malformed_body)
-        }
-
-        is ApiError.NotFound,
-        is ApiError.ValidationFailed,
-        is ApiError.IdExists,
-        is ApiError.BadRequest,
-        is ApiError.MethodNotAllowed,
-        is ApiError.Unexpected,
-        -> {
-            title = stringResource(R.string.error_unexpected_title)
-            body = error.message ?: stringResource(R.string.error_unexpected_body)
+        is LibraryError.Invalid -> {
+            title = stringResource(R.string.error_invalid_title)
+            body = error.message ?: stringResource(R.string.error_invalid_body)
         }
     }
 
@@ -172,8 +150,8 @@ fun LibraryErrorPanel(
         title = title,
         body = body,
         modifier = modifier,
-        primaryLabel = primary,
-        onPrimary = onPrimary,
+        primaryLabel = stringResource(R.string.action_try_again),
+        onPrimary = onRetry,
     )
 }
 
@@ -187,18 +165,10 @@ private fun LibraryStatesPreview() {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             LibraryErrorPanel(
-                ApiError.Forbidden("This token was not accepted."),
+                LibraryError.Unreadable("Unexpected character at offset 412."),
                 onRetry = {},
-                onOpenConnection = {},
             )
-            LibraryErrorPanel(
-                ApiError.AccessUnconfigured(
-                    "This deployment has no access gate: CF_ACCESS_POLICY_AUD is not set.",
-                ),
-                onRetry = {},
-                onOpenConnection = {},
-            )
-            LibraryErrorPanel(ApiError.Network(null), onRetry = {}, onOpenConnection = {})
+            LibraryErrorPanel(LibraryError.Storage(null), onRetry = {})
             LibraryLoading()
         }
     }

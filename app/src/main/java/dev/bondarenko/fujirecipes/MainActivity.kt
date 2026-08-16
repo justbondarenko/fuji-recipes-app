@@ -7,7 +7,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -17,8 +16,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import dev.bondarenko.fujirecipes.ui.editor.PasteRecipeSheet
-import dev.bondarenko.fujirecipes.ui.nav.ConnectionRoute
+import dev.bondarenko.fujirecipes.ui.create.CreateRecipeFlow
 import dev.bondarenko.fujirecipes.ui.nav.ExportRoute
 import dev.bondarenko.fujirecipes.ui.nav.FileImportRoute
 import dev.bondarenko.fujirecipes.ui.camera.CameraToolbarItemHost
@@ -34,31 +32,17 @@ import dev.bondarenko.fujirecipes.ui.shell.AppShell
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        val splash = installSplashScreen()
+        installSplashScreen()
         connectIfLaunchedByCamera(intent)
         // Mandatory on Android 15+ regardless, so it is done deliberately here rather than
         // discovered in a release build.
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        var startDestination by mutableStateOf<Any?>(null)
-        // The splash stays up until the stored connection has been read, because the
-        // alternative is showing the library for one frame and replacing it with setup —
-        // which reads as the app losing the library rather than never having had one.
-        splash.setKeepOnScreenCondition { startDestination == null }
-        setContent {
-            val container = (application as FujiRecipesApp).container
-            LaunchedEffect(Unit) {
-                startDestination = if (
-                    container.useDemoData ||
-                    container.connectionSettings.current().isConfigured
-                ) {
-                    LibraryRoute
-                } else {
-                    ConnectionRoute(firstRun = true)
-                }
-            }
-            startDestination?.let { FujiApp(it) }
-        }
+
+        // Straight to the library. There is nothing to decide first — no stored connection to
+        // read, no setup to do — so the splash is not held open for anything. The list screen
+        // draws its own loading and error states while the store is read.
+        setContent { FujiApp() }
     }
     /** A camera plugged in while the app was already running comes through here. */
     override fun onNewIntent(intent: Intent) {
@@ -83,18 +67,16 @@ class MainActivity : ComponentActivity() {
     }
 }
 @Composable
-private fun FujiApp(startDestination: Any) {
+private fun FujiApp() {
     FujiTheme {
         val navController = rememberNavController()
         val backStackEntry by navController.currentBackStackEntryAsState()
         val destination = backStackEntry?.destination
         /**
          * The shell chrome is hidden wherever it would be wrong rather than wherever it
-         * happens to look busy: connection setup is reached before there is a library to
-         * navigate to, the editor owns its own bottom bar (FEAT-002), and subpages have their
-         * own top app bar.
+         * happens to look busy: the editor owns its own bottom bar (FEAT-002), and subpages
+         * have their own top app bar.
          */
-        val onConnection = destination?.hasRoute<ConnectionRoute>() == true
         val onEditor = destination?.hasRoute<RecipeEditorRoute>() == true
         // The view screen carries its own top bar and back affordance, and a bottom nav
         // under a recipe would invite leaving the thing you just opened.
@@ -103,26 +85,22 @@ private fun FujiApp(startDestination: Any) {
         val onFileImport = destination?.hasRoute<FileImportRoute>() == true
         val onExport = destination?.hasRoute<ExportRoute>() == true
         val showChrome =
-            !onConnection && !onEditor && !onRecipeView && !onImport && !onFileImport && !onExport
-        // Not a route: the sheet is a way of starting the editor, and giving it a destination
-        // of its own would put an empty text box in the back stack behind every recipe made
-        // from a paste.
-        var showPasteSheet by remember { mutableStateOf(false) }
-        if (showPasteSheet) {
-            PasteRecipeSheet(
-                onDismiss = { showPasteSheet = false },
-                onImport = { parsed ->
-                    showPasteSheet = false
-                    navController.navigate(
-                        RecipeEditorRoute(
-                            id = null,
-                            prefill = parsed.settings.toString(),
-                            prefillName = parsed.name,
-                        ),
-                    )
-                },
-            )
-        }
+            !onEditor && !onRecipeView && !onImport && !onFileImport && !onExport
+
+        // Not a route: the dialog and the sheet behind it are ways of *starting* the editor,
+        // and giving either a destination of its own would put a half-made choice in the back
+        // stack behind every recipe.
+        var creating by remember { mutableStateOf(false) }
+
+        CreateRecipeFlow(
+            visible = creating,
+            onDismiss = { creating = false },
+            onCreate = { prefill, prefillName ->
+                navController.navigate(
+                    RecipeEditorRoute(id = null, prefill = prefill, prefillName = prefillName),
+                )
+            },
+        )
         AppShell(
             showChrome = showChrome,
             isLibrarySelected = destination?.hasRoute<LibraryRoute>() == true,
@@ -136,8 +114,7 @@ private fun FujiApp(startDestination: Any) {
             },
             onReadClick = { navController.navigate(PhotoRoute) { launchSingleTop = true } },
             onMoreClick = { navController.navigate(MoreRoute) { launchSingleTop = true } },
-            onCreateClick = { navController.navigate(RecipeEditorRoute(id = null)) },
-            onParseTextClick = { showPasteSheet = true },
+            onCreateClick = { creating = true },
             cameraItem = {
                 CameraToolbarItemHost(
                     selected = destination?.hasRoute<CameraRoute>() == true,
@@ -147,7 +124,6 @@ private fun FujiApp(startDestination: Any) {
         ) { contentPadding ->
             FujiNavHost(
                 navController = navController,
-                startDestination = startDestination,
                 contentPadding = contentPadding,
             )
         }

@@ -18,7 +18,33 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    /**
+     * The debug key is **checked in**, and that is the point.
+     *
+     * Without one, AGP generates `~/.android/debug.keystore` on whatever machine is building
+     * — so every CI runner signs with a different key, and Android refuses to install one
+     * build over another: "App not installed", or `INSTALL_FAILED_UPDATE_INCOMPATIBLE`,
+     * unless you uninstall first. One committed key makes every build an update of the last,
+     * whoever produced it.
+     *
+     * It carries the conventional debug credentials (`androiddebugkey` / `android`), so it
+     * behaves exactly like the one the SDK would have made. **It signs debug builds only.**
+     * A release key is a different thing and does not belong in a repository.
+     */
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
+
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -72,12 +98,10 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.okhttp)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlin.test.junit)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.turbine)
 
     androidTestImplementation(libs.androidx.test.junit)

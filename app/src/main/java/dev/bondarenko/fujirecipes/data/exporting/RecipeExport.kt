@@ -23,7 +23,7 @@ import java.time.format.DateTimeFormatter
  * whole format can be tested against the spec's own example rather than against our output.
  *
  * **Nothing here validates.** Export is a projection of what is already stored, and a stored
- * recipe has already been through the server's schema. Refusing to export a recipe that
+ * recipe has already been through the field rules. Refusing to export a recipe that
  * somehow no longer validates would take away the backup at exactly the moment it is most
  * wanted.
  *

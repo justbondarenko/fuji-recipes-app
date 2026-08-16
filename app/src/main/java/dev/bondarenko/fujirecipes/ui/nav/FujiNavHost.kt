@@ -18,10 +18,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.toRoute
-import dev.bondarenko.fujirecipes.R
-import dev.bondarenko.fujirecipes.ui.common.PlaceholderScreen
 import dev.bondarenko.fujirecipes.ui.camera.CameraRouteContent
-import dev.bondarenko.fujirecipes.ui.connection.ConnectionRouteContent
 import dev.bondarenko.fujirecipes.ui.library.LibraryRouteContent
 import dev.bondarenko.fujirecipes.ui.editor.RecipeEditorRouteContent
 import dev.bondarenko.fujirecipes.ui.exporting.ExportRouteContent
@@ -39,16 +36,6 @@ import kotlinx.serialization.Serializable
  * Type-safe navigation rather than string routes: a destination that gains an argument
  * becomes a compile error at every call site instead of a runtime "argument not found".
  */
-/**
- * Connection setup.
- *
- * [firstRun] is true only when the app opened here because nothing was configured. It
- * decides where saving goes — on to the library, or back to settings — because the screen
- * cannot tell the two cases apart and guessing would strand the user somewhere unexpected.
- */
-@Serializable
-data class ConnectionRoute(val firstRun: Boolean = false)
-
 @Serializable
 data object LibraryRoute
 
@@ -144,7 +131,6 @@ private fun slideDirection(
 @Composable
 fun FujiNavHost(
     navController: NavHostController,
-    startDestination: Any,
     contentPadding: PaddingValues,
 ) {
     // Hoisted: the transition lambdas below are not composable, so they cannot read either of
@@ -186,7 +172,8 @@ fun FujiNavHost(
 
     NavHost(
         navController = navController,
-        startDestination = startDestination,
+        // Always the library. There is no setup to route around any more.
+        startDestination = LibraryRoute,
         enterTransition = { enter(forward = true) },
         exitTransition = { exit(forward = true) },
         // Back along the bar is the same journey reversed, and the index comparison already
@@ -194,33 +181,12 @@ fun FujiNavHost(
         popEnterTransition = { enter(forward = false) },
         popExitTransition = { exit(forward = false) },
     ) {
-        composable<ConnectionRoute> { entry ->
-            val route = entry.toRoute<ConnectionRoute>()
-            ConnectionRouteContent(
-                onSaved = {
-                    if (route.firstRun) {
-                        // Setup is finished; the library replaces it rather than stacking,
-                        // so back does not return to a form that is already satisfied.
-                        navController.navigate(LibraryRoute) {
-                            popUpTo<ConnectionRoute> { inclusive = true }
-                            launchSingleTop = true
-                        }
-                    } else {
-                        navController.popBackStack()
-                    }
-                },
-                onBack = { navController.popBackStack() },
-                showBack = !route.firstRun,
-                contentPadding = contentPadding,
-            )
-        }
-
         composable<LibraryRoute> {
             LibraryRouteContent(
                 onOpenRecipe = {},
                 onEditRecipe = { id -> navController.navigate(RecipeEditorRoute(id)) },
                 onCreateRecipe = { navController.navigate(RecipeEditorRoute(null)) },
-                onOpenConnection = { navController.navigate(ConnectionRoute()) },
+                onImportFromCamera = { navController.navigate(ImportRoute) },
                 contentPadding = contentPadding,
             )
         }
@@ -262,7 +228,6 @@ fun FujiNavHost(
 
         composable<MoreRoute> {
             SettingsRouteContent(
-                onOpenConnection = { navController.navigate(ConnectionRoute()) },
                 onOpenImport = { navController.navigate(ImportRoute) },
                 onOpenFileImport = { navController.navigate(FileImportRoute) },
                 onOpenExport = { navController.navigate(ExportRoute) },
@@ -303,6 +268,16 @@ fun FujiNavHost(
         composable<ExportRoute> {
             ExportRouteContent(
                 onBack = { navController.popBackStack() },
+                // An empty library has nothing to export, so the page offers the one thing
+                // that fixes that. Replacing export in the back stack: coming back to a page
+                // that said "nothing to export" from the recipe you just made would be odd.
+                onOpenEditor = { prefill, prefillName ->
+                    navController.navigate(
+                        RecipeEditorRoute(id = null, prefill = prefill, prefillName = prefillName),
+                    ) {
+                        popUpTo<ExportRoute> { inclusive = true }
+                    }
+                },
                 contentPadding = contentPadding,
             )
         }

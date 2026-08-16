@@ -22,9 +22,9 @@ import java.time.Instant
 /**
  * What the export screen is showing — FEAT-008 T-11.
  *
- * No network anywhere in here. The library is already in memory
- * (`architecture.md` §4), which is what makes a backup something you can take in the field
- * rather than only at home.
+ * The library is already in memory (`architecture.md` §4) and the file is built on the
+ * phone, which is what makes a backup something you can take in the field rather than only
+ * at home. With no server behind the app, this is also the only way a library leaves it.
  */
 data class ExportUiState(
     val recipes: List<Recipe> = emptyList(),

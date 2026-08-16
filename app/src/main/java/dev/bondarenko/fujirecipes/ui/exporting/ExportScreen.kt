@@ -23,6 +23,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.toShape
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.TextButton
@@ -30,9 +32,13 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -46,7 +52,8 @@ import dev.bondarenko.fujirecipes.data.exporting.ExportKind
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.model.Recipe
 import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
-import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
+import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
+import dev.bondarenko.fujirecipes.ui.create.CreateRecipeFlow
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -59,7 +66,7 @@ import kotlinx.serialization.json.put
  * need to.
  */
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ExportScreen(
     state: ExportUiState,
@@ -69,6 +76,7 @@ fun ExportScreen(
     onSelectNone: () -> Unit,
     onChooseKind: (ExportKind) -> Unit,
     onExport: () -> Unit,
+    onCreateRecipe: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
@@ -110,10 +118,26 @@ fun ExportScreen(
             when {
             !state.hasLoaded -> item { Body(stringResource(R.string.export_loading)) }
 
+            /**
+             * Nothing to export is not a failure and not a dead end — it is a library with
+             * no recipes in it yet, which has exactly one remedy. Drawn as the same
+             * `FujiIconPanel` every other one-thing-to-say page uses, with the action that
+             * fixes it rather than a paragraph that only describes the problem.
+             *
+             * The action opens the same New recipe dialog the toolbar's button does, because
+             * "make your first one" is the same offer wherever it is made.
+             */
             state.isEmptyLibrary -> item {
-                LibraryPanel(
+                FujiIconPanel(
+                    // Export's own glyph and the square the create dialog gives a manual
+                    // start: this is still the export page, and what it needs is a recipe.
+                    icon = painterResource(R.drawable.ic_file_export),
+                    shape = MaterialShapes.Square.toShape(),
                     title = stringResource(R.string.export_empty_title),
                     body = stringResource(R.string.export_empty_body),
+                    actionLabel = stringResource(R.string.export_empty_create),
+                    onAction = onCreateRecipe,
+                    modifier = Modifier.fillParentMaxSize(),
                 )
             }
 
@@ -312,15 +336,30 @@ private fun Panel(text: String, alert: Boolean = false) {
     }
 }
 
+/**
+ * [onOpenEditor] takes the parsed `settings` JSON and name from a pasted recipe, or two nulls
+ * for a create that starts from nothing — the same pair `AppShell`'s button produces.
+ */
 @Composable
 fun ExportRouteContent(
     onBack: () -> Unit,
+    onOpenEditor: (prefill: String?, prefillName: String?) -> Unit,
     contentPadding: PaddingValues,
 ) {
     val context = LocalContext.current
     val container = (context.applicationContext as FujiRecipesApp).container
     val viewModel: ExportViewModel = viewModel(factory = ExportViewModel.factory(container))
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // Hosted here rather than by the shell: export is a subpage, so the toolbar and its New
+    // recipe button are not on screen to offer this.
+    var creating by remember { mutableStateOf(false) }
+
+    CreateRecipeFlow(
+        visible = creating,
+        onDismiss = { creating = false },
+        onCreate = onOpenEditor,
+    )
 
     ExportScreen(
         state = state,
@@ -339,6 +378,7 @@ fun ExportRouteContent(
                     .onFailure { viewModel.onShareFailed(it.message.orEmpty()) }
             }
         },
+        onCreateRecipe = { creating = true },
         contentPadding = contentPadding,
     )
 }
@@ -365,7 +405,7 @@ private fun PreviewScreen(state: ExportUiState) {
                 state = state,
                 onBack = {},
                 onToggle = {}, onSelectAll = {}, onSelectNone = {}, onChooseKind = {},
-                onExport = {},
+                onExport = {}, onCreateRecipe = {},
                 contentPadding = PaddingValues(0.dp),
             )
         }

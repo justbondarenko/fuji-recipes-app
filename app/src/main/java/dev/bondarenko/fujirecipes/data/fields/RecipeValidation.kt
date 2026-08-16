@@ -7,9 +7,9 @@ import kotlinx.serialization.json.doubleOrNull
 /**
  * What the client refuses to send — FEAT-003 T-04.
  *
- * Mirrors `fuji-recipes-book/specs/shared/recipe.schema.json`. **The server is the
- * guarantee**; this exists to fail fast, next to the field the user is looking at, rather
- * than after a round trip that returns a path they then have to find.
+ * Mirrors `fuji-recipes-book/specs/shared/recipe.schema.json`. Applied twice: here, next to
+ * the field the user is looking at, and again in the repository before anything is written —
+ * because an imported file is not obliged to have been through a form.
  *
  * Pure, so every rule is testable without a form (`coding-standards.md` P7).
  */

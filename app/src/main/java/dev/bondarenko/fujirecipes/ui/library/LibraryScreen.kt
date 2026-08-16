@@ -22,12 +22,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.toShape
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -50,11 +51,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
-import dev.bondarenko.fujirecipes.core.net.ApiError
+import dev.bondarenko.fujirecipes.core.result.LibraryError
 import dev.bondarenko.fujirecipes.data.library.LibraryFilters
 import dev.bondarenko.fujirecipes.data.library.SortId
 import dev.bondarenko.fujirecipes.camera.canWrite
 import dev.bondarenko.fujirecipes.ui.camera.WriteSheetHost
+import dev.bondarenko.fujirecipes.ui.common.DownArrow
+import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewBottomSheet
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
@@ -65,7 +68,7 @@ import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
  * Takes state and lambdas, never a ViewModel, so every state below previews and tests
  * without a graph. [LibraryRoute] does the wiring.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun LibraryScreen(
     state: LibraryUiState,
@@ -73,12 +76,12 @@ fun LibraryScreen(
     onSortChange: (SortId) -> Unit,
     onFiltersChange: (LibraryFilters) -> Unit,
     onClearSearchAndFilters: () -> Unit,
-    onRefresh: () -> Unit,
+    onRetry: () -> Unit,
     onOpenRecipe: (String) -> Unit,
     onEditRecipe: (String) -> Unit,
     onDeleteRecipe: (String) -> Unit,
     onCreateRecipe: () -> Unit,
-    onOpenConnection: () -> Unit,
+    onImportFromCamera: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
     canWriteToCamera: Boolean = false,
@@ -93,11 +96,9 @@ fun LibraryScreen(
     var writeRecipeId by rememberSaveable { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
-    PullToRefreshBox(
-        isRefreshing = state.isRefreshing,
-        onRefresh = onRefresh,
-        modifier = modifier.fillMaxSize(),
-    ) {
+    // No pull-to-refresh: there is nowhere to refresh *from*. The library is a file on this
+    // phone, and the flow that feeds this screen already republishes on every change.
+    Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             // The shell's inset already reserves the floating bar's height, so the list
@@ -113,26 +114,44 @@ fun LibraryScreen(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             when {
-                // Nothing on screen and a failure: the error *is* the screen. Crucially a
-                // 403 lands here rather than rendering as an empty library.
+                // Nothing on screen and a failure: the error *is* the screen. Crucially an
+                // unreadable library file lands here rather than rendering as an empty one.
                 state.isBlockingError -> item {
-                    LibraryErrorPanel(
-                        error = state.error!!,
-                        onRetry = onRefresh,
-                        onOpenConnection = onOpenConnection,
-                    )
+                    LibraryErrorPanel(error = state.error!!, onRetry = onRetry)
                 }
 
                 // fillParentMaxSize so the indicator centres against the viewport, not against
                 // its own height at the top of the list.
                 !state.hasLoaded -> item { LibraryLoading(Modifier.fillParentMaxSize()) }
 
+                /**
+                 * An empty library is a page with one thing to say and one thing to do, so it
+                 * is drawn as one — the same `FujiIconPanel` the photo reader, both imports
+                 * and the camera use, rather than the bordered card it used to be.
+                 *
+                 * **The action is Import from camera**, not Create a recipe. A first launch
+                 * is almost never someone who wants to type twenty parameters in; it is
+                 * someone whose recipes are already on the body in C1–C7. Creating one by
+                 * hand is still here, under the button and quieter, and the create FAB is on
+                 * screen the whole time regardless.
+                 */
                 state.isEmptyLibrary -> item {
-                    LibraryPanel(
+                    FujiIconPanel(
+                        // The library's own toolbar glyph: this is still the library, however
+                        // empty. The shape is the down arrow the two import screens carry,
+                        // because getting recipes *in* is what the page is for.
+                        icon = painterResource(R.drawable.ic_bookmark_stacks),
+                        shape = DownArrow.toShape(),
                         title = stringResource(R.string.empty_library_title),
                         body = stringResource(R.string.empty_library_body),
-                        primaryLabel = stringResource(R.string.action_create_recipe),
-                        onPrimary = onCreateRecipe,
+                        actionLabel = stringResource(R.string.empty_library_import),
+                        onAction = onImportFromCamera,
+                        modifier = Modifier.fillParentMaxSize(),
+                        extra = {
+                            TextButton(onClick = onCreateRecipe) {
+                                Text(stringResource(R.string.empty_library_create))
+                            }
+                        },
                     )
                 }
 
@@ -303,7 +322,7 @@ fun LibraryRouteContent(
     onOpenRecipe: (String) -> Unit,
     onEditRecipe: (String) -> Unit,
     onCreateRecipe: () -> Unit,
-    onOpenConnection: () -> Unit,
+    onImportFromCamera: () -> Unit,
     contentPadding: PaddingValues,
 ) {
     val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
@@ -317,12 +336,12 @@ fun LibraryRouteContent(
         onSortChange = viewModel::onSortChange,
         onFiltersChange = viewModel::onFiltersChange,
         onClearSearchAndFilters = viewModel::onClearSearchAndFilters,
-        onRefresh = viewModel::refresh,
+        onRetry = viewModel::retry,
         onOpenRecipe = onOpenRecipe,
         onEditRecipe = onEditRecipe,
         onDeleteRecipe = viewModel::onDeleteRecipe,
         onCreateRecipe = onCreateRecipe,
-        onOpenConnection = onOpenConnection,
+        onImportFromCamera = onImportFromCamera,
         contentPadding = contentPadding,
         canWriteToCamera = camera.canWrite,
     )
@@ -348,27 +367,27 @@ private fun LibraryScreenPreview() {
                 availableSimulations = listOf("classic-chrome", "acros-r", "reala-ace"),
             ),
             onSearchChange = {}, onSortChange = {}, onFiltersChange = {},
-            onClearSearchAndFilters = {}, onRefresh = {}, onOpenRecipe = {},
-            onEditRecipe = {}, onDeleteRecipe = {},
-            onCreateRecipe = {}, onOpenConnection = {},
+            onClearSearchAndFilters = {}, onRetry = {}, onOpenRecipe = {},
+            onEditRecipe = {}, onDeleteRecipe = {}, onCreateRecipe = {},
+            onImportFromCamera = {},
             contentPadding = PaddingValues(0.dp),
         )
     }
 }
 
-@Preview(name = "List — refused token", showBackground = true, heightDp = 700)
+@Preview(name = "List — unreadable library", showBackground = true, heightDp = 700)
 @Composable
-private fun LibraryForbiddenPreview() {
+private fun LibraryUnreadablePreview() {
     FujiTheme {
         LibraryScreen(
             state = LibraryUiState(
                 hasLoaded = true,
-                error = ApiError.Forbidden("This token was not accepted."),
+                error = LibraryError.Unreadable("Unexpected character at offset 412."),
             ),
             onSearchChange = {}, onSortChange = {}, onFiltersChange = {},
-            onClearSearchAndFilters = {}, onRefresh = {}, onOpenRecipe = {},
-            onEditRecipe = {}, onDeleteRecipe = {},
-            onCreateRecipe = {}, onOpenConnection = {},
+            onClearSearchAndFilters = {}, onRetry = {}, onOpenRecipe = {},
+            onEditRecipe = {}, onDeleteRecipe = {}, onCreateRecipe = {},
+            onImportFromCamera = {},
             contentPadding = PaddingValues(0.dp),
         )
     }
@@ -381,9 +400,9 @@ private fun LibraryEmptyPreview() {
         LibraryScreen(
             state = LibraryUiState(hasLoaded = true, totalCount = 0),
             onSearchChange = {}, onSortChange = {}, onFiltersChange = {},
-            onClearSearchAndFilters = {}, onRefresh = {}, onOpenRecipe = {},
-            onEditRecipe = {}, onDeleteRecipe = {},
-            onCreateRecipe = {}, onOpenConnection = {},
+            onClearSearchAndFilters = {}, onRetry = {}, onOpenRecipe = {},
+            onEditRecipe = {}, onDeleteRecipe = {}, onCreateRecipe = {},
+            onImportFromCamera = {},
             contentPadding = PaddingValues(0.dp),
         )
     }

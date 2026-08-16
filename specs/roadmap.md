@@ -24,10 +24,10 @@ Stages are sequential. A **GATE** must be fully closed before the next stage sta
 | # | Feature | Ships | Risk |
 |---|---|---|---|
 | FEAT-000 | Foundation — project, theme, icon, shell | An app that opens, looks right, and navigates between empty screens | **done** |
-| **FEAT-001** | **Recipe list** ← *start here* | Connection setup, the API client, the snapshot cache, and a real library on screen with search, filters and sort | low |
+| **FEAT-001** | **Recipe list** | Connection setup, the API client, the snapshot cache, and a real library on screen with search, filters and sort. **Superseded in part by FEAT-013** — the first three are gone; the library screen is not | low |
 | FEAT-002 | Field source + recipe view | The canonical 27-field table, and a read-only screen to read a recipe on | **done** |
 | FEAT-003 | Recipe form | Create, edit, duplicate, delete; rating and tags in place | **done** |
-| FEAT-004 | Settings | Connection settings reachable at any time, and clearable | **done** |
+| FEAT-004 | Settings | Connection settings reachable at any time, and clearable. **Superseded in part by FEAT-013** — the screen remains, the connection card does not | **done** |
 | FEAT-005 | Camera connection **GATE** | USB host, attach intent, PTP session, model detection, the connection indicator | **done** — connects on hardware |
 | FEAT-006 | Write to slot | Write plan, encoders, slot picker, progress, failure reporting | **done** — writes to a slot on hardware |
 | **FEAT-007** | **Import from camera** ← *in progress* | More → Import: read C1–C7 off the body, review against the library with duplicate detection, import | low — the protocol half is done and verified |
@@ -36,22 +36,23 @@ Stages are sequential. A **GATE** must be fully closed before the next stage sta
 | FEAT-010 | Polish | Motion timing, haptics, reduced-motion fallback, dark-scheme audit, predictive back | none |
 | **FEAT-011** | **Create a recipe from pasted text** | The create FAB becomes a FAB menu: paste a recipe from Fuji X Weekly, a forum or notes, and the form opens filled in | low — the parser is a port of one the web client already ships |
 | **FEAT-012** | **Import a file** | More → Import a file: read back a `.json` or `.zip` this app or the web client exported, review it against the library, resolve id collisions, import | low — the format is specified, and the reference implementation is the one the web client ships |
+| **FEAT-013** | **Offline library** | The Cloudflare Worker connection is removed entirely. The library becomes `filesDir/library.json`, the app assigns ids, `sortKey` and timestamps itself, and export/import (FEAT-008, FEAT-012) become the whole of how recipes move between devices. No `INTERNET` permission | low — every screen already read from an in-memory library |
 
 **FEAT-001 to FEAT-003 carry no protocol risk and ship a usable recipe manager.** That is
 deliberate: a hard slog in FEAT-005 must leave a working product behind, not a stalled one.
 
-## 2. Why the list is first
+## 2. Why the list was first
 
-It is the stage that forces every foundational decision to become real code:
+It was the stage that forced every foundational decision to become real code:
 
-- The **API client** and its error envelope — every later feature reuses it
-- The **Access service token** path — nothing reaches the server until this works
-- The **snapshot cache** — the offline story, proved on the screen that needs it most
+- The **repository seam** and its error type — every later feature reuses it
+- The **store** — the offline story, proved on the screen that needs it most
 - The **theme** applied to real content rather than a swatch page
 - The **film-simulation table**, the first canonical transcription from the Nuxt repo
 
-And it is independently useful: a read-only library on the phone, offline, is already worth
-installing.
+Two of its five original bullets — the API client and the Access service token — were
+removed by FEAT-013, and the seam is the reason that cost one implementation class rather
+than a rewrite of the screens above it.
 
 ## 3. Deliberate deferrals
 
@@ -77,16 +78,13 @@ ordering cost nothing — the form (FEAT-003) now inherits a table that is alrea
 
 ## 4. Open dependencies on the other repo
 
-None for FEAT-001 through FEAT-003 — every route they need already exists and is specified
-in `fuji-recipes-book/specs/contracts.md`.
+**None, and structurally so since FEAT-013.** The two projects meet only in the export file
+format (`fuji-recipes-book/specs/shared/recipe-format.spec.md`) and the shared data shapes.
+Nothing here calls anything there, and no deployment, token or route has to exist for a
+feature in this repo to ship.
 
-One configuration dependency, needed before FEAT-001 can be tested against the real
-deployment:
-
-- [ ] A Cloudflare Access **service token** is created and the Access application's policy
-      admits it (Service Auth). Dashboard configuration, no code change.
-      *Owner: Andrii. Blocks FEAT-001 T-12 onward; the rest of FEAT-001 is testable against
-      `MockWebServer`.*
+The Cloudflare Access service token that FEAT-001 needed is no longer required, and any
+that were issued for this app can be revoked.
 
 ## 5. Documents this roadmap corrects
 
@@ -96,7 +94,7 @@ file itself:
 
 | Section | Said | Now |
 |---|---|---|
-| §4.1 Data storage | "Room only. No backend, no auth, no network permission." | Server-backed via the existing `/api`, snapshot cache, `INTERNET` required — `architecture.md` §4 |
+| §4.1 Data storage | "Room only. No backend, no auth, no network permission." | **Largely restored by FEAT-013.** One JSON file rather than Room, but the rest of §4.1 is the shipped design again: no backend, no auth, no `INTERNET` permission — `architecture.md` §4. The server-backed period between FEAT-001 and FEAT-013 is the part that is now historical |
 | §5.2 Colour tokens | "Cappuccino", source colour `#CC785C` | Stone monochrome with an amber accent, matching what the web client shipped — `steering/design-system.md` §2 |
 
 Everything else in `PRD.md` — the field semantics, the camera integration, the USB gotchas,

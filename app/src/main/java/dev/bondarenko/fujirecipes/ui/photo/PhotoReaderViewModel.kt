@@ -75,7 +75,7 @@ class PhotoReaderViewModel(
                 is PhotoReadResult.Failure -> fail(parsed.reason)
 
                 is PhotoReadResult.Success -> {
-                    // The snapshot, so matching works with no signal for the same reason the
+                    // The stored library, so matching works for the same reason the
                     // decoding does.
                     val library = repository.library.first { it.hasLoaded }.recipes
 

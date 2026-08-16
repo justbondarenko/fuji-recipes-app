@@ -88,7 +88,7 @@ object FilmSimulations {
     /**
      * **Null for an unknown id rather than a throw.**
      *
-     * The server is free to hold a simulation this build has never heard of — a newer web
+     * A stored recipe may hold a simulation this build has never heard of — a newer web
      * client can write one, and `data-model.md` §1 requires it to survive. A list that
      * crashed on such a recipe would be a worse failure than a card with a grey swatch, so
      * every caller is made to think about the absent case (`coding-standards.md` P2).

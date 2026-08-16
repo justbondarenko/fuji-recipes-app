@@ -2,27 +2,23 @@ package dev.bondarenko.fujirecipes.core
 
 import android.content.Context
 import dev.bondarenko.fujirecipes.camera.CameraController
-import dev.bondarenko.fujirecipes.core.cache.SnapshotCache
-import dev.bondarenko.fujirecipes.core.net.ApiClient
-import dev.bondarenko.fujirecipes.core.settings.ConnectionSettings
 import dev.bondarenko.fujirecipes.core.settings.ViewPreferences
-import dev.bondarenko.fujirecipes.BuildConfig
-import dev.bondarenko.fujirecipes.data.repo.DemoRecipeRepository
-import dev.bondarenko.fujirecipes.data.repo.NetworkRecipeRepository
+import dev.bondarenko.fujirecipes.core.store.LibraryStore
+import dev.bondarenko.fujirecipes.data.repo.LocalRecipeRepository
 import dev.bondarenko.fujirecipes.data.repo.RecipeRepository
-import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
+import java.util.UUID
 
 /**
  * The object graph, by hand.
  *
  * Everything long-lived hangs off here and is created lazily, so a screen that never needs
- * the HTTP client never builds one. `FujiRecipesApp` owns the single instance.
+ * the store never opens a file. `FujiRecipesApp` owns the single instance.
  *
- * No DI framework: seven objects, no cycles, one scope. Hilt would cost a Gradle plugin, an
+ * No DI framework: four objects, no cycles, one scope. Hilt would cost a Gradle plugin, an
  * annotation processor and a Kotlin/KSP version alignment for wiring that fits on a screen
  * (`steering/tech-stack.md` §2).
  */
@@ -30,25 +26,17 @@ class AppContainer(context: Context) {
 
     val applicationContext: Context = context.applicationContext
 
-    val connectionSettings: ConnectionSettings by lazy { ConnectionSettings(applicationContext) }
-
     val viewPreferences: ViewPreferences by lazy { ViewPreferences(applicationContext) }
 
     /**
-     * The config, read synchronously for the interceptor.
+     * The library file, in app-private storage.
      *
-     * OkHttp interceptors are not suspending, so the token has to be readable from a plain
-     * function. `runBlocking` on a DataStore read that is already in memory after the first
-     * call is cheap, and it happens on OkHttp's own thread rather than the main one.
+     * `filesDir` rather than `cacheDir`, and the difference is the whole point: this is the
+     * only copy of the recipes, so the OS must never be free to reclaim it
+     * (`steering/architecture.md` §4).
      */
-    // ponytail: runBlocking per request against an in-memory DataStore. Cache the config in
-    // a StateFlow if it ever shows up in a trace.
-    val apiClient: ApiClient by lazy {
-        ApiClient(config = { runBlocking { connectionSettings.current() } })
-    }
-
-    val snapshotCache: SnapshotCache by lazy {
-        SnapshotCache(File(applicationContext.filesDir, SnapshotCache.FILE_NAME))
+    val libraryStore: LibraryStore by lazy {
+        LibraryStore(File(applicationContext.filesDir, LibraryStore.FILE_NAME))
     }
 
     /**
@@ -59,36 +47,39 @@ class AppContainer(context: Context) {
     val cameraController: CameraController by lazy { CameraController(applicationContext) }
 
     /**
-     * True when this build should stand in a fixture for the server.
+     * The library.
      *
-     * Debug only, and only with nothing configured — the case that otherwise parks you on the
-     * setup form with nothing to look at. A release build with no configuration still goes to
-     * setup, because there the form is the right answer.
+     * `DemoRecipeRepository` was deleted in this merge rather than carried across. It existed
+     * to stand in for the server in a debug build with nothing configured — the case that
+     * parked you on the setup form with nothing to look at. There is no setup form and no
+     * server now, and an in-memory fixture whose writes vanish on process death would
+     * contradict the one thing this repository is for.
      */
-    val useDemoData: Boolean by lazy {
-        BuildConfig.DEBUG && !runBlocking { connectionSettings.current() }.isConfigured
-    }
-
     val recipeRepository: RecipeRepository by lazy {
-        if (useDemoData) return@lazy DemoRecipeRepository()
-
-        NetworkRecipeRepository(
-            api = apiClient,
-            cache = snapshotCache,
-            config = { connectionSettings.current() },
+        LocalRecipeRepository(
+            store = libraryStore,
             now = ::isoNow,
+            newId = ::newId,
         )
     }
 
     companion object {
         /**
-         * ISO-8601 UTC with milliseconds — the format every timestamp in this platform uses
-         * (`contracts.md`). Only ever a display value here: it stamps the snapshot so the
-         * offline banner can say when the copy was taken.
+         * ISO-8601 UTC with milliseconds — the format every timestamp in this platform uses.
+         * Kept because the export files carry it, and a file this app writes has to be one
+         * the web client can read back.
          */
         fun isoNow(): String =
             SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US)
                 .apply { timeZone = TimeZone.getTimeZone("UTC") }
                 .format(System.currentTimeMillis())
+
+        /**
+         * A recipe id.
+         *
+         * A random UUID rather than a counter: ids from two devices end up in the same
+         * library the moment someone imports an export, and a counter would collide there.
+         */
+        fun newId(): String = UUID.randomUUID().toString()
     }
 }

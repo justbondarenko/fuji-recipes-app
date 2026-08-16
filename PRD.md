@@ -53,21 +53,26 @@ Four facts about the environment drive most of the decisions in this document. T
 
 ## 4. Architecture
 
-### 4.1 Data storage — ~~decided~~ **SUPERSEDED**
+### 4.1 Data storage — decided, superseded, and largely restored
 
-> **This section is out of date and must not be built from.**
-> It was written when the platform had no server and the phone was the only client. Since
-> then the Nuxt client moved to Cloudflare Workers + D1 with a real HTTP API, and the two
-> apps are now peers sharing one database.
+> **Read this box before the section below it.**
 >
-> **Current decision:** the server owns the data; Android reads it over the existing
-> `/api` and keeps a read-only snapshot for offline reads. `INTERNET` is required. No Room.
-> Authentication is a Cloudflare Access service token — see
-> `specs/steering/architecture.md` §4 and §5.
+> This section was written when the phone was the only client. It was then superseded: the
+> Nuxt client moved to Cloudflare Workers + D1, and for FEAT-001 through FEAT-012 this app
+> read and wrote that server over HTTP behind a Cloudflare Access service token.
 >
-> What survives from below: the `RecipeRepository` interface as the single seam, and
-> `updatedAt` on every mutation. What does not: "Room only", "no network permission",
-> and the whole Datastore rationale.
+> **FEAT-013 removed the server from this app.** The connection screen, the HTTP client,
+> the Access token and the snapshot cache are gone, along with the `INTERNET` permission.
+>
+> **Current decision:** the device owns the data. One JSON file in app-private storage
+> (`filesDir/library.json`), read whole and rewritten whole. Recipes move between devices
+> as export files, by hand. See `specs/steering/architecture.md` §4 and §5.
+>
+> So the argument below is the shipped one again, with two corrections: **the store is a
+> JSON file, not Room** — nothing queries the library, so a relational store would be schema
+> and migrations with no reader — and the Datastore rationale that opens the section is
+> history. Everything else stands: the `RecipeRepository` interface as the single seam,
+> `updatedAt` on every mutation, and the reasons for having no network at all.
 
 Google Cloud Datastore has **no Android client SDK**. Firestore in Datastore mode is a server-side product; only Firestore in Native mode ships a mobile SDK. Talking to Datastore from Android means either shipping service-account credentials in the APK (never do this) or standing up a server.
 
@@ -77,7 +82,7 @@ The app declares no `INTERNET` permission at all. This is not a limitation to wo
 
 **Two things to do now so a future backend is cheap, and nothing more:**
 
-1. `RecipeRepository` is an interface returning `Flow<List<Recipe>>`. ViewModels depend on the interface. `RoomRecipeRepository` is the only implementation.
+1. `RecipeRepository` is an interface returning `Flow<List<Recipe>>`. ViewModels depend on the interface. `LocalRecipeRepository` is the only implementation. (This is the item that paid for itself twice: it made the move to a server one new class, and the move back another.)
 2. `RecipeEntity` carries `updatedAt` as an epoch millis field, already written on every mutation. Any future sync needs it and retrofitting timestamps onto existing rows is annoying.
 
 Do not build a `RemoteSyncSource` stub, a sync status field, a dirty flag, or a conflict-resolution strategy. They are speculative and they will be wrong when you actually need them.
@@ -103,12 +108,12 @@ Firestore in Native mode would give free offline sync and real-time updates, but
 ┌─────────▼────────────┐   ┌─────────▼──────────────┐
 │  RecipeRepository    │   │  CameraController      │
 │  (interface)         │   │  ├── UsbManager        │
-│  └── RoomRecipeRepo  │   │  ├── PtpSession        │
+│  └── LocalRecipeRepo │   │  ├── PtpSession        │
 └─────────┬────────────┘   │  └── RecipeWriter      │
           │                └─────────┬──────────────┘
 ┌─────────▼────────────┐             │ bulk transfer
-│  Room / SQLite       │             ▼
-└──────────────────────┘         Camera (USB-C)
+│  LibraryStore        │             ▼
+│  filesDir/library.json│        Camera (USB-C)
 
 No network layer. The app declares no INTERNET permission.
 ```
