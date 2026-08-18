@@ -15,8 +15,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowBack
+import dev.bondarenko.fujirecipes.ui.theme.icons.FileSave
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -39,7 +40,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -90,7 +90,7 @@ fun FileImportScreen(
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        imageVector = FujiIcons.ArrowBack,
                         contentDescription = stringResource(R.string.action_back),
                     )
                 }
@@ -117,7 +117,7 @@ fun FileImportScreen(
                     // Same arrow-down as importing from the camera: both bring recipes in,
                     // and only the source differs.
                     FujiIconPanel(
-                        icon = painterResource(R.drawable.ic_file_save),
+                        icon = FujiIcons.FileSave,
                         shape = MaterialShapes.Pill.toShape(),
                         title = stringResource(R.string.file_import_ready_title),
                         body = stringResource(R.string.file_import_ready_body),

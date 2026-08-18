@@ -18,6 +18,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.toRoute
+import dev.bondarenko.fujirecipes.ui.about.AboutRouteContent
+import dev.bondarenko.fujirecipes.ui.about.DisclaimerRouteContent
 import dev.bondarenko.fujirecipes.ui.camera.CameraRouteContent
 import dev.bondarenko.fujirecipes.ui.library.LibraryRouteContent
 import dev.bondarenko.fujirecipes.ui.editor.RecipeEditorRouteContent
@@ -84,6 +86,14 @@ data object ExportRoute
 /** More → Import a file: read back an export this app or the web client wrote (FEAT-012). */
 @Serializable
 data object FileImportRoute
+
+/** More → About: app info, contact and disclaimer. */
+@Serializable
+data object AboutRoute
+
+/** More → About → Disclaimer: full legal waiver and limitation of liability. */
+@Serializable
+data object DisclaimerRoute
 
 /**
  * Where a destination sits in the toolbar, left to right, or -1 if it is not in the bar.
@@ -231,6 +241,22 @@ fun FujiNavHost(
                 onOpenImport = { navController.navigate(ImportRoute) },
                 onOpenFileImport = { navController.navigate(FileImportRoute) },
                 onOpenExport = { navController.navigate(ExportRoute) },
+                onOpenAbout = { navController.navigate(AboutRoute) },
+                contentPadding = contentPadding,
+            )
+        }
+
+        composable<AboutRoute> {
+            AboutRouteContent(
+                onOpenDisclaimer = { navController.navigate(DisclaimerRoute) },
+                onBack = { navController.popBackStack() },
+                contentPadding = contentPadding,
+            )
+        }
+
+        composable<DisclaimerRoute> {
+            DisclaimerRouteContent(
+                onBack = { navController.popBackStack() },
                 contentPadding = contentPadding,
             )
         }

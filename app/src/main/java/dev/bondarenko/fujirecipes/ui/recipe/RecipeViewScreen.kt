@@ -19,10 +19,30 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.ui.graphics.vector.ImageVector
+import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowBack
+import dev.bondarenko.fujirecipes.ui.theme.icons.CameraRoll
+import dev.bondarenko.fujirecipes.ui.theme.icons.Colors
+import dev.bondarenko.fujirecipes.ui.theme.icons.ContentCopy
+import dev.bondarenko.fujirecipes.ui.theme.icons.Contrast
+import dev.bondarenko.fujirecipes.ui.theme.icons.Deblur
+import dev.bondarenko.fujirecipes.ui.theme.icons.Details
+import dev.bondarenko.fujirecipes.ui.theme.icons.Diamond
+import dev.bondarenko.fujirecipes.ui.theme.icons.DiscoverTune
+import dev.bondarenko.fujirecipes.ui.theme.icons.Edit
+import dev.bondarenko.fujirecipes.ui.theme.icons.Exposure
+import dev.bondarenko.fujirecipes.ui.theme.icons.FileExport
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.Grain
+import dev.bondarenko.fujirecipes.ui.theme.icons.Palette
+import dev.bondarenko.fujirecipes.ui.theme.icons.PhotoCamera
+import dev.bondarenko.fujirecipes.ui.theme.icons.TextCompare
+import dev.bondarenko.fujirecipes.ui.theme.icons.Tonality
+import dev.bondarenko.fujirecipes.ui.theme.icons.Tonality2
+import dev.bondarenko.fujirecipes.ui.theme.icons.TransitionDissolve
+import dev.bondarenko.fujirecipes.ui.theme.icons.WbAuto
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -72,6 +92,7 @@ import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -83,6 +104,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.camera.canWrite
+import dev.bondarenko.fujirecipes.core.settings.RecipeViewMode
 import dev.bondarenko.fujirecipes.core.share.ShareFile
 import dev.bondarenko.fujirecipes.ui.camera.WriteSheetHost
 import dev.bondarenko.fujirecipes.data.fields.FieldFormatting
@@ -198,7 +220,7 @@ fun RecipeViewScreen(
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
+                        imageVector = FujiIcons.ArrowBack,
                         contentDescription = stringResource(R.string.action_back),
                     )
                 }
@@ -324,14 +346,14 @@ private fun RecipeFloatingToolbar(
         HorizontalFloatingToolbar(expanded = true) {
             IconButton(onClick = onEdit) {
                 Icon(
-                    imageVector = Icons.Filled.Edit,
+                    imageVector = FujiIcons.Edit,
                     contentDescription = stringResource(R.string.action_edit),
                 )
             }
 
             IconButton(onClick = onCompareRecipe) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_compare),
+                    imageVector = FujiIcons.TextCompare,
                     contentDescription = stringResource(R.string.action_compare_recipe),
                 )
             }
@@ -344,14 +366,14 @@ private fun RecipeFloatingToolbar(
                 },
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_content_copy),
+                    imageVector = FujiIcons.ContentCopy,
                     contentDescription = stringResource(R.string.action_copy_recipe),
                 )
             }
 
             IconButton(onClick = onExportRecipe) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_file_export),
+                    imageVector = FujiIcons.FileExport,
                     contentDescription = stringResource(R.string.action_export_recipe),
                 )
             }
@@ -394,7 +416,7 @@ private fun RecipeFloatingToolbar(
                 modifier = Modifier.size(56.dp),
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_photo_camera),
+                    imageVector = FujiIcons.PhotoCamera,
                     contentDescription = stringResource(R.string.action_write_to_camera),
                     modifier = Modifier.size(24.dp),
                 )
@@ -489,12 +511,16 @@ private fun RecipeBentoBody(
             }
         }
 
-        // Bento Grid Sections
+        // Parameter Sections (Bento Grid or Simple List)
         state.groups.forEach { group ->
             item(key = group.group.id) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SectionHeader(group.group.label)
-                    BentoGroupGrid(group)
+                    if (state.viewMode == RecipeViewMode.LIST) {
+                        ParameterListGroup(group)
+                    } else {
+                        BentoGroupGrid(group)
+                    }
                 }
             }
         }
@@ -693,7 +719,7 @@ internal fun BentoParameterTile(
                 // borrowing a neighbour's icon.
                 fieldIcon(row.fieldId)?.let { icon ->
                     Icon(
-                        painter = painterResource(icon),
+                        imageVector = icon,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp),
@@ -728,6 +754,87 @@ internal fun BentoParameterTile(
 }
 
 /**
+ * Single-column List for section parameters.
+ */
+@Composable
+internal fun ParameterListGroup(group: SettingsGroup) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        group.rows.forEach { row ->
+            ParameterListRow(row = row)
+        }
+    }
+}
+
+/**
+ * Individual full-width parameter row in List view mode.
+ */
+@Composable
+internal fun ParameterListRow(
+    row: FieldFormatting.Row,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (row.isDefault) {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            },
+        ),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                fieldIcon(row.fieldId)?.let { icon ->
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Text(
+                    text = row.label,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            Text(
+                text = row.value,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFeatureSettings = TabularFigures,
+                ),
+                color = if (row.isDefault) {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/**
  * Full-width Bento Card for recipe notes with auto-detected clickable URLs.
  */
 /**
@@ -737,22 +844,21 @@ internal fun BentoParameterTile(
  * legitimate answer: the ISO bounds and the two monochromatic shifts have no glyph that says
  * anything a nearby one does not, and a wrong icon is worse than none.
  */
-@DrawableRes
-private fun fieldIcon(id: String): Int? = when (id) {
-    "filmSimulation" -> R.drawable.ic_camera_roll
-    "dynamicRange", "dRangePriority" -> R.drawable.ic_contrast
-    "highlightTone" -> R.drawable.ic_tonality
-    "shadowTone" -> R.drawable.ic_tonality_2
-    "color" -> R.drawable.ic_palette
-    "sharpness" -> R.drawable.ic_details
-    "highIsoNR" -> R.drawable.ic_deblur
-    "clarity" -> R.drawable.ic_diamond
-    "grainEffect" -> R.drawable.ic_grain
-    "grainSize" -> R.drawable.ic_transition_dissolve
-    "colorChromeEffect", "colorChromeFxBlue" -> R.drawable.ic_colors
-    "whiteBalance", "colorTemperature" -> R.drawable.ic_wb_auto
-    "wbShiftRed", "wbShiftBlue" -> R.drawable.ic_discover_tune
-    "exposureCompensation" -> R.drawable.ic_exposure
+private fun fieldIcon(id: String): ImageVector? = when (id) {
+    "filmSimulation" -> FujiIcons.CameraRoll
+    "dynamicRange", "dRangePriority" -> FujiIcons.Contrast
+    "highlightTone" -> FujiIcons.Tonality
+    "shadowTone" -> FujiIcons.Tonality2
+    "color" -> FujiIcons.Palette
+    "sharpness" -> FujiIcons.Details
+    "highIsoNR" -> FujiIcons.Deblur
+    "clarity" -> FujiIcons.Diamond
+    "grainEffect" -> FujiIcons.Grain
+    "grainSize" -> FujiIcons.TransitionDissolve
+    "colorChromeEffect", "colorChromeFxBlue" -> FujiIcons.Colors
+    "whiteBalance", "colorTemperature" -> FujiIcons.WbAuto
+    "wbShiftRed", "wbShiftBlue" -> FujiIcons.DiscoverTune
+    "exposureCompensation" -> FujiIcons.Exposure
     else -> null
 }
 

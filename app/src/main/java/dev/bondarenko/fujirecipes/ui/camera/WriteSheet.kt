@@ -12,8 +12,9 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.PhotoCamera
+import dev.bondarenko.fujirecipes.ui.theme.icons.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -303,7 +304,7 @@ private fun PickerStage(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                painter = painterResource(R.drawable.ic_photo_camera),
+                imageVector = FujiIcons.PhotoCamera,
                 contentDescription = null,
                 modifier = Modifier.size(22.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -320,7 +321,7 @@ private fun PickerStage(
             modifier = Modifier.size(40.dp),
         ) {
             Icon(
-                imageVector = Icons.Default.Refresh,
+                imageVector = FujiIcons.Refresh,
                 contentDescription = stringResource(R.string.write_slot_refresh),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -567,7 +568,7 @@ private fun StageHeader(text: String) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            painter = painterResource(R.drawable.ic_photo_camera),
+            imageVector = FujiIcons.PhotoCamera,
             contentDescription = null,
             modifier = Modifier.size(22.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,

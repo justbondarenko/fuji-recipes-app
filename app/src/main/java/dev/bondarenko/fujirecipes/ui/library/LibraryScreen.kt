@@ -8,21 +8,26 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import dev.bondarenko.fujirecipes.ui.theme.icons.BookmarkStacks
+import dev.bondarenko.fujirecipes.ui.theme.icons.Delete
+import dev.bondarenko.fujirecipes.ui.theme.icons.Edit
+import dev.bondarenko.fujirecipes.ui.theme.icons.FilterAltOff
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.PhotoCamera
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.toShape
@@ -53,6 +58,7 @@ import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.core.result.LibraryError
 import dev.bondarenko.fujirecipes.data.library.LibraryFilters
+import dev.bondarenko.fujirecipes.data.library.SortDirection
 import dev.bondarenko.fujirecipes.data.library.SortId
 import dev.bondarenko.fujirecipes.camera.canWrite
 import androidx.compose.material3.MaterialShapes
@@ -74,6 +80,8 @@ fun LibraryScreen(
     state: LibraryUiState,
     onSearchChange: (String) -> Unit,
     onSortChange: (SortId) -> Unit,
+    onSortDirectionChange: (SortDirection) -> Unit = {},
+    onToggleSortDirection: () -> Unit = {},
     onFiltersChange: (LibraryFilters) -> Unit,
     onClearSearchAndFilters: () -> Unit,
     onRetry: () -> Unit,
@@ -140,7 +148,7 @@ fun LibraryScreen(
                         // The library's own toolbar glyph: this is still the library, however
                         // empty. The shape is the down arrow the two import screens carry,
                         // because getting recipes *in* is what the page is for.
-                        icon = painterResource(R.drawable.ic_bookmark_stacks),
+                        icon = FujiIcons.BookmarkStacks,
                         shape = MaterialShapes.Pill.toShape(),
                         title = stringResource(R.string.empty_library_title),
                         body = stringResource(R.string.empty_library_body),
@@ -167,6 +175,8 @@ fun LibraryScreen(
                                 state = state,
                                 onSearchChange = onSearchChange,
                                 onSortChange = onSortChange,
+                                onSortDirectionChange = onSortDirectionChange,
+                                onToggleSortDirection = onToggleSortDirection,
                                 onFiltersChange = onFiltersChange,
                                 onClearSearchAndFilters = onClearSearchAndFilters,
                             )
@@ -176,16 +186,30 @@ fun LibraryScreen(
 
                     if (state.hasNoMatches) {
                         item {
-                            LibraryPanel(
-                                title = stringResource(R.string.no_matches_title),
-                                body = pluralStringResource(
-                                    R.plurals.no_matches_body,
-                                    state.totalCount,
-                                    state.totalCount,
-                                    ),
-                                primaryLabel = stringResource(R.string.action_clear_filters),
-                                onPrimary = onClearSearchAndFilters,
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillParentMaxHeight(0.72f)
+                                    .fillMaxWidth(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = FujiIcons.FilterAltOff,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(44.dp),
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.no_matches_title),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                                        textAlign = TextAlign.Center,
+                                    )
+                                }
+                            }
                         }
                     } else {
                         itemsIndexed(state.visible, key = { _, recipe -> recipe.id }) { index, recipe ->
@@ -200,7 +224,7 @@ fun LibraryScreen(
                                     // Right to left as specified: delete is furthest from the
                                     // edge, edit nearest it.
                                     SwipeAction(
-                                        icon = rememberVectorPainter(Icons.Filled.Delete),
+                                        icon = rememberVectorPainter(FujiIcons.Delete),
                                         label = stringResource(R.string.action_delete),
                                         onClick = { recipePendingDelete = recipe },
                                         position = ButtonGroupPosition.Start,
@@ -218,7 +242,7 @@ fun LibraryScreen(
                                         state = writeTooltipState,
                                     ) {
                                         SwipeAction(
-                                            icon = painterResource(R.drawable.ic_photo_camera),
+                                            icon = rememberVectorPainter(FujiIcons.PhotoCamera),
                                             label = stringResource(R.string.action_write),
                                             onClick = {
                                                 if (canWriteToCamera) {
@@ -237,7 +261,7 @@ fun LibraryScreen(
                                         )
                                     }
                                     SwipeAction(
-                                        icon = rememberVectorPainter(Icons.Filled.Edit),
+                                        icon = rememberVectorPainter(FujiIcons.Edit),
                                         label = stringResource(R.string.action_edit),
                                         onClick = { onEditRecipe(recipe.id) },
                                         position = ButtonGroupPosition.End,
@@ -250,6 +274,10 @@ fun LibraryScreen(
                                         index = index,
                                         count = state.visible.size,
                                     ),
+                                    showPhoto = state.showPhotos,
+                                    showTags = state.showTags,
+                                    showFilmSimulation = state.showFilmSimulation,
+                                    showRating = state.showRating,
                                     onClick = {
                                         activeRecipeId = recipe.id
                                         onOpenRecipe(recipe.id)
@@ -342,6 +370,8 @@ fun LibraryRouteContent(
         state = state,
         onSearchChange = viewModel::onSearchChange,
         onSortChange = viewModel::onSortChange,
+        onSortDirectionChange = viewModel::onSortDirectionChange,
+        onToggleSortDirection = viewModel::onToggleSortDirection,
         onFiltersChange = viewModel::onFiltersChange,
         onClearSearchAndFilters = viewModel::onClearSearchAndFilters,
         onRetry = viewModel::retry,
@@ -415,3 +445,24 @@ private fun LibraryEmptyPreview() {
         )
     }
 }
+
+@Preview(name = "List — no matches", showBackground = true, heightDp = 700)
+@Composable
+private fun LibraryNoMatchesPreview() {
+    FujiTheme {
+        LibraryScreen(
+            state = LibraryUiState(
+                hasLoaded = true,
+                totalCount = 5,
+                search = "xyz",
+                visible = emptyList(),
+            ),
+            onSearchChange = {}, onSortChange = {}, onFiltersChange = {},
+            onClearSearchAndFilters = {}, onRetry = {}, onOpenRecipe = {},
+            onEditRecipe = {}, onDeleteRecipe = {}, onCreateRecipe = {},
+            onImportFromCamera = {},
+            contentPadding = PaddingValues(0.dp),
+        )
+    }
+}
+

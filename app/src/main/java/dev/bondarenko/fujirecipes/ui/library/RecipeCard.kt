@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.StarRate
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -68,6 +68,10 @@ fun RecipeCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     shapes: ListItemShapes? = null,
+    showPhoto: Boolean = true,
+    showTags: Boolean = true,
+    showFilmSimulation: Boolean = true,
+    showRating: Boolean = true,
 ) {
     ListItem(
         onClick = onClick,
@@ -80,7 +84,7 @@ fun RecipeCard(
             vertical = RowVerticalPadding,
         ),
         modifier = modifier.fillMaxWidth(),
-        leadingContent = if (recipe.firstImage != null) {
+        leadingContent = if (showPhoto && recipe.firstImage != null) {
             {
                 val context = LocalContext.current
                 val imageStore = remember(context) { (context.applicationContext as FujiRecipesApp).container.imageStore }
@@ -100,19 +104,26 @@ fun RecipeCard(
                 }
             }
         } else null,
-        supportingContent = if (recipe.tags.isEmpty()) {
-            null
-        } else {
+        overlineContent = if (showFilmSimulation && !recipe.filmSimulationId.isNullOrBlank()) {
+            {
+                Text(
+                    text = FilmSimulations.labelFor(recipe.filmSimulationId),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        } else null,
+        supportingContent = if (showTags && recipe.tags.isNotEmpty()) {
             {
                 // 💡 GAP BETWEEN TITLE AND TAGS — `TitleToTagsGap` below.
                 TagRow(recipe.tags, modifier = Modifier.padding(top = TitleToTagsGap))
             }
-        },
-        trailingContent = if (recipe.rating == 0) {
-            null
-        } else {
+        } else null,
+        trailingContent = if (showRating && recipe.rating > 0) {
             { RatingBadge(recipe.rating) }
-        },
+        } else null,
     ) {
         // 💡 RECIPE NAME (the list row title):
         //    - Size: change `titleLarge` to `titleMedium` (smaller) or `headlineSmall` (bigger)
@@ -168,7 +179,7 @@ private fun RatingBadge(
                 ),
             )
             Icon(
-                imageVector = Icons.Filled.Star,
+                imageVector = FujiIcons.StarRate,
                 contentDescription = stringResource(R.string.rating_of_five, rating),
                 modifier = Modifier
                     .padding(start = 3.dp)

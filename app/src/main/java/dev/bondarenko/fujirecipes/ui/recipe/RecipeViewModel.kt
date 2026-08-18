@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import dev.bondarenko.fujirecipes.core.AppContainer
 import dev.bondarenko.fujirecipes.core.result.LibraryError
 import dev.bondarenko.fujirecipes.core.result.LibraryResult
+import dev.bondarenko.fujirecipes.core.settings.RecipeViewMode
+import dev.bondarenko.fujirecipes.core.settings.UiPreferences
 import dev.bondarenko.fujirecipes.data.fields.FieldContext
 import dev.bondarenko.fujirecipes.data.fields.FieldFormatting
 import dev.bondarenko.fujirecipes.data.fields.FieldGroup
@@ -46,6 +48,7 @@ data class RecipeViewUiState(
     val nothingChanged: Boolean = false,
     /** A failed in-place rating or tag save. The screen still shows the stored values. */
     val saveError: LibraryError? = null,
+    val viewMode: RecipeViewMode = RecipeViewMode.GRID,
 ) {
     val isNotFound: Boolean get() = !isLoading && recipe == null
 }
@@ -71,13 +74,14 @@ data class RecipeHeader(
 class RecipeViewModel(
     private val recipeId: String,
     private val repository: RecipeRepository,
+    private val uiPreferences: UiPreferences,
 ) : ViewModel() {
 
     private val changedOnly = MutableStateFlow(false)
     private val saveError = MutableStateFlow<LibraryError?>(null)
 
     val state: StateFlow<RecipeViewUiState> =
-        combine(repository.library, changedOnly, saveError) { library, filterToChanged, error ->
+        combine(repository.library, changedOnly, saveError, uiPreferences.preferences) { library, filterToChanged, error, uiPrefs ->
             if (!library.hasLoaded) return@combine RecipeViewUiState(isLoading = true)
 
             val recipe = library.recipes.firstOrNull { it.id == recipeId }
@@ -95,6 +99,7 @@ class RecipeViewModel(
                 // Distinguished from "no rows" so the screen can say *why* it is empty.
                 nothingChanged = filterToChanged && rows.isEmpty(),
                 saveError = error,
+                viewMode = uiPrefs.recipeViewMode,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -195,7 +200,11 @@ class RecipeViewModel(
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                    RecipeViewModel(recipeId, container.recipeRepository) as T
+                    RecipeViewModel(
+                        recipeId = recipeId,
+                        repository = container.recipeRepository,
+                        uiPreferences = container.uiPreferences,
+                    ) as T
             }
     }
 }

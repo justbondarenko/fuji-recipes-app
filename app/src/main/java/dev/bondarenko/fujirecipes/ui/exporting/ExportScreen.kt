@@ -10,8 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowBack
+import dev.bondarenko.fujirecipes.ui.theme.icons.FileExport
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,7 +39,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -90,7 +90,7 @@ fun ExportScreen(
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        imageVector = FujiIcons.ArrowBack,
                         contentDescription = stringResource(R.string.action_back),
                     )
                 }
@@ -118,19 +118,19 @@ fun ExportScreen(
             !state.hasLoaded -> item { Body(stringResource(R.string.export_loading)) }
 
             /**
-             * Nothing to export is not a failure and not a dead end — it is a library with
-             * no recipes in it yet, which has exactly one remedy. Drawn as the same
-             * `FujiIconPanel` every other one-thing-to-say page uses, with the action that
-             * fixes it rather than a paragraph that only describes the problem.
-             *
-             * The action opens the same New recipe dialog the toolbar's button does, because
-             * "make your first one" is the same offer wherever it is made.
-             */
+              * Nothing to export is not a failure and not a dead end — it is a library with
+              * no recipes in it yet, which has exactly one remedy. Drawn as the same
+              * `FujiIconPanel` every other one-thing-to-say page uses, with the action that
+              * fixes it rather than a paragraph that only describes the problem.
+              *
+              * The action opens the same New recipe dialog the toolbar's button does, because
+              * "make your first one" is the same offer wherever it is made.
+              */
             state.isEmptyLibrary -> item {
                 FujiIconPanel(
                     // Export's own glyph and the square the create dialog gives a manual
                     // start: this is still the export page, and what it needs is a recipe.
-                    icon = painterResource(R.drawable.ic_file_export),
+                    icon = FujiIcons.FileExport,
                     shape = MaterialShapes.Square.toShape(),
                     title = stringResource(R.string.export_empty_title),
                     body = stringResource(R.string.export_empty_body),

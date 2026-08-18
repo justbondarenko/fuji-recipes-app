@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import dev.bondarenko.fujirecipes.ui.theme.icons.ContentCopy
+import dev.bondarenko.fujirecipes.ui.theme.icons.FileSave
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -332,7 +335,7 @@ fun SlotDetailContent(
                             shape = RoundedCornerShape(12.dp),
                         ) {
                             Icon(
-                                painter = painterResource(R.drawable.ic_content_copy),
+                                imageVector = FujiIcons.ContentCopy,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp),
                             )
@@ -347,7 +350,7 @@ fun SlotDetailContent(
                                 shape = RoundedCornerShape(12.dp),
                             ) {
                                 Icon(
-                                    painter = painterResource(R.drawable.ic_file_save),
+                                    imageVector = FujiIcons.FileSave,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),
                                 )

@@ -17,8 +17,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.ImageSearch
+import dev.bondarenko.fujirecipes.ui.theme.icons.StarRate
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -34,7 +35,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -134,7 +134,7 @@ private fun EmptyPhotoReaderState(
 ) {
     FujiIconPanel(
         // The same glyph as the Read item in the toolbar.
-        icon = painterResource(R.drawable.ic_image_search),
+        icon = FujiIcons.ImageSearch,
         shape = MaterialShapes.Pill.toShape(),
         title = stringResource(R.string.photo_title),
         body = stringResource(R.string.photo_intro),
@@ -430,7 +430,7 @@ private fun RatingBadge(
                 ),
             )
             Icon(
-                imageVector = Icons.Filled.Star,
+                imageVector = FujiIcons.StarRate,
                 contentDescription = stringResource(R.string.rating_of_five, rating),
                 tint = MaterialTheme.colorScheme.onTertiaryContainer,
                 modifier = Modifier.size(11.dp),

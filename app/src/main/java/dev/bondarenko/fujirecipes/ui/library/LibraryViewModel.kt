@@ -5,12 +5,15 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import dev.bondarenko.fujirecipes.core.AppContainer
 import dev.bondarenko.fujirecipes.core.result.LibraryError
+import dev.bondarenko.fujirecipes.core.settings.UiPreferences
 import dev.bondarenko.fujirecipes.core.settings.ViewPreferences
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.library.LibraryFilters
 import dev.bondarenko.fujirecipes.data.library.LibraryView
+import dev.bondarenko.fujirecipes.data.library.SortDirection
 import dev.bondarenko.fujirecipes.data.library.SortId
 import dev.bondarenko.fujirecipes.data.library.StoredLibraryView
+import dev.bondarenko.fujirecipes.data.library.defaultDirection
 import dev.bondarenko.fujirecipes.data.library.selectRecipes
 import dev.bondarenko.fujirecipes.data.repo.RecipeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +31,7 @@ data class LibraryUiState(
     val search: String = "",
     val filters: LibraryFilters = LibraryFilters(),
     val sort: SortId = SortId.Default,
+    val sortDirection: SortDirection = SortDirection.ASCENDING,
     val hasLoaded: Boolean = false,
     val error: LibraryError? = null,
     val lastUpdatedAt: String? = null,
@@ -35,6 +39,10 @@ data class LibraryUiState(
     val availableTags: List<String> = emptyList(),
     /** Every simulation actually in use, so the filter never offers an empty result. */
     val availableSimulations: List<String> = emptyList(),
+    val showPhotos: Boolean = true,
+    val showTags: Boolean = true,
+    val showFilmSimulation: Boolean = true,
+    val showRating: Boolean = true,
 ) {
     /** Narrowed by search or filters — the difference between "n of m" and "n". */
     val isNarrowed: Boolean get() = search.isNotBlank() || !filters.isEmpty
@@ -55,6 +63,7 @@ data class LibraryUiState(
 class LibraryViewModel(
     private val repository: RecipeRepository,
     private val preferences: ViewPreferences,
+    private val uiPreferences: UiPreferences,
 ) : ViewModel() {
 
     /**
@@ -67,8 +76,8 @@ class LibraryViewModel(
     private val search = MutableStateFlow("")
 
     val state: StateFlow<LibraryUiState> =
-        combine(repository.library, preferences.view, search) { library, stored, query ->
-            val view = LibraryView(query, stored.filters, stored.sort)
+        combine(repository.library, preferences.view, uiPreferences.preferences, search) { library, stored, uiPrefs, query ->
+            val view = LibraryView(query, stored.filters, stored.sort, stored.sortDirection)
             val visible = selectRecipes(library.recipes, view)
 
             LibraryUiState(
@@ -86,6 +95,7 @@ class LibraryViewModel(
                 search = query,
                 filters = stored.filters,
                 sort = stored.sort,
+                sortDirection = stored.sortDirection,
                 hasLoaded = library.hasLoaded,
                 error = library.error,
                 lastUpdatedAt = library.lastUpdatedAt,
@@ -96,6 +106,10 @@ class LibraryViewModel(
                     // In the canonical order of the field definitions, not alphabetical:
                     // the picker should read like the camera's own menu.
                     .sortedBy { id -> FilmSimulations.all.indexOfFirst { it.id == id } },
+                showPhotos = uiPrefs.showPhotos,
+                showTags = uiPrefs.showTags,
+                showFilmSimulation = uiPrefs.showFilmSimulation,
+                showRating = uiPrefs.showRating,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -122,12 +136,28 @@ class LibraryViewModel(
     }
 
     fun onSortChange(sort: SortId) {
-        viewModelScope.launch { preferences.saveSort(sort) }
+        viewModelScope.launch {
+            val direction = if (sort == state.value.sort) state.value.sortDirection else sort.defaultDirection
+            preferences.saveSort(sort, direction)
+        }
+    }
+
+    fun onSortDirectionChange(direction: SortDirection) {
+        viewModelScope.launch { preferences.saveSortDirection(direction) }
+    }
+
+    fun onToggleSortDirection() {
+        val nextDirection = if (state.value.sortDirection == SortDirection.ASCENDING) {
+            SortDirection.DESCENDING
+        } else {
+            SortDirection.ASCENDING
+        }
+        onSortDirectionChange(nextDirection)
     }
 
     fun onFiltersChange(filters: LibraryFilters) {
         viewModelScope.launch {
-            preferences.save(StoredLibraryView(filters, state.value.sort))
+            preferences.save(StoredLibraryView(filters, state.value.sort, state.value.sortDirection))
         }
     }
 
@@ -156,6 +186,7 @@ class LibraryViewModel(
                     LibraryViewModel(
                         repository = container.recipeRepository,
                         preferences = container.viewPreferences,
+                        uiPreferences = container.uiPreferences,
                     ) as T
             }
     }

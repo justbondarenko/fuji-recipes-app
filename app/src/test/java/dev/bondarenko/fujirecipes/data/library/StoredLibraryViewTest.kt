@@ -92,9 +92,50 @@ class StoredLibraryViewTest {
         val filters = LibraryFilters(
             tags = listOf("street", "warm", "night"),
             minRating = 4,
+            maxRating = 5,
             simulations = emptyList(),
         )
         assertEquals(2, filters.activeCount)
+
+        val maxRestrictedFilters = LibraryFilters(
+            tags = emptyList(),
+            minRating = 0,
+            maxRating = 3,
+            simulations = emptyList(),
+        )
+        assertEquals(1, maxRestrictedFilters.activeCount)
+
+        val defaultFilters = LibraryFilters()
+        assertEquals(0, defaultFilters.activeCount)
+    }
+
+    @Test
+    fun `min and max rating are clamped and ordered`() {
+        val view = StoredLibraryView.repair(
+            tags = null,
+            minRating = 6,
+            maxRating = -1,
+            simulations = null,
+            sort = null,
+            sortDirection = null,
+        )
+        assertEquals(0, view.filters.minRating)
+        assertEquals(5, view.filters.maxRating)
+    }
+
+    @Test
+    fun `sort direction is repaired and falls back to default when unknown`() {
+        val ascView = StoredLibraryView.repair(null, null, null, null, "name", "asc")
+        assertEquals(SortDirection.ASCENDING, ascView.sortDirection)
+
+        val descView = StoredLibraryView.repair(null, null, null, null, "name", "desc")
+        assertEquals(SortDirection.DESCENDING, descView.sortDirection)
+
+        val fallbackNameView = StoredLibraryView.repair(null, null, null, null, "name", "invalid")
+        assertEquals(SortDirection.ASCENDING, fallbackNameView.sortDirection)
+
+        val fallbackRatingView = StoredLibraryView.repair(null, null, null, null, "rating", null)
+        assertEquals(SortDirection.DESCENDING, fallbackRatingView.sortDirection)
     }
 
     @Test

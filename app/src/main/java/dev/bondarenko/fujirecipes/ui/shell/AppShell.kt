@@ -1,11 +1,16 @@
 package dev.bondarenko.fujirecipes.ui.shell
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Icon
@@ -16,11 +21,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
+import dev.bondarenko.fujirecipes.ui.theme.icons.Add
+import dev.bondarenko.fujirecipes.ui.theme.icons.BookmarkStacks
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.ImageSearch
+import dev.bondarenko.fujirecipes.ui.theme.icons.Settings
 
 /**
  * The chrome every top-level screen sits inside.
@@ -68,7 +77,7 @@ fun AppShell(
                         onClick = onLibraryClick,
                         icon = {
                             Icon(
-                                painter = painterResource(R.drawable.ic_bookmark_stacks),
+                                imageVector = FujiIcons.BookmarkStacks,
                                 contentDescription = null,
                             )
                         },
@@ -79,7 +88,7 @@ fun AppShell(
                         onClick = onReadClick,
                         icon = {
                             Icon(
-                                painter = painterResource(R.drawable.ic_image_search),
+                                imageVector = FujiIcons.ImageSearch,
                                 contentDescription = null,
                             )
                         },
@@ -91,7 +100,7 @@ fun AppShell(
                         onClick = onMoreClick,
                         icon = {
                             Icon(
-                                imageVector = Icons.Filled.Settings,
+                                imageVector = FujiIcons.Settings,
                                 contentDescription = null,
                             )
                         },
@@ -101,12 +110,27 @@ fun AppShell(
             }
         },
         floatingActionButton = {
-            if (showChrome) {
+            AnimatedVisibility(
+                visible = showChrome && isLibrarySelected,
+                enter = slideInHorizontally(
+                    initialOffsetX = { fullWidth -> fullWidth * 2 },
+                    animationSpec = spring(
+                        stiffness = Spring.StiffnessMediumLow,
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                    ),
+                ) + fadeIn(animationSpec = tween(durationMillis = 150)),
+                exit = slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> fullWidth * 2 },
+                    animationSpec = spring(
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                ) + fadeOut(animationSpec = tween(durationMillis = 150)),
+            ) {
                 ExtendedFloatingActionButton(
                     onClick = onCreateClick,
                     icon = {
                         Icon(
-                            imageVector = Icons.Filled.Add,
+                            imageVector = FujiIcons.Add,
                             contentDescription = null,
                         )
                     },

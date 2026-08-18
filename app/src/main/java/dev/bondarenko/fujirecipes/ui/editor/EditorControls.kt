@@ -27,11 +27,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Star
+import dev.bondarenko.fujirecipes.ui.theme.icons.Add
+import dev.bondarenko.fujirecipes.ui.theme.icons.Check
+import dev.bondarenko.fujirecipes.ui.theme.icons.Clear
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.Remove
+import dev.bondarenko.fujirecipes.ui.theme.icons.Star
+import dev.bondarenko.fujirecipes.ui.theme.icons.StarRate
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import dev.bondarenko.fujirecipes.core.store.ImageStore
@@ -152,7 +154,7 @@ fun NumberStepper(
                 modifier = Modifier.size(36.dp),
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_remove),
+                    imageVector = FujiIcons.Remove,
                     contentDescription = stringResource(R.string.decrease, field.label),
                     modifier = Modifier.size(16.dp),
                 )
@@ -210,7 +212,7 @@ fun NumberStepper(
                 modifier = Modifier.size(36.dp),
             ) {
                 Icon(
-                    Icons.Filled.Add,
+                    imageVector = FujiIcons.Add,
                     contentDescription = stringResource(R.string.increase, field.label),
                     modifier = Modifier.size(16.dp),
                 )
@@ -274,7 +276,7 @@ fun EnumDropdown(
                         text = { Text(option.label) },
                         trailingIcon = {
                             if (option.id == current) {
-                                Icon(Icons.Filled.Check, contentDescription = null)
+                                Icon(imageVector = FujiIcons.Check, contentDescription = null)
                             }
                         },
                         onClick = {
@@ -305,21 +307,14 @@ fun EnumButtonGroup(
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        // 💡 SPACING BETWEEN LABEL AND BUTTONS: Change `6.dp` to increase/decrease gap
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        // 💡 FIELD LABEL (Button Group fields e.g. Dynamic range, Grain effect, Color Chrome):
-        // - Change font style/size: `style = MaterialTheme.typography.bodyMedium` (or add `fontSize = 14.sp`)
-        // - Change font weight: add `fontWeight = FontWeight.SemiBold`
         Text(
             text = field.label,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
 
-        // The corner morph on selection, the neighbour squeeze on press and the colour
-        // cross-fade are all ButtonGroup/ToggleButton behaviour now — the shapes below only
-        // say which position in the group each button holds.
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
@@ -347,7 +342,7 @@ fun EnumButtonGroup(
                 ) {
                     if (selected) {
                         Icon(
-                            imageVector = Icons.Filled.Check,
+                            imageVector = FujiIcons.Check,
                             contentDescription = null,
                             modifier = Modifier.size(ToggleButtonDefaults.IconSize),
                         )
@@ -395,7 +390,7 @@ fun FilmSimulationPicker(
                         text = { Text(simulation.label) },
                         trailingIcon = {
                             if (simulation.id == value) {
-                                Icon(Icons.Filled.Check, contentDescription = null)
+                                Icon(imageVector = FujiIcons.Check, contentDescription = null)
                             }
                         },
                         onClick = {
@@ -431,38 +426,34 @@ fun RatingInput(
     // 💡 STAR SPACING — `RatingStarGap` is half a star wide; raise it to loosen the row.
     // 💡 STAR SIZE — `RatingStarSize` drives both the glyph and the tap target.
     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(RatingStarGap),
-    ) {
-        (1..5).forEach { star ->
-            // IconToggleButton rather than a 28dp Box with a ripple hung off it: a star is a
-            // toggle, and the hand-built version was under the 48dp minimum touch target and
-            // carried no toggle semantics for TalkBack.
-            IconToggleButton(
-                checked = star <= rating,
-                onCheckedChange = { onRatingChange(if (rating == star) 0 else star) },
-                colors = IconButtonDefaults.iconToggleButtonColors(
-                    containerColor = Color.Transparent,
-                    contentColor = MaterialTheme.colorScheme.outline,
-                    checkedContainerColor = Color.Transparent,
-                    checkedContentColor = MaterialTheme.colorScheme.tertiary,
-                ),
-                modifier = Modifier.size(RatingStarSize),
-            ) {
-                Icon(
-                    painter = if (star <= rating) {
-                        rememberVectorPainter(Icons.Filled.Star)
-                    } else {
-                        painterResource(R.drawable.ic_star_border)
-                    },
-                    contentDescription = stringResource(R.string.rating_of_five, star),
+        Row(
+            modifier = modifier,
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(RatingStarGap),
+        ) {
+            (1..5).forEach { star ->
+                // IconToggleButton rather than a 28dp Box with a ripple hung off it: a star is a
+                // toggle, and the hand-built version was under the 48dp minimum touch target and
+                // carried no toggle semantics for TalkBack.
+                IconToggleButton(
+                    checked = star <= rating,
+                    onCheckedChange = { onRatingChange(if (rating == star) 0 else star) },
+                    colors = IconButtonDefaults.iconToggleButtonColors(
+                        containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.outline,
+                        checkedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                        checkedContentColor = MaterialTheme.colorScheme.tertiary,
+                    ),
                     modifier = Modifier.size(RatingStarSize),
-                )
+                ) {
+                    Icon(
+                        imageVector = if (star <= rating) FujiIcons.StarRate else FujiIcons.Star,
+                        contentDescription = stringResource(R.string.rating_of_five, star),
+                        modifier = Modifier.size(RatingStarSize),
+                    )
+                }
             }
         }
-    }
     }
 }
 
@@ -534,7 +525,7 @@ fun TagInput(
                         label = { Text(tag) },
                         trailingIcon = {
                             Icon(
-                                Icons.Filled.Clear,
+                                imageVector = FujiIcons.Clear,
                                 contentDescription = stringResource(R.string.remove_tag, tag),
                                 modifier = Modifier.size(16.dp),
                             )
@@ -555,7 +546,7 @@ fun TagInput(
                         onClick = { adding = true },
                         label = {
                             Icon(
-                                Icons.Filled.Add,
+                                imageVector = FujiIcons.Add,
                                 contentDescription = stringResource(R.string.add_tag),
                                 modifier = Modifier.size(18.dp),
                             )
@@ -578,7 +569,7 @@ fun TagInput(
                 trailingIcon = {
                     IconButton(onClick = { if (entry.isBlank()) adding = false else commit() }) {
                         Icon(
-                            imageVector = if (entry.isBlank()) Icons.Filled.Clear else Icons.Filled.Add,
+                            imageVector = if (entry.isBlank()) FujiIcons.Clear else FujiIcons.Add,
                             contentDescription = stringResource(
                                 if (entry.isBlank()) R.string.action_cancel else R.string.add_tag,
                             ),
@@ -703,7 +694,7 @@ fun RecipeImagePickerSection(
                             ),
                     ) {
                         Icon(
-                            Icons.Filled.Clear,
+                            imageVector = FujiIcons.Clear,
                             contentDescription = stringResource(R.string.action_delete),
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.onSurface,
@@ -766,7 +757,7 @@ fun RecipeImagePickerSection(
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Icon(
-                                Icons.Filled.Add,
+                                imageVector = FujiIcons.Add,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(24.dp),
