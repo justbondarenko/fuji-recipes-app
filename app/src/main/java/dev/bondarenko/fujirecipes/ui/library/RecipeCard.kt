@@ -13,13 +13,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Badge
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -30,6 +30,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.remember
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
+import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -42,6 +49,7 @@ data class RecipeCardModel(
     val filmSimulationId: String?,
     val rating: Int,
     val tags: List<String>,
+    val firstImage: String? = null,
 )
 
 /**
@@ -72,14 +80,26 @@ fun RecipeCard(
             vertical = RowVerticalPadding,
         ),
         modifier = modifier.fillMaxWidth(),
-        leadingContent = {
-            // 💡 FILM SIMULATION BADGE SIZE — the round swatch on the left.
-            FilmSimBadge(
-                simulationId = recipe.filmSimulationId,
-                size = 48.dp,
-                shape = CircleShape,
-            )
-        },
+        leadingContent = if (recipe.firstImage != null) {
+            {
+                val context = LocalContext.current
+                val imageStore = remember(context) { (context.applicationContext as FujiRecipesApp).container.imageStore }
+                val file = remember(recipe.firstImage) { imageStore.getFile(recipe.firstImage) }
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(MaterialTheme.shapes.small)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                ) {
+                    AsyncImage(
+                        model = file,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
+        } else null,
         supportingContent = if (recipe.tags.isEmpty()) {
             null
         } else {
@@ -130,34 +150,36 @@ private fun RatingBadge(
     rating: Int,
     modifier: Modifier = Modifier,
 ) {
-    Badge(
-        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.tertiaryContainer,
         contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-        // 💡 RATING PILL SIZE — the padding is what makes the pill bigger, not the text.
-        modifier = modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+        modifier = modifier,
     ) {
-        // 💡 RATING NUMBER — `labelMedium` -> `labelSmall` (smaller) / `labelLarge` (bigger).
-        Text(
-            text = rating.toString(),
-            style = MaterialTheme.typography.labelMedium.copy(
-                fontWeight = FontWeight.Bold,
-                fontFeatureSettings = TabularFigures,
-            ),
-        )
-        // 💡 RATING STAR SIZE — keep it a touch under the number's cap height.
-        Icon(
-            imageVector = Icons.Filled.Star,
-            contentDescription = stringResource(R.string.rating_of_five, rating),
-            tint = MaterialTheme.colorScheme.onTertiaryContainer,
-            modifier = Modifier
-                .padding(start = 3.dp)
-                .size(13.dp),
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+        ) {
+            Text(
+                text = rating.toString(),
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontFeatureSettings = TabularFigures,
+                ),
+            )
+            Icon(
+                imageVector = Icons.Filled.Star,
+                contentDescription = stringResource(R.string.rating_of_five, rating),
+                modifier = Modifier
+                    .padding(start = 3.dp)
+                    .size(15.dp),
+            )
+        }
     }
 }
 
 /**
- * At most five, then a `+n`. A row of twenty chips is not a card, it is a paragraph.
+ * At most three, then a `+n`. A row of twenty chips is not a card, it is a paragraph.
  *
  * 💡 TAG SPACING — `Arrangement.spacedBy` is the gap between chips.
  */
@@ -175,7 +197,7 @@ private fun TagRow(tags: List<String>, modifier: Modifier = Modifier) {
     }
 }
 
-private const val MAX_VISIBLE_TAGS = 5
+private const val MAX_VISIBLE_TAGS = 3
 
 @Composable
 private fun TagChip(text: String) {

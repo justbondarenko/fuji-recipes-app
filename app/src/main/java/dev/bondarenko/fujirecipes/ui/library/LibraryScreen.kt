@@ -55,8 +55,8 @@ import dev.bondarenko.fujirecipes.core.result.LibraryError
 import dev.bondarenko.fujirecipes.data.library.LibraryFilters
 import dev.bondarenko.fujirecipes.data.library.SortId
 import dev.bondarenko.fujirecipes.camera.canWrite
+import androidx.compose.material3.MaterialShapes
 import dev.bondarenko.fujirecipes.ui.camera.WriteSheetHost
-import dev.bondarenko.fujirecipes.ui.common.DownArrow
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewBottomSheet
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -141,13 +141,18 @@ fun LibraryScreen(
                         // empty. The shape is the down arrow the two import screens carry,
                         // because getting recipes *in* is what the page is for.
                         icon = painterResource(R.drawable.ic_bookmark_stacks),
-                        shape = DownArrow.toShape(),
+                        shape = MaterialShapes.Pill.toShape(),
                         title = stringResource(R.string.empty_library_title),
                         body = stringResource(R.string.empty_library_body),
                         actionLabel = stringResource(R.string.empty_library_import),
                         onAction = onImportFromCamera,
                         modifier = Modifier.fillParentMaxSize(),
                         extra = {
+                            Text(
+                                text = stringResource(R.string.empty_library_or),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                             TextButton(onClick = onCreateRecipe) {
                                 Text(stringResource(R.string.empty_library_create))
                             }

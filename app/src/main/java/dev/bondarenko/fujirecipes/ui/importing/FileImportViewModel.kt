@@ -25,6 +25,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+import dev.bondarenko.fujirecipes.core.store.ImageStore
+import dev.bondarenko.fujirecipes.data.importing.looksLikeZip
+import dev.bondarenko.fujirecipes.data.importing.unzip
+import java.io.ByteArrayInputStream
+
 /** A file the picker handed back: its bytes, and what to call it on screen. */
 data class ChosenFile(val name: String, val bytes: ByteArray) {
     // Data classes over arrays compare by reference; this is never compared, and saying so
@@ -78,14 +83,18 @@ data class FileImportUiState(
  */
 class FileImportViewModel(
     private val repository: RecipeRepository,
+    private val imageStore: ImageStore,
     private val readFile: suspend (String) -> ChosenFile?,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(FileImportUiState())
     val state: StateFlow<FileImportUiState> = _state.asStateFlow()
 
+    private var pendingImages: Map<String, ByteArray> = emptyMap()
+
     fun choose(uri: String) {
         _state.value = FileImportUiState(stage = FileImportStage.Reading)
+        pendingImages = emptyMap()
 
         viewModelScope.launch {
             val file = readFile(uri)
@@ -98,6 +107,15 @@ class FileImportViewModel(
                     ),
                 )
                 return@launch
+            }
+
+            if (looksLikeZip(file.bytes)) {
+                runCatching {
+                    val unzipped = unzip(file.bytes)
+                    pendingImages = unzipped.filterKeys { key ->
+                        key.startsWith("images/") || key.endsWith(".webp") || key.endsWith(".jpg") || key.endsWith(".jpeg") || key.endsWith(".png")
+                    }
+                }
             }
 
             val parsed = runCatching { readImportFile(file.bytes, file.name) }
@@ -150,17 +168,27 @@ class FileImportViewModel(
             val body = fileImportBody(current.rows, current.resolutions)
 
             _state.value = when (val result = repository.importAll(body)) {
-                is LibraryResult.Success -> _state.value.copy(
-                    stage = FileImportStage.Done(
-                        imported = result.value.imported,
-                        skipped = result.value.skipped,
-                        replaced = result.value.replaced,
-                    ),
-                    // SF-014 again, from the other side: the import validates every entry as
-                    // it writes, and one it refused is one the user has to be told about by
-                    // name rather than left to discover missing.
-                    rejectedEntries = result.value.failed,
-                )
+                is LibraryResult.Success -> {
+                    // Extract any images carried by the import
+                    pendingImages.forEach { (path, bytes) ->
+                        val fileName = path.substringAfterLast('/')
+                        runCatching {
+                            imageStore.saveStream(fileName, ByteArrayInputStream(bytes))
+                        }
+                    }
+
+                    _state.value.copy(
+                        stage = FileImportStage.Done(
+                            imported = result.value.imported,
+                            skipped = result.value.skipped,
+                            replaced = result.value.replaced,
+                        ),
+                        // SF-014 again, from the other side: the import validates every entry as
+                        // it writes, and one it refused is one the user has to be told about by
+                        // name rather than left to discover missing.
+                        rejectedEntries = result.value.failed,
+                    )
+                }
 
                 is LibraryResult.Failure -> _state.value.copy(
                     stage = FileImportStage.Failed(messageFor(result.error)),
@@ -207,7 +235,13 @@ class FileImportViewModel(
             container: AppContainer,
             readFile: suspend (String) -> ChosenFile?,
         ): ViewModelProvider.Factory = viewModelFactory {
-            initializer { FileImportViewModel(container.recipeRepository, readFile) }
+            initializer {
+                FileImportViewModel(
+                    container.recipeRepository,
+                    container.imageStore,
+                    readFile,
+                )
+            }
         }
     }
 }

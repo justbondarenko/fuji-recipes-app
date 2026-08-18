@@ -59,7 +59,6 @@ fun FujiTheme(
             colorScheme = colorScheme,
             motionScheme = if (reducedMotion) MotionScheme.standard() else MotionScheme.expressive(),
             typography = FujiTypography,
-            shapes = FujiShapes,
             content = content,
         )
     }

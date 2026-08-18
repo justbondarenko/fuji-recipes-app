@@ -1,8 +1,6 @@
 package dev.bondarenko.fujirecipes.data.fields
 
-import androidx.annotation.DrawableRes
 import androidx.compose.ui.graphics.Color
-import dev.bondarenko.fujirecipes.R
 
 /**
  * The film simulations — FEAT-001 T-01.
@@ -18,9 +16,8 @@ import dev.bondarenko.fujirecipes.R
  * Two transcriptions of one document, never a transcription of a transcription
  * (`steering/architecture.md` §2). When the document changes, both move.
  *
- * The swatch is a real value rather than a fallback: the web badge paints it under the
- * image, and shows it alone when the image fails to load. The Android badge does the same,
- * which is why an image-less simulation is not a broken card.
+ * The swatch is a real value rather than a fallback: each simulation renders as a clean,
+ * fixed color swatch approximating its look, with a grey swatch fallback for unknown simulations.
  */
 data class FilmSimulation(
     val id: String,
@@ -28,7 +25,6 @@ data class FilmSimulation(
     val monochrome: Boolean,
     val minGeneration: SensorGeneration,
     val swatch: Color,
-    @param:DrawableRes val image: Int?,
 )
 
 /**
@@ -61,26 +57,26 @@ object FilmSimulations {
     val FallbackSwatch = Color(0xFF9CA3AF)
 
     val all: List<FilmSimulation> = listOf(
-        FilmSimulation("provia", "PROVIA / Standard", false, SensorGeneration.XTRANS_III, Color(0xFF8C7B6B), R.drawable.sim_provia),
-        FilmSimulation("velvia", "Velvia / Vivid", false, SensorGeneration.XTRANS_III, Color(0xFFA83A2E), R.drawable.sim_velvia),
-        FilmSimulation("astia", "ASTIA / Soft", false, SensorGeneration.XTRANS_III, Color(0xFFC08B7A), R.drawable.sim_astia),
-        FilmSimulation("classic-chrome", "Classic Chrome", false, SensorGeneration.XTRANS_III, Color(0xFF6E7A78), R.drawable.sim_classic_chrome),
-        FilmSimulation("pro-neg-hi", "PRO Neg. Hi", false, SensorGeneration.XTRANS_III, Color(0xFF9C8878), R.drawable.sim_pro_neg_hi),
-        FilmSimulation("pro-neg-std", "PRO Neg. Std", false, SensorGeneration.XTRANS_III, Color(0xFF9C8878), R.drawable.sim_pro_neg_std),
-        FilmSimulation("classic-negative", "Classic Negative", false, SensorGeneration.XTRANS_IV, Color(0xFF7B6A5A), R.drawable.sim_classic_negative),
-        FilmSimulation("nostalgic-negative", "Nostalgic Neg.", false, SensorGeneration.XTRANS_V, Color(0xFFA5703F), R.drawable.sim_nostalgic_negative),
-        FilmSimulation("reala-ace", "REALA ACE", false, SensorGeneration.XTRANS_V, Color(0xFF8A7150), R.drawable.sim_reala_ace),
-        FilmSimulation("eterna", "ETERNA / Cinema", false, SensorGeneration.XTRANS_IV, Color(0xFF6B6659), R.drawable.sim_eterna),
-        FilmSimulation("eterna-bleach-bypass", "ETERNA Bleach Bypass", false, SensorGeneration.XTRANS_IV, Color(0xFF6B6659), R.drawable.sim_eterna_bleach_bypass),
-        FilmSimulation("acros", "ACROS", true, SensorGeneration.XTRANS_III, Color(0xFF5A5A5A), R.drawable.sim_acros),
-        FilmSimulation("acros-ye", "ACROS + Ye filter", true, SensorGeneration.XTRANS_III, Color(0xFF5A5A5A), R.drawable.sim_acros_ye),
-        FilmSimulation("acros-r", "ACROS + R filter", true, SensorGeneration.XTRANS_III, Color(0xFF5A5A5A), R.drawable.sim_acros_r),
-        FilmSimulation("acros-g", "ACROS + G filter", true, SensorGeneration.XTRANS_III, Color(0xFF5A5A5A), R.drawable.sim_acros_g),
-        FilmSimulation("monochrome", "Monochrome", true, SensorGeneration.XTRANS_III, Color(0xFF7A7A7A), R.drawable.sim_monochrome),
-        FilmSimulation("monochrome-ye", "Monochrome + Ye", true, SensorGeneration.XTRANS_III, Color(0xFF7A7A7A), R.drawable.sim_monochrome_ye),
-        FilmSimulation("monochrome-r", "Monochrome + R", true, SensorGeneration.XTRANS_III, Color(0xFF7A7A7A), R.drawable.sim_monochrome_r),
-        FilmSimulation("monochrome-g", "Monochrome + G", true, SensorGeneration.XTRANS_III, Color(0xFF7A7A7A), R.drawable.sim_monochrome_g),
-        FilmSimulation("sepia", "Sepia", true, SensorGeneration.XTRANS_III, Color(0xFF8B6F47), R.drawable.sim_sepia),
+        FilmSimulation("provia", "PROVIA / Standard", false, SensorGeneration.XTRANS_III, Color(0xFF8C7B6B)),
+        FilmSimulation("velvia", "Velvia / Vivid", false, SensorGeneration.XTRANS_III, Color(0xFFA83A2E)),
+        FilmSimulation("astia", "ASTIA / Soft", false, SensorGeneration.XTRANS_III, Color(0xFFC08B7A)),
+        FilmSimulation("classic-chrome", "Classic Chrome", false, SensorGeneration.XTRANS_III, Color(0xFF6E7A78)),
+        FilmSimulation("pro-neg-hi", "PRO Neg. Hi", false, SensorGeneration.XTRANS_III, Color(0xFF9C8878)),
+        FilmSimulation("pro-neg-std", "PRO Neg. Std", false, SensorGeneration.XTRANS_III, Color(0xFF9C8878)),
+        FilmSimulation("classic-negative", "Classic Negative", false, SensorGeneration.XTRANS_IV, Color(0xFF7B6A5A)),
+        FilmSimulation("nostalgic-negative", "Nostalgic Neg.", false, SensorGeneration.XTRANS_V, Color(0xFFA5703F)),
+        FilmSimulation("reala-ace", "REALA ACE", false, SensorGeneration.XTRANS_V, Color(0xFF8A7150)),
+        FilmSimulation("eterna", "ETERNA / Cinema", false, SensorGeneration.XTRANS_IV, Color(0xFF6B6659)),
+        FilmSimulation("eterna-bleach-bypass", "ETERNA Bleach Bypass", false, SensorGeneration.XTRANS_IV, Color(0xFF6B6659)),
+        FilmSimulation("acros", "ACROS", true, SensorGeneration.XTRANS_III, Color(0xFF5A5A5A)),
+        FilmSimulation("acros-ye", "ACROS + Ye filter", true, SensorGeneration.XTRANS_III, Color(0xFF5A5A5A)),
+        FilmSimulation("acros-r", "ACROS + R filter", true, SensorGeneration.XTRANS_III, Color(0xFF5A5A5A)),
+        FilmSimulation("acros-g", "ACROS + G filter", true, SensorGeneration.XTRANS_III, Color(0xFF5A5A5A)),
+        FilmSimulation("monochrome", "Monochrome", true, SensorGeneration.XTRANS_III, Color(0xFF7A7A7A)),
+        FilmSimulation("monochrome-ye", "Monochrome + Ye", true, SensorGeneration.XTRANS_III, Color(0xFF7A7A7A)),
+        FilmSimulation("monochrome-r", "Monochrome + R", true, SensorGeneration.XTRANS_III, Color(0xFF7A7A7A)),
+        FilmSimulation("monochrome-g", "Monochrome + G", true, SensorGeneration.XTRANS_III, Color(0xFF7A7A7A)),
+        FilmSimulation("sepia", "Sepia", true, SensorGeneration.XTRANS_III, Color(0xFF8B6F47)),
     )
 
     private val byId: Map<String, FilmSimulation> = all.associateBy { it.id }

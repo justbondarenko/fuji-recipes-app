@@ -45,13 +45,19 @@ import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
+import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTooltipState
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import dev.bondarenko.fujirecipes.core.store.ImageStore
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -86,7 +92,6 @@ import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.common.errorMessageFor
 import dev.bondarenko.fujirecipes.ui.editor.RatingInput
 import dev.bondarenko.fujirecipes.ui.editor.TagInput
-import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
 import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
@@ -127,14 +132,7 @@ fun RecipeViewBottomSheet(
         RecipeViewContent(
             state = state,
             onClose = onDismiss,
-            // Let the sheet slide out before the editor arrives. Calling onEdit straight
-            // away removes this composable in the same frame, so the sheet vanished rather
-            // than closing and the editor appeared to teleport in over the gap.
-            onEdit = {
-                scope.launch { sheetState.hide() }.invokeOnCompletion {
-                    if (!sheetState.isVisible) onEdit(recipeId)
-                }
-            },
+            onEdit = { onEdit(recipeId) },
             onChangedOnlyChange = viewModel::onChangedOnlyChange,
             onRatingChange = viewModel::onRatingChange,
             onTagsChange = viewModel::onTagsChange,
@@ -391,29 +389,45 @@ private fun RecipeBentoBody(
 ) {
     val recipe = state.recipe ?: return
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        // Hero Header Card
-        item {
-            RecipeHeaderBlock(
-                recipe = recipe,
-                onRatingChange = onRatingChange,
-                onTagsChange = onTagsChange,
-            )
-        }
+    val context = LocalContext.current
+    val imageStore = remember { (context.applicationContext as FujiRecipesApp).container.imageStore }
+    var previewImageIndex by rememberSaveable { mutableStateOf<Int?>(null) }
 
-        // Changed settings toggle
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            // Hero Header Card
+            item {
+                RecipeHeaderBlock(
+                    recipe = recipe,
+                    onRatingChange = onRatingChange,
+                    onTagsChange = onTagsChange,
+                )
+            }
+
+            // Reference Images Carousel (relocated right after title)
+            if (recipe.images.isNotEmpty()) {
+                item {
+                    RecipeImageCarousel(
+                        images = recipe.images,
+                        imageStore = imageStore,
+                        onImageClick = { previewImageIndex = it },
+                    )
+                }
+            }
+
+            // Changed settings toggle
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
                 Text(
                     text = stringResource(R.string.changed_only),
                     style = MaterialTheme.typography.bodyMedium,
@@ -458,9 +472,21 @@ private fun RecipeBentoBody(
             }
         }
 
-        if (recipe.notes.isNotBlank()) {
-            item {
-                BentoNotesCard(recipe.notes)
+            if (recipe.notes.isNotBlank()) {
+                item {
+                    BentoNotesCard(recipe.notes)
+                }
+            }
+        }
+
+        previewImageIndex?.let { index ->
+            if (recipe.images.isNotEmpty()) {
+                dev.bondarenko.fujirecipes.ui.common.ImagePreviewDialog(
+                    images = recipe.images,
+                    initialIndex = index,
+                    imageStore = imageStore,
+                    onDismiss = { previewImageIndex = null },
+                )
             }
         }
     }
@@ -488,16 +514,6 @@ private fun RecipeHeaderBlock(
         // 💡 HEADER ALIGNMENT — `CenterHorizontally` or `Start`.
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // 💡 FILM SIMULATION SIZE — the shaped swatch at the top.
-        FilmSimBadge(
-            simulationId = recipe.filmSimulationId,
-            size = HeaderSwatchSize,
-            shape = MaterialShapes.Square.toShape(),
-        )
-
-        // 💡 GAP: swatch → name
-        Spacer(Modifier.height(SwatchToNameGap))
-
         // 💡 RECIPE NAME:
         //    - Size: `headlineMediumEmphasized` -> `headlineSmallEmphasized` (smaller) or
         //      `headlineLargeEmphasized` (bigger). The `Emphasized` suffix is M3's heavier,
@@ -508,14 +524,13 @@ private fun RecipeHeaderBlock(
             text = recipe.name,
             style = MaterialTheme.typography.headlineMediumEmphasized,
             color = MaterialTheme.colorScheme.primary,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
         )
 
         // 💡 GAP: name → rating stars
         Spacer(Modifier.height(NameToRatingGap))
 
+        // 💡 RATING STARS
         RatingInput(rating = recipe.rating, onRatingChange = onRatingChange)
 
         // 💡 GAP: rating stars → tags
@@ -532,10 +547,6 @@ private fun RecipeHeaderBlock(
 }
 
 // 💡 HEADER SIZES AND GAPS — every measurement in the header, in one place.
-/** The shaped film simulation swatch. */
-private val HeaderSwatchSize = 120.dp
-/** Swatch to recipe name. */
-private val SwatchToNameGap = 14.dp
 /** Name to rating stars — deliberately tight, they read as one block. */
 private val NameToRatingGap = 4.dp
 /** Rating stars to the tag cloud. */
@@ -543,6 +554,46 @@ private val RatingToTagsGap = 12.dp
 
 /** 💡 How many tags show before the `+N` chip. */
 private const val HeaderVisibleTags = 3
+
+/**
+ * Material 3 Expressive Carousel displaying up to 5 reference sample photos.
+ * https://m3.material.io/components/carousel/overview
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RecipeImageCarousel(
+    images: List<String>,
+    imageStore: ImageStore,
+    onImageClick: (Int) -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    val state = rememberCarouselState { images.size }
+    HorizontalMultiBrowseCarousel(
+        state = state,
+        preferredItemWidth = 260.dp,
+        itemSpacing = 8.dp,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(200.dp),
+    ) { index ->
+        val imageName = images[index]
+        val file = remember(imageName) { imageStore.getFile(imageName) }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .maskClip(MaterialTheme.shapes.large)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .clickable { onImageClick(index) },
+        ) {
+            AsyncImage(
+                model = file,
+                contentDescription = stringResource(R.string.sample_photos_title),
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    }
+}
 
 /**
  * 2-column Bento Grid for section parameters.

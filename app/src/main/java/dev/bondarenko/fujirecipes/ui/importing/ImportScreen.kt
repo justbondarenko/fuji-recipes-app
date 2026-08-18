@@ -17,7 +17,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItem
-import dev.bondarenko.fujirecipes.ui.common.DownArrow
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.toShape
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -49,7 +49,6 @@ import dev.bondarenko.fujirecipes.data.importing.ImportRow
 import dev.bondarenko.fujirecipes.data.importing.ImportStatus
 import dev.bondarenko.fujirecipes.ui.common.FujiCenteredLoading
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
-import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
 import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 
@@ -195,7 +194,7 @@ private fun ImportPanel(
 ) {
     FujiIconPanel(
         icon = painterResource(R.drawable.ic_linked_camera),
-        shape = DownArrow.toShape(),
+        shape = MaterialShapes.Pill.toShape(),
         title = title,
         body = body,
         actionLabel = actionLabel,
@@ -283,14 +282,8 @@ private fun ImportRowCard(row: ImportRow, index: Int, count: Int, onToggle: () -
         ),
         modifier = Modifier.fillMaxWidth(),
         leadingContent = {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // The row itself toggles, so the box is a state readout, not a second target.
-                Checkbox(checked = row.selected, onCheckedChange = null)
-                FilmSimBadge(simulationId = row.filmSimulationId, size = 40.dp)
-            }
+            // The row itself toggles, so the box is a state readout, not a second target.
+            Checkbox(checked = row.selected, onCheckedChange = null)
         },
         supportingContent = {
             Column {

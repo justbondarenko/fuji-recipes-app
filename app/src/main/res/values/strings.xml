@@ -32,7 +32,8 @@
     <string name="empty_library_title">No recipes yet</string>
     <string name="empty_library_body">Your recipes live on this phone. The quickest way to start is to read the ones already saved in your camera\'s C1–C7 slots.</string>
     <string name="empty_library_import">Import from camera</string>
-    <string name="empty_library_create">Or create one by hand</string>
+    <string name="empty_library_or">or</string>
+    <string name="empty_library_create">Create one by hand</string>
 
     <string name="no_matches_title">No recipes match</string>
     <plurals name="no_matches_body">
@@ -91,6 +92,10 @@
     <string name="discard_body">You have unsaved edits to this recipe.</string>
     <string name="delete_title">Delete this recipe?</string>
     <string name="delete_body">“%1$s” will be removed from your library. This cannot be undone.</string>
+    <string name="sample_photos_title">Sample photos</string>
+    <string name="add_photo">Add photo</string>
+    <string name="processing_images">Processing image(s)…</string>
+    <string name="close_preview">Close preview</string>
 
     <!-- Settings -->
     <string name="settings_backup_restore">Backup &amp; Restore</string>

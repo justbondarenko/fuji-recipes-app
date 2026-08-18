@@ -53,6 +53,7 @@ val RECIPE_KEY_ORDER = listOf(
     "notes",
     "rating",
     "tags",
+    "images",
     "settings",
     "createdAt",
     "updatedAt",
@@ -131,6 +132,7 @@ fun toExportRecipe(recipe: Recipe): JsonObject {
 
     RECIPE_KEY_ORDER.forEach { key ->
         if (key in EXPORT_EXCLUDED) return@forEach
+        if (key == "images" && recipe.images.isEmpty()) return@forEach
         val value = source[key] ?: return@forEach
 
         out[key] = if (key == "settings") toExportSettings(value) else value

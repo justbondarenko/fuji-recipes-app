@@ -51,7 +51,6 @@ import dev.bondarenko.fujirecipes.core.share.ShareFile
 import dev.bondarenko.fujirecipes.data.exporting.ExportKind
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.model.Recipe
-import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.create.CreateRecipeFlow
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -285,14 +284,8 @@ private fun RecipeRow(
         ),
         modifier = Modifier.fillMaxWidth(),
         leadingContent = {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // The row itself toggles, so the box is a state readout, not a second target.
-                Checkbox(checked = selected, onCheckedChange = null)
-                FilmSimBadge(simulationId = recipe.filmSimulationId, size = 40.dp)
-            }
+            // The row itself toggles, so the box is a state readout, not a second target.
+            Checkbox(checked = selected, onCheckedChange = null)
         },
         supportingContent = {
             Text(FilmSimulations.byId(recipe.filmSimulationId)?.label.orEmpty())

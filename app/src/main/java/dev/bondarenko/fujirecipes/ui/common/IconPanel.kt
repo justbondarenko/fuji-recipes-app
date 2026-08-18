@@ -26,39 +26,22 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.graphics.shapes.RoundedPolygon
-import androidx.graphics.shapes.transformed
-import android.graphics.Matrix
-import androidx.compose.material3.MaterialShapes
 import androidx.compose.ui.unit.dp
 
-/**
- * [MaterialShapes.Arrow] turned through 180°, so it points down.
- *
- * An actual rotation of the polygon. `toShape(startAngle)` only moves where the path starts —
- * it keeps morphs continuous — and leaves the arrow pointing up, which is what it did here
- * the first time. The Material Symbols polygons are centred on the origin, so rotating about
- * (0, 0) is the whole job.
- */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private val ShapeSize = 140.dp
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-val DownArrow: RoundedPolygon by lazy {
-    MaterialShapes.Arrow.transformed(Matrix().apply { postRotate(180f) })
-}
 
 /**
  * The standard shape of a page that has one thing to say and one thing to do.
  *
  * An icon in an M3 Expressive shape, a heading, a line of explanation and a single call to
- * action, centred on the screen. Five screens were each drawing their own version of this;
- * they now differ only in the parts that should differ — the shape, the icon and the words.
+ * action, centred on the screen. Screens share this unified structure, differing only in
+ * the shape, icon, title, body, and action.
  *
  * The shape is the page's identity, per `m3.material.io/styles/shape/overview-principles`:
- * `MaterialShapes.Pill` for reading a photo, [DownArrow] for the two imports, `Pentagon` for
- * the camera. Callers pass a [Shape] rather than a `RoundedPolygon`, so the call site reads
- * `DownArrow.toShape()`.
+ * e.g., `MaterialShapes.Pill`, `MaterialShapes.Pentagon`, or `MaterialShapes.Square`.
+ * Callers pass a [Shape] rather than a `RoundedPolygon`, so the call site reads
+ * `MaterialShapes.<Shape>.toShape()`.
  *
  * [icon] must be the same drawable the toolbar uses for that destination. A page that
  * announces itself with a different glyph than the item you pressed to get there reads as a

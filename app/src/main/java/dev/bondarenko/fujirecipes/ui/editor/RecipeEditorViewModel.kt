@@ -34,6 +34,8 @@ data class EditorUiState(
     val notes: String = "",
     val rating: Int = 0,
     val tags: List<String> = emptyList(),
+    val images: List<String> = emptyList(),
+    val isProcessingImage: Boolean = false,
     /** The parameter set as it currently stands, unknown keys included. */
     val settings: JsonObject = JsonObject(emptyMap()),
     val problems: List<RecipeValidation.Problem> = emptyList(),
@@ -74,6 +76,7 @@ class RecipeEditorViewModel(
     private val recipeId: String?,
     private val duplicateOf: String?,
     private val repository: RecipeRepository,
+    private val imageStore: dev.bondarenko.fujirecipes.core.store.ImageStore,
     /** Settings decoded from a photo (FEAT-009), as JSON. Only ever set on a create. */
     private val prefill: String? = null,
     private val prefillName: String? = null,
@@ -84,6 +87,9 @@ class RecipeEditorViewModel(
 
     /** What was loaded, so the PATCH can be a diff and dirtiness can be real. */
     private var original: Recipe? = null
+    private var processingJob: kotlinx.coroutines.Job? = null
+    private val stagedNewImages = mutableSetOf<String>()
+    private var isSaved = false
 
     init {
         viewModelScope.launch { load() }
@@ -126,14 +132,12 @@ class RecipeEditorViewModel(
         _state.value = EditorUiState(
             isLoading = false,
             isNew = duplicating,
-            // A copy that shares its name exactly is two identical rows in the list with no
-            // way to tell which is which.
             name = if (duplicating) "${recipe.name} copy" else recipe.name,
             notes = recipe.notes,
             rating = recipe.rating,
             tags = recipe.tags,
+            images = recipe.images,
             settings = recipe.settings,
-            // A duplicate is unsaved work from the moment it opens; leaving it must ask.
             isDirty = duplicating,
         )
     }
@@ -144,7 +148,7 @@ class RecipeEditorViewModel(
             when (val default = field.defaultValue) {
                 is String -> put(field.id, default)
                 is Number -> put(field.id, default)
-                else -> Unit // null default: the advisory bounds, legitimately unset
+                else -> Unit
             }
         }
     }
@@ -154,6 +158,42 @@ class RecipeEditorViewModel(
     fun onRatingChange(value: Int) = edit { copy(rating = value) }
     fun onTagsChange(value: List<String>) = edit { copy(tags = value) }
 
+    fun onAddImages(uris: List<android.net.Uri>) {
+        if (uris.isEmpty()) return
+        val current = _state.value.images
+        val remainingSlots = dev.bondarenko.fujirecipes.core.store.ImageStore.MAX_IMAGES_PER_RECIPE - current.size
+        if (remainingSlots <= 0) return
+        val toAdd = uris.take(remainingSlots)
+
+        processingJob?.cancel()
+        processingJob = viewModelScope.launch {
+            _state.update { it.copy(isProcessingImage = true) }
+            val savedNames = toAdd.mapNotNull { uri -> imageStore.saveFromUri(uri) }
+            stagedNewImages.addAll(savedNames)
+            _state.update { currentUi ->
+                val updatedImages = (currentUi.images + savedNames).take(
+                    dev.bondarenko.fujirecipes.core.store.ImageStore.MAX_IMAGES_PER_RECIPE,
+                )
+                currentUi.copy(
+                    images = updatedImages,
+                    isDirty = true,
+                    isProcessingImage = false,
+                )
+            }
+        }
+    }
+
+    fun onRemoveImage(fileName: String) {
+        val originalImages = original?.images ?: emptyList()
+        if (stagedNewImages.contains(fileName) && !originalImages.contains(fileName)) {
+            imageStore.delete(fileName)
+            stagedNewImages.remove(fileName)
+        }
+        edit {
+            copy(images = images.filterNot { it == fileName })
+        }
+    }
+
     fun onSettingChange(fieldId: String, value: JsonElement?) = edit {
         val next = settings.toMutableMap()
         if (value == null) next.remove(fieldId) else next[fieldId] = value
@@ -162,14 +202,13 @@ class RecipeEditorViewModel(
 
     private inline fun edit(change: EditorUiState.() -> EditorUiState) {
         _state.update { current ->
-            // Clearing the previous failure on any edit: an error about a value the user has
-            // since changed is worse than no error.
             current.change().copy(isDirty = true, saveError = null, problems = emptyList())
         }
     }
 
     fun save(onSaved: (String) -> Unit) {
         val current = _state.value
+        if (current.isProcessingImage) return
 
         val problems = RecipeValidation.validate(
             name = current.name,
@@ -178,7 +217,7 @@ class RecipeEditorViewModel(
             tags = current.tags,
             settings = current.settings,
             context = current.fieldContext,
-        )
+        ) + (RecipeValidation.validateImages(current.images)?.let { listOf(it) } ?: emptyList())
         if (problems.isNotEmpty()) {
             _state.update { it.copy(problems = problems) }
             return
@@ -192,8 +231,6 @@ class RecipeEditorViewModel(
                 repository.create(createBody(current))
             } else {
                 val diff = diffAgainst(existing, current)
-                // Nothing actually changed — an empty update would still bump `updatedAt`
-                // and reorder the "recently updated" sort for no reason.
                 if (diff.isEmpty()) {
                     LibraryResult.Success(existing)
                 } else {
@@ -203,15 +240,34 @@ class RecipeEditorViewModel(
 
             when (result) {
                 is LibraryResult.Success -> {
+                    isSaved = true
                     _state.update { it.copy(isSaving = false, isDirty = false) }
                     onSaved(result.value.id)
                 }
                 is LibraryResult.Failure -> {
-                    // Everything the user typed stays in state; only the flags move.
                     _state.update { it.copy(isSaving = false, saveError = result.error) }
                 }
             }
         }
+    }
+
+    fun cancel() {
+        cancelProcessingAndCleanStagedImages()
+    }
+
+    private fun cancelProcessingAndCleanStagedImages() {
+        processingJob?.cancel()
+        if (!isSaved) {
+            val originalImages = original?.images?.toSet() ?: emptySet()
+            val toDelete = stagedNewImages - originalImages
+            toDelete.forEach { imageStore.delete(it) }
+            stagedNewImages.clear()
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        cancelProcessingAndCleanStagedImages()
     }
 
     fun delete(onDeleted: () -> Unit) {
@@ -237,6 +293,9 @@ class RecipeEditorViewModel(
             put("notes", state.notes)
             put("rating", state.rating)
             put("tags", kotlinx.serialization.json.JsonArray(state.tags.map { JsonPrimitive(it) }))
+            if (state.images.isNotEmpty()) {
+                put("images", kotlinx.serialization.json.JsonArray(state.images.map { JsonPrimitive(it) }))
+            }
             put("settings", state.settings)
         }
 
@@ -259,6 +318,12 @@ class RecipeEditorViewModel(
                         kotlinx.serialization.json.JsonArray(state.tags.map { JsonPrimitive(it) }),
                     )
                 }
+                if (state.images != original.images) {
+                    put(
+                        "images",
+                        kotlinx.serialization.json.JsonArray(state.images.map { JsonPrimitive(it) }),
+                    )
+                }
                 if (state.settings != original.settings) put("settings", state.settings)
             }
 
@@ -275,6 +340,7 @@ class RecipeEditorViewModel(
                     recipeId,
                     duplicateOf,
                     container.recipeRepository,
+                    container.imageStore,
                     prefill,
                     prefillName,
                 ) as T

@@ -24,7 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItem
-import dev.bondarenko.fujirecipes.ui.common.DownArrow
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.toShape
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -54,7 +54,6 @@ import dev.bondarenko.fujirecipes.data.importing.FileRowStatus
 import dev.bondarenko.fujirecipes.data.importing.Resolution
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
-import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
 import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import kotlinx.coroutines.Dispatchers
@@ -119,7 +118,7 @@ fun FileImportScreen(
                     // and only the source differs.
                     FujiIconPanel(
                         icon = painterResource(R.drawable.ic_file_save),
-                        shape = DownArrow.toShape(),
+                        shape = MaterialShapes.Pill.toShape(),
                         title = stringResource(R.string.file_import_ready_title),
                         body = stringResource(R.string.file_import_ready_body),
                         actionLabel = stringResource(R.string.file_import_action_choose),
@@ -314,7 +313,6 @@ private fun FileRowCard(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
         modifier = Modifier.fillMaxWidth(),
-        leadingContent = { FilmSimBadge(simulationId = row.filmSimulationId, size = 40.dp) },
         supportingContent = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(FilmSimulations.byId(row.filmSimulationId)?.label.orEmpty())

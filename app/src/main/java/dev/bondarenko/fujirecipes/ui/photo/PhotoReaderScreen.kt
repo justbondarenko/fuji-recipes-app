@@ -52,7 +52,6 @@ import dev.bondarenko.fujirecipes.data.photo.RecipeMatch
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
 import dev.bondarenko.fujirecipes.ui.common.SectionHeader
-import dev.bondarenko.fujirecipes.ui.library.FilmSimBadge
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -238,7 +237,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.resultItems(
     }
 
     items(recipe.rawValues.entries.toList(), key = { it.key }) { (label, value) ->
-        SettingRow(label = label, value = value, simulationId = recipe.settings["filmSimulation"] as? String)
+        SettingRow(label = label, value = value)
     }
 
     item {
@@ -248,6 +247,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.resultItems(
     }
 }
 
+/**
+ * The recipe that matched what the photo says — FEAT-009 T-10.
+ *
+ * Full recipe card styling matching the library view, including tags and star rating.
+ */
 @Composable
 private fun MatchedRecipeCard(
     match: RecipeMatch,
@@ -271,43 +275,31 @@ private fun MatchedRecipeCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
-                FilmSimBadge(
-                    simulationId = recipe.filmSimulationId,
-                    size = 52.dp,
-                    shape = CircleShape,
+                Text(
+                    text = recipe.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
 
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = recipe.name,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
+                        text = FilmSimulations.labelFor(recipe.filmSimulationId),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
 
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = FilmSimulations.labelFor(recipe.filmSimulationId),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-
-                        if (recipe.rating > 0) {
-                            RatingBadge(rating = recipe.rating)
-                        }
+                    if (recipe.rating > 0) {
+                        RatingBadge(rating = recipe.rating)
                     }
                 }
             }
@@ -448,7 +440,7 @@ private fun RatingBadge(
 }
 
 @Composable
-private fun SettingRow(label: String, value: String, simulationId: String?) {
+private fun SettingRow(label: String, value: String) {
     Surface(
         shape = MaterialTheme.shapes.small,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -459,9 +451,6 @@ private fun SettingRow(label: String, value: String, simulationId: String?) {
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (label == "Film simulation") {
-                FilmSimBadge(simulationId = simulationId, size = 28.dp)
-            }
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyMedium,

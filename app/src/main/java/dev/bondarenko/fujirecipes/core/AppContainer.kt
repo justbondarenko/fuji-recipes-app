@@ -3,6 +3,7 @@ package dev.bondarenko.fujirecipes.core
 import android.content.Context
 import dev.bondarenko.fujirecipes.camera.CameraController
 import dev.bondarenko.fujirecipes.core.settings.ViewPreferences
+import dev.bondarenko.fujirecipes.core.store.ImageStore
 import dev.bondarenko.fujirecipes.core.store.LibraryStore
 import dev.bondarenko.fujirecipes.data.repo.LocalRecipeRepository
 import dev.bondarenko.fujirecipes.data.repo.RecipeRepository
@@ -37,6 +38,16 @@ class AppContainer(context: Context) {
      */
     val libraryStore: LibraryStore by lazy {
         LibraryStore(File(applicationContext.filesDir, LibraryStore.FILE_NAME))
+    }
+
+    /**
+     * Store for recipe sample/reference photos.
+     */
+    val imageStore: ImageStore by lazy {
+        ImageStore(
+            directory = File(applicationContext.filesDir, ImageStore.DIRECTORY_NAME),
+            contentResolver = applicationContext.contentResolver,
+        )
     }
 
     /**
