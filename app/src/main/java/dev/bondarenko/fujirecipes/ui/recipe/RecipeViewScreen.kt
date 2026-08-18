@@ -599,7 +599,7 @@ fun RecipeImageCarousel(
  * 2-column Bento Grid for section parameters.
  */
 @Composable
-private fun BentoGroupGrid(group: SettingsGroup) {
+internal fun BentoGroupGrid(group: SettingsGroup) {
     val rows = group.rows
     val pairs = rows.chunked(2)
 
@@ -636,7 +636,7 @@ private fun BentoGroupGrid(group: SettingsGroup) {
  * Individual Bento Grid parameter card.
  */
 @Composable
-private fun BentoParameterTile(
+internal fun BentoParameterTile(
     row: FieldFormatting.Row,
     modifier: Modifier = Modifier,
 ) {

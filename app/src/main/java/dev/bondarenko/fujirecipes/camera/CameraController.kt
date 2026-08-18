@@ -28,6 +28,7 @@ import dev.bondarenko.fujirecipes.camera.usb.executeWritePlan
 import dev.bondarenko.fujirecipes.camera.usb.partialWriteWarning
 import dev.bondarenko.fujirecipes.camera.usb.SlotRecipe
 import dev.bondarenko.fujirecipes.camera.usb.readSlotNames
+import dev.bondarenko.fujirecipes.camera.usb.readSlotRecipe
 import dev.bondarenko.fujirecipes.camera.usb.readSlotRecipes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -297,6 +298,15 @@ class CameraController(
         val open = session ?: return emptyList()
 
         return withContext(Dispatchers.IO) { readSlotRecipes(open, onProgress) }
+    }
+
+    /**
+     * Reads a single slot as a recipe.
+     */
+    suspend fun readSlotRecipe(slot: Int): SlotRecipe? = lock.withLock {
+        val open = session ?: return null
+
+        return withContext(Dispatchers.IO) { readSlotRecipe(open, slot) }
     }
 
     // ─── Writing (FEAT-006) ─────────────────────────────────────────────────

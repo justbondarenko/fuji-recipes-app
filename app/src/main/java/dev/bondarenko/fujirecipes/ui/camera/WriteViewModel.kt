@@ -126,12 +126,18 @@ class WriteViewModel(
         _state.value = _state.value.copy(
             slots = slotStates(emptyList(), loading = true),
             slotsError = null,
+            selectedSlot = null,
         )
 
         viewModelScope.launch {
             runCatching { controller.readSlots() }
                 .onSuccess { readings ->
-                    _state.value = _state.value.copy(slots = slotStates(readings))
+                    val newSlots = slotStates(readings)
+                    val firstEmptySlot = newSlots.firstOrNull { it.status == SlotStatus.UNNAMED }?.slot
+                    _state.value = _state.value.copy(
+                        slots = newSlots,
+                        selectedSlot = firstEmptySlot,
+                    )
                 }
                 .onFailure { error ->
                     // The read failed as a whole. Seven slots showing "Unknown" is the honest
@@ -140,6 +146,7 @@ class WriteViewModel(
                         slots = slotStates(emptyList()),
                         slotsError = error.message
                             ?: "The camera did not answer when asked what its slots hold.",
+                        selectedSlot = null,
                     )
                 }
         }

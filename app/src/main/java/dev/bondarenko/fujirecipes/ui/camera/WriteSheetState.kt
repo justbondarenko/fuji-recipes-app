@@ -1,7 +1,6 @@
 package dev.bondarenko.fujirecipes.ui.camera
 
 import dev.bondarenko.fujirecipes.camera.CameraState
-import dev.bondarenko.fujirecipes.camera.plan.FIRST_SLOT
 import dev.bondarenko.fujirecipes.camera.plan.SlotCaution
 import dev.bondarenko.fujirecipes.camera.plan.SlotState
 import dev.bondarenko.fujirecipes.camera.plan.WritePlan
@@ -86,8 +85,9 @@ data class WriteUiState(
     /**
      * The slot the picker is pointing at. Part of the write's own state rather than the
      * composable's, so it lives and dies with the write attempt — see [enteringPicker].
+     * Null when no slot is selected (e.g. while reading or when all slots are occupied).
      */
-    val selectedSlot: Int = FIRST_SLOT,
+    val selectedSlot: Int? = null,
 )
 
 /**
@@ -99,7 +99,7 @@ data class WriteUiState(
  * recipe would be reading a number they have no reason to expect changed.
  */
 fun WriteUiState.enteringPicker(): WriteUiState =
-    copy(stage = WriteStage.Picker, selectedSlot = FIRST_SLOT)
+    copy(stage = WriteStage.Picker, selectedSlot = null)
 
 /**
  * Where the sheet opens.

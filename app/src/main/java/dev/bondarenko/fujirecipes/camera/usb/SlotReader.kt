@@ -74,17 +74,24 @@ fun readSlotRecipes(
 
     return (FIRST_SLOT..LAST_SLOT).mapNotNull { slot ->
         onProgress(slot - FIRST_SLOT + 1, total)
+        readSlotRecipe(session, slot, sleep)
+    }
+}
 
-        try {
-            session.setPropertyBytes(PRESET_SLOT_PROPERTY, packU16(slot))
-            sleep(SLOT_SETTLE_MS)
-            readOneSlot(session, slot)
-        } catch (error: PtpError) {
-            // This slot's own answer. The rest continue: six readable slots beat none.
-            null
-        }
-        // Anything that is not a PtpError — a timeout, a framing error — is the pipe itself
-        // failing and propagates, because every later reply would answer an earlier question.
+/**
+ * Reads a single custom slot as a recipe.
+ */
+fun readSlotRecipe(
+    session: PtpSession,
+    slot: Int,
+    sleep: (Long) -> Unit = { Thread.sleep(it) },
+): SlotRecipe? {
+    return try {
+        session.setPropertyBytes(PRESET_SLOT_PROPERTY, packU16(slot))
+        sleep(SLOT_SETTLE_MS)
+        readOneSlot(session, slot)
+    } catch (error: PtpError) {
+        null
     }
 }
 

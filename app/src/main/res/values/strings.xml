@@ -130,6 +130,9 @@
     <string name="camera_action_retry">Try again</string>
     <string name="camera_action_disconnect">Disconnect</string>
     <string name="camera_slot_note">Writing to a slot leaves its image size, quality, smooth skin, long-exposure NR and colour space as they were — a slot is not reset before it is written.</string>
+    <string name="camera_slots_title">Custom slots</string>
+    <string name="camera_slots_reading">Reading slots from camera…</string>
+    <string name="camera_slots_count">%1$d of %2$d configured</string>
 
     <!-- Write to camera — FEAT-006. The stages are PRD §7.4's. -->
     <string name="write_title">Write to camera</string>
@@ -141,14 +144,14 @@
     <string name="write_pick_slot">Choose a slot</string>
     <string name="write_slot_name">C%1$d</string>
     <string name="write_slot_reading">Reading…</string>
-    <!-- Not "Empty": the camera reported a blank name, which is not the same as an empty slot. -->
-    <string name="write_slot_unnamed">No name set</string>
+    <string name="write_slot_unnamed">&lt; EMPTY SLOT &gt;</string>
     <string name="write_slot_unreadable">The camera did not answer</string>
     <string name="write_slot_unknown">Unknown</string>
     <string name="write_slot_refresh">Read the slots again</string>
     <string name="write_confirm_title">Replace what is in C%1$d?</string>
     <string name="write_confirm_named">C%1$d currently holds “%2$s”. Writing “%3$s” replaces it, and the old settings cannot be recovered from the camera.</string>
     <string name="write_confirm_unknown">The camera would not say what C%1$d holds, so this may replace a recipe that is not stored anywhere else.</string>
+    <string name="write_action_select_slot">Choose a slot</string>
     <string name="write_confirm_action">Write to C%1$d</string>
     <string name="write_progress_count">%1$d / %2$d</string>
     <string name="write_progress_title">Writing to C%1$d</string>
