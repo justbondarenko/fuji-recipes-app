@@ -282,6 +282,9 @@ fun LibraryScreen(
                 activeRecipeId = null
                 onEditRecipe(id)
             },
+            onNavigateToRecipe = { targetId ->
+                activeRecipeId = targetId
+            },
         )
     }
 

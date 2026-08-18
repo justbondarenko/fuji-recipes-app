@@ -93,6 +93,7 @@ import dev.bondarenko.fujirecipes.ui.common.errorMessageFor
 import dev.bondarenko.fujirecipes.ui.editor.RatingInput
 import dev.bondarenko.fujirecipes.ui.editor.TagInput
 import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
+import dev.bondarenko.fujirecipes.ui.recipe.compare.RecipeCompareBottomSheet
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
 
@@ -109,6 +110,7 @@ fun RecipeViewBottomSheet(
     onDismiss: () -> Unit,
     onEdit: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onNavigateToRecipe: ((String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val container = (context.applicationContext as FujiRecipesApp).container
@@ -128,6 +130,7 @@ fun RecipeViewBottomSheet(
     ) {
         val camera by container.cameraController.state.collectAsStateWithLifecycle()
         var writeOpen by remember { mutableStateOf(false) }
+        var compareOpen by remember { mutableStateOf(false) }
 
         RecipeViewContent(
             state = state,
@@ -143,10 +146,22 @@ fun RecipeViewBottomSheet(
                     ShareFile.share(context, filename, content)
                 }
             },
+            onCompareRecipe = { compareOpen = true },
         )
 
         if (writeOpen) {
             WriteSheetHost(recipeId = recipeId, onDismiss = { writeOpen = false })
+        }
+
+        if (compareOpen) {
+            RecipeCompareBottomSheet(
+                baseRecipeId = recipeId,
+                onDismiss = { compareOpen = false },
+                onNavigateToRecipe = { targetId ->
+                    compareOpen = false
+                    onNavigateToRecipe?.invoke(targetId)
+                },
+            )
         }
     }
 }
@@ -166,6 +181,7 @@ fun RecipeViewScreen(
     onWriteToCamera: () -> Unit = {},
     canWriteToCamera: Boolean = false,
     onExportRecipe: () -> Unit = {},
+    onCompareRecipe: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -203,6 +219,7 @@ fun RecipeViewScreen(
             onWriteToCamera = onWriteToCamera,
             canWriteToCamera = canWriteToCamera,
             onExportRecipe = onExportRecipe,
+            onCompareRecipe = onCompareRecipe,
         )
     }
 }
@@ -222,6 +239,7 @@ fun RecipeViewContent(
     onWriteToCamera: () -> Unit = {},
     canWriteToCamera: Boolean = false,
     onExportRecipe: () -> Unit = {},
+    onCompareRecipe: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     when {
@@ -265,6 +283,7 @@ fun RecipeViewContent(
                         onExportRecipe = onExportRecipe,
                         onWriteToCamera = onWriteToCamera,
                         canWriteToCamera = canWriteToCamera,
+                        onCompareRecipe = onCompareRecipe,
                         modifier = Modifier.align(Alignment.BottomCenter),
                     )
                 }
@@ -286,6 +305,7 @@ private fun RecipeFloatingToolbar(
     onExportRecipe: () -> Unit,
     onWriteToCamera: () -> Unit,
     canWriteToCamera: Boolean,
+    onCompareRecipe: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -306,6 +326,13 @@ private fun RecipeFloatingToolbar(
                 Icon(
                     imageVector = Icons.Filled.Edit,
                     contentDescription = stringResource(R.string.action_edit),
+                )
+            }
+
+            IconButton(onClick = onCompareRecipe) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_compare),
+                    contentDescription = stringResource(R.string.action_compare_recipe),
                 )
             }
 
@@ -819,6 +846,7 @@ fun RecipeViewRouteContent(
 
     val camera by container.cameraController.state.collectAsStateWithLifecycle()
     var writeOpen by remember { mutableStateOf(false) }
+    var compareOpen by remember { mutableStateOf(false) }
 
     RecipeViewScreen(
         state = state,
@@ -834,10 +862,15 @@ fun RecipeViewRouteContent(
                 ShareFile.share(context, filename, content)
             }
         },
+        onCompareRecipe = { compareOpen = true },
     )
 
     if (writeOpen) {
         WriteSheetHost(recipeId = recipeId, onDismiss = { writeOpen = false })
+    }
+
+    if (compareOpen) {
+        RecipeCompareBottomSheet(baseRecipeId = recipeId, onDismiss = { compareOpen = false })
     }
 }
 
