@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,13 +16,16 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import dev.bondarenko.fujirecipes.ui.theme.icons.BookmarkStacks
 import dev.bondarenko.fujirecipes.ui.theme.icons.Delete
 import dev.bondarenko.fujirecipes.ui.theme.icons.Edit
+import dev.bondarenko.fujirecipes.ui.theme.icons.FilterAltOff
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.PhotoCamera
 import androidx.compose.material3.Text
@@ -182,16 +186,30 @@ fun LibraryScreen(
 
                     if (state.hasNoMatches) {
                         item {
-                            LibraryPanel(
-                                title = stringResource(R.string.no_matches_title),
-                                body = pluralStringResource(
-                                    R.plurals.no_matches_body,
-                                    state.totalCount,
-                                    state.totalCount,
-                                    ),
-                                primaryLabel = stringResource(R.string.action_clear_filters),
-                                onPrimary = onClearSearchAndFilters,
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillParentMaxHeight(0.72f)
+                                    .fillMaxWidth(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    Icon(
+                                        imageVector = FujiIcons.FilterAltOff,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(44.dp),
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.no_matches_title),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                                        textAlign = TextAlign.Center,
+                                    )
+                                }
+                            }
                         }
                     } else {
                         itemsIndexed(state.visible, key = { _, recipe -> recipe.id }) { index, recipe ->
@@ -423,3 +441,24 @@ private fun LibraryEmptyPreview() {
         )
     }
 }
+
+@Preview(name = "List — no matches", showBackground = true, heightDp = 700)
+@Composable
+private fun LibraryNoMatchesPreview() {
+    FujiTheme {
+        LibraryScreen(
+            state = LibraryUiState(
+                hasLoaded = true,
+                totalCount = 5,
+                search = "xyz",
+                visible = emptyList(),
+            ),
+            onSearchChange = {}, onSortChange = {}, onFiltersChange = {},
+            onClearSearchAndFilters = {}, onRetry = {}, onOpenRecipe = {},
+            onEditRecipe = {}, onDeleteRecipe = {}, onCreateRecipe = {},
+            onImportFromCamera = {},
+            contentPadding = PaddingValues(0.dp),
+        )
+    }
+}
+

@@ -1,16 +1,16 @@
-# Task: Global Icon Weight Configuration via Single Variable
+# Task: No Recipes Match Screen Redesign
 
 ## Goal
-Implement a single consumed Kotlin configuration variable (`FujiIconConfig.weight`) that controls the stroke weight of all icons in the app simultaneously (supporting `W300`, `W400`, `W500`), with automatic Compose state recomposition and lazy cached vector generation.
+Simplify the "No recipes match" screen to remove containered card styling and display only the "No recipes match" text with the `FilterAltOff` icon inside the Material Shape `Arch`.
 
 ## Plan Items
-- [x] 1. Write fetch & generation script for all 49 unique icons across `W300`, `W400`, `W500` weights <!-- id: 9 -->
-- [x] 2. Update `FujiIcons.kt` with `enum class IconWeight`, `object FujiIconConfig`, and dynamic weight dispatch per icon <!-- id: 10 -->
-- [x] 3. Verify compilation and test suite with `./gradlew testDebugUnitTest :app:assembleDebug` <!-- id: 11 -->
-- [x] 4. Deploy to emulator and test live weight switching <!-- id: 12 -->
+- [x] 1. Add `FilterAltOff` Material Symbols Rounded icon (`W300`, `W400`, `W500`) to `FujiIcons.kt` <!-- id: 13 -->
+- [x] 2. Update `LibraryScreen.kt` `hasNoMatches` state to use uncontained `FujiIconPanel` with `MaterialShapes.Arch` and `FujiIcons.FilterAltOff` <!-- id: 14 -->
+- [x] 3. Verify compilation and test suite with `./gradlew testDebugUnitTest :app:assembleDebug` <!-- id: 15 -->
+- [x] 4. Deploy to emulator and verify live UI with search query <!-- id: 16 -->
 
 ## Review
-- Pre-bundled weights `W300`, `W400`, and `W500` for all 49 unique icons in `FujiIcons.kt`.
-- Provided `FujiIconConfig.weight` backed by Compose `mutableStateOf` for immediate, global, zero-boilerplate runtime and compile-time control.
-- Vector builders are evaluated lazily per weight to ensure optimal memory consumption.
-- Verified build and live execution on the Android emulator.
+- Successfully simplified the "No recipes match" empty search/filter state in `LibraryScreen.kt`.
+- Removed container card background, border, extra body text, and button.
+- Positioned `FilterAltOff` inside `MaterialShapes.Arch.toShape()` directly above the centered "No recipes match" headline.
+- Verified on emulator and automated tests passed.

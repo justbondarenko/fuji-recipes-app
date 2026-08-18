@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -60,6 +61,8 @@ fun FujiIconPanel(
     body: String? = null,
     containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
     contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    shapeSize: Dp = ShapeSize,
+    iconSize: Dp = 56.dp,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
     actionIsPrimary: Boolean = true,
@@ -73,6 +76,8 @@ fun FujiIconPanel(
         body = body,
         containerColor = containerColor,
         contentColor = contentColor,
+        shapeSize = shapeSize,
+        iconSize = iconSize,
         actionLabel = actionLabel,
         onAction = onAction,
         actionIsPrimary = actionIsPrimary,
@@ -90,6 +95,8 @@ fun FujiIconPanel(
     body: String? = null,
     containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
     contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    shapeSize: Dp = ShapeSize,
+    iconSize: Dp = 56.dp,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
     /** False for a step away from the happy path — disconnecting, mainly. */
@@ -112,7 +119,7 @@ fun FujiIconPanel(
                 // Square, always. A shape stretched to a rectangle is no longer the shape M3
                 // drew — the pill was distorted when this took a DpSize.
                 modifier = Modifier
-                    .size(ShapeSize)
+                    .size(shapeSize)
                     .clip(shape)
                     .background(containerColor),
                 contentAlignment = Alignment.Center,
@@ -121,7 +128,7 @@ fun FujiIconPanel(
                     painter = icon,
                     contentDescription = null,
                     tint = contentColor,
-                    modifier = Modifier.size(56.dp),
+                    modifier = Modifier.size(iconSize),
                 )
             }
 

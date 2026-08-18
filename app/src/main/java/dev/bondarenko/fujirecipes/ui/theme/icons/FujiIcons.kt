@@ -11653,3 +11653,173 @@ public val FujiIcons.WbAuto: ImageVector
 private var _wbAutoW300: ImageVector? = null
 private var _wbAutoW400: ImageVector? = null
 private var _wbAutoW500: ImageVector? = null
+
+public val FujiIcons.FilterAltOff: ImageVector
+    get() = when (FujiIconConfig.weight) {
+        IconWeight.W300 -> _filterAltOffW300 ?: ImageVector.Builder(
+          name = "filter_alt_off",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(14.32f, 11.62f)
+            lineToRelative(-1f, -1f)
+            lineTo(16.89f, 6.08f)
+            horizontalLineTo(8.78f)
+            lineTo(7.38f, 4.68f)
+            horizontalLineTo(18.29f)
+            quadToRelative(0.45f, 0f, 0.66f, 0.4f)
+            reflectiveQuadTo(18.88f, 5.84f)
+            lineToRelative(-4.56f, 5.78f)
+            close()
+            moveTo(13.4f, 15.38f)
+            verticalLineToRelative(3.07f)
+            quadToRelative(0f, 0.36f, -0.25f, 0.61f)
+            reflectiveQuadToRelative(-0.61f, 0.25f)
+            horizontalLineTo(11.47f)
+            quadToRelative(-0.36f, 0f, -0.61f, -0.25f)
+            reflectiveQuadTo(10.6f, 18.45f)
+            verticalLineTo(12.58f)
+            lineTo(2.79f, 4.77f)
+            quadTo(2.59f, 4.57f, 2.58f, 4.28f)
+            reflectiveQuadTo(2.79f, 3.78f)
+            reflectiveQuadTo(3.29f, 3.56f)
+            reflectiveQuadToRelative(0.5f, 0.22f)
+            lineTo(20.22f, 20.2f)
+            quadToRelative(0.21f, 0.21f, 0.21f, 0.49f)
+            reflectiveQuadToRelative(-0.22f, 0.5f)
+            quadToRelative(-0.22f, 0.21f, -0.5f, 0.22f)
+            reflectiveQuadTo(19.22f, 21.2f)
+            lineTo(13.4f, 15.38f)
+            close()
+            moveTo(13.31f, 10.62f)
+            close()
+          }
+        }
+        .build().also { _filterAltOffW300 = it }
+        IconWeight.W400 -> _filterAltOffW400 ?: ImageVector.Builder(
+          name = "filter_alt_off",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(14.8f, 11.98f)
+            lineTo(13.38f, 10.55f)
+            lineTo(16.95f, 6f)
+            horizontalLineTo(8.83f)
+            lineToRelative(-2f, -2f)
+            horizontalLineTo(19f)
+            quadToRelative(0.63f, 0f, 0.9f, 0.55f)
+            reflectiveQuadTo(19.8f, 5.6f)
+            lineToRelative(-5f, 6.38f)
+            close()
+            moveTo(14f, 16.83f)
+            verticalLineTo(19f)
+            quadToRelative(0f, 0.43f, -0.29f, 0.71f)
+            reflectiveQuadTo(13f, 20f)
+            horizontalLineTo(11f)
+            quadToRelative(-0.42f, 0f, -0.71f, -0.29f)
+            quadTo(10f, 19.43f, 10f, 19f)
+            verticalLineTo(12.83f)
+            lineTo(2.1f, 4.93f)
+            quadTo(1.83f, 4.65f, 1.83f, 4.24f)
+            reflectiveQuadTo(2.1f, 3.52f)
+            quadTo(2.4f, 3.22f, 2.81f, 3.22f)
+            quadToRelative(0.41f, 0f, 0.71f, 0.3f)
+            lineTo(20.5f, 20.5f)
+            quadToRelative(0.3f, 0.3f, 0.29f, 0.7f)
+            reflectiveQuadToRelative(-0.31f, 0.7f)
+            quadToRelative(-0.3f, 0.28f, -0.7f, 0.29f)
+            reflectiveQuadTo(19.08f, 21.9f)
+            lineTo(14f, 16.83f)
+            close()
+            moveTo(13.38f, 10.55f)
+            close()
+          }
+        }
+        .build().also { _filterAltOffW400 = it }
+        IconWeight.W500 -> _filterAltOffW500 ?: ImageVector.Builder(
+          name = "filter_alt_off",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(14.99f, 12.06f)
+            lineTo(13.36f, 10.44f)
+            lineTo(16.79f, 6.07f)
+            horizontalLineTo(8.99f)
+            lineTo(6.72f, 3.8f)
+            horizontalLineTo(19f)
+            quadToRelative(0.76f, 0f, 1.09f, 0.66f)
+            reflectiveQuadTo(19.96f, 5.72f)
+            lineToRelative(-4.97f, 6.35f)
+            close()
+            moveTo(14.2f, 17.06f)
+            verticalLineTo(19f)
+            quadToRelative(0f, 0.5f, -0.35f, 0.85f)
+            reflectiveQuadTo(13f, 20.2f)
+            horizontalLineTo(11f)
+            quadToRelative(-0.5f, 0f, -0.85f, -0.35f)
+            reflectiveQuadTo(9.8f, 19f)
+            verticalLineTo(12.65f)
+            lineTo(1.87f, 4.73f)
+            quadTo(1.58f, 4.43f, 1.58f, 4f)
+            reflectiveQuadTo(1.87f, 3.26f)
+            quadTo(2.18f, 2.95f, 2.62f, 2.95f)
+            reflectiveQuadTo(3.36f, 3.26f)
+            lineToRelative(17.4f, 17.4f)
+            quadToRelative(0.31f, 0.31f, 0.3f, 0.73f)
+            reflectiveQuadToRelative(-0.32f, 0.73f)
+            quadToRelative(-0.31f, 0.29f, -0.73f, 0.3f)
+            reflectiveQuadToRelative(-0.73f, -0.3f)
+            lineTo(14.2f, 17.06f)
+            close()
+            moveTo(13.36f, 10.44f)
+            close()
+          }
+        }
+        .build().also { _filterAltOffW500 = it }
+    }
+
+private var _filterAltOffW300: ImageVector? = null
+private var _filterAltOffW400: ImageVector? = null
+private var _filterAltOffW500: ImageVector? = null
