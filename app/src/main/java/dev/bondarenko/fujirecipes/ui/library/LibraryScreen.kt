@@ -53,6 +53,7 @@ import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.core.result.LibraryError
 import dev.bondarenko.fujirecipes.data.library.LibraryFilters
+import dev.bondarenko.fujirecipes.data.library.SortDirection
 import dev.bondarenko.fujirecipes.data.library.SortId
 import dev.bondarenko.fujirecipes.camera.canWrite
 import androidx.compose.material3.MaterialShapes
@@ -74,6 +75,8 @@ fun LibraryScreen(
     state: LibraryUiState,
     onSearchChange: (String) -> Unit,
     onSortChange: (SortId) -> Unit,
+    onSortDirectionChange: (SortDirection) -> Unit = {},
+    onToggleSortDirection: () -> Unit = {},
     onFiltersChange: (LibraryFilters) -> Unit,
     onClearSearchAndFilters: () -> Unit,
     onRetry: () -> Unit,
@@ -167,6 +170,8 @@ fun LibraryScreen(
                                 state = state,
                                 onSearchChange = onSearchChange,
                                 onSortChange = onSortChange,
+                                onSortDirectionChange = onSortDirectionChange,
+                                onToggleSortDirection = onToggleSortDirection,
                                 onFiltersChange = onFiltersChange,
                                 onClearSearchAndFilters = onClearSearchAndFilters,
                             )
@@ -342,6 +347,8 @@ fun LibraryRouteContent(
         state = state,
         onSearchChange = viewModel::onSearchChange,
         onSortChange = viewModel::onSortChange,
+        onSortDirectionChange = viewModel::onSortDirectionChange,
+        onToggleSortDirection = viewModel::onToggleSortDirection,
         onFiltersChange = viewModel::onFiltersChange,
         onClearSearchAndFilters = viewModel::onClearSearchAndFilters,
         onRetry = viewModel::retry,

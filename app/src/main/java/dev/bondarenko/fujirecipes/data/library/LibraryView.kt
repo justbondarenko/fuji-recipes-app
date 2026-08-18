@@ -36,6 +36,26 @@ enum class SortId(val id: String) {
     }
 }
 
+/**
+ * Sort direction for any of the sort options.
+ */
+enum class SortDirection(val id: String) {
+    ASCENDING("asc"),
+    DESCENDING("desc");
+
+    companion object {
+        val Default = ASCENDING
+        fun fromId(id: String?): SortDirection? = entries.firstOrNull { it.id == id }
+    }
+}
+
+val SortId.defaultDirection: SortDirection
+    get() = when (this) {
+        SortId.NAME -> SortDirection.ASCENDING
+        SortId.RATING -> SortDirection.DESCENDING
+        SortId.UPDATED -> SortDirection.DESCENDING
+    }
+
 data class LibraryFilters(
     /**
      * **All** selected tags must be present. A recipe carries many tags, so requiring each
@@ -44,12 +64,14 @@ data class LibraryFilters(
     val tags: List<String> = emptyList(),
     /** `0` means any, and includes unrated recipes. */
     val minRating: Int = 0,
+    /** `5` is maximum rating. */
+    val maxRating: Int = 5,
     val simulations: List<String> = emptyList(),
 ) {
     /** How many axes are set — the number on the filter button's badge. Axes, not values. */
     val activeCount: Int
         get() = (if (tags.isNotEmpty()) 1 else 0) +
-            (if (minRating > 0) 1 else 0) +
+            (if (minRating > 0 || maxRating < 5) 1 else 0) +
             (if (simulations.isNotEmpty()) 1 else 0)
 
     val isEmpty: Boolean get() = activeCount == 0
@@ -59,6 +81,7 @@ data class LibraryFilters(
 data class StoredLibraryView(
     val filters: LibraryFilters = LibraryFilters(),
     val sort: SortId = SortId.Default,
+    val sortDirection: SortDirection = SortDirection.ASCENDING,
 ) {
     companion object {
         const val MIN_RATING = 0
@@ -71,34 +94,48 @@ data class StoredLibraryView(
          * format, a hand-edited entry, a sort since removed from the selector. Each field
          * falls back on its own, because losing a remembered sort over an unrecognised tag
          * is a worse outcome than either problem.
-         *
-         * The four rules, matching `parseStoredView` in the web client:
-         *
-         * - **Unknown film simulation → dropped.** It can never match, and offering it in
-         *   the UI would name a simulation that does not exist.
-         * - **Rating out of range → clamped**, not discarded. The intent ("only good ones")
-         *   is legible even when the number is not.
-         * - **Unknown sort → the default.** Keeping it would leave the control blank with
-         *   no way to read what the list is ordered by.
-         * - **Unrecognised tag → kept.** Deliberately the odd one out: the library has not
-         *   loaded when this runs, and a tag that is momentarily absent — mid-import on the
-         *   other client — is not a reason to silently drop a filter. It narrows to the
-         *   "no recipes match" panel, which says so and offers the way out.
          */
+        fun repair(
+            tags: Collection<String>?,
+            minRating: Int?,
+            maxRating: Int?,
+            simulations: Collection<String>?,
+            sort: String?,
+            sortDirection: String?,
+        ): StoredLibraryView {
+            val minR = (minRating ?: MIN_RATING).coerceIn(MIN_RATING, MAX_RATING)
+            val maxR = (maxRating ?: MAX_RATING).coerceIn(MIN_RATING, MAX_RATING)
+            val effectiveMin = minOf(minR, maxR)
+            val effectiveMax = maxOf(minR, maxR)
+            val parsedSort = SortId.fromId(sort) ?: SortId.Default
+            val parsedDirection = SortDirection.fromId(sortDirection) ?: parsedSort.defaultDirection
+
+            return StoredLibraryView(
+                filters = LibraryFilters(
+                    tags = tags.orEmpty().filter { it.isNotBlank() }.distinct(),
+                    minRating = effectiveMin,
+                    maxRating = effectiveMax,
+                    simulations = simulations.orEmpty()
+                        .filter { FilmSimulations.byId(it) != null }
+                        .distinct(),
+                ),
+                sort = parsedSort,
+                sortDirection = parsedDirection,
+            )
+        }
+
         fun repair(
             tags: Collection<String>?,
             minRating: Int?,
             simulations: Collection<String>?,
             sort: String?,
-        ): StoredLibraryView = StoredLibraryView(
-            filters = LibraryFilters(
-                tags = tags.orEmpty().filter { it.isNotBlank() }.distinct(),
-                minRating = (minRating ?: MIN_RATING).coerceIn(MIN_RATING, MAX_RATING),
-                simulations = simulations.orEmpty()
-                    .filter { FilmSimulations.byId(it) != null }
-                    .distinct(),
-            ),
-            sort = SortId.fromId(sort) ?: SortId.Default,
+        ): StoredLibraryView = repair(
+            tags = tags,
+            minRating = minRating,
+            maxRating = null,
+            simulations = simulations,
+            sort = sort,
+            sortDirection = null,
         )
     }
 }
@@ -123,6 +160,7 @@ data class LibraryView(
     val search: String = "",
     val filters: LibraryFilters = LibraryFilters(),
     val sort: SortId = SortId.Default,
+    val sortDirection: SortDirection = SortDirection.ASCENDING,
 )
 
 private fun fold(value: String): String = value.trim().lowercase()
@@ -151,7 +189,7 @@ fun matchesSearch(recipe: ViewableRecipe, search: String): Boolean {
 
 /** Every axis that is set must agree. */
 fun matchesFilters(recipe: ViewableRecipe, filters: LibraryFilters): Boolean {
-    if (recipe.rating < filters.minRating) return false
+    if (recipe.rating < filters.minRating || recipe.rating > filters.maxRating) return false
 
     if (filters.simulations.isNotEmpty() && recipe.filmSimulationId !in filters.simulations) {
         return false
@@ -242,18 +280,21 @@ private fun String.padTo(other: String): Int =
     if (length != other.length) length.compareTo(other.length) else compareTo(other)
 
 /**
- * The comparator for a sort, each falling back to manual order.
- *
- * `written` and `manual` are deliberately absent: the selector does not offer them, and
- * adding them here would be a divergence from the web client rather than a feature.
+ * The comparator for a sort and direction, each falling back to manual order.
  */
-fun comparatorFor(sort: SortId): Comparator<ViewableRecipe> = when (sort) {
-    SortId.NAME -> Comparator<ViewableRecipe> { a, b -> compareNamesNaturally(a.name, b.name) }
-        .then(ManualOrder)
+fun comparatorFor(sort: SortId, direction: SortDirection = SortDirection.ASCENDING): Comparator<ViewableRecipe> {
+    val primaryComparator = when (sort) {
+        SortId.NAME -> Comparator<ViewableRecipe> { a, b -> compareNamesNaturally(a.name, b.name) }
+        SortId.RATING -> compareBy<ViewableRecipe> { it.rating }
+        SortId.UPDATED -> compareBy<ViewableRecipe> { it.updatedAt }
+    }
 
-    SortId.RATING -> compareByDescending<ViewableRecipe> { it.rating }.then(ManualOrder)
+    val directedComparator = when (direction) {
+        SortDirection.ASCENDING -> primaryComparator
+        SortDirection.DESCENDING -> primaryComparator.reversed()
+    }
 
-    SortId.UPDATED -> compareByDescending<ViewableRecipe> { it.updatedAt }.then(ManualOrder)
+    return directedComparator.then(ManualOrder)
 }
 
 /**
@@ -266,4 +307,5 @@ fun comparatorFor(sort: SortId): Comparator<ViewableRecipe> = when (sort) {
 fun <T : ViewableRecipe> selectRecipes(recipes: List<T>, view: LibraryView): List<T> =
     recipes
         .filter { matchesSearch(it, view.search) && matchesFilters(it, view.filters) }
-        .sortedWith(comparatorFor(view.sort))
+        .sortedWith(comparatorFor(view.sort, view.sortDirection))
+

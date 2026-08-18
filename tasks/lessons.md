@@ -22,3 +22,14 @@ Dynamic registration (`ContextCompat.registerReceiver`) for `ACTION_USB_DEVICE_D
 1. Always declare a static `<receiver android:exported="true">` in `AndroidManifest.xml` with `<intent-filter>` for `android.hardware.usb.action.USB_DEVICE_DETACHED` (and `ATTACHED`).
 2. Verify with `adb shell dumpsys package <package_name>` that the receiver is present in the OS `Receiver Resolver Table` under `Non-Data Actions`.
 3. Filter `EXTRA_DEVICE` for the expected vendor ID (`FUJI_VENDOR_ID == 0x04cb` / `1227`) before processing.
+
+---
+
+## Manual UI Testing on Emulator
+
+### Pattern
+The user prefers to test UI interactions themselves on the emulator once the debug build is installed and launched. Running multi-step adb tap/swipe commands delays delivering the result.
+
+### Rule
+Build, install the debug APK via `installDebug`, launch `MainActivity`, and hand off immediately for the user to test.
+

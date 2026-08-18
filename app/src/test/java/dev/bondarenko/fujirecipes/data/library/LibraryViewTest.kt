@@ -87,6 +87,38 @@ class LibraryViewTest {
     }
 
     @Test
+    fun `a rating range excludes recipes outside the min and max bounds`() {
+        val recipes = listOf(
+            Fixture("Five", 5),
+            Fixture("Four", 4),
+            Fixture("Three", 3),
+            Fixture("Two", 2),
+            Fixture("Unrated", 0),
+        )
+        val view = LibraryView(filters = LibraryFilters(minRating = 2, maxRating = 4))
+        assertEquals(listOf("Four", "Three", "Two"), select(recipes, view))
+    }
+
+    @Test
+    fun `a rating range from 0 to 3 includes unrated recipes and up to 3 stars`() {
+        val recipes = listOf(
+            Fixture("Five", 5),
+            Fixture("Four", 4),
+            Fixture("Three", 3),
+            Fixture("Unrated", 0),
+        )
+        val view = LibraryView(filters = LibraryFilters(minRating = 0, maxRating = 3))
+        assertEquals(listOf("Three", "Unrated"), select(recipes, view))
+    }
+
+    @Test
+    fun `an exact rating range matches only recipes with that exact rating`() {
+        val recipes = listOf(Fixture("Five", 5), Fixture("Four", 4), Fixture("Three", 3))
+        val view = LibraryView(filters = LibraryFilters(minRating = 4, maxRating = 4))
+        assertEquals(listOf("Four"), select(recipes, view))
+    }
+
+    @Test
     fun `several tags are required together`() {
         val both = Fixture("Both", tags = listOf("street", "warm"))
         val one = Fixture("One", tags = listOf("street"))
@@ -123,10 +155,29 @@ class LibraryViewTest {
     // --- Sorting ---
 
     @Test
-    fun `the default sort is by name`() {
+    fun `the default sort is by name ascending`() {
         assertEquals(SortId.NAME, SortId.Default)
+        assertEquals(SortDirection.ASCENDING, SortDirection.Default)
         val recipes = listOf(Fixture("Zulu", sortKey = 1.0), Fixture("Alpha", sortKey = 2.0))
         assertEquals(listOf("Alpha", "Zulu"), select(recipes, LibraryView()))
+    }
+
+    @Test
+    fun `name sort ascending orders A-Z`() {
+        val recipes = listOf(Fixture("Zulu"), Fixture("Alpha"), Fixture("Bravo"))
+        assertEquals(
+            listOf("Alpha", "Bravo", "Zulu"),
+            select(recipes, LibraryView(sort = SortId.NAME, sortDirection = SortDirection.ASCENDING)),
+        )
+    }
+
+    @Test
+    fun `name sort descending orders Z-A`() {
+        val recipes = listOf(Fixture("Zulu"), Fixture("Alpha"), Fixture("Bravo"))
+        assertEquals(
+            listOf("Zulu", "Bravo", "Alpha"),
+            select(recipes, LibraryView(sort = SortId.NAME, sortDirection = SortDirection.DESCENDING)),
+        )
     }
 
     @Test
@@ -148,25 +199,49 @@ class LibraryViewTest {
     }
 
     @Test
-    fun `rating sort puts the highest first`() {
+    fun `rating sort descending puts the highest first`() {
         val recipes = listOf(Fixture("Two", 2), Fixture("Five", 5), Fixture("Three", 3))
         assertEquals(
             listOf("Five", "Three", "Two"),
-            select(recipes, LibraryView(sort = SortId.RATING)),
+            select(recipes, LibraryView(sort = SortId.RATING, sortDirection = SortDirection.DESCENDING)),
         )
     }
 
     @Test
-    fun `updated sort puts the most recent first`() {
+    fun `rating sort ascending puts the lowest first`() {
+        val recipes = listOf(Fixture("Two", 2), Fixture("Five", 5), Fixture("Three", 3))
+        assertEquals(
+            listOf("Two", "Three", "Five"),
+            select(recipes, LibraryView(sort = SortId.RATING, sortDirection = SortDirection.ASCENDING)),
+        )
+    }
+
+    @Test
+    fun `updated sort descending puts the most recent first`() {
         val recipes = listOf(
             Fixture("Old", updatedAt = "2026-01-01T00:00:00.000Z"),
             Fixture("New", updatedAt = "2026-08-01T00:00:00.000Z"),
         )
-        assertEquals(listOf("New", "Old"), select(recipes, LibraryView(sort = SortId.UPDATED)))
+        assertEquals(
+            listOf("New", "Old"),
+            select(recipes, LibraryView(sort = SortId.UPDATED, sortDirection = SortDirection.DESCENDING)),
+        )
     }
 
     @Test
-    fun `equal sort values fall back to manual order`() {
+    fun `updated sort ascending puts the oldest first`() {
+        val recipes = listOf(
+            Fixture("Old", updatedAt = "2026-01-01T00:00:00.000Z"),
+            Fixture("New", updatedAt = "2026-08-01T00:00:00.000Z"),
+        )
+        assertEquals(
+            listOf("Old", "New"),
+            select(recipes, LibraryView(sort = SortId.UPDATED, sortDirection = SortDirection.ASCENDING)),
+        )
+    }
+
+    @Test
+    fun `equal sort values fall back to manual order in both directions`() {
         // Both rated 4; the one the user placed first stays first.
         val recipes = listOf(
             Fixture("Second", 4, sortKey = 2000.0),
@@ -174,7 +249,11 @@ class LibraryViewTest {
         )
         assertEquals(
             listOf("First", "Second"),
-            select(recipes, LibraryView(sort = SortId.RATING)),
+            select(recipes, LibraryView(sort = SortId.RATING, sortDirection = SortDirection.DESCENDING)),
+        )
+        assertEquals(
+            listOf("First", "Second"),
+            select(recipes, LibraryView(sort = SortId.RATING, sortDirection = SortDirection.ASCENDING)),
         )
     }
 
@@ -186,7 +265,7 @@ class LibraryViewTest {
         )
         assertEquals(
             listOf("Earlier", "Later"),
-            select(recipes, LibraryView(sort = SortId.RATING)),
+            select(recipes, LibraryView(sort = SortId.RATING, sortDirection = SortDirection.DESCENDING)),
         )
     }
 

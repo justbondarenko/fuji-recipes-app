@@ -1,21 +1,23 @@
-# Task: Recipe Comparison Feature
+# Task: Collapsible Tag Filter, Rating Range Filter & Directional Sorting
 
 ## Goal
-Allow users to compare any given recipe with another recipe from their library side-by-side in an expressive Material 3 Modal Bottom Sheet triggered from the bottom floating toolbar.
+1. Fix bottom sheet glitching/stuck loop and lack of scrolling by adding proper vertical scrolling and making tag filtering collapsible.
+2. Upgrade rating filtering to allow selecting a range from X to Y (0/unrated to 5 stars).
+3. Enhance sorting to separate parameter selection (Name, Rating, Recently Updated) from sort direction (Ascending / Descending), allowing users to control both independently.
 
 ## Plan Items
-- [x] 1. Create vector drawable for compare action (`ic_compare.xml` with exact Material Symbols `text_compare`) and localized string resources <!-- id: 1 -->
-- [x] 2. Implement pure domain comparison logic `RecipeComparison.kt` for computing face-to-face field comparisons, group ordering, and difference detection <!-- id: 2 -->
-- [x] 3. Create `RecipeCompareViewModel.kt` to manage comparison state, explicit user target recipe selection (no auto-preselection), and differences-only filtering <!-- id: 3 -->
-- [x] 4. Build `RecipeCompareBottomSheet.kt` with equal-height Current/Target cards, Target label, quick navigation button to target recipe, center-label comparison rows, dull vs prominent difference styling, and 70%-to-full height bottom sheet behavior <!-- id: 4 -->
-- [x] 5. Integrate Compare button into `RecipeFloatingToolbar` and wire bottom sheet in `RecipeViewScreen.kt` and `LibraryScreen.kt` <!-- id: 5 -->
-- [x] 6. Write comprehensive unit tests for recipe comparison logic and ViewModel <!-- id: 6 -->
-- [x] 7. Build, install on emulator, and push updated version <!-- id: 7 -->
+- [x] 1. Update domain models (`LibraryFilters`, `SortDirection`, `LibraryView`, `StoredLibraryView`) and comparator logic for rating range and directional sorting <!-- id: 1 -->
+- [x] 2. Update `ViewPreferences` to persist and restore `max_rating` and `sort_direction` <!-- id: 2 -->
+- [x] 3. Update string resources and add vector drawables for sort direction and filter controls <!-- id: 3 -->
+- [x] 4. Fix `FiltersSheet` scrolling container bug and implement collapsible tag filter section with animated expansion <!-- id: 4 -->
+- [x] 5. Implement Rating Range selector (0★/unrated to 5★) in `FiltersSheet` <!-- id: 5 -->
+- [x] 6. Implement Sort Parameter and Direction controls in `LibraryToolbar`, `LibraryViewModel`, and `LibraryScreen` <!-- id: 6 -->
+- [x] 7. Write comprehensive unit tests for rating range matching, directional sorting, and stored view repair <!-- id: 7 -->
+- [x] 8. Verify with unit tests, build & install APK to emulator, and hand off for user testing <!-- id: 8 -->
 
 ## Review
-- **Exact Icon**: Updated `ic_compare.xml` to match the exact official Material Symbols Outlined `text_compare` (`FILL@0, wght@400, GRAD@0, opsz@24`).
-- **Initial Selection Flow**: Triggering comparison presents the candidate recipe selection list first so the user explicitly chooses what to compare with without unwanted preselection.
-- **Center-Label Table Layout**: Each comparison row displays `[ Value A (Left) ]  [ Field Name + Icon (Center) ]  [ Value B (Right) ]`.
-- **Equal-Size Header Boxes**: Current and Target header cards are matched to the exact same height using `IntrinsicSize.Max` and `fillMaxSize()`.
-- **Target Label & Quick Navigation**: Replaced "Change" with "Target", added a direct forward navigation button to jump straight into the target recipe from comparison, and added a top Recipe Name comparison row.
-- **Verification**: All 483 unit tests passing. Debug APK built and installed to emulator.
+- **Bottom Sheet Fix**: Added `Modifier.verticalScroll` and proper bottom inset padding to `FiltersSheet`, eliminating the layout measure/layout infinite oscillation loop.
+- **Collapsible Tag Filter**: Added animated expand/collapse for tags with selected count badge and compact active selection preview row when collapsed.
+- **Rating Range Filter**: Replaced single-rating choice with a smooth Material 3 `RangeSlider` spanning 0★ (Unrated) to 5★, dynamic range summaries, and reset button.
+- **Directional Sorting**: Decoupled sort parameter (Name, Rating, Recently Updated) from sort direction (`SortDirection.ASCENDING`, `SortDirection.DESCENDING`). Added quick 1-tap direction toggle in toolbar and contextual direction choices in the sort menu.
+- **Verification**: All unit tests pass; debug APK installed on emulator and `MainActivity` launched.
