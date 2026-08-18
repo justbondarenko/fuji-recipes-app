@@ -11,10 +11,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
+import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowBack
+import dev.bondarenko.fujirecipes.ui.theme.icons.Check
+import dev.bondarenko.fujirecipes.ui.theme.icons.ContentCopy
+import dev.bondarenko.fujirecipes.ui.theme.icons.Delete
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.KeyboardArrowDown
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -23,11 +25,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SplitButtonDefaults
@@ -132,7 +132,7 @@ fun RecipeEditorScreen(
                     // Back *is* cancel, and it confirms when there is work to lose.
                     IconButton(onClick = ::attemptBack) {
                         Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
+                            imageVector = FujiIcons.ArrowBack,
                             contentDescription = stringResource(R.string.action_cancel),
                         )
                     }
@@ -415,7 +415,7 @@ private fun EditorActions(
             )
         } else {
             Icon(
-                Icons.Filled.Check,
+                imageVector = FujiIcons.Check,
                 contentDescription = null,
                 modifier = Modifier.size(SplitButtonDefaults.LeadingIconSize),
             )
@@ -450,7 +450,7 @@ private fun EditorActions(
                     onCheckedChange = { menuOpen = it },
                 ) {
                     Icon(
-                        Icons.Filled.KeyboardArrowDown,
+                        imageVector = FujiIcons.KeyboardArrowDown,
                         contentDescription = stringResource(R.string.action_more),
                         modifier = Modifier.size(SplitButtonDefaults.TrailingIconSize),
                     )
@@ -465,7 +465,7 @@ private fun EditorActions(
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_duplicate)) },
                 leadingIcon = {
-                    Icon(painterResource(R.drawable.ic_content_copy), contentDescription = null)
+                    Icon(imageVector = FujiIcons.ContentCopy, contentDescription = null)
                 },
                 onClick = { menuOpen = false; onDuplicate() },
             )
@@ -473,7 +473,7 @@ private fun EditorActions(
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_delete)) },
                 leadingIcon = {
-                    Icon(Icons.Filled.Delete, contentDescription = null)
+                    Icon(imageVector = FujiIcons.Delete, contentDescription = null)
                 },
                 colors = MenuDefaults.itemColors(
                     textColor = MaterialTheme.colorScheme.error,

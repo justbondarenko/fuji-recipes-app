@@ -24,6 +24,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -47,6 +49,37 @@ private val ShapeSize = 140.dp
  * announces itself with a different glyph than the item you pressed to get there reads as a
  * different place.
  */
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun FujiIconPanel(
+    icon: ImageVector,
+    shape: Shape,
+    title: String,
+    modifier: Modifier = Modifier,
+    body: String? = null,
+    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+    actionIsPrimary: Boolean = true,
+    extra: (@Composable ColumnScope.() -> Unit)? = null,
+) {
+    FujiIconPanel(
+        icon = rememberVectorPainter(icon),
+        shape = shape,
+        title = title,
+        modifier = modifier,
+        body = body,
+        containerColor = containerColor,
+        contentColor = contentColor,
+        actionLabel = actionLabel,
+        onAction = onAction,
+        actionIsPrimary = actionIsPrimary,
+        extra = extra,
+    )
+}
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FujiIconPanel(

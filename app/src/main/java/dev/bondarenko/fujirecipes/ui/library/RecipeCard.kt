@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Star
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.StarRate
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -168,7 +168,7 @@ private fun RatingBadge(
                 ),
             )
             Icon(
-                imageVector = Icons.Filled.Star,
+                imageVector = FujiIcons.StarRate,
                 contentDescription = stringResource(R.string.rating_of_five, rating),
                 modifier = Modifier
                     .padding(start = 3.dp)

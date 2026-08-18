@@ -20,10 +20,27 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.ui.graphics.vector.ImageVector
+import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowForward
+import dev.bondarenko.fujirecipes.ui.theme.icons.CameraRoll
+import dev.bondarenko.fujirecipes.ui.theme.icons.Check
+import dev.bondarenko.fujirecipes.ui.theme.icons.Colors
+import dev.bondarenko.fujirecipes.ui.theme.icons.Contrast
+import dev.bondarenko.fujirecipes.ui.theme.icons.Deblur
+import dev.bondarenko.fujirecipes.ui.theme.icons.Details
+import dev.bondarenko.fujirecipes.ui.theme.icons.Diamond
+import dev.bondarenko.fujirecipes.ui.theme.icons.DiscoverTune
+import dev.bondarenko.fujirecipes.ui.theme.icons.Exposure
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.Grain
+import dev.bondarenko.fujirecipes.ui.theme.icons.Label
+import dev.bondarenko.fujirecipes.ui.theme.icons.Palette
+import dev.bondarenko.fujirecipes.ui.theme.icons.StarRate
+import dev.bondarenko.fujirecipes.ui.theme.icons.TextCompare
+import dev.bondarenko.fujirecipes.ui.theme.icons.Tonality
+import dev.bondarenko.fujirecipes.ui.theme.icons.Tonality2
+import dev.bondarenko.fujirecipes.ui.theme.icons.TransitionDissolve
+import dev.bondarenko.fujirecipes.ui.theme.icons.WbAuto
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -157,7 +174,7 @@ fun RecipeCompareContent(
                 contentAlignment = Alignment.Center,
             ) {
                 FujiIconPanel(
-                    icon = painterResource(R.drawable.ic_compare),
+                    icon = FujiIcons.TextCompare,
                     shape = MaterialShapes.Pill.toShape(),
                     title = stringResource(R.string.compare_title),
                     body = stringResource(R.string.compare_no_other_recipes),
@@ -272,7 +289,7 @@ fun RecipeCompareContent(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    imageVector = FujiIcons.ArrowForward,
                                     contentDescription = null,
                                     modifier = Modifier.size(14.dp),
                                 )
@@ -372,7 +389,7 @@ private fun RecipeTargetPicker(
                                         color = MaterialTheme.colorScheme.tertiary,
                                     )
                                     Icon(
-                                        imageVector = Icons.Filled.Star,
+                                        imageVector = FujiIcons.StarRate,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.tertiary,
                                         modifier = Modifier
@@ -385,7 +402,7 @@ private fun RecipeTargetPicker(
                     }
 
                     Icon(
-                        painter = painterResource(R.drawable.ic_compare),
+                        imageVector = FujiIcons.TextCompare,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp),
@@ -550,7 +567,7 @@ private fun RecipeCompareHeaderCards(
                         trailingIcon = {
                             if (isSelected) {
                                 Icon(
-                                    imageVector = Icons.Filled.Check,
+                                    imageVector = FujiIcons.Check,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(18.dp),
@@ -695,7 +712,7 @@ private fun ComparisonParameterTile(
             ) {
                 compareFieldIcon(row.fieldId)?.let { icon ->
                     Icon(
-                        painter = painterResource(icon),
+                        imageVector = icon,
                         contentDescription = null,
                         tint = if (isSame) {
                             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
@@ -741,23 +758,22 @@ private fun ComparisonParameterTile(
     }
 }
 
-@DrawableRes
-private fun compareFieldIcon(id: String): Int? = when (id) {
-    "recipeName" -> R.drawable.ic_label
-    "filmSimulation" -> R.drawable.ic_camera_roll
-    "dynamicRange", "dRangePriority" -> R.drawable.ic_contrast
-    "highlightTone" -> R.drawable.ic_tonality
-    "shadowTone" -> R.drawable.ic_tonality_2
-    "color" -> R.drawable.ic_palette
-    "sharpness" -> R.drawable.ic_details
-    "highIsoNR" -> R.drawable.ic_deblur
-    "clarity" -> R.drawable.ic_diamond
-    "grainEffect" -> R.drawable.ic_grain
-    "grainSize" -> R.drawable.ic_transition_dissolve
-    "colorChromeEffect", "colorChromeFxBlue" -> R.drawable.ic_colors
-    "whiteBalance", "colorTemperature" -> R.drawable.ic_wb_auto
-    "wbShift", "wbShiftRed", "wbShiftBlue" -> R.drawable.ic_discover_tune
-    "exposureCompensation" -> R.drawable.ic_exposure
+private fun compareFieldIcon(id: String): ImageVector? = when (id) {
+    "recipeName" -> FujiIcons.Label
+    "filmSimulation" -> FujiIcons.CameraRoll
+    "dynamicRange", "dRangePriority" -> FujiIcons.Contrast
+    "highlightTone" -> FujiIcons.Tonality
+    "shadowTone" -> FujiIcons.Tonality2
+    "color" -> FujiIcons.Palette
+    "sharpness" -> FujiIcons.Details
+    "highIsoNR" -> FujiIcons.Deblur
+    "clarity" -> FujiIcons.Diamond
+    "grainEffect" -> FujiIcons.Grain
+    "grainSize" -> FujiIcons.TransitionDissolve
+    "colorChromeEffect", "colorChromeFxBlue" -> FujiIcons.Colors
+    "whiteBalance", "colorTemperature" -> FujiIcons.WbAuto
+    "wbShift", "wbShiftRed", "wbShiftBlue" -> FujiIcons.DiscoverTune
+    "exposureCompensation" -> FujiIcons.Exposure
     else -> null
 }
 

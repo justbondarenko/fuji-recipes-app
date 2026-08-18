@@ -12,10 +12,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -23,6 +19,11 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import dev.bondarenko.fujirecipes.ui.theme.icons.BookmarkStacks
+import dev.bondarenko.fujirecipes.ui.theme.icons.Delete
+import dev.bondarenko.fujirecipes.ui.theme.icons.Edit
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.PhotoCamera
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.toShape
@@ -143,7 +144,7 @@ fun LibraryScreen(
                         // The library's own toolbar glyph: this is still the library, however
                         // empty. The shape is the down arrow the two import screens carry,
                         // because getting recipes *in* is what the page is for.
-                        icon = painterResource(R.drawable.ic_bookmark_stacks),
+                        icon = FujiIcons.BookmarkStacks,
                         shape = MaterialShapes.Pill.toShape(),
                         title = stringResource(R.string.empty_library_title),
                         body = stringResource(R.string.empty_library_body),
@@ -205,7 +206,7 @@ fun LibraryScreen(
                                     // Right to left as specified: delete is furthest from the
                                     // edge, edit nearest it.
                                     SwipeAction(
-                                        icon = rememberVectorPainter(Icons.Filled.Delete),
+                                        icon = rememberVectorPainter(FujiIcons.Delete),
                                         label = stringResource(R.string.action_delete),
                                         onClick = { recipePendingDelete = recipe },
                                         position = ButtonGroupPosition.Start,
@@ -223,7 +224,7 @@ fun LibraryScreen(
                                         state = writeTooltipState,
                                     ) {
                                         SwipeAction(
-                                            icon = painterResource(R.drawable.ic_photo_camera),
+                                            icon = rememberVectorPainter(FujiIcons.PhotoCamera),
                                             label = stringResource(R.string.action_write),
                                             onClick = {
                                                 if (canWriteToCamera) {
@@ -242,7 +243,7 @@ fun LibraryScreen(
                                         )
                                     }
                                     SwipeAction(
-                                        icon = rememberVectorPainter(Icons.Filled.Edit),
+                                        icon = rememberVectorPainter(FujiIcons.Edit),
                                         label = stringResource(R.string.action_edit),
                                         onClick = { onEditRecipe(recipe.id) },
                                         position = ButtonGroupPosition.End,

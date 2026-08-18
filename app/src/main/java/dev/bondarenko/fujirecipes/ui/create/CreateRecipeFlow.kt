@@ -8,9 +8,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Edit
+import dev.bondarenko.fujirecipes.ui.theme.icons.Add
+import dev.bondarenko.fujirecipes.ui.theme.icons.ContentPaste
+import dev.bondarenko.fujirecipes.ui.theme.icons.Edit
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -30,9 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.bondarenko.fujirecipes.R
@@ -120,7 +119,7 @@ private fun CreateRecipeDialog(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Add,
+                    imageVector = FujiIcons.Add,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.size(DialogHeroIconSize),
@@ -136,14 +135,14 @@ private fun CreateRecipeDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 CreateOption(
-                    icon = painterResource(R.drawable.ic_content_paste),
+                    icon = FujiIcons.ContentPaste,
                     title = stringResource(R.string.create_from_text),
                     body = stringResource(R.string.create_from_text_body),
                     shape = MaterialShapes.Pill.toShape(),
                     onClick = onParseTextClick,
                 )
                 CreateOption(
-                    icon = rememberVectorPainter(Icons.Filled.Edit),
+                    icon = FujiIcons.Edit,
                     title = stringResource(R.string.create_manually),
                     body = stringResource(R.string.create_manually_body),
                     shape = MaterialShapes.Square.toShape(),
@@ -167,7 +166,7 @@ private fun CreateRecipeDialog(
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun CreateOption(
-    icon: Painter,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     body: String,
     shape: Shape,
@@ -193,7 +192,7 @@ private fun CreateOption(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    painter = icon,
+                    imageVector = icon,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier.size(22.dp),

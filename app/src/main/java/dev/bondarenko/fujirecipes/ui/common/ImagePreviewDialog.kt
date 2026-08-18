@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
+import dev.bondarenko.fujirecipes.ui.theme.icons.Close
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -94,7 +94,7 @@ fun ImagePreviewDialog(
             ) {
                 IconButton(onClick = onDismiss) {
                     Icon(
-                        imageVector = Icons.Filled.Close,
+                        imageVector = FujiIcons.Close,
                         contentDescription = stringResource(R.string.close_preview),
                         tint = Color.White,
                     )

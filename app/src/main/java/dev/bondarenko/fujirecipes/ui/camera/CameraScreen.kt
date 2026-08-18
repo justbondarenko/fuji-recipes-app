@@ -17,8 +17,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.PhotoCamera
+import dev.bondarenko.fujirecipes.ui.theme.icons.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -142,7 +143,7 @@ fun CameraConnectedContent(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            painter = painterResource(R.drawable.ic_photo_camera),
+                            imageVector = FujiIcons.PhotoCamera,
                             contentDescription = null,
                             tint = greenAccent,
                             modifier = Modifier.size(26.dp),
@@ -220,7 +221,7 @@ fun CameraConnectedContent(
                             modifier = Modifier.size(36.dp),
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Refresh,
+                                imageVector = FujiIcons.Refresh,
                                 contentDescription = stringResource(R.string.write_slot_refresh),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
@@ -471,7 +472,7 @@ fun CameraStatusContent(
     val action = action(state)
 
     FujiIconPanel(
-        icon = look.icon.painter(),
+        icon = look.icon.imageVector(),
         shape = MaterialShapes.Pentagon.toShape(),
         title = title(state),
         body = body(state, isCameraAttached),
@@ -486,8 +487,8 @@ fun CameraStatusContent(
         actionIsPrimary = action?.kind != ActionKind.DISCONNECT,
         modifier = modifier,
         extra = {
-            (state as? CameraState.Error)?.ptpCode?.let { code ->
-                Note(stringResource(R.string.camera_ptp_code, responseName(code)))
+            if (state is CameraState.Error && state.ptpCode != null) {
+                Note(stringResource(R.string.camera_ptp_code, responseName(state.ptpCode)))
             }
         },
     )

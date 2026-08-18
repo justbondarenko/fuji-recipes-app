@@ -15,8 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material3.Card
@@ -27,8 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -37,6 +34,11 @@ import dev.bondarenko.fujirecipes.BuildConfig
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
+import dev.bondarenko.fujirecipes.ui.theme.icons.FileExport
+import dev.bondarenko.fujirecipes.ui.theme.icons.FileSave
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.KeyboardArrowRight
+import dev.bondarenko.fujirecipes.ui.theme.icons.LinkedCamera
 
 /**
  * Settings — FEAT-004.
@@ -73,7 +75,7 @@ fun SettingsScreen(
         SettingsCard(
             title = stringResource(R.string.settings_import_camera_title),
             subtitle = stringResource(R.string.settings_import_camera_subtitle),
-            icon = painterResource(R.drawable.ic_linked_camera),
+            icon = FujiIcons.LinkedCamera,
             onClick = onOpenImport,
             showChevron = true,
         )
@@ -81,7 +83,7 @@ fun SettingsScreen(
         SettingsCard(
             title = stringResource(R.string.file_import_title),
             subtitle = stringResource(R.string.file_import_subtitle),
-            icon = painterResource(R.drawable.ic_file_save),
+            icon = FujiIcons.FileSave,
             onClick = onOpenFileImport,
             showChevron = true,
         )
@@ -89,7 +91,7 @@ fun SettingsScreen(
         SettingsCard(
             title = stringResource(R.string.export_title),
             subtitle = stringResource(R.string.export_subtitle),
-            icon = painterResource(R.drawable.ic_file_export),
+            icon = FujiIcons.FileExport,
             onClick = onOpenExport,
             showChevron = true,
         )
@@ -121,7 +123,7 @@ fun SettingsScreen(
 private fun SettingsCard(
     title: String,
     subtitle: String,
-    icon: Painter,
+    icon: ImageVector,
     onClick: (() -> Unit)?,
     showChevron: Boolean = false,
     danger: Boolean = false,
@@ -152,8 +154,8 @@ private fun SettingsCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-        Icon(
-                painter = icon,
+            Icon(
+                imageVector = icon,
                 contentDescription = null,
                 tint = if (danger) {
                     MaterialTheme.colorScheme.error
@@ -190,7 +192,7 @@ private fun SettingsCard(
 
             if (showChevron) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    imageVector = FujiIcons.KeyboardArrowRight,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                     modifier = Modifier.size(20.dp),

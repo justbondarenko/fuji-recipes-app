@@ -26,12 +26,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
+import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowDownwardAlt
+import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowUpwardAlt
+import dev.bondarenko.fujirecipes.ui.theme.icons.Check
+import dev.bondarenko.fujirecipes.ui.theme.icons.Clear
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.KeyboardArrowDown
+import dev.bondarenko.fujirecipes.ui.theme.icons.Label
+import dev.bondarenko.fujirecipes.ui.theme.icons.PhotoCamera
+import dev.bondarenko.fujirecipes.ui.theme.icons.Schedule
+import dev.bondarenko.fujirecipes.ui.theme.icons.Search
+import dev.bondarenko.fujirecipes.ui.theme.icons.Sort
+import dev.bondarenko.fujirecipes.ui.theme.icons.SortByAlpha
+import dev.bondarenko.fujirecipes.ui.theme.icons.StarRate
+import dev.bondarenko.fujirecipes.ui.theme.icons.Tune
 import androidx.compose.material3.Badge
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -132,12 +140,12 @@ fun LibraryToolbar(
                 onExpandedChange = {},
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text(stringResource(R.string.search_placeholder)) },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                leadingIcon = { Icon(FujiIcons.Search, contentDescription = null) },
                 trailingIcon = {
                     if (state.search.isNotEmpty()) {
                         IconButton(onClick = { onSearchChange("") }) {
                             Icon(
-                                Icons.Filled.Clear,
+                                FujiIcons.Clear,
                                 contentDescription = stringResource(R.string.action_clear_search),
                             )
                         }
@@ -217,7 +225,7 @@ private fun FiltersButton(activeCount: Int, onClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Icon(
-                painter = painterResource(R.drawable.ic_tune),
+                imageVector = FujiIcons.Tune,
                 contentDescription = null,
                 modifier = Modifier.size(18.dp),
             )
@@ -256,13 +264,13 @@ private fun SortControls(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_sort),
+                    imageVector = FujiIcons.Sort,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
                 )
                 Text(stringResource(sort.labelRes()))
                 Icon(
-                    Icons.Filled.KeyboardArrowDown,
+                    imageVector = FujiIcons.KeyboardArrowDown,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
                 )
@@ -275,9 +283,7 @@ private fun SortControls(
         ) {
             val isAsc = sortDirection == SortDirection.ASCENDING
             Icon(
-                painter = painterResource(
-                    if (isAsc) R.drawable.ic_arrow_upward else R.drawable.ic_arrow_downward,
-                ),
+                imageVector = if (isAsc) FujiIcons.ArrowUpwardAlt else FujiIcons.ArrowDownwardAlt,
                 contentDescription = stringResource(R.string.sort_direction_toggle),
                 modifier = Modifier.size(18.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -301,17 +307,17 @@ private fun SortControls(
                         val iconModifier = Modifier.size(20.dp)
                         when (option) {
                             SortId.NAME -> Icon(
-                                painter = painterResource(R.drawable.ic_sort_by_alpha),
+                                imageVector = FujiIcons.SortByAlpha,
                                 contentDescription = null,
                                 modifier = iconModifier,
                             )
                             SortId.RATING -> Icon(
-                                imageVector = Icons.Filled.Star,
+                                imageVector = FujiIcons.StarRate,
                                 contentDescription = null,
                                 modifier = iconModifier,
                             )
                             SortId.UPDATED -> Icon(
-                                painter = painterResource(R.drawable.ic_schedule),
+                                imageVector = FujiIcons.Schedule,
                                 contentDescription = null,
                                 modifier = iconModifier,
                             )
@@ -321,7 +327,7 @@ private fun SortControls(
                     trailingIcon = {
                         if (option == sort) {
                             Icon(
-                                imageVector = Icons.Filled.Check,
+                                imageVector = FujiIcons.Check,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp),
                                 tint = MaterialTheme.colorScheme.primary,
@@ -348,9 +354,7 @@ private fun SortControls(
                 DropdownMenuItem(
                     leadingIcon = {
                         Icon(
-                            painter = painterResource(
-                                if (direction == SortDirection.ASCENDING) R.drawable.ic_arrow_upward else R.drawable.ic_arrow_downward,
-                            ),
+                            imageVector = if (direction == SortDirection.ASCENDING) FujiIcons.ArrowUpwardAlt else FujiIcons.ArrowDownwardAlt,
                             contentDescription = null,
                             modifier = Modifier.size(20.dp),
                         )
@@ -366,7 +370,7 @@ private fun SortControls(
                     trailingIcon = {
                         if (isSelected) {
                             Icon(
-                                imageVector = Icons.Filled.Check,
+                                imageVector = FujiIcons.Check,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp),
                                 tint = MaterialTheme.colorScheme.primary,
@@ -441,7 +445,7 @@ private fun FiltersSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_tune),
+                    imageVector = FujiIcons.Tune,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.primary,
@@ -478,7 +482,7 @@ private fun FiltersSheet(
         if (state.availableSimulations.isNotEmpty()) {
             FilterGroup(
                 label = stringResource(R.string.filter_simulation),
-                icon = painterResource(R.drawable.ic_photo_camera),
+                icon = FujiIcons.PhotoCamera,
             ) {
                 state.availableSimulations.forEach { id ->
                     FilterChip(
@@ -522,7 +526,7 @@ private fun RatingRangeFilter(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Star,
+                    imageVector = FujiIcons.StarRate,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -645,7 +649,7 @@ private fun CollapsibleTagsFilter(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_label),
+                    imageVector = FujiIcons.Label,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -679,7 +683,7 @@ private fun CollapsibleTagsFilter(
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Icon(
-                    imageVector = Icons.Filled.KeyboardArrowDown,
+                    imageVector = FujiIcons.KeyboardArrowDown,
                     contentDescription = null,
                     modifier = Modifier
                         .size(18.dp)
@@ -730,7 +734,7 @@ private fun CollapsibleTagsFilter(
 @Composable
 private fun FilterGroup(
     label: String,
-    icon: Painter? = null,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     content: @Composable () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -740,7 +744,7 @@ private fun FilterGroup(
         ) {
             if (icon != null) {
                 Icon(
-                    painter = icon,
+                    imageVector = icon,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -765,7 +769,7 @@ private fun selectedCheck(selected: Boolean): (@Composable () -> Unit)? =
     } else {
         {
             Icon(
-                Icons.Filled.Check,
+                imageVector = FujiIcons.Check,
                 contentDescription = null,
                 modifier = Modifier.size(FilterChipDefaults.IconSize),
             )

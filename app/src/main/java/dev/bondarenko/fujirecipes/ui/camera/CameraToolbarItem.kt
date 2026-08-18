@@ -2,10 +2,6 @@ package dev.bondarenko.fujirecipes.ui.camera
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -14,15 +10,19 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.camera.CameraModels
 import dev.bondarenko.fujirecipes.camera.CameraState
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
+import dev.bondarenko.fujirecipes.ui.theme.icons.Cable
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.Info
+import dev.bondarenko.fujirecipes.ui.theme.icons.PhotoCamera
+import dev.bondarenko.fujirecipes.ui.theme.icons.Refresh
+import dev.bondarenko.fujirecipes.ui.theme.icons.Warning
 
 /**
  * The camera status, as an item of the shell's navigation bar.
@@ -44,7 +44,7 @@ fun RowScope.CameraToolbarItem(
         onClick = onClick,
         icon = {
             Icon(
-                painter = look.icon.painter(),
+                imageVector = look.icon.imageVector(),
                 contentDescription = stringResource(R.string.camera_item_description, label),
             )
         },
@@ -70,13 +70,12 @@ internal fun CameraChipTone.accent(): Color {
     }
 }
 
-@Composable
-internal fun CameraChipIcon.painter(): Painter = when (this) {
-    CameraChipIcon.USB -> painterResource(R.drawable.ic_usb)
-    CameraChipIcon.INFO -> rememberVectorPainter(Icons.Filled.Info)
-    CameraChipIcon.CONNECTING -> rememberVectorPainter(Icons.Filled.Refresh)
-    CameraChipIcon.CAMERA -> painterResource(R.drawable.ic_photo_camera)
-    CameraChipIcon.WARNING -> rememberVectorPainter(Icons.Filled.Warning)
+internal fun CameraChipIcon.imageVector(): ImageVector = when (this) {
+    CameraChipIcon.USB -> FujiIcons.Cable
+    CameraChipIcon.INFO -> FujiIcons.Info
+    CameraChipIcon.CONNECTING -> FujiIcons.Refresh
+    CameraChipIcon.CAMERA -> FujiIcons.PhotoCamera
+    CameraChipIcon.WARNING -> FujiIcons.Warning
 }
 
 @Preview(name = "Camera item — light", showBackground = true)
