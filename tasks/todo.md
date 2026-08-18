@@ -1,35 +1,21 @@
-# Task: Slot Configuration View on Bento Slot Tile Tap
+# Task: Recipe Comparison Feature
 
 ## Goal
-Enable tapping on any slot in the Connected Camera Bento Grid to open its configuration details in a view matching the Recipe View (with Bento grid parameter cards, changed-only toggle, and action buttons).
+Allow users to compare any given recipe with another recipe from their library side-by-side in an expressive Material 3 Modal Bottom Sheet triggered from the bottom floating toolbar.
 
 ## Plan Items
-- [x] 1. Add `readSlotRecipe(slot)` to `SlotReader.kt` and `CameraController.kt` for reading a single slot's parameters <!-- id: 1 -->
-- [x] 2. Make `BentoGroupGrid`, `BentoParameterTile`, and `SettingsGroup` reusable across `RecipeViewScreen` and Camera UI <!-- id: 2 -->
-- [x] 3. Create `SlotDetailBottomSheet` composable displaying slot header, M3 loading indicator while reading, changed-only switch, parameter Bento grid, and Copy/Save actions <!-- id: 3 -->
-- [x] 4. Wire `BentoSlotTile` click on `CameraScreen` to open `SlotDetailBottomSheet` for the tapped slot <!-- id: 4 -->
-- [x] 5. Add unit tests for single slot recipe reading in `SlotRecipeReaderTest.kt` <!-- id: 5 -->
-- [x] 6. Add Compose previews for `SlotDetailBottomSheet` (loading, loaded with parameters, empty slot, dark theme) <!-- id: 6 -->
-- [x] 7. Run unit tests and verify build & deploy to emulator/device <!-- id: 7 -->
-- [x] 8. Document results and verification <!-- id: 8 -->
+- [x] 1. Create vector drawable for compare action (`ic_compare.xml` with exact Material Symbols `text_compare`) and localized string resources <!-- id: 1 -->
+- [x] 2. Implement pure domain comparison logic `RecipeComparison.kt` for computing face-to-face field comparisons, group ordering, and difference detection <!-- id: 2 -->
+- [x] 3. Create `RecipeCompareViewModel.kt` to manage comparison state, explicit user target recipe selection (no auto-preselection), and differences-only filtering <!-- id: 3 -->
+- [x] 4. Build `RecipeCompareBottomSheet.kt` with equal-height Current/Target cards, Target label, quick navigation button to target recipe, center-label comparison rows, dull vs prominent difference styling, and 70%-to-full height bottom sheet behavior <!-- id: 4 -->
+- [x] 5. Integrate Compare button into `RecipeFloatingToolbar` and wire bottom sheet in `RecipeViewScreen.kt` and `LibraryScreen.kt` <!-- id: 5 -->
+- [x] 6. Write comprehensive unit tests for recipe comparison logic and ViewModel <!-- id: 6 -->
+- [x] 7. Build, install on emulator, and push updated version <!-- id: 7 -->
 
-## Review & Verification
-- `SlotReader.kt` & `CameraController.kt`:
-  - Added `readSlotRecipe(session, slot)` and `CameraController.readSlotRecipe(slot)` for single-slot property register queries.
-- `RecipeViewScreen.kt`:
-  - Made `BentoGroupGrid` and `BentoParameterTile` internal composables for shared usage.
-- `SlotDetailSheet.kt`:
-  - Built `SlotDetailBottomSheet` and `SlotDetailContent` matching `RecipeViewScreen` aesthetics:
-    - **Header Block**: Slot badge (`C#`), recipe name, film simulation label, and camera generation tag.
-    - **Actions**: "Copy recipe" (formats plain text with `RecipeTextFormatter` and copies to clipboard) and "Save to library" (persists to local repository with confirmation toast).
-    - **Filter**: "Changed only" toggle switch.
-    - **Bento Grid**: 2-column Bento tiles grouped into Film simulation, Tone/Exposure, White balance, Details/Grain/Color.
-    - **Loading State**: Shape-morphing M3 `FujiLoadingIndicator` centered with reading feedback.
-- `CameraScreen.kt` & `CameraChipHost.kt`:
-  - Updated `BentoSlotTile` with click handling and ripple.
-  - Tapping opens `SlotDetailBottomSheet` for the selected slot.
-- Unit Tests:
-  - Added test cases in `SlotRecipeReaderTest.kt` for configured slot decoding and unconfigured slot handling.
-  - All 473 tests executed and passed (`./gradlew testDebugUnitTest`).
-- Build:
-  - `./gradlew assembleDebug` succeeded with no errors.
+## Review
+- **Exact Icon**: Updated `ic_compare.xml` to match the exact official Material Symbols Outlined `text_compare` (`FILL@0, wght@400, GRAD@0, opsz@24`).
+- **Initial Selection Flow**: Triggering comparison presents the candidate recipe selection list first so the user explicitly chooses what to compare with without unwanted preselection.
+- **Center-Label Table Layout**: Each comparison row displays `[ Value A (Left) ]  [ Field Name + Icon (Center) ]  [ Value B (Right) ]`.
+- **Equal-Size Header Boxes**: Current and Target header cards are matched to the exact same height using `IntrinsicSize.Max` and `fillMaxSize()`.
+- **Target Label & Quick Navigation**: Replaced "Change" with "Target", added a direct forward navigation button to jump straight into the target recipe from comparison, and added a top Recipe Name comparison row.
+- **Verification**: All 483 unit tests passing. Debug APK built and installed to emulator.

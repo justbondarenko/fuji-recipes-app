@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Material Symbols Outlined 'text_compare' (FILL@0, wght@400, GRAD@0, opsz@24).
+  https://fonts.google.com/icons?selected=Material+Symbols+Outlined:text_compare:FILL@0;wght@400;GRAD@0;opsz@24
+
+  Path is on the Material Symbols 960 grid with a -960..0 y-axis,
+  translated into Android's 0..960 viewport.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960">
+    <group android:translateY="960">
+        <path
+            android:fillColor="@android:color/white"
+            android:pathData="M400-40v-80H200q-33,0 -56.5,-23.5T120,-200v-560q0,-33 23.5,-56.5T200,-840h200v-80h80v880h-80ZM200,-200h200v-80H280v-80h120v-80H280v-80h120v-80H280v-80h120v-80H200v560Zm360,-560v-80h200q33,0 56.5,23.5T840,-760v560q0,33 -23.5,56.5T760,-120H560v-80h200v-560H560Zm0,320v-80h120v80H560Zm0,-160v-80h120v80H560ZM400,-480Z" />
+    </group>
+</vector>

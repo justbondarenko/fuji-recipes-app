@@ -69,6 +69,21 @@
     <string name="notes">Notes</string>
     <string name="action_copy_recipe">Copy recipe as text</string>
     <string name="recipe_copied">Recipe copied to clipboard</string>
+    <string name="action_compare_recipe">Compare recipe</string>
+    <string name="compare_title">Compare recipes</string>
+    <string name="compare_current">Current</string>
+    <string name="compare_target">Target</string>
+    <string name="compare_open_target">Open recipe</string>
+    <string name="compare_change_recipe">Change target</string>
+    <string name="compare_select_recipe">Select recipe to compare</string>
+    <string name="compare_differences_only">Differences only</string>
+    <string name="compare_all_match">All parameters match between these recipes.</string>
+    <string name="compare_no_other_recipes">No other recipes in your library to compare with.</string>
+    <string name="compare_field_recipe">Recipe</string>
+    <plurals name="compare_differences_count">
+        <item quantity="one">%1$d difference</item>
+        <item quantity="other">%1$d differences</item>
+    </plurals>
     <string name="recipe_not_found_title">Recipe not found</string>
     <string name="recipe_not_found_body">This recipe is no longer in your library.</string>
 
