@@ -102,7 +102,7 @@ fun AppShell(
             }
         },
         floatingActionButton = {
-            if (showChrome) {
+            if (showChrome && isLibrarySelected) {
                 ExtendedFloatingActionButton(
                     onClick = onCreateClick,
                     icon = {

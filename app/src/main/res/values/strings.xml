@@ -247,12 +247,12 @@
     <string name="action_export_recipe">Export this recipe</string>
 
     <!-- Read a recipe from a photo — FEAT-009 -->
-    <string name="nav_read">Read</string>
-    <string name="photo_title">Read a recipe from a photo</string>
-    <string name="photo_intro">Choose a JPEG from your Fujifilm camera and this reads the recipe it was shot with, then tells you whether it is one you already have. It all happens on this phone.</string>
+    <string name="nav_read">Analyze</string>
+    <string name="photo_title">Extract recipe from a photo</string>
+    <string name="photo_intro">Choose a JPEG from your Fujifilm camera and this extracts the recipe it was shot with, then tells you whether it is one you already have. It all happens on this phone.</string>
     <string name="photo_action_choose">Choose a photo</string>
-    <string name="photo_action_another">Read another photo</string>
-    <string name="photo_reading">Reading the photo…</string>
+    <string name="photo_action_another">Analyze another photo</string>
+    <string name="photo_reading">Analyzing the photo…</string>
     <string name="photo_shot_on">Shot on %1$s</string>
     <string name="photo_settings">What the photo says</string>
 
@@ -287,7 +287,7 @@
     <string name="create_intro">Two ways to start. Both open the same editor.</string>
     <string name="create_menu_close">Close the create menu</string>
     <string name="paste_title">Create from text</string>
-    <string name="paste_intro">Paste a recipe from Fuji X Weekly, a forum or your own notes. What it recognises goes into the form, and you can change anything before saving.</string>
+    <string name="paste_intro">Paste a recipe from a website, forum or your own notes. What it recognises goes into the form, and you can change anything before saving.</string>
     <string name="paste_label">Recipe text</string>
     <string name="paste_placeholder">Film Simulation: Classic Chrome\nDynamic Range: DR400\nHighlight: 0\nShadow: -0.5…</string>
     <string name="paste_sample">Insert an example</string>
