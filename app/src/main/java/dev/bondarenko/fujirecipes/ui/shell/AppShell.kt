@@ -1,5 +1,13 @@
 package dev.bondarenko.fujirecipes.ui.shell
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -102,7 +110,22 @@ fun AppShell(
             }
         },
         floatingActionButton = {
-            if (showChrome && isLibrarySelected) {
+            AnimatedVisibility(
+                visible = showChrome && isLibrarySelected,
+                enter = slideInHorizontally(
+                    initialOffsetX = { fullWidth -> fullWidth * 2 },
+                    animationSpec = spring(
+                        stiffness = Spring.StiffnessMediumLow,
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                    ),
+                ) + fadeIn(animationSpec = tween(durationMillis = 150)),
+                exit = slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> fullWidth * 2 },
+                    animationSpec = spring(
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                ) + fadeOut(animationSpec = tween(durationMillis = 150)),
+            ) {
                 ExtendedFloatingActionButton(
                     onClick = onCreateClick,
                     icon = {

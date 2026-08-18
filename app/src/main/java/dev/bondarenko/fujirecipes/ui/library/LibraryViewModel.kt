@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import dev.bondarenko.fujirecipes.core.AppContainer
 import dev.bondarenko.fujirecipes.core.result.LibraryError
+import dev.bondarenko.fujirecipes.core.settings.UiPreferences
 import dev.bondarenko.fujirecipes.core.settings.ViewPreferences
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.library.LibraryFilters
@@ -38,6 +39,10 @@ data class LibraryUiState(
     val availableTags: List<String> = emptyList(),
     /** Every simulation actually in use, so the filter never offers an empty result. */
     val availableSimulations: List<String> = emptyList(),
+    val showPhotos: Boolean = true,
+    val showTags: Boolean = true,
+    val showFilmSimulation: Boolean = true,
+    val showRating: Boolean = true,
 ) {
     /** Narrowed by search or filters — the difference between "n of m" and "n". */
     val isNarrowed: Boolean get() = search.isNotBlank() || !filters.isEmpty
@@ -58,6 +63,7 @@ data class LibraryUiState(
 class LibraryViewModel(
     private val repository: RecipeRepository,
     private val preferences: ViewPreferences,
+    private val uiPreferences: UiPreferences,
 ) : ViewModel() {
 
     /**
@@ -70,7 +76,7 @@ class LibraryViewModel(
     private val search = MutableStateFlow("")
 
     val state: StateFlow<LibraryUiState> =
-        combine(repository.library, preferences.view, search) { library, stored, query ->
+        combine(repository.library, preferences.view, uiPreferences.preferences, search) { library, stored, uiPrefs, query ->
             val view = LibraryView(query, stored.filters, stored.sort, stored.sortDirection)
             val visible = selectRecipes(library.recipes, view)
 
@@ -100,6 +106,10 @@ class LibraryViewModel(
                     // In the canonical order of the field definitions, not alphabetical:
                     // the picker should read like the camera's own menu.
                     .sortedBy { id -> FilmSimulations.all.indexOfFirst { it.id == id } },
+                showPhotos = uiPrefs.showPhotos,
+                showTags = uiPrefs.showTags,
+                showFilmSimulation = uiPrefs.showFilmSimulation,
+                showRating = uiPrefs.showRating,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -176,6 +186,7 @@ class LibraryViewModel(
                     LibraryViewModel(
                         repository = container.recipeRepository,
                         preferences = container.viewPreferences,
+                        uiPreferences = container.uiPreferences,
                     ) as T
             }
     }

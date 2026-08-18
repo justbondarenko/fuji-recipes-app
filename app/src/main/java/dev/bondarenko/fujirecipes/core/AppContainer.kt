@@ -2,6 +2,7 @@ package dev.bondarenko.fujirecipes.core
 
 import android.content.Context
 import dev.bondarenko.fujirecipes.camera.CameraController
+import dev.bondarenko.fujirecipes.core.settings.UiPreferences
 import dev.bondarenko.fujirecipes.core.settings.ViewPreferences
 import dev.bondarenko.fujirecipes.core.store.ImageStore
 import dev.bondarenko.fujirecipes.core.store.LibraryStore
@@ -28,6 +29,7 @@ class AppContainer(context: Context) {
     val applicationContext: Context = context.applicationContext
 
     val viewPreferences: ViewPreferences by lazy { ViewPreferences(applicationContext) }
+    val uiPreferences: UiPreferences by lazy { UiPreferences(applicationContext) }
 
     /**
      * The library file, in app-private storage.

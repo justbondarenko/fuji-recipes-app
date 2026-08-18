@@ -1,4 +1,5 @@
 package dev.bondarenko.fujirecipes
+
 import android.content.Intent
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
@@ -16,11 +17,13 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import dev.bondarenko.fujirecipes.ui.camera.CameraToolbarItemHost
 import dev.bondarenko.fujirecipes.ui.create.CreateRecipeFlow
+import dev.bondarenko.fujirecipes.ui.nav.AboutRoute
+import dev.bondarenko.fujirecipes.ui.nav.CameraRoute
+import dev.bondarenko.fujirecipes.ui.nav.DisclaimerRoute
 import dev.bondarenko.fujirecipes.ui.nav.ExportRoute
 import dev.bondarenko.fujirecipes.ui.nav.FileImportRoute
-import dev.bondarenko.fujirecipes.ui.camera.CameraToolbarItemHost
-import dev.bondarenko.fujirecipes.ui.nav.CameraRoute
 import dev.bondarenko.fujirecipes.ui.nav.FujiNavHost
 import dev.bondarenko.fujirecipes.ui.nav.ImportRoute
 import dev.bondarenko.fujirecipes.ui.nav.LibraryRoute
@@ -30,6 +33,7 @@ import dev.bondarenko.fujirecipes.ui.nav.RecipeEditorRoute
 import dev.bondarenko.fujirecipes.ui.nav.RecipeViewRoute
 import dev.bondarenko.fujirecipes.ui.shell.AppShell
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -44,11 +48,13 @@ class MainActivity : ComponentActivity() {
         // draws its own loading and error states while the store is read.
         setContent { FujiApp() }
     }
+
     /** A camera plugged in while the app was already running comes through here. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         connectIfLaunchedByCamera(intent)
     }
+
     /**
      * The attach-intent path (`PRD.md` §8.2).
      *
@@ -66,6 +72,7 @@ class MainActivity : ComponentActivity() {
         (application as FujiRecipesApp).container.cameraController.onDeviceAttached(device)
     }
 }
+
 @Composable
 private fun FujiApp() {
     FujiTheme {
@@ -101,11 +108,16 @@ private fun FujiApp() {
                 )
             },
         )
+
+        val isMoreSelected = destination?.hasRoute<MoreRoute>() == true ||
+            destination?.hasRoute<AboutRoute>() == true ||
+            destination?.hasRoute<DisclaimerRoute>() == true
+
         AppShell(
             showChrome = showChrome,
             isLibrarySelected = destination?.hasRoute<LibraryRoute>() == true,
             isReadSelected = destination?.hasRoute<PhotoRoute>() == true,
-            isMoreSelected = destination?.hasRoute<MoreRoute>() == true,
+            isMoreSelected = isMoreSelected,
             onLibraryClick = {
                 navController.navigate(LibraryRoute) {
                     popUpTo(LibraryRoute) { inclusive = true }
@@ -113,7 +125,12 @@ private fun FujiApp() {
                 }
             },
             onReadClick = { navController.navigate(PhotoRoute) { launchSingleTop = true } },
-            onMoreClick = { navController.navigate(MoreRoute) { launchSingleTop = true } },
+            onMoreClick = {
+                navController.navigate(MoreRoute) {
+                    popUpTo(MoreRoute) { inclusive = true }
+                    launchSingleTop = true
+                }
+            },
             onCreateClick = { creating = true },
             cameraItem = {
                 CameraToolbarItemHost(

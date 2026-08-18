@@ -274,6 +274,10 @@ fun LibraryScreen(
                                         index = index,
                                         count = state.visible.size,
                                     ),
+                                    showPhoto = state.showPhotos,
+                                    showTags = state.showTags,
+                                    showFilmSimulation = state.showFilmSimulation,
+                                    showRating = state.showRating,
                                     onClick = {
                                         activeRecipeId = recipe.id
                                         onOpenRecipe(recipe.id)

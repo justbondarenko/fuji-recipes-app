@@ -68,6 +68,10 @@ fun RecipeCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     shapes: ListItemShapes? = null,
+    showPhoto: Boolean = true,
+    showTags: Boolean = true,
+    showFilmSimulation: Boolean = true,
+    showRating: Boolean = true,
 ) {
     ListItem(
         onClick = onClick,
@@ -80,7 +84,7 @@ fun RecipeCard(
             vertical = RowVerticalPadding,
         ),
         modifier = modifier.fillMaxWidth(),
-        leadingContent = if (recipe.firstImage != null) {
+        leadingContent = if (showPhoto && recipe.firstImage != null) {
             {
                 val context = LocalContext.current
                 val imageStore = remember(context) { (context.applicationContext as FujiRecipesApp).container.imageStore }
@@ -100,19 +104,26 @@ fun RecipeCard(
                 }
             }
         } else null,
-        supportingContent = if (recipe.tags.isEmpty()) {
-            null
-        } else {
+        overlineContent = if (showFilmSimulation && !recipe.filmSimulationId.isNullOrBlank()) {
+            {
+                Text(
+                    text = FilmSimulations.labelFor(recipe.filmSimulationId),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        } else null,
+        supportingContent = if (showTags && recipe.tags.isNotEmpty()) {
             {
                 // 💡 GAP BETWEEN TITLE AND TAGS — `TitleToTagsGap` below.
                 TagRow(recipe.tags, modifier = Modifier.padding(top = TitleToTagsGap))
             }
-        },
-        trailingContent = if (recipe.rating == 0) {
-            null
-        } else {
+        } else null,
+        trailingContent = if (showRating && recipe.rating > 0) {
             { RatingBadge(recipe.rating) }
-        },
+        } else null,
     ) {
         // 💡 RECIPE NAME (the list row title):
         //    - Size: change `titleLarge` to `titleMedium` (smaller) or `headlineSmall` (bigger)

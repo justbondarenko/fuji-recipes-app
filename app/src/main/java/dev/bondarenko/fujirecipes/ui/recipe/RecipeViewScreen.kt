@@ -92,6 +92,7 @@ import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -103,6 +104,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.camera.canWrite
+import dev.bondarenko.fujirecipes.core.settings.RecipeViewMode
 import dev.bondarenko.fujirecipes.core.share.ShareFile
 import dev.bondarenko.fujirecipes.ui.camera.WriteSheetHost
 import dev.bondarenko.fujirecipes.data.fields.FieldFormatting
@@ -509,12 +511,16 @@ private fun RecipeBentoBody(
             }
         }
 
-        // Bento Grid Sections
+        // Parameter Sections (Bento Grid or Simple List)
         state.groups.forEach { group ->
             item(key = group.group.id) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     SectionHeader(group.group.label)
-                    BentoGroupGrid(group)
+                    if (state.viewMode == RecipeViewMode.LIST) {
+                        ParameterListGroup(group)
+                    } else {
+                        BentoGroupGrid(group)
+                    }
                 }
             }
         }
@@ -733,6 +739,87 @@ internal fun BentoParameterTile(
                 // Not bold: at this size the weight was shouting, and the label above it is
                 // already the quieter of the two.
                 style = MaterialTheme.typography.titleLarge.copy(
+                    fontFeatureSettings = TabularFigures,
+                ),
+                color = if (row.isDefault) {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/**
+ * Single-column List for section parameters.
+ */
+@Composable
+internal fun ParameterListGroup(group: SettingsGroup) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        group.rows.forEach { row ->
+            ParameterListRow(row = row)
+        }
+    }
+}
+
+/**
+ * Individual full-width parameter row in List view mode.
+ */
+@Composable
+internal fun ParameterListRow(
+    row: FieldFormatting.Row,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (row.isDefault) {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            },
+        ),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                fieldIcon(row.fieldId)?.let { icon ->
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+                Text(
+                    text = row.label,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            Text(
+                text = row.value,
+                style = MaterialTheme.typography.titleMedium.copy(
                     fontFeatureSettings = TabularFigures,
                 ),
                 color = if (row.isDefault) {
