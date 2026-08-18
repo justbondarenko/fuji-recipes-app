@@ -288,7 +288,7 @@ private fun PickerStage(
     slots: List<SlotState>,
     slotsError: String?,
     recipeName: String,
-    selectedSlot: Int,
+    selectedSlot: Int?,
     onSelectSlot: (Int) -> Unit,
     onConfirm: (Int) -> Unit,
     onRefresh: () -> Unit,
@@ -347,7 +347,7 @@ private fun PickerStage(
     val selectedSlotState = slots.firstOrNull { it.slot == selectedSlot }
     val caution = selectedSlotState?.let { slotCaution(it) }
 
-    if (caution != null) {
+    if (caution != null && selectedSlot != null) {
         Panel(
             text = when (caution) {
                 is SlotCaution.Named -> stringResource(
@@ -363,11 +363,17 @@ private fun PickerStage(
     }
 
     Button(
-        onClick = { onConfirm(selectedSlot) },
-        enabled = selectedSlotState != null && selectedSlotState.status != SlotStatus.READING,
+        onClick = { selectedSlot?.let { onConfirm(it) } },
+        enabled = selectedSlot != null && selectedSlotState != null && selectedSlotState.status != SlotStatus.READING,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Text(stringResource(R.string.write_confirm_action, selectedSlot))
+        Text(
+            if (selectedSlot != null) {
+                stringResource(R.string.write_confirm_action, selectedSlot)
+            } else {
+                stringResource(R.string.write_action_select_slot)
+            },
+        )
     }
 }
 
@@ -630,6 +636,7 @@ private fun previewState(stage: WriteStage, writing: Boolean = false) = WriteUiS
     recipeName = "Kodachrome 64",
     isWriting = writing,
     slots = previewSlots,
+    selectedSlot = 2,
 )
 
 @Composable
@@ -693,6 +700,17 @@ private fun WriteDroppedPreview() = PreviewSheet(
 @Preview(name = "Write — slot picker", showBackground = true)
 @Composable
 private fun WritePickerPreview() = PreviewSheet(previewState(WriteStage.Picker))
+
+@Preview(name = "Write — slot picker, all occupied", showBackground = true)
+@Composable
+private fun WritePickerAllOccupiedPreview() = PreviewSheet(
+    previewState(WriteStage.Picker).copy(
+        slots = slotStates(
+            (1..7).map { SlotNameReading(it, "Recipe $it", read = true) },
+        ),
+        selectedSlot = null,
+    ),
+)
 
 @Preview(name = "Write — confirm", showBackground = true)
 @Composable

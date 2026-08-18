@@ -1,28 +1,36 @@
-# Task: Reference Photos Enhancements
+# Task: Write to Camera Slot Pre-selection & Empty Slot Labeling
 
 ## Goal
-1. Tap on photo in Recipe View & Recipe Edit expands full-screen preview lightbox.
-2. During photo processing, show animation and text "Processing image(s)...".
-3. Disable Save button while images are processing.
-4. If edit is canceled, cancel processing job and clean up any newly staged orphan images.
-5. Relocate carousel to be right after title in both Recipe View and Recipe Edit.
+Improve the "Write to camera" UI:
+1. Automatically pre-select the first empty slot when slot reading finishes (without triggering write).
+2. Do not pre-select any slot if all slots are occupied to avoid accidental overwrites.
+3. Mark empty slots prominently as `< EMPTY SLOT >` instead of "No name set".
 
 ## Plan Items
-
-- [x] 1. Add strings (`processing_images`, `close_preview`) to `strings.xml` <!-- id: 1 -->
-- [x] 2. Create `ImagePreviewDialog.kt` supporting full-screen swipeable preview with close button <!-- id: 2 -->
-- [x] 3. Update `RecipeEditorViewModel.kt` to manage processing job, track staged images, block save during processing, and clean up staged orphans on cancel/dismiss <!-- id: 3 -->
-- [x] 4. Update `EditorControls.kt` & `RecipeEditorScreen.kt` for processing copy/animation, save blocking, photo tap preview, and reordered layout (Title -> Photos -> Tags) <!-- id: 4 -->
-- [x] 5. Update `RecipeViewScreen.kt` to place carousel right after title/header and enable tap to expand preview <!-- id: 5 -->
-- [x] 6. Run `./gradlew testDebugUnitTest` <!-- id: 6 -->
-- [x] 7. Deploy to emulator (`installDebug`) and verify interactions <!-- id: 7 -->
+- [x] 1. Update string resource `write_slot_unnamed` to `< EMPTY SLOT >` and add fallback button label `write_action_select_slot` <!-- id: 1 -->
+- [x] 2. Update `WriteUiState` so `selectedSlot` is nullable (`Int? = null`) <!-- id: 2 -->
+- [x] 3. Update `WriteViewModel` slot reading completion logic to pre-select the first empty slot (`SlotStatus.UNNAMED`), or `null` if all occupied <!-- id: 3 -->
+- [x] 4. Update `WriteSheet.kt` (`PickerStage`) to handle nullable `selectedSlot` (render selection, caution banner, disabled button when none selected) <!-- id: 4 -->
+- [x] 5. Update unit tests in `WriteSheetStateTest.kt` and add unit tests for pre-selection and `< EMPTY SLOT >` label mapping <!-- id: 5 -->
+- [x] 6. Run all unit tests and verify build <!-- id: 6 -->
+- [x] 7. Document results and verification in `tasks/todo.md` and walkthrough <!-- id: 7 -->
 
 ## Review & Verification
-- Unit Tests: All 468 tests passed via `./gradlew testDebugUnitTest`.
-- Emulator UI Verification:
-  - Validated full-screen `ImagePreviewDialog` lightbox with horizontal paging, page indicator, and close button on photo tap in both Recipe View and Recipe Editor.
-  - Validated processing indicator with "Processing image(s)…" during background image compression/saving.
-  - Verified Save button is disabled and guarded while image processing is active.
-  - Verified cancellation stops processing job and removes newly staged image files from disk.
-  - Verified layout reordering: Carousel directly below Recipe Title in both View and Edit screens.
-  - Verified Recipe Card thumbnail displays 1st photo on the left.
+- Updated `strings.xml`:
+  - `write_slot_unnamed` changed from `"No name set"` to `"&lt; EMPTY SLOT &gt;"`.
+  - `write_action_select_slot` added (`"Choose a slot"`) for the disabled write button state when `selectedSlot == null`.
+- Updated `WriteSheetState.kt`:
+  - `WriteUiState.selectedSlot` changed to `Int? = null`.
+  - `enteringPicker()` resets `selectedSlot = null`.
+- Updated `WriteViewModel.kt`:
+  - `refreshSlots()` resets `selectedSlot = null` while reading is in progress.
+  - Upon successful reading from the camera, automatically pre-selects the first empty slot (`SlotStatus.UNNAMED`), or `null` if all slots are occupied.
+- Updated `WriteSheet.kt`:
+  - `PickerStage` receives `selectedSlot: Int?`.
+  - When `selectedSlot == null`, button is disabled with label `"Choose a slot"` and no caution warning is displayed.
+  - When `selectedSlot != null`, button is enabled with label `"Write to C%d"`, caution warning is displayed if applicable, and tapping initiates the write confirmation.
+  - Added preview `WritePickerAllOccupiedPreview` for all-occupied slot state alongside preselected empty slot state.
+- Automated Verification:
+  - All 471 unit tests passed via `./gradlew testDebugUnitTest`.
+  - Successfully built debug APK (`./gradlew assembleDebug`).
+  - Deployed debug build to connected device (`Pixel 10 Pro XL - 17`) via `installDebug` and launched `MainActivity`.

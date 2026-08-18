@@ -3,12 +3,15 @@ package dev.bondarenko.fujirecipes.ui.camera
 import dev.bondarenko.fujirecipes.camera.CameraModels
 import dev.bondarenko.fujirecipes.camera.CameraState
 import dev.bondarenko.fujirecipes.camera.plan.DroppedField
-import dev.bondarenko.fujirecipes.camera.plan.FIRST_SLOT
+import dev.bondarenko.fujirecipes.camera.plan.SlotNameReading
+import dev.bondarenko.fujirecipes.camera.plan.SlotStatus
 import dev.bondarenko.fujirecipes.camera.plan.WritePlan
+import dev.bondarenko.fujirecipes.camera.plan.slotStates
 import dev.bondarenko.fujirecipes.camera.usb.WriteOutcome
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 /**
  * FEAT-006 T-09.
@@ -81,13 +84,13 @@ class WriteSheetStateTest {
         val picker = afterAWrite.enteringPicker()
 
         assertEquals(WriteStage.Picker, picker.stage)
-        assertEquals(FIRST_SLOT, picker.selectedSlot)
+        assertEquals(null, picker.selectedSlot)
     }
 
-    /** Nothing is chosen for the user before they have chosen it. */
+    /** Nothing is chosen for the user before slots are read from the camera. */
     @Test
-    fun `a fresh write attempt points at the first slot`() {
-        assertEquals(FIRST_SLOT, WriteUiState(stage = WriteStage.Picker).selectedSlot)
+    fun `a fresh write attempt has no preselected slot before slots are read`() {
+        assertEquals(null, WriteUiState(stage = WriteStage.Picker).selectedSlot)
     }
 
     @Test
@@ -96,4 +99,39 @@ class WriteSheetStateTest {
 
         assertEquals(WriteStage.Connect, openingStage(error, clean))
     }
+
+    @Test
+    fun `when slots are read, the first empty slot is pre-selected`() {
+        val readings = listOf(
+            SlotNameReading(1, "Kodachrome 64", read = true),
+            SlotNameReading(2, null, read = true),
+            SlotNameReading(3, "Acros Night", read = true),
+        )
+        val slots = slotStates(readings)
+        val firstEmptySlot = slots.firstOrNull { it.status == SlotStatus.UNNAMED }?.slot
+
+        assertEquals(2, firstEmptySlot)
+    }
+
+    @Test
+    fun `when all slots are occupied, no slot is pre-selected`() {
+        val readings = (1..7).map { SlotNameReading(it, "Recipe $it", read = true) }
+        val slots = slotStates(readings)
+        val firstEmptySlot = slots.firstOrNull { it.status == SlotStatus.UNNAMED }?.slot
+
+        assertNull(firstEmptySlot)
+    }
+
+    @Test
+    fun `when the first slot is empty, C1 is pre-selected`() {
+        val readings = listOf(
+            SlotNameReading(1, null, read = true),
+            SlotNameReading(2, "Portra 400", read = true),
+        )
+        val slots = slotStates(readings)
+        val firstEmptySlot = slots.firstOrNull { it.status == SlotStatus.UNNAMED }?.slot
+
+        assertEquals(1, firstEmptySlot)
+    }
 }
+
