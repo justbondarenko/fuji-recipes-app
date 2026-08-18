@@ -9,6 +9,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -211,5 +212,27 @@ class SlotRecipeReaderTest {
             .single()
 
         assertFalse(recipe.settings.containsKey("id"))
+    }
+
+    @Test
+    fun `readSlotRecipe decodes a single requested slot`() {
+        val camera = cameraHolding(3 to summer70s)
+        camera.slotNames[3] = "Kodachrome"
+
+        val recipe = readSlotRecipe(connected(camera), slot = 3, sleep = noSleep)
+
+        assertNotNull(recipe)
+        assertEquals(3, recipe.slot)
+        assertEquals("Kodachrome", recipe.name)
+        assertEquals("nostalgic-negative", recipe.settings["filmSimulation"])
+    }
+
+    @Test
+    fun `readSlotRecipe returns null for unconfigured slot`() {
+        val camera = cameraHolding()
+
+        val recipe = readSlotRecipe(connected(camera), slot = 4, sleep = noSleep)
+
+        assertNull(recipe)
     }
 }

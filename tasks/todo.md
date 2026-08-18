@@ -1,36 +1,35 @@
-# Task: Write to Camera Slot Pre-selection & Empty Slot Labeling
+# Task: Slot Configuration View on Bento Slot Tile Tap
 
 ## Goal
-Improve the "Write to camera" UI:
-1. Automatically pre-select the first empty slot when slot reading finishes (without triggering write).
-2. Do not pre-select any slot if all slots are occupied to avoid accidental overwrites.
-3. Mark empty slots prominently as `< EMPTY SLOT >` instead of "No name set".
+Enable tapping on any slot in the Connected Camera Bento Grid to open its configuration details in a view matching the Recipe View (with Bento grid parameter cards, changed-only toggle, and action buttons).
 
 ## Plan Items
-- [x] 1. Update string resource `write_slot_unnamed` to `< EMPTY SLOT >` and add fallback button label `write_action_select_slot` <!-- id: 1 -->
-- [x] 2. Update `WriteUiState` so `selectedSlot` is nullable (`Int? = null`) <!-- id: 2 -->
-- [x] 3. Update `WriteViewModel` slot reading completion logic to pre-select the first empty slot (`SlotStatus.UNNAMED`), or `null` if all occupied <!-- id: 3 -->
-- [x] 4. Update `WriteSheet.kt` (`PickerStage`) to handle nullable `selectedSlot` (render selection, caution banner, disabled button when none selected) <!-- id: 4 -->
-- [x] 5. Update unit tests in `WriteSheetStateTest.kt` and add unit tests for pre-selection and `< EMPTY SLOT >` label mapping <!-- id: 5 -->
-- [x] 6. Run all unit tests and verify build <!-- id: 6 -->
-- [x] 7. Document results and verification in `tasks/todo.md` and walkthrough <!-- id: 7 -->
+- [x] 1. Add `readSlotRecipe(slot)` to `SlotReader.kt` and `CameraController.kt` for reading a single slot's parameters <!-- id: 1 -->
+- [x] 2. Make `BentoGroupGrid`, `BentoParameterTile`, and `SettingsGroup` reusable across `RecipeViewScreen` and Camera UI <!-- id: 2 -->
+- [x] 3. Create `SlotDetailBottomSheet` composable displaying slot header, M3 loading indicator while reading, changed-only switch, parameter Bento grid, and Copy/Save actions <!-- id: 3 -->
+- [x] 4. Wire `BentoSlotTile` click on `CameraScreen` to open `SlotDetailBottomSheet` for the tapped slot <!-- id: 4 -->
+- [x] 5. Add unit tests for single slot recipe reading in `SlotRecipeReaderTest.kt` <!-- id: 5 -->
+- [x] 6. Add Compose previews for `SlotDetailBottomSheet` (loading, loaded with parameters, empty slot, dark theme) <!-- id: 6 -->
+- [x] 7. Run unit tests and verify build & deploy to emulator/device <!-- id: 7 -->
+- [x] 8. Document results and verification <!-- id: 8 -->
 
 ## Review & Verification
-- Updated `strings.xml`:
-  - `write_slot_unnamed` changed from `"No name set"` to `"&lt; EMPTY SLOT &gt;"`.
-  - `write_action_select_slot` added (`"Choose a slot"`) for the disabled write button state when `selectedSlot == null`.
-- Updated `WriteSheetState.kt`:
-  - `WriteUiState.selectedSlot` changed to `Int? = null`.
-  - `enteringPicker()` resets `selectedSlot = null`.
-- Updated `WriteViewModel.kt`:
-  - `refreshSlots()` resets `selectedSlot = null` while reading is in progress.
-  - Upon successful reading from the camera, automatically pre-selects the first empty slot (`SlotStatus.UNNAMED`), or `null` if all slots are occupied.
-- Updated `WriteSheet.kt`:
-  - `PickerStage` receives `selectedSlot: Int?`.
-  - When `selectedSlot == null`, button is disabled with label `"Choose a slot"` and no caution warning is displayed.
-  - When `selectedSlot != null`, button is enabled with label `"Write to C%d"`, caution warning is displayed if applicable, and tapping initiates the write confirmation.
-  - Added preview `WritePickerAllOccupiedPreview` for all-occupied slot state alongside preselected empty slot state.
-- Automated Verification:
-  - All 471 unit tests passed via `./gradlew testDebugUnitTest`.
-  - Successfully built debug APK (`./gradlew assembleDebug`).
-  - Deployed debug build to connected device (`Pixel 10 Pro XL - 17`) via `installDebug` and launched `MainActivity`.
+- `SlotReader.kt` & `CameraController.kt`:
+  - Added `readSlotRecipe(session, slot)` and `CameraController.readSlotRecipe(slot)` for single-slot property register queries.
+- `RecipeViewScreen.kt`:
+  - Made `BentoGroupGrid` and `BentoParameterTile` internal composables for shared usage.
+- `SlotDetailSheet.kt`:
+  - Built `SlotDetailBottomSheet` and `SlotDetailContent` matching `RecipeViewScreen` aesthetics:
+    - **Header Block**: Slot badge (`C#`), recipe name, film simulation label, and camera generation tag.
+    - **Actions**: "Copy recipe" (formats plain text with `RecipeTextFormatter` and copies to clipboard) and "Save to library" (persists to local repository with confirmation toast).
+    - **Filter**: "Changed only" toggle switch.
+    - **Bento Grid**: 2-column Bento tiles grouped into Film simulation, Tone/Exposure, White balance, Details/Grain/Color.
+    - **Loading State**: Shape-morphing M3 `FujiLoadingIndicator` centered with reading feedback.
+- `CameraScreen.kt` & `CameraChipHost.kt`:
+  - Updated `BentoSlotTile` with click handling and ripple.
+  - Tapping opens `SlotDetailBottomSheet` for the selected slot.
+- Unit Tests:
+  - Added test cases in `SlotRecipeReaderTest.kt` for configured slot decoding and unconfigured slot handling.
+  - All 473 tests executed and passed (`./gradlew testDebugUnitTest`).
+- Build:
+  - `./gradlew assembleDebug` succeeded with no errors.

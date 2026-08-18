@@ -130,6 +130,9 @@
     <string name="camera_action_retry">Try again</string>
     <string name="camera_action_disconnect">Disconnect</string>
     <string name="camera_slot_note">Writing to a slot leaves its image size, quality, smooth skin, long-exposure NR and colour space as they were — a slot is not reset before it is written.</string>
+    <string name="camera_slots_title">Custom slots</string>
+    <string name="camera_slots_reading">Reading slots from camera…</string>
+    <string name="camera_slots_count">%1$d of %2$d configured</string>
 
     <!-- Write to camera — FEAT-006. The stages are PRD §7.4's. -->
     <string name="write_title">Write to camera</string>
