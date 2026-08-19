@@ -18,6 +18,7 @@
 
 ## 📑 Table of Contents
 
+- [📱 Screenshots](#-screenshots)
 - [🌟 Highlights](#-highlights)
 - [📸 Camera Compatibility & Testing](#-camera-compatibility--testing)
 - [🔌 Connecting Your Camera (How to Use)](#-connecting-your-camera-how-to-use)
@@ -31,6 +32,22 @@
   - [Sideload to Device](#sideload-to-device)
 - [☕ Open Source Acknowledgements](#-open-source-acknowledgements)
 - [📜 Legal Disclaimer & Trademarks](#-legal-disclaimer--trademarks)
+
+---
+
+## 📱 Screenshots
+
+| Recipe Library | Recipe View (Grid) | Recipe View (List) |
+| :---: | :---: | :---: |
+| <img src="screenshots/RECIPES_LIST.JPEG" width="260" alt="Recipe Library" /> | <img src="screenshots/RECIPE_VIEW_GRID.JPEG" width="260" alt="Recipe Details in Grid View" /> | <img src="screenshots/RECIPE_VIEW_LIST.JPEG" width="260" alt="Recipe Details in List View" /> |
+
+| USB-C Camera Sync | Custom Slots (C1–C7) | Settings & View Modes |
+| :---: | :---: | :---: |
+| <img src="screenshots/CAMERA_CONNECTION.JPEG" width="260" alt="USB-C Camera Sync" /> | <img src="screenshots/CAMERA_CONNECION_SLOT_DATA.JPEG" width="260" alt="Camera Custom Slots C1 to C7" /> | <img src="screenshots/SETTINGS.JPEG" width="260" alt="Settings Screen" /> |
+
+| Photo EXIF Extractor | Recipe Matching & Diff | Duplicate & Conflict Resolution |
+| :---: | :---: | :---: |
+| <img src="screenshots/READ_RECIPE_SCREEN.JPEG" width="260" alt="Extract Recipe from Photo" /> | <img src="screenshots/READ_RECIPE_RESUKT.JPEG" width="260" alt="Recipe Matching and Percentage Diff" /> | <img src="screenshots/CLEANUP_DUPLICATES.JPEG" width="260" alt="Duplicate Resolution and Import Review" /> |
 
 ---
 
