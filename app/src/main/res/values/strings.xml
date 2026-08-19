@@ -160,6 +160,10 @@
     <string name="about_email_button">Email me!</string>
     <string name="about_instagram_button">Instagram</string>
     <string name="about_threads_button">Threads</string>
+    <string name="about_section_support">Support &amp; Appreciation</string>
+    <string name="about_support_p1">If you enjoy using Fuji Recipes and want to say thanks, a friendly message on socials is more than enough!</string>
+    <string name="about_support_p2">However, if you would like to support the ongoing development or buy me a coffee, you can do so here:</string>
+    <string name="about_buy_me_a_coffee">Buy me a coffee</string>
     <string name="about_section_legal">Legal</string>
     <string name="about_disclaimer_card_title">Liability Waiver &amp; Disclaimer</string>
     <string name="about_disclaimer_card_subtitle">Terms of use, limitation of liability, and warranty disclaimer</string>
