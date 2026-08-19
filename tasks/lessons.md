@@ -33,3 +33,16 @@ The user prefers to test UI interactions themselves on the emulator once the deb
 ### Rule
 Build, install the debug APK via `installDebug`, launch `MainActivity`, and hand off immediately for the user to test.
 
+---
+
+## Public Documentation & READMEs
+
+### Pattern
+When preparing documentation for public release, verify all claims against the actual shipped implementation, respect licensing boundaries, and maintain honest expectations for community testers.
+
+### Rule
+1. **Theme accuracy**: Verify the shipped theme configuration (Dynamic Color / Material You vs custom brand palette) against actual theme implementation and user preferences.
+2. **Hardware test boundaries**: State strictly which exact camera bodies/hardware configurations the developer has personally tested on (e.g. Fujifilm X-T50 only) to set accurate expectations for community testers.
+3. **Navigation & UI changes**: Always check the current navigation layout (e.g., bottom bar Camera tab vs top-bar chips) before describing connection flows.
+4. **Contact details & Privacy**: Avoid publishing personal email addresses and social handles in raw public markdown files unless explicitly instructed; point to in-app About screens and GitHub issues instead.
+5. **Open-source attribution**: Provide direct URLs and licenses for all open-source libraries and reverse-engineering research repos referenced by the project.
