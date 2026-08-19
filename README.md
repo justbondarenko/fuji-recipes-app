@@ -41,13 +41,17 @@
 | :---: | :---: | :---: |
 | <img src="screenshots/RECIPES_LIST.JPEG" width="260" alt="Recipe Library" /> | <img src="screenshots/RECIPE_VIEW_GRID.JPEG" width="260" alt="Recipe Details in Grid View" /> | <img src="screenshots/RECIPE_VIEW_LIST.JPEG" width="260" alt="Recipe Details in List View" /> |
 
-| USB-C Camera Sync | Custom Slots (C1–C7) | Settings & View Modes |
+| Photo EXIF Extractor | Recipe Matching & Diff | Side-by-Side Comparison |
 | :---: | :---: | :---: |
-| <img src="screenshots/CAMERA_CONNECTION.JPEG" width="260" alt="USB-C Camera Sync" /> | <img src="screenshots/CAMERA_CONNECION_SLOT_DATA.JPEG" width="260" alt="Camera Custom Slots C1 to C7" /> | <img src="screenshots/SETTINGS.JPEG" width="260" alt="Settings Screen" /> |
+| <img src="screenshots/READ_RECIPE_SCREEN.JPEG" width="260" alt="Extract Recipe from Photo" /> | <img src="screenshots/READ_RECIPE_RESUKT.JPEG" width="260" alt="Recipe Matching and Percentage Diff" /> | <img src="screenshots/RECIPE_COMPARE.png" width="260" alt="Side-by-Side Recipe Comparison" /> |
 
-| Photo EXIF Extractor | Recipe Matching & Diff | Duplicate & Conflict Resolution |
+| USB-C Camera Sync | Custom Slots (C1–C7) | Duplicates Clean-Up |
 | :---: | :---: | :---: |
-| <img src="screenshots/READ_RECIPE_SCREEN.JPEG" width="260" alt="Extract Recipe from Photo" /> | <img src="screenshots/READ_RECIPE_RESUKT.JPEG" width="260" alt="Recipe Matching and Percentage Diff" /> | <img src="screenshots/CLEANUP_DUPLICATES.JPEG" width="260" alt="Duplicate Resolution and Import Review" /> |
+| <img src="screenshots/CAMERA_CONNECTION.JPEG" width="260" alt="USB-C Camera Sync" /> | <img src="screenshots/CAMERA_CONNECION_SLOT_DATA.JPEG" width="260" alt="Camera Custom Slots C1 to C7" /> | <img src="screenshots/CLEANUP_DUPLICATES.JPEG" width="260" alt="Duplicates Clean-Up and Conflict Resolution" /> |
+
+| Settings & View Modes |
+| :---: |
+| <img src="screenshots/SETTINGS.JPEG" width="260" alt="Settings Screen" /> |
 
 ---
 

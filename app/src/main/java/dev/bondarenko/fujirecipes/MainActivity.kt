@@ -21,6 +21,7 @@ import dev.bondarenko.fujirecipes.ui.camera.CameraToolbarItemHost
 import dev.bondarenko.fujirecipes.ui.create.CreateRecipeFlow
 import dev.bondarenko.fujirecipes.ui.nav.AboutRoute
 import dev.bondarenko.fujirecipes.ui.nav.CameraRoute
+import dev.bondarenko.fujirecipes.ui.nav.CleanupRoute
 import dev.bondarenko.fujirecipes.ui.nav.DisclaimerRoute
 import dev.bondarenko.fujirecipes.ui.nav.ExportRoute
 import dev.bondarenko.fujirecipes.ui.nav.FileImportRoute
@@ -117,6 +118,7 @@ private fun FujiApp() {
             showChrome = showChrome,
             isLibrarySelected = destination?.hasRoute<LibraryRoute>() == true,
             isReadSelected = destination?.hasRoute<PhotoRoute>() == true,
+            isCleanupSelected = destination?.hasRoute<CleanupRoute>() == true,
             isMoreSelected = isMoreSelected,
             onLibraryClick = {
                 navController.navigate(LibraryRoute) {
@@ -125,6 +127,7 @@ private fun FujiApp() {
                 }
             },
             onReadClick = { navController.navigate(PhotoRoute) { launchSingleTop = true } },
+            onCleanupClick = { navController.navigate(CleanupRoute) { launchSingleTop = true } },
             onMoreClick = {
                 navController.navigate(MoreRoute) {
                     popUpTo(MoreRoute) { inclusive = true }

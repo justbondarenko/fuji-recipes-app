@@ -3,10 +3,15 @@ package dev.bondarenko.fujirecipes.ui.about
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -176,6 +181,43 @@ fun AboutScreen(
                         Text(stringResource(R.string.about_threads_button))
                     }
                 }
+            }
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            )
+
+            SectionHeader(stringResource(R.string.about_section_support))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.about_support_p1),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = stringResource(R.string.about_support_p2),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+
+                Image(
+                    painter = painterResource(R.drawable.buy_me_a_coffee),
+                    contentDescription = stringResource(R.string.about_buy_me_a_coffee),
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .padding(top = 4.dp)
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable {
+                            uriHandler.openUri("https://buymeacoffee.com/justbondarenko")
+                        },
+                )
             }
 
             HorizontalDivider(

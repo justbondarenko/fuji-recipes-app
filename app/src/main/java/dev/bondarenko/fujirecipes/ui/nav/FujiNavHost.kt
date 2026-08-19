@@ -21,6 +21,7 @@ import androidx.navigation.toRoute
 import dev.bondarenko.fujirecipes.ui.about.AboutRouteContent
 import dev.bondarenko.fujirecipes.ui.about.DisclaimerRouteContent
 import dev.bondarenko.fujirecipes.ui.camera.CameraRouteContent
+import dev.bondarenko.fujirecipes.ui.cleanup.CleanupRouteContent
 import dev.bondarenko.fujirecipes.ui.library.LibraryRouteContent
 import dev.bondarenko.fujirecipes.ui.editor.RecipeEditorRouteContent
 import dev.bondarenko.fujirecipes.ui.exporting.ExportRouteContent
@@ -68,6 +69,10 @@ data class RecipeViewRoute(val id: String)
 @Serializable
 data object PhotoRoute
 
+/** Bottom bar → Cleanup: find and manage duplicated and similar recipes. */
+@Serializable
+data object CleanupRoute
+
 @Serializable
 data object MoreRoute
 
@@ -106,8 +111,9 @@ private fun NavDestination?.toolbarIndex(): Int = when {
     this == null -> -1
     hasRoute<LibraryRoute>() -> 0
     hasRoute<PhotoRoute>() -> 1
-    hasRoute<CameraRoute>() -> 2
-    hasRoute<MoreRoute>() -> 3
+    hasRoute<CleanupRoute>() -> 2
+    hasRoute<CameraRoute>() -> 3
+    hasRoute<MoreRoute>() -> 4
     else -> -1
 }
 
@@ -273,6 +279,13 @@ fun FujiNavHost(
                         RecipeEditorRoute(id = null, prefill = prefill, prefillName = name),
                     )
                 },
+                contentPadding = contentPadding,
+            )
+        }
+
+        composable<CleanupRoute> {
+            CleanupRouteContent(
+                onOpenRecipe = { id -> navController.navigate(RecipeViewRoute(id)) },
                 contentPadding = contentPadding,
             )
         }

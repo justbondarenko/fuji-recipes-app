@@ -1,23 +1,20 @@
-# Task: Public Open-Source Release Preparation
+# Task: Add Support & Buy Me a Coffee Section to About Screen
 
 ## Goal
-Prepare the **Fuji Recipes** repository for public open-source release, setup release APK/AAB builds, signing configurations, and CI/CD pipelines.
+Add a new "Support & Appreciation" section in `AboutScreen.kt` right before the Legal section, expressing appreciation for social messages and providing a "Buy me a coffee" button linked to `https://buymeacoffee.com/justbondarenko`. Build, start the emulator, and deploy the app for testing.
 
 ## Plan Items
-- [x] 1. Repository hygiene: Untrack and delete `bugreport-*.zip` files <!-- id: 0 -->
-- [x] 2. Create `LICENSE` file (MIT) <!-- id: 1 -->
-- [x] 3. Update `.gitignore` with `.claude/`, `bugreport-*.zip`, root `*.zip` <!-- id: 2 -->
-- [x] 4. Update `app/build.gradle.kts` with release signing config & fallback <!-- id: 3 -->
-- [x] 5. Create `.github/workflows/release.yml` for automated releases <!-- id: 4 -->
-- [x] 6. Create `.github/ISSUE_TEMPLATE/` (bug, camera compatibility, feature) & PR template <!-- id: 5 -->
-- [x] 7. Verify builds (`assembleDebug`, `assembleRelease`, `bundleRelease`, `testDebugUnitTest`) <!-- id: 6 -->
+- [x] 1. Add Buy Me a Coffee image asset to `app/src/main/res/drawable/buy_me_a_coffee.png` <!-- id: 1 -->
+- [x] 2. Add string resources in `app/src/main/res/values/strings.xml` for support section and BMC action <!-- id: 2 -->
+- [x] 3. Update `AboutScreen.kt` with the new section right before Legal, supporting the BMC button action <!-- id: 3 -->
+- [x] 4. Start Android emulator (`Pixel_10_Pro_XL`) and wait for boot completion <!-- id: 4 -->
+- [x] 5. Build, install debug APK (`installDebug`), and launch `MainActivity` <!-- id: 5 -->
+- [x] 6. Run unit tests to verify nothing is broken <!-- id: 6 -->
+- [x] 7. Update documentation and todo.md review <!-- id: 7 -->
 
 ## Review
-- **Repository Hygiene**: Removed committed ~17MB bugreport ZIP files from git tracking. Added `.claude/`, `bugreport-*.zip`, and general `*.zip` rules to `.gitignore`.
-- **Licensing**: Added official `LICENSE` file (MIT License) to match README declarations.
-- **APK & Bundle Assembly**: Configured `release` signing in `app/build.gradle.kts` to support environment variables (`RELEASE_KEYSTORE_PATH`, etc.) while gracefully falling back to debug key signing so local release builds are always installable.
-- **GitHub Release CI**: Created `.github/workflows/release.yml` to automatically build, test, and publish signed `.apk` and `.aab` packages when tags (`v*`) are pushed or triggered manually.
-- **Community Health**: Added Issue forms for Camera Compatibility reports, Bug reports, Feature requests, and a Pull Request template.
-- **Verification**: Verified `./gradlew assembleRelease`, `./gradlew bundleRelease`, and `./gradlew testDebugUnitTest` all build successfully with minified release outputs.
+- **Support & Appreciation Section**: Added new section in `AboutScreen.kt` right before Legal with friendly appreciation message.
+- **Buy Me A Coffee Action**: Embedded branded Buy Me A Coffee button linking directly to `https://buymeacoffee.com/justbondarenko`.
+- **Testing & Deployment**: Started `Pixel_10_Pro_XL` emulator, built and installed debug APK with `installDebug`, launched `MainActivity`, and verified all unit tests pass.
 
 

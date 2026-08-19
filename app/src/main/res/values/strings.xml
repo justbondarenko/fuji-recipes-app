@@ -4,6 +4,7 @@
 
     <!-- Navigation -->
     <string name="nav_library">Recipes</string>
+    <string name="nav_cleanup">Cleanup</string>
     <string name="nav_more">Settings</string>
     <string name="nav_create">New recipe</string>
 
@@ -159,6 +160,10 @@
     <string name="about_email_button">Email me!</string>
     <string name="about_instagram_button">Instagram</string>
     <string name="about_threads_button">Threads</string>
+    <string name="about_section_support">Support &amp; Appreciation</string>
+    <string name="about_support_p1">If you enjoy using Fuji Recipes and want to say thanks, a friendly message on socials is more than enough!</string>
+    <string name="about_support_p2">However, if you would like to support the ongoing development or buy me a coffee, you can do so here:</string>
+    <string name="about_buy_me_a_coffee">Buy me a coffee</string>
     <string name="about_section_legal">Legal</string>
     <string name="about_disclaimer_card_title">Liability Waiver &amp; Disclaimer</string>
     <string name="about_disclaimer_card_subtitle">Terms of use, limitation of liability, and warranty disclaimer</string>
@@ -380,6 +385,32 @@
     <string name="file_import_rejected_title">This file was not imported</string>
     <string name="file_import_failed_title">Nothing was imported</string>
     <string name="file_import_action_back_to_review">Back to the list</string>
+
+    <!-- Duplicates Finder / Cleanup -->
+    <string name="cleanup_title">Duplicates cleanup</string>
+    <string name="cleanup_subtitle">Find and manage identical recipes and close variations in your library.</string>
+    <string name="cleanup_action_find">Find duplicated</string>
+    <string name="cleanup_action_scan_again">Scan again</string>
+    <string name="cleanup_scanning">Analyzing recipes…</string>
+    <string name="cleanup_empty_library">You need at least 2 recipes in your library to check for duplicates.</string>
+    <string name="cleanup_clean_title">Library is clean</string>
+    <string name="cleanup_clean_body">No duplicate or highly similar recipes were found in your library.</string>
+    
+    <string name="cleanup_exact_title">100% match duplicates</string>
+    <string name="cleanup_exact_subtitle">Identical camera settings across all parameters. Select which one to keep.</string>
+    <string name="cleanup_exact_none">No exact duplicate recipes found</string>
+    <string name="cleanup_keep_badge">Keep</string>
+    <string name="cleanup_remove_badge">Duplicate</string>
+    <string name="cleanup_delete_group_duplicates">Delete %1$d duplicate(s)</string>
+    <string name="cleanup_delete_all_duplicates">Delete all %1$d duplicates</string>
+    <string name="cleanup_delete_confirm_title">Delete duplicates?</string>
+    <string name="cleanup_delete_confirm_body">%1$d duplicate recipes will be permanently removed from your library. The selected recipes will be kept.</string>
+    <string name="cleanup_deleted_success">Removed %1$d duplicate recipes.</string>
+    
+    <string name="cleanup_similar_title">Highly similar</string>
+    <string name="cleanup_similar_subtitle">Same film simulation with differences in 1–3 parameters only.</string>
+    <string name="cleanup_similar_none">No highly similar recipes found</string>
+    <string name="cleanup_diff_label">%1$s: %2$s vs %3$s</string>
 
     <!-- Placeholders, replaced as their features land -->
     <string name="placeholder_editor_title">Recipe</string>
