@@ -38,6 +38,25 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+
+        create("release") {
+            val keystorePath = System.getenv("RELEASE_KEYSTORE_PATH")
+                ?: (project.findProperty("RELEASE_KEYSTORE_PATH") as? String)
+            val keystoreFile = keystorePath?.let { file(it) }
+
+            if (keystoreFile != null && keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+                    ?: (project.findProperty("RELEASE_KEYSTORE_PASSWORD") as? String)
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                    ?: (project.findProperty("RELEASE_KEY_ALIAS") as? String)
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+                    ?: (project.findProperty("RELEASE_KEY_PASSWORD") as? String)
+            } else {
+                // Fallback for local release builds: sign with debug key so APK is installable
+                initWith(getByName("debug"))
+            }
+        }
     }
 
     buildTypes {
@@ -46,6 +65,7 @@ android {
         }
 
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

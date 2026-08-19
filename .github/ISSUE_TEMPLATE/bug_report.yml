@@ -1,0 +1,53 @@
+name: 🐛 Bug Report
+description: Report a defect, crash, or unexpected behavior in the application.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please provide as much detail as possible to help reproduce and resolve the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description of the Bug
+      placeholder: A clear and concise description of what the bug is.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction_steps
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. Go to '...'
+        2. Tap on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: Expected Behavior
+      placeholder: A clear and concise description of what you expected to happen.
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Device & App Info
+      placeholder: e.g. Google Pixel 7, Android 14, Fuji Recipes v0.1.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Screenshots or Additional Context
+      placeholder: Add any screenshots, recipe files, or error messages here.
+    validations:
+      required: false

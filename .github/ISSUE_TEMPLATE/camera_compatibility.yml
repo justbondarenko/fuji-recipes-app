@@ -1,0 +1,63 @@
+name: 📸 Camera Compatibility Report
+description: Report hardware compatibility, slot read/write testing, or issues with a specific Fujifilm camera model.
+title: "[Camera Test]: <Camera Model (e.g. X-T5, X100VI)>"
+labels: ["camera-compatibility"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for testing Fuji Recipes on your camera! Your feedback helps expand the verified compatibility matrix for the community.
+
+  - type: input
+    id: camera_model
+    attributes:
+      label: Camera Model
+      placeholder: e.g. Fujifilm X-T5, X100VI, X-T4, X-S20
+    validations:
+      required: true
+
+  - type: input
+    id: camera_firmware
+    attributes:
+      label: Camera Firmware Version
+      placeholder: e.g. v3.01
+    validations:
+      required: false
+
+  - type: input
+    id: phone_model
+    attributes:
+      label: Android Phone Model & OS Version
+      placeholder: e.g. Google Pixel 8 (Android 14), Samsung Galaxy S24 (Android 14)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: connection_status
+    attributes:
+      label: Did the app detect and connect to the camera over USB-C?
+      options:
+        - "Yes, connected immediately"
+        - "Yes, after selecting USB RAW/Backup mode"
+        - "No, camera was not detected"
+        - "Connection error (PTP error)"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: features_tested
+    attributes:
+      label: Features Tested
+      options:
+        - label: "Read custom slots (C1–C7) from camera"
+        - label: "Write recipe to camera custom slot"
+        - label: "Verify written recipe values on camera body"
+        - label: "Extract recipe from straight-out-of-camera JPEG"
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Detailed Observations / Logs / Quirks
+      placeholder: Describe how the sync worked, any unsupported parameters that were dropped, or error messages displayed.
+    validations:
+      required: false

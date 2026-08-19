@@ -38,6 +38,15 @@ google-services.json
 
 # macOS
 .DS_Store
+**/.DS_Store
 
-# Emulator/tooling scratch
+# Tooling / AI local configurations
+.claude/
 .kotlin/
+
+# Bug reports & device dumps
+bugreport-*.zip
+*.zip
+!app/src/test/**/*.zip
+!app/src/androidTest/**/*.zip
+

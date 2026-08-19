@@ -1,19 +1,23 @@
-# Task: About Screen Polish & Flat Layout
+# Task: Public Open-Source Release Preparation
 
 ## Goal
-1. Add "Contact me!" button to the Contact/Testing section with a `mailto:` intent.
-2. Add full offline privacy information to the "About the app" section (no internet, all data local).
-3. Remove card containers around text blocks for a flat, clean presentation.
-4. Verify on emulator.
+Prepare the **Fuji Recipes** repository for public open-source release, setup release APK/AAB builds, signing configurations, and CI/CD pipelines.
 
 ## Plan Items
-- [x] 1. Add "Contact me!" button and string resources <!-- id: 40 -->
-- [x] 2. Add offline privacy details to About app section <!-- id: 41 -->
-- [x] 3. Remove text card containers in `AboutScreen.kt` and `DisclaimerScreen.kt` <!-- id: 42 -->
-- [x] 4. Run tests and deploy to emulator <!-- id: 43 -->
+- [x] 1. Repository hygiene: Untrack and delete `bugreport-*.zip` files <!-- id: 0 -->
+- [x] 2. Create `LICENSE` file (MIT) <!-- id: 1 -->
+- [x] 3. Update `.gitignore` with `.claude/`, `bugreport-*.zip`, root `*.zip` <!-- id: 2 -->
+- [x] 4. Update `app/build.gradle.kts` with release signing config & fallback <!-- id: 3 -->
+- [x] 5. Create `.github/workflows/release.yml` for automated releases <!-- id: 4 -->
+- [x] 6. Create `.github/ISSUE_TEMPLATE/` (bug, camera compatibility, feature) & PR template <!-- id: 5 -->
+- [x] 7. Verify builds (`assembleDebug`, `assembleRelease`, `bundleRelease`, `testDebugUnitTest`) <!-- id: 6 -->
 
 ## Review
-- **Contact Me Button**: Added action button invoking `mailto:just.bondarenko@gmail.com?subject=Fuji%20Recipes%20App%3A%20` with fallback chooser support.
-- **Offline Privacy Note**: Added paragraph in About app explaining zero internet access, no accounts, and strict on-device data persistence.
-- **Flat Layout**: Removed card containers around text blocks in both `AboutScreen.kt` and `DisclaimerScreen.kt`, using clean typographic hierarchy and subtle dividers.
-- **Verification**: Executed `./gradlew testDebugUnitTest` (`BUILD SUCCESSFUL`), installed on emulator, and verified launch.
+- **Repository Hygiene**: Removed committed ~17MB bugreport ZIP files from git tracking. Added `.claude/`, `bugreport-*.zip`, and general `*.zip` rules to `.gitignore`.
+- **Licensing**: Added official `LICENSE` file (MIT License) to match README declarations.
+- **APK & Bundle Assembly**: Configured `release` signing in `app/build.gradle.kts` to support environment variables (`RELEASE_KEYSTORE_PATH`, etc.) while gracefully falling back to debug key signing so local release builds are always installable.
+- **GitHub Release CI**: Created `.github/workflows/release.yml` to automatically build, test, and publish signed `.apk` and `.aab` packages when tags (`v*`) are pushed or triggered manually.
+- **Community Health**: Added Issue forms for Camera Compatibility reports, Bug reports, Feature requests, and a Pull Request template.
+- **Verification**: Verified `./gradlew assembleRelease`, `./gradlew bundleRelease`, and `./gradlew testDebugUnitTest` all build successfully with minified release outputs.
+
+
