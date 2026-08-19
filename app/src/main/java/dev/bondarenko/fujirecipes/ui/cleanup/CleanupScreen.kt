@@ -57,6 +57,7 @@ import dev.bondarenko.fujirecipes.data.cleanup.FieldDifference
 import dev.bondarenko.fujirecipes.data.cleanup.SimilarRecipePair
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.model.Recipe
+import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
 import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
@@ -305,8 +306,7 @@ fun CleanupScreen(
 }
 
 /**
- * Centered initial screen with Square container (72dp) containing CleaningServices icon (36dp),
- * Title, Subtitle (80% width max), and CTA Button.
+ * Centered initial screen using the app's standard FujiIconPanel (Square shape, 140dp size, 56dp icon).
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -314,56 +314,15 @@ private fun InitialCenteredCleanupScreen(
     onFindDuplicates: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 28.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(MaterialShapes.Square.toShape())
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = FujiIcons.CleaningServices,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(36.dp),
-                )
-            }
-
-            Text(
-                text = stringResource(R.string.cleanup_title),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-
-            Text(
-                text = stringResource(R.string.cleanup_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth(0.8f),
-            )
-
-            Button(
-                onClick = onFindDuplicates,
-                modifier = Modifier.padding(top = 8.dp),
-            ) {
-                Text(stringResource(R.string.cleanup_action_find))
-            }
-        }
-    }
+    FujiIconPanel(
+        icon = FujiIcons.CleaningServices,
+        shape = MaterialShapes.Square.toShape(),
+        title = stringResource(R.string.cleanup_title),
+        body = stringResource(R.string.cleanup_subtitle),
+        actionLabel = stringResource(R.string.cleanup_action_find),
+        onAction = onFindDuplicates,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -376,9 +335,9 @@ private fun ScanningCleanupScreen(modifier: Modifier = Modifier) {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            FujiLoadingIndicator(size = 64.dp)
+            FujiLoadingIndicator(size = 80.dp)
             Text(
                 text = stringResource(R.string.cleanup_scanning),
                 style = MaterialTheme.typography.bodyLarge,
@@ -403,13 +362,13 @@ private fun CleanLibraryScreen(modifier: Modifier = Modifier) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             Icon(
                 imageVector = FujiIcons.StarShine,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(56.dp),
+                modifier = Modifier.size(80.dp),
             )
 
             Text(
