@@ -27,6 +27,7 @@ import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.icons.Add
 import dev.bondarenko.fujirecipes.ui.theme.icons.BookmarkStacks
+import dev.bondarenko.fujirecipes.ui.theme.icons.CleaningServices
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.ImageSearch
 import dev.bondarenko.fujirecipes.ui.theme.icons.Settings
@@ -45,9 +46,11 @@ fun AppShell(
     showChrome: Boolean,
     isLibrarySelected: Boolean,
     isReadSelected: Boolean,
+    isCleanupSelected: Boolean = false,
     isMoreSelected: Boolean,
     onLibraryClick: () -> Unit,
     onReadClick: () -> Unit,
+    onCleanupClick: () -> Unit = {},
     onMoreClick: () -> Unit,
     /**
      * The New recipe button was pressed.
@@ -58,7 +61,7 @@ fun AppShell(
     onCreateClick: () -> Unit,
     modifier: Modifier = Modifier,
     /**
-     * The camera status, rendered as the third item of the navigation bar.
+     * The camera status, rendered as the fourth item of the navigation bar.
      *
      * A slot rather than a `CameraState` parameter, so the shell keeps knowing nothing about
      * USB — see `CameraToolbarItem`.
@@ -93,6 +96,17 @@ fun AppShell(
                             )
                         },
                         label = { Text(stringResource(R.string.nav_read)) },
+                    )
+                    NavigationBarItem(
+                        selected = isCleanupSelected,
+                        onClick = onCleanupClick,
+                        icon = {
+                            Icon(
+                                imageVector = FujiIcons.CleaningServices,
+                                contentDescription = null,
+                            )
+                        },
+                        label = { Text(stringResource(R.string.nav_cleanup)) },
                     )
                     cameraItem?.invoke(this)
                     NavigationBarItem(
