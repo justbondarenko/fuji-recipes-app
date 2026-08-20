@@ -18,6 +18,7 @@
 
 ## 📑 Table of Contents
 
+- [📥 Installation](#-installation)
 - [📱 Screenshots](#-screenshots)
 - [🌟 Highlights](#-highlights)
 - [📸 Camera Compatibility & Testing](#-camera-compatibility--testing)
@@ -32,6 +33,48 @@
   - [Sideload to Device](#sideload-to-device)
 - [☕ Open Source Acknowledgements](#-open-source-acknowledgements)
 - [📜 Legal Disclaimer & Trademarks](#-legal-disclaimer--trademarks)
+
+---
+
+## 📥 Installation
+
+Grab the latest APK from the [Releases page](https://github.com/justbondarenko/fuji-recipes-app/releases) and install it on your phone.
+
+> [!NOTE]
+> **"App blocked to protect your device" / Play Protect warning**:
+> Since this app is distributed directly via GitHub Releases rather than the Google Play Store, Android's **Play Protect** has no install history for it and will warn that it "hasn't seen this app from this developer before." This is expected for any app sideloaded outside Play — it's not a sign of malware, just a reputation check Play Protect can only build up through Play Store distribution.
+>
+> To install anyway: on the warning screen, tap **More details** → **Install anyway**.
+
+### Not sure it's safe? Ask an AI to check for you
+
+You don't have to take my word for it. Point any AI coding assistant (Claude, ChatGPT, Gemini, etc.) at this repository and ask it to independently verify the app's behavior — the source code is public, so it can check for itself rather than trusting this README.
+
+Example prompt:
+
+```
+Review the source code at https://github.com/justbondarenko/fuji-recipes-app.
+I'm about to sideload the released APK and want an independent safety check
+before I do. Specifically:
+
+1. Does the app request or use INTERNET or any network-related permission?
+   Search the manifest and codebase for any networking code (HTTP clients,
+   sockets, analytics/crash-reporting SDKs, ad SDKs).
+2. What permissions does AndroidManifest.xml declare, and is each one
+   justified by what the app actually does (e.g. USB access for the camera
+   connection, storage for saving recipes)?
+3. Does the app collect, log, or transmit any personal data, camera contents,
+   or device identifiers anywhere?
+4. Are there any obfuscated, minified, or suspicious code paths that don't
+   match what's described in the README?
+5. Overall, is there any risk to me in installing this app — to my data,
+   my device, or my camera — and if so, what exactly is it?
+
+Give me a plain verdict: is this app safe to install, based only on what's
+in the repository?
+```
+
+Because the app is 100% offline with zero network access, any AI reviewing the source will confirm there's no code path capable of sending data anywhere — there's simply no networking code to send it with.
 
 ---
 
