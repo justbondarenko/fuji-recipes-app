@@ -53,28 +53,25 @@ You don't have to take my word for it. Point any AI coding assistant (Claude, Ch
 Example prompt:
 
 ```
-Review the source code at https://github.com/justbondarenko/fuji-recipes-app.
-I'm about to sideload the released APK and want an independent safety check
-before I do. Specifically:
+Review the source code at https://github.com/justbondarenko/fuji-recipes-app. I'm about to sideload the released APK and want an independent safety check before I do.
 
-1. Does the app request or use INTERNET or any network-related permission?
-   Search the manifest and codebase for any networking code (HTTP clients,
-   sockets, analytics/crash-reporting SDKs, ad SDKs).
-2. What permissions does AndroidManifest.xml declare, and is each one
-   justified by what the app actually does (e.g. USB access for the camera
-   connection, storage for saving recipes)?
-3. Does the app collect, log, or transmit any personal data, camera contents,
-   or device identifiers anywhere?
-4. Are there any obfuscated, minified, or suspicious code paths that don't
-   match what's described in the README?
-5. Overall, is there any risk to me in installing this app — to my data,
-   my device, or my camera — and if so, what exactly is it?
+First, confirm you actually fetched and read files from that URL — don't guess. If you can't browse live URLs, say so explicitly instead of assuming the repo is empty or has no source code, and tell me what you'd need me to paste instead (e.g. AndroidManifest.xml, build.gradle.kts).
 
-Give me a plain verdict: is this app safe to install, based only on what's
-in the repository?
+Once you've confirmed access, answer:
+
+1. Does the app request or use INTERNET or any network-related permission? Search the manifest and codebase for any networking code (HTTP clients, sockets, analytics/crash-reporting SDKs, ad SDKs).
+2. What permissions does AndroidManifest.xml declare, and is each one justified by what the app actually does (e.g. USB access for the camera connection, storage for saving recipes)?
+3. Does the app collect, log, or transmit any personal data, camera contents, or device identifiers anywhere?
+4. Are there any obfuscated, minified, or suspicious code paths that don't match what's described in the README?
+5. Overall, is there any risk to me in installing this app — to my data, my device, or my camera — and if so, what exactly is it?
+
+Give me a plain verdict: is this app safe to install, based only on what's in the repository?
 ```
 
-Because the app is 100% offline with zero network access, any AI reviewing the source will confirm there's no code path capable of sending data anywhere — there's simply no networking code to send it with.
+Because the app is 100% offline with zero network access, any AI that actually reads the source will confirm there's no code path capable of sending data anywhere — there's simply no networking code to send it with.
+
+> [!WARNING]
+> **Some AI chat tools can't actually browse a URL you give them.** When that happens, instead of saying "I can't access this," they can confidently claim the repo has no source code, no manifest, etc. — which is *wrong*, not a real finding. The source is genuinely public (`app/src/main/AndroidManifest.xml`, `app/build.gradle.kts`, and the rest of `app/src/`). In practice, Claude and ChatGPT seem to actually fetch and explore the repository, while Gemini has been observed just implying/guessing at an answer instead of checking. If you get a "no code found" response, either enable that AI's live browsing/search mode and retry, or `git clone` the repo yourself and paste the relevant files directly into the chat.
 
 ---
 
