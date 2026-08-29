@@ -420,7 +420,7 @@ private fun AnalyzedPhotoCard(
                             ) {
                                 Text(
                                     text = recipe.name,
-                                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                                     color = Color.White,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
