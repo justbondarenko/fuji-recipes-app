@@ -170,9 +170,9 @@ fun PhotoReaderScreen(
 
                 HorizontalPager(
                     state = pagerState,
-                    pageSpacing = 6.dp,
+                    pageSpacing = 3.dp,
                     contentPadding = PaddingValues(
-                        horizontal = if (stage.photos.size > 1) 48.dp else 16.dp,
+                        horizontal = if (stage.photos.size > 1) 28.dp else 16.dp,
                         vertical = 8.dp,
                     ),
                     modifier = Modifier
