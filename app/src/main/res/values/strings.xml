@@ -296,7 +296,8 @@
     <!-- Read a recipe from a photo — FEAT-009 -->
     <string name="nav_read">Analyze</string>
     <string name="photo_title">Extract recipe from a photo</string>
-    <string name="photo_intro">Choose a JPEG from your Fujifilm camera and this extracts the recipe it was shot with, then tells you whether it is one you already have. It all happens on this phone.</string>
+    <string name="share_action_extract_recipe">Extract recipe</string>
+    <string name="photo_intro">Pick a JPEG shot on a Fujifilm camera to read the recipe embedded in its maker notes and find a matching recipe in your library.</string>
     <string name="photo_action_choose">Choose a photo</string>
     <string name="photo_action_another">Analyze another photo</string>
     <string name="photo_reading">Analyzing the photo…</string>

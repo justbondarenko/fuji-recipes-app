@@ -59,21 +59,29 @@
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
             </intent-filter>
 
-            <!--
-              Accept photos shared from external gallery/file apps to analyze their Fuji recipe.
-            -->
-            <intent-filter>
+            <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/device_filter" />
+        </activity>
+
+        <!--
+          Accept photos shared from external gallery/file apps to analyze their Fuji recipe.
+          activity-alias provides the action subtitle ("Extract recipe") in the system share sheet.
+        -->
+        <activity-alias
+            android:name=".ShareRecipeActivity"
+            android:targetActivity=".MainActivity"
+            android:exported="true"
+            android:label="@string/share_action_extract_recipe"
+            android:icon="@mipmap/ic_launcher">
+            <intent-filter android:label="@string/share_action_extract_recipe">
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="image/jpeg" />
                 <data android:mimeType="image/jpg" />
                 <data android:mimeType="image/*" />
             </intent-filter>
-
-            <meta-data
-                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
-                android:resource="@xml/device_filter" />
-        </activity>
+        </activity-alias>
 
         <!--
           USB lifecycle receiver for device detachment and attachment broadcasts.
