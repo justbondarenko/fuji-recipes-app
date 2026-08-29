@@ -13,6 +13,7 @@ import dev.bondarenko.fujirecipes.data.photo.PhotoRecipe
 import dev.bondarenko.fujirecipes.data.photo.findMatches
 import dev.bondarenko.fujirecipes.data.photo.parseRecipeFromJpeg
 import dev.bondarenko.fujirecipes.data.repo.RecipeRepository
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,12 +58,16 @@ class PhotoReaderViewModel(
      * `ContentResolver` — which is what lets the stage machine be exercised without a device.
      */
     private val readPhoto: suspend (String) -> ByteArray?,
+    private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
+    private var currentUri: String? = null
     private val _state = MutableStateFlow(PhotoReaderUiState())
     val state: StateFlow<PhotoReaderUiState> = _state.asStateFlow()
 
     fun read(uri: String) {
+        if (currentUri == uri && _state.value.stage !is PhotoReaderStage.Empty) return
+        currentUri = uri
         _state.value = PhotoReaderUiState(PhotoReaderStage.Reading)
 
         viewModelScope.launch {
@@ -71,7 +76,7 @@ class PhotoReaderViewModel(
 
             // Off the main thread: a 20 MB JPEG is a 20 MB scan, and the signature hunt walks
             // up to half a megabyte of it.
-            when (val parsed = withContext(Dispatchers.Default) { parseRecipeFromJpeg(bytes) }) {
+            when (val parsed = withContext(defaultDispatcher) { parseRecipeFromJpeg(bytes) }) {
                 is PhotoReadResult.Failure -> fail(parsed.reason)
 
                 is PhotoReadResult.Success -> {
@@ -91,6 +96,7 @@ class PhotoReaderViewModel(
     }
 
     fun reset() {
+        currentUri = null
         _state.value = PhotoReaderUiState()
     }
 
