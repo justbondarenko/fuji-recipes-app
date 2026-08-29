@@ -1,15 +1,20 @@
-# OS Share Sheet JPG Accept & Analyze Flow
+# Attach Analyzed Photo to Matched Recipe
 
-- [x] Add `ACTION_SEND` intent filter in `AndroidManifest.xml`
-- [x] Add shared image URI extraction and intent lifecycle handling in `MainActivity.kt`
-- [x] Update `PhotoRoute` to accept optional `initialUri: String?` in `FujiNavHost.kt`
-- [x] Wire shared image URI navigation in `FujiApp`
-- [x] Trigger photo analysis on `initialUri` in `PhotoReaderRouteContent` and `PhotoReaderViewModel`
-- [x] Add unit tests for `PhotoReaderViewModel`
-- [x] Verify test suite passes with `./gradlew testDebugUnitTest` and `./gradlew assembleDebug`
+- [x] Add strings in `strings.xml` for adding photo to matched recipe
+- [x] Update `PhotoReaderUiState` & `PhotoReaderViewModel` with `addPhotoToRecipe()` and `imageStore`
+- [x] Update `PhotoReaderScreen` and `MatchedRecipeCard` with add photo prompt/action
+- [x] Add unit tests in `PhotoReaderViewModelTest`
+- [x] Verify build and tests pass, verify on emulator
+
+- [x] Display analyzed photo preview at top of view (below header, above analysis result)
+- [x] Redesign `MatchedRecipeCard`
+- [x] Hide "What the photo says" section on exact match
 
 ## Review
-- **Intent Filter**: Added `ACTION_SEND` intent filter to `MainActivity` matching `image/jpeg`, `image/jpg`, and `image/*`.
-- **Activity Lifecycle**: Both cold starts (`onCreate`) and warm starts (`onNewIntent`) parse the incoming URI and pass it to Compose navigation.
-- **Routing**: `PhotoRoute(initialUri = ...)` triggers immediate analysis while remaining fully compatible with manual photo picking.
-- **Verification**: Added 5 unit tests in `PhotoReaderViewModelTest` covering successful parsing, failure handling, URI deduplication, and reset logic. All tests pass.
+- **Prompt & Action**: Added "+ Add photo to this recipe" action button in `MatchedRecipeCard` when a photo matches an existing recipe and has open photo slots.
+- **Added State**: When added, button converts to a disabled "Photo added to recipe" badge with `FujiIcons.Check`.
+- **Top Photo Preview**: Added a rounded preview hero container with `AsyncImage` directly below the "Extract recipe from a photo" header and above the analysis cards.
+- **Card Redesign**: Header match badge + `View recipe >` link, clean title hierarchy, and aligned action buttons.
+- **Conditional Settings**: "What the photo says" table is only displayed if the photo does not have an exact match.
+- **Testing**: All 525 unit tests pass. UI verified on emulator.
+

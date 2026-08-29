@@ -65,7 +65,11 @@ class PhotoReaderViewModelTest {
             ),
             wbShift = 40 to -80,
         )
-        val vm = PhotoReaderViewModel(repo, { jpeg }, testDispatcher)
+        val vm = PhotoReaderViewModel(
+            repository = repo,
+            readPhoto = { jpeg },
+            defaultDispatcher = testDispatcher,
+        )
 
         vm.read("content://photo.jpg")
         advanceUntilIdle()
@@ -75,7 +79,11 @@ class PhotoReaderViewModelTest {
 
     @Test
     fun `read non-jpeg sets state to Failed`() = runTest(testDispatcher) {
-        val vm = PhotoReaderViewModel(repo, { SyntheticJpeg.notJpeg() }, testDispatcher)
+        val vm = PhotoReaderViewModel(
+            repository = repo,
+            readPhoto = { SyntheticJpeg.notJpeg() },
+            defaultDispatcher = testDispatcher,
+        )
 
         vm.read("content://photo.jpg")
         advanceUntilIdle()
@@ -87,7 +95,11 @@ class PhotoReaderViewModelTest {
 
     @Test
     fun `read unreadable uri sets state to Failed`() = runTest(testDispatcher) {
-        val vm = PhotoReaderViewModel(repo, { null }, testDispatcher)
+        val vm = PhotoReaderViewModel(
+            repository = repo,
+            readPhoto = { null },
+            defaultDispatcher = testDispatcher,
+        )
 
         vm.read("content://invalid.jpg")
         advanceUntilIdle()
@@ -101,10 +113,14 @@ class PhotoReaderViewModelTest {
     fun `read same uri twice does not re-read when already in Result stage`() = runTest(testDispatcher) {
         var readCount = 0
         val jpeg = SyntheticJpeg.fujifilm(listOf(SyntheticJpeg.u16(5121, 1536)))
-        val vm = PhotoReaderViewModel(repo, {
-            readCount++
-            jpeg
-        }, testDispatcher)
+        val vm = PhotoReaderViewModel(
+            repository = repo,
+            readPhoto = {
+                readCount++
+                jpeg
+            },
+            defaultDispatcher = testDispatcher,
+        )
 
         vm.read("content://photo.jpg")
         advanceUntilIdle()
@@ -119,10 +135,14 @@ class PhotoReaderViewModelTest {
     fun `reset clears state and allows re-reading`() = runTest(testDispatcher) {
         var readCount = 0
         val jpeg = SyntheticJpeg.fujifilm(listOf(SyntheticJpeg.u16(5121, 1536)))
-        val vm = PhotoReaderViewModel(repo, {
-            readCount++
-            jpeg
-        }, testDispatcher)
+        val vm = PhotoReaderViewModel(
+            repository = repo,
+            readPhoto = {
+                readCount++
+                jpeg
+            },
+            defaultDispatcher = testDispatcher,
+        )
 
         vm.read("content://photo.jpg")
         advanceUntilIdle()
@@ -135,5 +155,45 @@ class PhotoReaderViewModelTest {
         vm.read("content://photo.jpg")
         advanceUntilIdle()
         assertEquals(2, readCount)
+    }
+
+    @Test
+    fun `addPhotoToRecipe saves image and updates recipe in repo`() = runTest(testDispatcher) {
+        val testRecipe = Recipe(
+            id = "recipe-1",
+            name = "Test Recipe",
+            images = listOf("existing.webp"),
+        )
+        var updatedRecipeJson: kotlinx.serialization.json.JsonObject? = null
+        val repoWithRecipe = object : RecipeRepository {
+            override val library: Flow<LibraryState> = MutableStateFlow(LibraryState(recipes = listOf(testRecipe), hasLoaded = true))
+            override suspend fun load() = Unit
+            override suspend fun create(body: kotlinx.serialization.json.JsonObject): dev.bondarenko.fujirecipes.core.result.LibraryResult<Recipe> = throw NotImplementedError()
+            override suspend fun update(id: String, body: kotlinx.serialization.json.JsonObject): dev.bondarenko.fujirecipes.core.result.LibraryResult<Recipe> {
+                updatedRecipeJson = body
+                return dev.bondarenko.fujirecipes.core.result.LibraryResult.Success(Recipe.fromJson(body))
+            }
+            override suspend fun delete(id: String): dev.bondarenko.fujirecipes.core.result.LibraryResult<Unit> = throw NotImplementedError()
+            override suspend fun importAll(body: kotlinx.serialization.json.JsonObject): dev.bondarenko.fujirecipes.core.result.LibraryResult<ImportOutcome> = throw NotImplementedError()
+        }
+
+        val jpeg = SyntheticJpeg.fujifilm(listOf(SyntheticJpeg.u16(5121, 1536)))
+        val vm = PhotoReaderViewModel(
+            repository = repoWithRecipe,
+            readPhoto = { jpeg },
+            savePhoto = { "new_photo.webp" },
+            defaultDispatcher = testDispatcher,
+        )
+
+        vm.read("content://photo.jpg")
+        advanceUntilIdle()
+
+        vm.addPhotoToRecipe("recipe-1")
+        advanceUntilIdle()
+
+        assertEquals("recipe-1", vm.state.value.addedPhotoToRecipeId)
+        assertEquals(false, vm.state.value.isAddingPhoto)
+        val savedRecipe = updatedRecipeJson?.let { Recipe.fromJson(it) }
+        assertEquals(listOf("existing.webp", "new_photo.webp"), savedRecipe?.images)
     }
 }

@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonPrimitive
@@ -41,13 +42,18 @@ sealed interface PhotoReaderStage {
     data class Result(
         val recipe: PhotoRecipe,
         val matches: MatchResult,
+        val photoUri: String? = null,
     ) : PhotoReaderStage
 
     /** Each failure is its own answer, with its own remedy (P5). */
     data class Failed(val reason: PhotoReadFailure) : PhotoReaderStage
 }
 
-data class PhotoReaderUiState(val stage: PhotoReaderStage = PhotoReaderStage.Empty)
+data class PhotoReaderUiState(
+    val stage: PhotoReaderStage = PhotoReaderStage.Empty,
+    val isAddingPhoto: Boolean = false,
+    val addedPhotoToRecipeId: String? = null,
+)
 
 class PhotoReaderViewModel(
     private val repository: RecipeRepository,
@@ -58,6 +64,7 @@ class PhotoReaderViewModel(
      * `ContentResolver` — which is what lets the stage machine be exercised without a device.
      */
     private val readPhoto: suspend (String) -> ByteArray?,
+    private val savePhoto: (suspend (String) -> String?)? = null,
     private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
@@ -88,9 +95,34 @@ class PhotoReaderViewModel(
                         PhotoReaderStage.Result(
                             recipe = parsed.recipe,
                             matches = findMatches(parsed.recipe, library),
+                            photoUri = uri,
                         ),
                     )
                 }
+            }
+        }
+    }
+
+    fun addPhotoToRecipe(recipeId: String) {
+        val uri = currentUri ?: return
+        val save = savePhoto ?: return
+        if (_state.value.isAddingPhoto || _state.value.addedPhotoToRecipeId == recipeId) return
+
+        viewModelScope.launch {
+            _state.update { it.copy(isAddingPhoto = true) }
+            val imageName = withContext(defaultDispatcher) { save(uri) }
+            if (imageName == null) {
+                _state.update { it.copy(isAddingPhoto = false) }
+                return@launch
+            }
+
+            val currentRecipe = repository.library.first { it.hasLoaded }.recipes.find { it.id == recipeId }
+            if (currentRecipe != null && currentRecipe.images.size < dev.bondarenko.fujirecipes.core.store.ImageStore.MAX_IMAGES_PER_RECIPE) {
+                val updatedImages = currentRecipe.images + imageName
+                repository.update(recipeId, currentRecipe.copy(images = updatedImages).toJson())
+                _state.update { it.copy(isAddingPhoto = false, addedPhotoToRecipeId = recipeId) }
+            } else {
+                _state.update { it.copy(isAddingPhoto = false) }
             }
         }
     }
@@ -152,7 +184,19 @@ class PhotoReaderViewModel(
             container: AppContainer,
             readPhoto: suspend (String) -> ByteArray?,
         ): ViewModelProvider.Factory = viewModelFactory {
-            initializer { PhotoReaderViewModel(container.recipeRepository, readPhoto) }
+            initializer {
+                PhotoReaderViewModel(
+                    repository = container.recipeRepository,
+                    readPhoto = readPhoto,
+                    savePhoto = { uriString ->
+                        runCatching {
+                            android.net.Uri.parse(uriString)
+                        }.getOrNull()?.let { uri ->
+                            container.imageStore.saveFromUri(uri)
+                        }
+                    },
+                )
+            }
         }
     }
 }

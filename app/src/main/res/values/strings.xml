@@ -304,6 +304,8 @@
     <string name="photo_settings">What the photo says</string>
 
     <string name="photo_match_exact_title">You already have this: “%1$s”</string>
+    <string name="photo_match_badge_exact">Exact match</string>
+    <string name="photo_match_badge_near">%1$d%% match</string>
     <string name="photo_match_exact_body">Every setting the photo carries matches that recipe.</string>
     <string name="photo_match_near_title">Close to “%1$s” — %2$d%%</string>
     <string name="photo_match_near_body">Everything matches except the following.</string>
@@ -314,6 +316,9 @@
     <string name="photo_action_open_match">Open “%1$s”</string>
     <string name="photo_action_view_recipe">View recipe</string>
     <string name="photo_action_save">Save as a new recipe</string>
+    <string name="photo_action_add_photo">Add photo to this recipe</string>
+    <string name="photo_action_adding_photo">Adding photo…</string>
+    <string name="photo_action_photo_added">Photo added to recipe</string>
 
     <string name="photo_error_not_jpeg_title">That is not a JPEG</string>
     <string name="photo_error_not_jpeg_body">This reads the recipe out of a JPEG your camera wrote. A RAF file is not one — if you shoot RAW+JPEG, choose the JPEG.</string>
