@@ -134,10 +134,30 @@ fun PhotoReaderScreen(
                         bottom = 12.dp + contentPadding.calculateBottomPadding(),
                     ),
             ) {
-                SectionHeader(
-                    text = stringResource(R.string.photo_title),
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.photo_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    TextButton(
+                        onClick = onReset,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.action_reset),
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.height(10.dp))
 
                 val pagerState = rememberPagerState(initialPage = stage.selectedIndex) { stage.photos.size }
@@ -355,12 +375,6 @@ private fun AnalyzedPhotoCard(
 
                     items(photo.recipe.rawValues.entries.toList(), key = { it.key }) { (label, value) ->
                         SettingRow(label = label, value = value)
-                    }
-                }
-
-                item {
-                    OutlinedButton(onClick = onChoosePhoto, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.photo_action_another))
                     }
                 }
             }
