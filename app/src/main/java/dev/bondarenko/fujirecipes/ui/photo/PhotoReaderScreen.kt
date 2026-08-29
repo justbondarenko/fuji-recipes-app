@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
@@ -34,6 +36,8 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.StarRate
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
@@ -85,6 +89,7 @@ import kotlinx.coroutines.withContext
 fun PhotoReaderScreen(
     state: PhotoReaderUiState,
     onChoosePhoto: () -> Unit,
+    onSelectPhoto: (Int) -> Unit,
     onAddPhotoToRecipe: (String) -> Unit,
     onOpenRecipe: (String) -> Unit,
     onSaveAsNew: () -> Unit,
@@ -121,30 +126,50 @@ fun PhotoReaderScreen(
         }
 
         is PhotoReaderStage.Result -> {
-            val matchedId = stage.matches.best?.recipe?.id
-            LazyColumn(
-                modifier = modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
-                    top = 12.dp + contentPadding.calculateTopPadding(),
-                    bottom = 24.dp + contentPadding.calculateBottomPadding(),
-                ),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(
+                        top = 12.dp + contentPadding.calculateTopPadding(),
+                        bottom = 12.dp + contentPadding.calculateBottomPadding(),
+                    ),
             ) {
-                item { SectionHeader(stringResource(R.string.photo_title)) }
-
-                resultItems(
-                    recipe = stage.recipe,
-                    matches = stage.matches,
-                    photoUri = stage.photoUri,
-                    isAddingPhoto = state.isAddingPhoto,
-                    isPhotoAdded = matchedId != null && state.addedPhotoToRecipeId == matchedId,
-                    onAddPhotoToRecipe = onAddPhotoToRecipe,
-                    onOpenRecipe = onOpenRecipe,
-                    onSaveAsNew = onSaveAsNew,
-                    onChoosePhoto = onChoosePhoto,
+                SectionHeader(
+                    text = stringResource(R.string.photo_title),
+                    modifier = Modifier.padding(horizontal = 16.dp),
                 )
+                Spacer(modifier = Modifier.height(10.dp))
+
+                val pagerState = rememberPagerState(initialPage = stage.selectedIndex) { stage.photos.size }
+                LaunchedEffect(pagerState.currentPage) {
+                    onSelectPhoto(pagerState.currentPage)
+                }
+
+                HorizontalPager(
+                    state = pagerState,
+                    pageSpacing = 12.dp,
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                ) { page ->
+                    val photo = stage.photos[page]
+                    val currentUri = photo.uri
+                    val isCurrentPhotoAdded = currentUri.isNotEmpty() && state.addedPhotoUris.contains(currentUri)
+
+                    AnalyzedPhotoCard(
+                        photo = photo,
+                        pageIndex = page,
+                        totalPages = stage.photos.size,
+                        isAddingPhoto = state.isAddingPhoto,
+                        isPhotoAdded = isCurrentPhotoAdded,
+                        onAddPhotoToRecipe = onAddPhotoToRecipe,
+                        onOpenRecipe = onOpenRecipe,
+                        onSaveAsNew = onSaveAsNew,
+                        onChoosePhoto = onChoosePhoto,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
         }
     }
@@ -231,74 +256,114 @@ private fun FailedPhotoState(
     }
 }
 
-private fun androidx.compose.foundation.lazy.LazyListScope.resultItems(
-    recipe: PhotoRecipe,
-    matches: MatchResult,
-    photoUri: String?,
+@Composable
+private fun AnalyzedPhotoCard(
+    photo: AnalyzedPhoto,
+    pageIndex: Int,
+    totalPages: Int,
     isAddingPhoto: Boolean,
     isPhotoAdded: Boolean,
     onAddPhotoToRecipe: (String) -> Unit,
     onOpenRecipe: (String) -> Unit,
     onSaveAsNew: () -> Unit,
     onChoosePhoto: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    if (photoUri != null) {
-        item {
-            val parsedModel = remember(photoUri) {
-                runCatching { android.net.Uri.parse(photoUri) }.getOrDefault(photoUri)
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = modifier,
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            if (photo.uri.isNotEmpty()) {
+                val parsedModel = remember(photo.uri) {
+                    runCatching { android.net.Uri.parse(photo.uri) }.getOrDefault(photo.uri)
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
+                ) {
+                    AsyncImage(
+                        model = parsedModel,
+                        contentDescription = stringResource(R.string.photo_title),
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+
+                    if (totalPages > 1) {
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.85f),
+                            tonalElevation = 2.dp,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(10.dp),
+                        ) {
+                            Text(
+                                text = "${pageIndex + 1} / $totalPages",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontFeatureSettings = TabularFigures,
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
+                }
             }
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+
+            LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp),
+                    .weight(1f),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                AsyncImage(
-                    model = parsedModel,
-                    contentDescription = stringResource(R.string.photo_title),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
+                val best = photo.matches.best
+                item {
+                    if (best != null) {
+                        MatchedRecipeCard(
+                            match = best,
+                            isAddingPhoto = isAddingPhoto,
+                            isPhotoAdded = isPhotoAdded,
+                            onAddPhotoToRecipe = { onAddPhotoToRecipe(best.recipe.id) },
+                            onOpenRecipe = onOpenRecipe,
+                            onSaveAsNew = onSaveAsNew,
+                        )
+                    } else {
+                        NoMatchCard(
+                            matches = photo.matches,
+                            onSaveAsNew = onSaveAsNew,
+                        )
+                    }
+                }
+
+                val isExactMatch = best?.isExact == true
+                if (!isExactMatch) {
+                    item { SectionHeader(stringResource(R.string.photo_settings)) }
+
+                    photo.recipe.cameraModel?.let { model ->
+                        item { Body(stringResource(R.string.photo_shot_on, model)) }
+                    }
+
+                    items(photo.recipe.rawValues.entries.toList(), key = { it.key }) { (label, value) ->
+                        SettingRow(label = label, value = value)
+                    }
+                }
+
+                item {
+                    OutlinedButton(onClick = onChoosePhoto, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.photo_action_another))
+                    }
+                }
             }
-        }
-    }
-
-    val best = matches.best
-    item {
-        if (best != null) {
-            MatchedRecipeCard(
-                match = best,
-                isAddingPhoto = isAddingPhoto,
-                isPhotoAdded = isPhotoAdded,
-                onAddPhotoToRecipe = { onAddPhotoToRecipe(best.recipe.id) },
-                onOpenRecipe = onOpenRecipe,
-                onSaveAsNew = onSaveAsNew,
-            )
-        } else {
-            NoMatchCard(
-                matches = matches,
-                onSaveAsNew = onSaveAsNew,
-            )
-        }
-    }
-
-    val isExactMatch = matches.best?.isExact == true
-    if (!isExactMatch) {
-        item { SectionHeader(stringResource(R.string.photo_settings)) }
-
-        recipe.cameraModel?.let { model ->
-            item { Body(stringResource(R.string.photo_shot_on, model)) }
-        }
-
-        items(recipe.rawValues.entries.toList(), key = { it.key }) { (label, value) ->
-            SettingRow(label = label, value = value)
-        }
-    }
-
-    item {
-        OutlinedButton(onClick = onChoosePhoto, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.photo_action_another))
         }
     }
 }
@@ -719,8 +784,12 @@ fun PhotoReaderRouteContent(
     }
 
     val picker = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia(),
-    ) { uri -> uri?.let { viewModel.read(it.toString()) } }
+        ActivityResultContracts.PickMultipleVisualMedia(),
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            viewModel.read(uris.map { it.toString() })
+        }
+    }
 
     PhotoReaderScreen(
         state = state,
@@ -729,6 +798,7 @@ fun PhotoReaderRouteContent(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
             )
         },
+        onSelectPhoto = viewModel::selectPhoto,
         onAddPhotoToRecipe = viewModel::addPhotoToRecipe,
         onOpenRecipe = onOpenRecipe,
         onSaveAsNew = {
