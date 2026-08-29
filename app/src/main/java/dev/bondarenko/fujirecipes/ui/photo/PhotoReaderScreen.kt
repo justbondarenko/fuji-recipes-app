@@ -170,9 +170,9 @@ fun PhotoReaderScreen(
 
                 HorizontalPager(
                     state = pagerState,
-                    pageSpacing = 3.dp,
+                    pageSpacing = 12.dp,
                     contentPadding = PaddingValues(
-                        horizontal = if (stage.photos.size > 1) 28.dp else 16.dp,
+                        horizontal = if (stage.photos.size > 1) 36.dp else 16.dp,
                         vertical = 8.dp,
                     ),
                     modifier = Modifier
@@ -197,10 +197,8 @@ fun PhotoReaderScreen(
                             .fillMaxSize()
                             .graphicsLayer {
                                 val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction).absoluteValue.coerceIn(0f, 1f)
-                                val scale = lerp(0.85f, 1f, 1f - pageOffset)
-                                scaleX = scale
-                                scaleY = scale
-                                alpha = lerp(0.70f, 1f, 1f - pageOffset)
+                                scaleY = lerp(0.88f, 1f, 1f - pageOffset)
+                                alpha = lerp(0.65f, 1f, 1f - pageOffset)
                             },
                     )
                 }
