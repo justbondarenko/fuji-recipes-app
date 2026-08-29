@@ -25,6 +25,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.util.lerp
+import kotlin.math.absoluteValue
 import coil.compose.AsyncImage
 import dev.bondarenko.fujirecipes.core.store.ImageStore
 import dev.bondarenko.fujirecipes.ui.theme.icons.Add
@@ -169,7 +172,7 @@ fun PhotoReaderScreen(
                     state = pagerState,
                     pageSpacing = 16.dp,
                     contentPadding = PaddingValues(
-                        horizontal = if (stage.photos.size > 1) 32.dp else 16.dp,
+                        horizontal = if (stage.photos.size > 1) 36.dp else 16.dp,
                         vertical = 8.dp,
                     ),
                     modifier = Modifier
@@ -190,7 +193,15 @@ fun PhotoReaderScreen(
                         onOpenRecipe = onOpenRecipe,
                         onSaveAsNew = onSaveAsNew,
                         onChoosePhoto = onChoosePhoto,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction).absoluteValue.coerceIn(0f, 1f)
+                                val scale = lerp(0.90f, 1f, 1f - pageOffset)
+                                scaleX = scale
+                                scaleY = scale
+                                alpha = lerp(0.60f, 1f, 1f - pageOffset)
+                            },
                     )
                 }
             }
