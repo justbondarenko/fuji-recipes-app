@@ -379,11 +379,11 @@ private fun AnalyzedPhotoCard(
                     }
                 }
 
-                // Bottom Gradient Scrim (~30% height)
+                // Bottom Gradient Scrim
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(0.35f)
+                        .fillMaxHeight(0.40f)
                         .align(Alignment.BottomCenter)
                         .background(
                             Brush.verticalGradient(
@@ -404,10 +404,10 @@ private fun AnalyzedPhotoCard(
                             .fillMaxWidth()
                             .align(Alignment.BottomCenter)
                             .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(18.dp),
                     ) {
                         Column(
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onOpenRecipe(recipe.id) },
