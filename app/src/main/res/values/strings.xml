@@ -315,10 +315,10 @@
     <string name="photo_difference">%1$s · photo %2$s, saved %3$s</string>
     <string name="photo_action_open_match">Open “%1$s”</string>
     <string name="photo_action_view_recipe">View recipe</string>
-    <string name="photo_action_save">Save as a new recipe</string>
-    <string name="photo_action_add_photo">Add photo to this recipe</string>
-    <string name="photo_action_adding_photo">Adding photo…</string>
-    <string name="photo_action_photo_added">Photo added to recipe</string>
+    <string name="photo_action_save">Save as new</string>
+    <string name="photo_action_add_photo">Add to recipe</string>
+    <string name="photo_action_adding_photo">Adding…</string>
+    <string name="photo_action_photo_added">Added to recipe</string>
 
     <string name="photo_error_not_jpeg_title">That is not a JPEG</string>
     <string name="photo_error_not_jpeg_body">This reads the recipe out of a JPEG your camera wrote. A RAF file is not one — if you shoot RAW+JPEG, choose the JPEG.</string>

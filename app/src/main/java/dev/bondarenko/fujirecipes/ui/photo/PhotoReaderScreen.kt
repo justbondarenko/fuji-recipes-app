@@ -298,75 +298,133 @@ private fun AnalyzedPhotoCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = modifier,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            if (photo.uri.isNotEmpty()) {
-                val parsedModel = remember(photo.uri) {
-                    runCatching { android.net.Uri.parse(photo.uri) }.getOrDefault(photo.uri)
-                }
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
-                ) {
-                    AsyncImage(
-                        model = parsedModel,
-                        contentDescription = stringResource(R.string.photo_title),
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
+        val best = photo.matches.best
+        val isExactMatch = best?.isExact == true
 
-                    if (totalPages > 1) {
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.85f),
-                            tonalElevation = 2.dp,
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(10.dp),
-                        ) {
-                            Text(
-                                text = "${pageIndex + 1} / $totalPages",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontFeatureSettings = TabularFigures,
-                                ),
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            )
+        if (isExactMatch) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween,
+            ) {
+                if (photo.uri.isNotEmpty()) {
+                    val parsedModel = remember(photo.uri) {
+                        runCatching { android.net.Uri.parse(photo.uri) }.getOrDefault(photo.uri)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
+                    ) {
+                        AsyncImage(
+                            model = parsedModel,
+                            contentDescription = stringResource(R.string.photo_title),
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+
+                        if (totalPages > 1) {
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.85f),
+                                tonalElevation = 2.dp,
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(10.dp),
+                            ) {
+                                Text(
+                                    text = "${pageIndex + 1} / $totalPages",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontFeatureSettings = TabularFigures,
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                val best = photo.matches.best
-                item {
-                    if (best != null) {
-                        MatchedRecipeCard(
-                            match = best,
-                            isAddingPhoto = isAddingPhoto,
-                            isPhotoAdded = isPhotoAdded,
-                            onAddPhotoToRecipe = { onAddPhotoToRecipe(best.recipe.id) },
-                            onOpenRecipe = onOpenRecipe,
-                            onSaveAsNew = onSaveAsNew,
+                best?.let {
+                    MatchedRecipeCard(
+                        match = it,
+                        isAddingPhoto = isAddingPhoto,
+                        isPhotoAdded = isPhotoAdded,
+                        onAddPhotoToRecipe = { onAddPhotoToRecipe(it.recipe.id) },
+                        onOpenRecipe = onOpenRecipe,
+                        onSaveAsNew = onSaveAsNew,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+            }
+        } else {
+            Column(modifier = Modifier.fillMaxSize()) {
+                if (photo.uri.isNotEmpty()) {
+                    val parsedModel = remember(photo.uri) {
+                        runCatching { android.net.Uri.parse(photo.uri) }.getOrDefault(photo.uri)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
+                    ) {
+                        AsyncImage(
+                            model = parsedModel,
+                            contentDescription = stringResource(R.string.photo_title),
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
                         )
-                    } else {
-                        NoMatchCard(
-                            matches = photo.matches,
-                            onSaveAsNew = onSaveAsNew,
-                        )
+
+                        if (totalPages > 1) {
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.85f),
+                                tonalElevation = 2.dp,
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(10.dp),
+                            ) {
+                                Text(
+                                    text = "${pageIndex + 1} / $totalPages",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontFeatureSettings = TabularFigures,
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                )
+                            }
+                        }
                     }
                 }
 
-                val isExactMatch = best?.isExact == true
-                if (!isExactMatch) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    item {
+                        if (best != null) {
+                            MatchedRecipeCard(
+                                match = best,
+                                isAddingPhoto = isAddingPhoto,
+                                isPhotoAdded = isPhotoAdded,
+                                onAddPhotoToRecipe = { onAddPhotoToRecipe(best.recipe.id) },
+                                onOpenRecipe = onOpenRecipe,
+                                onSaveAsNew = onSaveAsNew,
+                            )
+                        } else {
+                            NoMatchCard(
+                                matches = photo.matches,
+                                onSaveAsNew = onSaveAsNew,
+                            )
+                        }
+                    }
+
                     item { SectionHeader(stringResource(R.string.photo_settings)) }
 
                     photo.recipe.cameraModel?.let { model ->
@@ -400,11 +458,9 @@ private fun MatchedRecipeCard(
     val recipe = match.recipe
     val context = LocalContext.current
     val imageStore = remember(context) { (context.applicationContext as FujiRecipesApp).container.imageStore }
-    val firstImage = recipe.images.firstOrNull()
-    val thumbnailFile = remember(firstImage) { firstImage?.let { imageStore.getFile(it) } }
 
     Surface(
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
         tonalElevation = 2.dp,
@@ -481,25 +537,22 @@ private fun MatchedRecipeCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { onOpenRecipe(recipe.id) }
-                    .padding(vertical = 2.dp),
+                    .clickable { onOpenRecipe(recipe.id) },
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (thumbnailFile != null) {
-                    Box(
+                // Thumbnail preview if recipe has an image
+                val firstImage = recipe.images.firstOrNull()
+                if (firstImage != null) {
+                    val imageFile = remember(firstImage) { imageStore.getFile(firstImage) }
+                    AsyncImage(
+                        model = imageFile,
+                        contentDescription = recipe.name,
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .size(52.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-                    ) {
-                        AsyncImage(
-                            model = thumbnailFile,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
+                            .clip(RoundedCornerShape(10.dp)),
+                    )
                 }
 
                 Column(
@@ -588,6 +641,8 @@ private fun MatchedRecipeCard(
                             Text(
                                 text = stringResource(R.string.photo_action_photo_added),
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     } else {
@@ -607,6 +662,8 @@ private fun MatchedRecipeCard(
                                 Text(
                                     text = stringResource(R.string.photo_action_adding_photo),
                                     style = MaterialTheme.typography.labelMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             } else {
                                 Icon(
@@ -618,6 +675,8 @@ private fun MatchedRecipeCard(
                                 Text(
                                     text = stringResource(R.string.photo_action_add_photo),
                                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
                         }
@@ -627,11 +686,13 @@ private fun MatchedRecipeCard(
                 OutlinedButton(
                     onClick = onSaveAsNew,
                     shape = RoundedCornerShape(12.dp),
-                    modifier = if (recipe.images.size < ImageStore.MAX_IMAGES_PER_RECIPE || isPhotoAdded) Modifier else Modifier.weight(1f),
+                    modifier = Modifier.weight(1f),
                 ) {
                     Text(
                         text = stringResource(R.string.photo_action_save),
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
