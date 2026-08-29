@@ -167,8 +167,11 @@ fun PhotoReaderScreen(
 
                 HorizontalPager(
                     state = pagerState,
-                    pageSpacing = 12.dp,
-                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    pageSpacing = 16.dp,
+                    contentPadding = PaddingValues(
+                        horizontal = if (stage.photos.size > 1) 32.dp else 16.dp,
+                        vertical = 8.dp,
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
@@ -302,47 +305,39 @@ private fun AnalyzedPhotoCard(
         val isExactMatch = best?.isExact == true
 
         if (isExactMatch) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.SpaceBetween,
-            ) {
+            Box(modifier = Modifier.fillMaxSize()) {
                 if (photo.uri.isNotEmpty()) {
                     val parsedModel = remember(photo.uri) {
                         runCatching { android.net.Uri.parse(photo.uri) }.getOrDefault(photo.uri)
                     }
-                    Box(
+                    AsyncImage(
+                        model = parsedModel,
+                        contentDescription = stringResource(R.string.photo_title),
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
-                    ) {
-                        AsyncImage(
-                            model = parsedModel,
-                            contentDescription = stringResource(R.string.photo_title),
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(24.dp)),
+                    )
+                }
 
-                        if (totalPages > 1) {
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.85f),
-                                tonalElevation = 2.dp,
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(10.dp),
-                            ) {
-                                Text(
-                                    text = "${pageIndex + 1} / $totalPages",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontFeatureSettings = TabularFigures,
-                                    ),
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                )
-                            }
-                        }
+                if (totalPages > 1) {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.85f),
+                        tonalElevation = 2.dp,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(14.dp),
+                    ) {
+                        Text(
+                            text = "${pageIndex + 1} / $totalPages",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontFeatureSettings = TabularFigures,
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        )
                     }
                 }
 
@@ -354,7 +349,9 @@ private fun AnalyzedPhotoCard(
                         onAddPhotoToRecipe = { onAddPhotoToRecipe(it.recipe.id) },
                         onOpenRecipe = onOpenRecipe,
                         onSaveAsNew = onSaveAsNew,
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(16.dp),
                     )
                 }
             }
@@ -383,8 +380,8 @@ private fun AnalyzedPhotoCard(
                                 color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.85f),
                                 tonalElevation = 2.dp,
                                 modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(10.dp),
+                                    .align(Alignment.TopEnd)
+                                    .padding(14.dp),
                             ) {
                                 Text(
                                     text = "${pageIndex + 1} / $totalPages",
