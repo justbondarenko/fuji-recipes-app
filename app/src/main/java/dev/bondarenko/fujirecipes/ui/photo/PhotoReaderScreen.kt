@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,9 +23,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.util.lerp
 import kotlin.math.absoluteValue
@@ -329,14 +331,41 @@ private fun AnalyzedPhotoCard(
                     )
                 }
 
+                // Top-Left: Exact Match Badge
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = Color(0xFF163E2B).copy(alpha = 0.90f),
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(16.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = FujiIcons.Check,
+                            contentDescription = null,
+                            tint = Color(0xFF85E0A3),
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.photo_match_badge_exact),
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                            color = Color(0xFF85E0A3),
+                        )
+                    }
+                }
+
+                // Top-Right: Page indicator
                 if (totalPages > 1) {
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.85f),
-                        tonalElevation = 2.dp,
+                        color = Color.Black.copy(alpha = 0.60f),
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(14.dp),
+                            .padding(16.dp),
                     ) {
                         Text(
                             text = "${pageIndex + 1} / $totalPages",
@@ -344,24 +373,179 @@ private fun AnalyzedPhotoCard(
                                 fontWeight = FontWeight.Bold,
                                 fontFeatureSettings = TabularFigures,
                             ),
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = Color.White,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         )
                     }
                 }
 
-                best?.let {
-                    MatchedRecipeCard(
-                        match = it,
-                        isAddingPhoto = isAddingPhoto,
-                        isPhotoAdded = isPhotoAdded,
-                        onAddPhotoToRecipe = { onAddPhotoToRecipe(it.recipe.id) },
-                        onOpenRecipe = onOpenRecipe,
-                        onSaveAsNew = onSaveAsNew,
+                // Bottom Gradient Scrim (~30% height)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.35f)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color.Black.copy(alpha = 0.55f),
+                                    Color.Black.copy(alpha = 0.92f),
+                                ),
+                            ),
+                        ),
+                )
+
+                // Bottom Content: Matched Recipe Name & 2 CTAs
+                best?.let { match ->
+                    val recipe = match.recipe
+                    Column(
                         modifier = Modifier
+                            .fillMaxWidth()
                             .align(Alignment.BottomCenter)
                             .padding(16.dp),
-                    )
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onOpenRecipe(recipe.id) },
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = recipe.name,
+                                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false),
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                    modifier = Modifier.clickable { onOpenRecipe(recipe.id) },
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.photo_action_view_recipe),
+                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                                        color = Color.White.copy(alpha = 0.9f),
+                                    )
+                                    Icon(
+                                        imageVector = FujiIcons.KeyboardArrowRight,
+                                        contentDescription = null,
+                                        tint = Color.White.copy(alpha = 0.9f),
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                }
+                            }
+
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = FilmSimulations.labelFor(recipe.filmSimulationId),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White.copy(alpha = 0.75f),
+                                )
+                                if (recipe.rating > 0) {
+                                    RatingBadge(rating = recipe.rating)
+                                }
+                            }
+                        }
+
+                        // 2 CTA buttons
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (recipe.images.size < ImageStore.MAX_IMAGES_PER_RECIPE || isPhotoAdded) {
+                                if (isPhotoAdded) {
+                                    FilledTonalButton(
+                                        onClick = {},
+                                        enabled = false,
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.weight(1f),
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            disabledContainerColor = Color.White.copy(alpha = 0.2f),
+                                            disabledContentColor = Color.White,
+                                        ),
+                                    ) {
+                                        Icon(
+                                            imageVector = FujiIcons.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = stringResource(R.string.photo_action_photo_added),
+                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                } else {
+                                    Button(
+                                        onClick = { onAddPhotoToRecipe(recipe.id) },
+                                        enabled = !isAddingPhoto,
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        if (isAddingPhoto) {
+                                            CircularProgressIndicator(
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.onPrimary,
+                                                modifier = Modifier.size(14.dp),
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = stringResource(R.string.photo_action_adding_photo),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = FujiIcons.Add,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp),
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = stringResource(R.string.photo_action_add_photo),
+                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            OutlinedButton(
+                                onClick = onSaveAsNew,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = Color.White,
+                                ),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.6f)),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.photo_action_save),
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    }
                 }
             }
         } else {
