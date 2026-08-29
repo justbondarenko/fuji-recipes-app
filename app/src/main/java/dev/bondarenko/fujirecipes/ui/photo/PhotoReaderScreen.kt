@@ -407,14 +407,15 @@ private fun AnalyzedPhotoCard(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Column(
-                            verticalArrangement = Arrangement.spacedBy(3.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onOpenRecipe(recipe.id) },
                         ) {
+                            // Row with Name and Rating next to it
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
@@ -425,37 +426,27 @@ private fun AnalyzedPhotoCard(
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f, fill = false),
                                 )
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                                    modifier = Modifier.clickable { onOpenRecipe(recipe.id) },
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.photo_action_view_recipe),
-                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                                        color = Color.White.copy(alpha = 0.9f),
-                                    )
-                                    Icon(
-                                        imageVector = FujiIcons.KeyboardArrowRight,
-                                        contentDescription = null,
-                                        tint = Color.White.copy(alpha = 0.9f),
-                                        modifier = Modifier.size(18.dp),
-                                    )
-                                }
-                            }
-
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = FilmSimulations.labelFor(recipe.filmSimulationId),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Color.White.copy(alpha = 0.75f),
-                                )
                                 if (recipe.rating > 0) {
                                     RatingBadge(rating = recipe.rating)
                                 }
+                            }
+
+                            // View recipe link below title
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.photo_action_view_recipe),
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                                    color = Color.White.copy(alpha = 0.85f),
+                                )
+                                Icon(
+                                    imageVector = FujiIcons.KeyboardArrowRight,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(18.dp),
+                                )
                             }
                         }
 
