@@ -191,9 +191,38 @@ class PhotoReaderViewModelTest {
         vm.addPhotoToRecipe("recipe-1")
         advanceUntilIdle()
 
-        assertEquals("recipe-1", vm.state.value.addedPhotoToRecipeId)
+        assertEquals(true, vm.state.value.addedPhotoUris.contains("content://photo.jpg"))
         assertEquals(false, vm.state.value.isAddingPhoto)
         val savedRecipe = updatedRecipeJson?.let { Recipe.fromJson(it) }
         assertEquals(listOf("existing.webp", "new_photo.webp"), savedRecipe?.images)
+    }
+
+    @Test
+    fun `read multiple uris populates list and supports selectPhoto`() = runTest(testDispatcher) {
+        val jpeg1 = SyntheticJpeg.fujifilm(listOf(SyntheticJpeg.u16(5121, 1536))) // Classic Chrome
+        val jpeg2 = SyntheticJpeg.fujifilm(listOf(SyntheticJpeg.u16(5121, 1280))) // Velvia
+
+        val vm = PhotoReaderViewModel(
+            repository = repo,
+            readPhoto = { uri ->
+                if (uri.contains("1")) jpeg1 else jpeg2
+            },
+            defaultDispatcher = testDispatcher,
+        )
+
+        vm.read(listOf("content://photo1.jpg", "content://photo2.jpg"))
+        advanceUntilIdle()
+
+        val stage = vm.state.value.stage
+        assertIs<PhotoReaderStage.Result>(stage)
+        assertEquals(2, stage.photos.size)
+        assertEquals("content://photo1.jpg", stage.currentPhoto.uri)
+        assertEquals(0, stage.selectedIndex)
+
+        vm.selectPhoto(1)
+        val updatedStage = vm.state.value.stage
+        assertIs<PhotoReaderStage.Result>(updatedStage)
+        assertEquals(1, updatedStage.selectedIndex)
+        assertEquals("content://photo2.jpg", updatedStage.currentPhoto.uri)
     }
 }
