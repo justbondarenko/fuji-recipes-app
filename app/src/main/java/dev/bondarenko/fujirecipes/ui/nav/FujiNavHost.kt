@@ -67,7 +67,7 @@ data class RecipeViewRoute(val id: String)
 
 /** Bottom bar → Read: decode a photo's MakerNote and match it (FEAT-009). */
 @Serializable
-data object PhotoRoute
+data class PhotoRoute(val initialUri: String? = null)
 
 /** Bottom bar → Cleanup: find and manage duplicated and similar recipes. */
 @Serializable
@@ -271,8 +271,10 @@ fun FujiNavHost(
             CameraRouteContent(contentPadding = contentPadding)
         }
 
-        composable<PhotoRoute> {
+        composable<PhotoRoute> { entry ->
+            val route = entry.toRoute<PhotoRoute>()
             PhotoReaderRouteContent(
+                initialUri = route.initialUri,
                 onOpenRecipe = { id -> navController.navigate(RecipeViewRoute(id)) },
                 onSaveAsNew = { prefill, name ->
                     navController.navigate(

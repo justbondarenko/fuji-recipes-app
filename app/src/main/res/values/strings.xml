@@ -296,7 +296,8 @@
     <!-- Read a recipe from a photo — FEAT-009 -->
     <string name="nav_read">Analyze</string>
     <string name="photo_title">Extract recipe from a photo</string>
-    <string name="photo_intro">Choose a JPEG from your Fujifilm camera and this extracts the recipe it was shot with, then tells you whether it is one you already have. It all happens on this phone.</string>
+    <string name="share_action_extract_recipe">Extract recipe</string>
+    <string name="photo_intro">Pick a JPEG shot on a Fujifilm camera to read the recipe embedded in its maker notes and find a matching recipe in your library.</string>
     <string name="photo_action_choose">Choose a photo</string>
     <string name="photo_action_another">Analyze another photo</string>
     <string name="photo_reading">Analyzing the photo…</string>
@@ -304,6 +305,8 @@
     <string name="photo_settings">What the photo says</string>
 
     <string name="photo_match_exact_title">You already have this: “%1$s”</string>
+    <string name="photo_match_badge_exact">Exact match</string>
+    <string name="photo_match_badge_near">%1$d%% match</string>
     <string name="photo_match_exact_body">Every setting the photo carries matches that recipe.</string>
     <string name="photo_match_near_title">Close to “%1$s” — %2$d%%</string>
     <string name="photo_match_near_body">Everything matches except the following.</string>
@@ -313,7 +316,10 @@
     <string name="photo_difference">%1$s · photo %2$s, saved %3$s</string>
     <string name="photo_action_open_match">Open “%1$s”</string>
     <string name="photo_action_view_recipe">View recipe</string>
-    <string name="photo_action_save">Save as a new recipe</string>
+    <string name="photo_action_save">Save as new</string>
+    <string name="photo_action_add_photo">Add to recipe</string>
+    <string name="photo_action_adding_photo">Adding…</string>
+    <string name="photo_action_photo_added">Added to recipe</string>
 
     <string name="photo_error_not_jpeg_title">That is not a JPEG</string>
     <string name="photo_error_not_jpeg_body">This reads the recipe out of a JPEG your camera wrote. A RAF file is not one — if you shoot RAW+JPEG, choose the JPEG.</string>

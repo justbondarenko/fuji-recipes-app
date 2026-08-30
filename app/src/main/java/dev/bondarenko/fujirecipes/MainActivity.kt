@@ -35,10 +35,16 @@ import dev.bondarenko.fujirecipes.ui.nav.RecipeViewRoute
 import dev.bondarenko.fujirecipes.ui.shell.AppShell
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 
+import android.net.Uri
+import androidx.compose.runtime.LaunchedEffect
+
 class MainActivity : ComponentActivity() {
+    private var sharedPhotoUri by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         connectIfLaunchedByCamera(intent)
+        sharedPhotoUri = extractSharedImageUri(intent)
         // Mandatory on Android 15+ regardless, so it is done deliberately here rather than
         // discovered in a release build.
         enableEdgeToEdge()
@@ -47,13 +53,36 @@ class MainActivity : ComponentActivity() {
         // Straight to the library. There is nothing to decide first — no stored connection to
         // read, no setup to do — so the splash is not held open for anything. The list screen
         // draws its own loading and error states while the store is read.
-        setContent { FujiApp() }
+        setContent {
+            FujiApp(
+                sharedPhotoUri = sharedPhotoUri,
+                onSharedPhotoHandled = { sharedPhotoUri = null },
+            )
+        }
     }
 
-    /** A camera plugged in while the app was already running comes through here. */
+    /** A camera plugged in or photo shared while the app was already running comes through here. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         connectIfLaunchedByCamera(intent)
+        extractSharedImageUri(intent)?.let { uri -> sharedPhotoUri = uri }
+    }
+
+    /**
+     * Extracts a shared image Uri if launched via ACTION_SEND.
+     */
+    private fun extractSharedImageUri(intent: Intent?): String? {
+        if (intent == null || intent.action != Intent.ACTION_SEND) return null
+        val type = intent.type ?: return null
+        if (!type.startsWith("image/")) return null
+        
+        val uri: Uri? = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
+            ?: @Suppress("DEPRECATION") (intent.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri)
+            ?: intent.getStringExtra(Intent.EXTRA_STREAM)?.let { runCatching { Uri.parse(it) }.getOrNull() }
+            ?: intent.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
+            ?: intent.data
+
+        return uri?.toString()
     }
 
     /**
@@ -75,11 +104,24 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun FujiApp() {
+private fun FujiApp(
+    sharedPhotoUri: String? = null,
+    onSharedPhotoHandled: () -> Unit = {},
+) {
     FujiTheme {
         val navController = rememberNavController()
         val backStackEntry by navController.currentBackStackEntryAsState()
         val destination = backStackEntry?.destination
+
+        LaunchedEffect(sharedPhotoUri) {
+            val uri = sharedPhotoUri ?: return@LaunchedEffect
+            navController.navigate(PhotoRoute(initialUri = uri)) {
+                popUpTo(LibraryRoute)
+                launchSingleTop = true
+            }
+            onSharedPhotoHandled()
+        }
+
         /**
          * The shell chrome is hidden wherever it would be wrong rather than wherever it
          * happens to look busy: the editor owns its own bottom bar (FEAT-002), and subpages
@@ -126,7 +168,7 @@ private fun FujiApp() {
                     launchSingleTop = true
                 }
             },
-            onReadClick = { navController.navigate(PhotoRoute) { launchSingleTop = true } },
+            onReadClick = { navController.navigate(PhotoRoute()) { launchSingleTop = true } },
             onCleanupClick = { navController.navigate(CleanupRoute) { launchSingleTop = true } },
             onMoreClick = {
                 navController.navigate(MoreRoute) {

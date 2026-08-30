@@ -13,11 +13,13 @@ import dev.bondarenko.fujirecipes.data.photo.PhotoRecipe
 import dev.bondarenko.fujirecipes.data.photo.findMatches
 import dev.bondarenko.fujirecipes.data.photo.parseRecipeFromJpeg
 import dev.bondarenko.fujirecipes.data.repo.RecipeRepository
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonPrimitive
@@ -30,6 +32,12 @@ import kotlinx.serialization.json.buildJsonObject
  * uploaded, which is both a privacy property worth having and what makes the screen work with
  * no signal.
  */
+data class AnalyzedPhoto(
+    val uri: String,
+    val recipe: PhotoRecipe,
+    val matches: MatchResult,
+)
+
 sealed interface PhotoReaderStage {
 
     /** Nothing chosen yet. */
@@ -38,15 +46,32 @@ sealed interface PhotoReaderStage {
     data object Reading : PhotoReaderStage
 
     data class Result(
-        val recipe: PhotoRecipe,
-        val matches: MatchResult,
-    ) : PhotoReaderStage
+        val photos: List<AnalyzedPhoto>,
+        val selectedIndex: Int = 0,
+    ) : PhotoReaderStage {
+        constructor(recipe: PhotoRecipe, matches: MatchResult, photoUri: String? = null) : this(
+            photos = listOf(AnalyzedPhoto(photoUri ?: "", recipe, matches)),
+            selectedIndex = 0,
+        )
+
+        val currentPhoto: AnalyzedPhoto get() = photos.getOrElse(selectedIndex) { photos.first() }
+        val recipe: PhotoRecipe get() = currentPhoto.recipe
+        val matches: MatchResult get() = currentPhoto.matches
+        val photoUri: String? get() = currentPhoto.uri.ifEmpty { null }
+    }
 
     /** Each failure is its own answer, with its own remedy (P5). */
     data class Failed(val reason: PhotoReadFailure) : PhotoReaderStage
 }
 
-data class PhotoReaderUiState(val stage: PhotoReaderStage = PhotoReaderStage.Empty)
+data class PhotoReaderUiState(
+    val stage: PhotoReaderStage = PhotoReaderStage.Empty,
+    val isAddingPhoto: Boolean = false,
+    val addedPhotoUris: Set<String> = emptySet(),
+) {
+    // Backward compatibility helper
+    val addedPhotoToRecipeId: String? get() = null
+}
 
 class PhotoReaderViewModel(
     private val repository: RecipeRepository,
@@ -57,40 +82,96 @@ class PhotoReaderViewModel(
      * `ContentResolver` — which is what lets the stage machine be exercised without a device.
      */
     private val readPhoto: suspend (String) -> ByteArray?,
+    private val savePhoto: (suspend (String) -> String?)? = null,
+    private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
+    private var currentUris: List<String> = emptyList()
     private val _state = MutableStateFlow(PhotoReaderUiState())
     val state: StateFlow<PhotoReaderUiState> = _state.asStateFlow()
 
-    fun read(uri: String) {
+    fun read(uri: String) = read(listOf(uri))
+
+    fun read(uris: List<String>) {
+        if (uris.isEmpty()) return
+        if (currentUris == uris && _state.value.stage !is PhotoReaderStage.Empty) return
+        currentUris = uris
         _state.value = PhotoReaderUiState(PhotoReaderStage.Reading)
 
         viewModelScope.launch {
-            val bytes = runCatching { readPhoto(uri) }.getOrNull()
-                ?: return@launch fail(PhotoReadFailure.UNREADABLE)
+            val library = repository.library.first { it.hasLoaded }.recipes
+            val results = mutableListOf<AnalyzedPhoto>()
+            var lastFailure: PhotoReadFailure? = null
 
-            // Off the main thread: a 20 MB JPEG is a 20 MB scan, and the signature hunt walks
-            // up to half a megabyte of it.
-            when (val parsed = withContext(Dispatchers.Default) { parseRecipeFromJpeg(bytes) }) {
-                is PhotoReadResult.Failure -> fail(parsed.reason)
-
-                is PhotoReadResult.Success -> {
-                    // The stored library, so matching works for the same reason the
-                    // decoding does.
-                    val library = repository.library.first { it.hasLoaded }.recipes
-
-                    _state.value = PhotoReaderUiState(
-                        PhotoReaderStage.Result(
+            for (uri in uris) {
+                val bytes = runCatching { readPhoto(uri) }.getOrNull()
+                if (bytes == null) {
+                    lastFailure = PhotoReadFailure.UNREADABLE
+                    continue
+                }
+                when (val parsed = withContext(defaultDispatcher) { parseRecipeFromJpeg(bytes) }) {
+                    is PhotoReadResult.Failure -> {
+                        lastFailure = parsed.reason
+                    }
+                    is PhotoReadResult.Success -> {
+                        results += AnalyzedPhoto(
+                            uri = uri,
                             recipe = parsed.recipe,
                             matches = findMatches(parsed.recipe, library),
-                        ),
-                    )
+                        )
+                    }
                 }
+            }
+
+            if (results.isEmpty()) {
+                fail(lastFailure ?: PhotoReadFailure.UNREADABLE)
+            } else {
+                _state.value = PhotoReaderUiState(
+                    PhotoReaderStage.Result(
+                        photos = results,
+                        selectedIndex = 0,
+                    ),
+                )
+            }
+        }
+    }
+
+    fun selectPhoto(index: Int) {
+        val currentStage = _state.value.stage as? PhotoReaderStage.Result ?: return
+        if (index in currentStage.photos.indices && index != currentStage.selectedIndex) {
+            _state.update {
+                it.copy(stage = currentStage.copy(selectedIndex = index))
+            }
+        }
+    }
+
+    fun addPhotoToRecipe(recipeId: String) {
+        val stage = _state.value.stage as? PhotoReaderStage.Result ?: return
+        val uri = stage.currentPhoto.uri.ifEmpty { null } ?: return
+        val save = savePhoto ?: return
+        if (_state.value.isAddingPhoto || _state.value.addedPhotoUris.contains(uri)) return
+
+        viewModelScope.launch {
+            _state.update { it.copy(isAddingPhoto = true) }
+            val imageName = withContext(defaultDispatcher) { save(uri) }
+            if (imageName == null) {
+                _state.update { it.copy(isAddingPhoto = false) }
+                return@launch
+            }
+
+            val currentRecipe = repository.library.first { it.hasLoaded }.recipes.find { it.id == recipeId }
+            if (currentRecipe != null && currentRecipe.images.size < dev.bondarenko.fujirecipes.core.store.ImageStore.MAX_IMAGES_PER_RECIPE) {
+                val updatedImages = currentRecipe.images + imageName
+                repository.update(recipeId, currentRecipe.copy(images = updatedImages).toJson())
+                _state.update { it.copy(isAddingPhoto = false, addedPhotoUris = it.addedPhotoUris + uri) }
+            } else {
+                _state.update { it.copy(isAddingPhoto = false) }
             }
         }
     }
 
     fun reset() {
+        currentUris = emptyList()
         _state.value = PhotoReaderUiState()
     }
 
@@ -146,7 +227,19 @@ class PhotoReaderViewModel(
             container: AppContainer,
             readPhoto: suspend (String) -> ByteArray?,
         ): ViewModelProvider.Factory = viewModelFactory {
-            initializer { PhotoReaderViewModel(container.recipeRepository, readPhoto) }
+            initializer {
+                PhotoReaderViewModel(
+                    repository = container.recipeRepository,
+                    readPhoto = readPhoto,
+                    savePhoto = { uriString ->
+                        runCatching {
+                            android.net.Uri.parse(uriString)
+                        }.getOrNull()?.let { uri ->
+                            container.imageStore.saveFromUri(uri)
+                        }
+                    },
+                )
+            }
         }
     }
 }
