@@ -265,7 +265,7 @@ fun FujiNavHost(
                         popUpTo<PasteRecipeRoute> { inclusive = true }
                     }
                 },
-                modifier = Modifier.padding(contentPadding),
+                contentPadding = contentPadding,
             )
         }
 
