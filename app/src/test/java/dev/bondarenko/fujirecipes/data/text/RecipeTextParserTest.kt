@@ -5,6 +5,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * Ported from `fuji-recipes-book/tests/unit/recipe-text-parser.spec.ts`.
@@ -193,5 +194,42 @@ class RecipeTextParserTest {
         val parsed = parseRecipeText("   \n  \n")
         assertNull(parsed.name)
         assertEquals(0, parsed.fieldsFound)
+    }
+
+    @Test
+    fun `keeps recognised setting lines with unknown values visible for review`() {
+        val parsed = parseRecipeText(
+            """
+            My recipe
+            Film Simulation: Classic Chrome
+            Grain Effect: Medium
+            Highlight: Soft
+            """.trimIndent(),
+        )
+
+        assertEquals("My recipe", parsed.name)
+        assertEquals("classic-chrome", parsed.settings.str("filmSimulation"))
+        assertEquals(listOf("Grain Effect: Medium", "Highlight: Soft"), parsed.linesNeedingReview)
+    }
+
+    @Test
+    fun `does not flag ordinary recipe notes as unparsed settings`() {
+        val parsed = parseRecipeText(
+            """
+            My recipe
+            Film Simulation: Classic Chrome
+            Works best in overcast light.
+            """.trimIndent(),
+        )
+
+        assertTrue(parsed.linesNeedingReview.isEmpty())
+    }
+
+    @Test
+    fun `does not mistake an unparseable first setting for a recipe name`() {
+        val parsed = parseRecipeText("Film Simulation: Not a Fujifilm simulation")
+
+        assertNull(parsed.name)
+        assertEquals(listOf("Film Simulation: Not a Fujifilm simulation"), parsed.linesNeedingReview)
     }
 }

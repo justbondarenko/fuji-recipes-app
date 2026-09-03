@@ -8,8 +8,10 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntOffset
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination
@@ -24,6 +26,7 @@ import dev.bondarenko.fujirecipes.ui.camera.CameraRouteContent
 import dev.bondarenko.fujirecipes.ui.cleanup.CleanupRouteContent
 import dev.bondarenko.fujirecipes.ui.library.LibraryRouteContent
 import dev.bondarenko.fujirecipes.ui.editor.RecipeEditorRouteContent
+import dev.bondarenko.fujirecipes.ui.editor.PasteRecipeScreen
 import dev.bondarenko.fujirecipes.ui.exporting.ExportRouteContent
 import dev.bondarenko.fujirecipes.ui.importing.FileImportRouteContent
 import dev.bondarenko.fujirecipes.ui.importing.ImportRouteContent
@@ -60,6 +63,10 @@ data class RecipeEditorRoute(
     val prefill: String? = null,
     val prefillName: String? = null,
 )
+
+/** Full-screen parser for a recipe copied from a website, forum or note. */
+@Serializable
+data object PasteRecipeRoute
 
 /** Read-only. Reached by tapping a card; its Edit action leads to [RecipeEditorRoute]. */
 @Serializable
@@ -242,6 +249,26 @@ fun FujiNavHost(
             )
         }
 
+        composable<PasteRecipeRoute> {
+            PasteRecipeScreen(
+                onBack = { navController.popBackStack() },
+                onImport = { parsed ->
+                    navController.navigate(
+                        RecipeEditorRoute(
+                            id = null,
+                            prefill = parsed.settings.toString(),
+                            prefillName = parsed.name,
+                        ),
+                    ) {
+                        // The parser has done its job. Returning from the editor must not
+                        // reopen stale pasted text, but the page that opened it stays behind.
+                        popUpTo<PasteRecipeRoute> { inclusive = true }
+                    }
+                },
+                modifier = Modifier.padding(contentPadding),
+            )
+        }
+
         composable<MoreRoute> {
             SettingsRouteContent(
                 onOpenImport = { navController.navigate(ImportRoute) },
@@ -309,6 +336,7 @@ fun FujiNavHost(
         composable<ExportRoute> {
             ExportRouteContent(
                 onBack = { navController.popBackStack() },
+                onOpenPasteText = { navController.navigate(PasteRecipeRoute) },
                 // An empty library has nothing to export, so the page offers the one thing
                 // that fixes that. Replacing export in the back stack: coming back to a page
                 // that said "nothing to export" from the recipe you just made would be odd.

@@ -30,6 +30,7 @@ import dev.bondarenko.fujirecipes.ui.nav.ImportRoute
 import dev.bondarenko.fujirecipes.ui.nav.LibraryRoute
 import dev.bondarenko.fujirecipes.ui.nav.MoreRoute
 import dev.bondarenko.fujirecipes.ui.nav.PhotoRoute
+import dev.bondarenko.fujirecipes.ui.nav.PasteRecipeRoute
 import dev.bondarenko.fujirecipes.ui.nav.RecipeEditorRoute
 import dev.bondarenko.fujirecipes.ui.nav.RecipeViewRoute
 import dev.bondarenko.fujirecipes.ui.shell.AppShell
@@ -134,17 +135,18 @@ private fun FujiApp(
         val onImport = destination?.hasRoute<ImportRoute>() == true
         val onFileImport = destination?.hasRoute<FileImportRoute>() == true
         val onExport = destination?.hasRoute<ExportRoute>() == true
+        val onPasteRecipe = destination?.hasRoute<PasteRecipeRoute>() == true
         val showChrome =
-            !onEditor && !onRecipeView && !onImport && !onFileImport && !onExport
+            !onEditor && !onRecipeView && !onImport && !onFileImport && !onExport && !onPasteRecipe
 
-        // Not a route: the dialog and the sheet behind it are ways of *starting* the editor,
-        // and giving either a destination of its own would put a half-made choice in the back
-        // stack behind every recipe.
+        // The create choice is transient, but parsing pasted text gets a full route because it
+        // can hold a long recipe plus an explicit validation result.
         var creating by remember { mutableStateOf(false) }
 
         CreateRecipeFlow(
             visible = creating,
             onDismiss = { creating = false },
+            onParseText = { navController.navigate(PasteRecipeRoute) },
             onCreate = { prefill, prefillName ->
                 navController.navigate(
                     RecipeEditorRoute(id = null, prefill = prefill, prefillName = prefillName),
