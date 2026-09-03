@@ -337,6 +337,7 @@ private fun Panel(text: String, alert: Boolean = false) {
 fun ExportRouteContent(
     onBack: () -> Unit,
     onOpenEditor: (prefill: String?, prefillName: String?) -> Unit,
+    onOpenPasteText: () -> Unit,
     contentPadding: PaddingValues,
 ) {
     val context = LocalContext.current
@@ -351,6 +352,7 @@ fun ExportRouteContent(
     CreateRecipeFlow(
         visible = creating,
         onDismiss = { creating = false },
+        onParseText = onOpenPasteText,
         onCreate = onOpenEditor,
     )
 

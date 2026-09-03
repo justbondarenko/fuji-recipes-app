@@ -23,26 +23,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.bondarenko.fujirecipes.R
-import dev.bondarenko.fujirecipes.ui.editor.PasteRecipeSheet
 
 /**
  * Starting a recipe, from wherever the offer was made.
  *
- * The whole two-step gesture in one place: the dialog that offers the two ways in, and — when
- * the answer is "from text" — the sheet that parses it. Callers get one callback and open the
- * editor with what it hands them.
+ * The dialog that offers the two ways in. The parser is a proper destination so it can make use
+ * of the full screen; callers own that navigation and receive the final editor request.
  *
  * It lives here rather than in `AppShell` because the shell is no longer the only place that
  * asks. An export screen with an empty library has the same thing to offer and must offer it
@@ -56,36 +49,23 @@ import dev.bondarenko.fujirecipes.ui.editor.PasteRecipeSheet
 fun CreateRecipeFlow(
     visible: Boolean,
     onDismiss: () -> Unit,
+    onParseText: () -> Unit,
     /**
      * Open the editor. [prefill] is the parsed `settings` object as JSON and [prefillName] the
      * name the text carried — both null for a create that starts from nothing.
      */
     onCreate: (prefill: String?, prefillName: String?) -> Unit,
 ) {
-    // Survives the dialog closing, because choosing "from text" is what opens it.
-    var pasting by remember { mutableStateOf(false) }
-
-    if (visible && !pasting) {
+    if (visible) {
         CreateRecipeDialog(
             onDismiss = onDismiss,
-            onParseTextClick = { pasting = true },
+            onParseTextClick = {
+                onDismiss()
+                onParseText()
+            },
             onManualClick = {
                 onDismiss()
                 onCreate(null, null)
-            },
-        )
-    }
-
-    if (pasting) {
-        PasteRecipeSheet(
-            onDismiss = {
-                pasting = false
-                onDismiss()
-            },
-            onImport = { parsed ->
-                pasting = false
-                onDismiss()
-                onCreate(parsed.settings.toString(), parsed.name)
             },
         )
     }

@@ -26,12 +26,20 @@ data class ParsedRecipeText(
     /** Ready to hand to `RecipeEditorRoute.prefill`; keys are `RecipeFields` ids. */
     val settings: JsonObject,
     val fieldsFound: Int,
+    /**
+     * Lines that name a supported setting but whose value could not be read.
+     *
+     * They are deliberately not applied. Showing them before the editor opens turns a silent
+     * partial import into a quick, informed correction in the text box.
+     */
+    val linesNeedingReview: List<String> = emptyList(),
 ) {
     val isEmpty: Boolean get() = name == null && fieldsFound == 0
 }
 
 fun parseRecipeText(rawText: String): ParsedRecipeText {
     val settings = LinkedHashMap<String, JsonPrimitive>()
+    val linesNeedingReview = mutableListOf<String>()
     var name: String? = null
 
     /** First value wins, exactly as the web client's `setSetting` does. */
@@ -65,6 +73,7 @@ fun parseRecipeText(rawText: String): ParsedRecipeText {
         val explicitName = EXPLICIT_NAME.find(line)?.groupValues?.get(1)?.trim()
         if (!explicitName.isNullOrEmpty()) {
             name = explicitName
+            isFirstUnmatchedLine = false
             continue
         }
 
@@ -253,7 +262,16 @@ fun parseRecipeText(rawText: String): ParsedRecipeText {
         // pasted recipe on Fuji X Weekly opens.
         if (isFirstUnmatchedLine) {
             isFirstUnmatchedLine = false
-            if (!matchedAny && name == null && line.length < 80) name = line
+            if (!matchedAny && looksLikeSupportedSetting(lower)) {
+                linesNeedingReview += line
+            } else if (!matchedAny && name == null && line.length < 80) {
+                name = line
+            }
+        } else if (!matchedAny && looksLikeSupportedSetting(lower)) {
+            // A recognised label with an unknown value is much more likely to be a typo or a
+            // new camera option than ordinary prose. Keep it visible rather than pretending
+            // the whole paste was understood.
+            linesNeedingReview += line
         }
     }
 
@@ -261,6 +279,7 @@ fun parseRecipeText(rawText: String): ParsedRecipeText {
         name = name,
         settings = JsonObject(settings),
         fieldsFound = settings.size,
+        linesNeedingReview = linesNeedingReview.distinct(),
     )
 }
 
@@ -269,6 +288,17 @@ fun parseRecipeText(rawText: String): ParsedRecipeText {
 private val LEADING_BULLET = Regex("""^[•\-*\d+.:>–—]+\s*""")
 private val EXPLICIT_NAME = Regex("""^(?:name|title|recipe)\s*[:=-]\s*(.+)$""", RegexOption.IGNORE_CASE)
 private val FIRST_NUMBER = Regex("""([+-]?\d+(?:\.\d+)?)""")
+
+/**
+ * The parser's vocabulary, without its value rules. This only flags a line that clearly names
+ * a setting we support; surrounding prose and unfamiliar metadata are left alone.
+ */
+private fun looksLikeSupportedSetting(lower: String): Boolean = listOf(
+    "film simulation", "dynamic range", "grain", "color chrome", "colour chrome",
+    "cc fx blue", "white balance", "wb", "highlight", "shadow", "sharpness",
+    "high iso nr", "noise reduction", "clarity", "monochromatic", "monochrome color",
+    "d range priority", "dr priority", "exposure", "exp comp", "iso",
+).any(lower::contains)
 
 private fun parseNumber(line: String): Double? =
     FIRST_NUMBER.find(line)?.groupValues?.get(1)?.toDoubleOrNull()

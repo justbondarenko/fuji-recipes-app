@@ -343,14 +343,24 @@
     <string name="paste_intro">Paste a recipe from a website, forum or your own notes. What it recognises goes into the form, and you can change anything before saving.</string>
     <string name="paste_label">Recipe text</string>
     <string name="paste_placeholder">Film Simulation: Classic Chrome\nDynamic Range: DR400\nHighlight: 0\nShadow: -0.5…</string>
-    <string name="paste_sample">Insert an example</string>
+    <string name="paste_from_clipboard">Paste from clipboard</string>
+    <string name="paste_clipboard_empty">Your clipboard has no text to paste.</string>
+    <string name="paste_sample">Try an example</string>
+    <string name="paste_clear">Clear text</string>
     <plurals name="paste_detected">
         <item quantity="one">Found %1$d setting</item>
         <item quantity="other">Found %1$d settings</item>
     </plurals>
     <string name="paste_detected_name">%1$s, named “%2$s”</string>
     <string name="paste_detected_none">Nothing recognised yet</string>
-    <string name="paste_action">Fill the form</string>
+    <string name="paste_will_fill">Will fill: %1$s</string>
+    <plurals name="paste_review_lines">
+        <item quantity="one">1 setting line needs review</item>
+        <item quantity="other">%1$d setting lines need review</item>
+    </plurals>
+    <string name="paste_review_lines_body">These were not added. Fix them here, or adjust them in the form.</string>
+    <string name="paste_review_lines_more">…and %1$d more.</string>
+    <string name="paste_action">Analyze</string>
 
     <!-- Import from a file — FEAT-012 -->
     <string name="file_import_title">Import a file</string>
