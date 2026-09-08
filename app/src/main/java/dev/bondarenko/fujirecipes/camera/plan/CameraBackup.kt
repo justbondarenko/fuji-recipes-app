@@ -3,7 +3,7 @@ package dev.bondarenko.fujirecipes.camera.plan
 import dev.bondarenko.fujirecipes.camera.CameraModels
 
 /**
- * The settings backup: the other half of *USB RAW CONV./**BACKUP RESTORE***.
+ * The settings backup: the other half of *USB RAW CONV. / BACKUP RESTORE*.
  *
  * **Transcribed from** `petabyt/libfuji` `lib/fuji_usb.c` — `fujiusb_download_backup` and
  * `fujiusb_restore_backup`. In that USB mode the body exposes exactly one object at handle 0,
