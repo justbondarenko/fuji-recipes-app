@@ -91,6 +91,22 @@ class FakeCamera(
     /** Every property write, in the order the camera received it. */
     val writes: MutableList<Write> = mutableListOf()
 
+    // ─── Objects (the settings backup) ──────────────────────────────────────
+
+    /** What `GetObjectInfo` answers, keyed by handle. An absent handle is refused. */
+    val objectInfos: MutableMap<Int, ByteArray> = mutableMapOf()
+
+    /** What `GetObject` answers, keyed by handle. An absent handle is refused. */
+    val objects: MutableMap<Int, ByteArray> = mutableMapOf()
+
+    /** The dataset the last `SendObjectInfo` carried. */
+    var sentObjectInfo: ByteArray? = null
+        private set
+
+    /** The bytes the last `SendObject` carried. */
+    var sentObject: ByteArray? = null
+        private set
+
     /** Splits every reply across this many bytes per read, to exercise reassembly. */
     var chunkSize: Int = Int.MAX_VALUE
 
@@ -113,6 +129,16 @@ class FakeCamera(
 
     private val outgoing = ArrayDeque<ByteArray>()
     private var pendingSetProperty: Int? = null
+    private var pendingObjectOperation: Int? = null
+
+    /**
+     * A data phase belonging to a command the body already refused.
+     *
+     * The transport sends the command container and the data container back to back and only
+     * then reads, so a refusal at command time is still followed by a payload. A real device
+     * discards it; without this the fake would throw and a refusal test could not be written.
+     */
+    private var discardNextData = false
     private var unplugged = false
 
     // ─── BulkChannel ────────────────────────────────────────────────────────
@@ -156,6 +182,7 @@ class FakeCamera(
         if (silent) return
 
         refuseOperation[operation]?.let { code ->
+            if (operation in DATA_OUT_OPERATIONS) discardNextData = true
             reply(code, transactionId)
             return
         }
@@ -231,11 +258,56 @@ class FakeCamera(
                 reply(refuseProperty[code] ?: ResponseCode.OK, transactionId)
             }
 
+            Operation.GET_OBJECT_INFO -> answerObject(
+                operation,
+                transactionId,
+                objectInfos[params.firstOrNull() ?: 0],
+            )
+
+            Operation.GET_OBJECT -> answerObject(
+                operation,
+                transactionId,
+                objects[params.firstOrNull() ?: 0],
+            )
+
+            Operation.SEND_OBJECT_INFO, Operation.SEND_OBJECT -> {
+                pendingObjectOperation = operation
+                reply(ResponseCode.OK, transactionId)
+            }
+
             else -> reply(ResponseCode.OPERATION_NOT_SUPPORTED, transactionId)
         }
     }
 
+    private fun answerObject(operation: Int, transactionId: Int, payload: ByteArray?) {
+        if (payload == null) {
+            reply(ResponseCode.INVALID_OBJECT_HANDLE, transactionId)
+        } else {
+            data(operation, transactionId, payload)
+            reply(ResponseCode.OK, transactionId)
+        }
+    }
+
     private fun onData(payload: ByteArray) {
+        if (discardNextData) {
+            discardNextData = false
+            return
+        }
+
+        when (pendingObjectOperation) {
+            Operation.SEND_OBJECT_INFO -> {
+                sentObjectInfo = payload
+                pendingObjectOperation = null
+                return
+            }
+
+            Operation.SEND_OBJECT -> {
+                sentObject = payload
+                pendingObjectOperation = null
+                return
+            }
+        }
+
         val code = pendingSetProperty ?: error("The fake camera got a data phase it did not expect")
         pendingSetProperty = null
         writes += Write(code, payload)
@@ -263,6 +335,14 @@ class FakeCamera(
     fun stageStaleReply(transactionId: Int) {
         staleReplyBeforeNextRead =
             packContainer(ContainerType.RESPONSE, ResponseCode.OK, transactionId)
+    }
+
+    private companion object {
+        val DATA_OUT_OPERATIONS = setOf(
+            Operation.SET_DEVICE_PROP_VALUE,
+            Operation.SEND_OBJECT_INFO,
+            Operation.SEND_OBJECT,
+        )
     }
 
     private fun deviceInfoDataset(): ByteArray {

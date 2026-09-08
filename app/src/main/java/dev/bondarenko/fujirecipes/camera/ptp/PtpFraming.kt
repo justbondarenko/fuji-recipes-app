@@ -54,14 +54,28 @@ object ContainerType {
 /**
  * The operations this app uses, and only those.
  *
- * The reference implements a dozen more for its RAW-conversion workflow — object handles,
- * transfers, deletes. Custom slots need none of them: all read/write goes through
- * `GetDevicePropValue` / `SetDevicePropValue`, and no vendor operation is required.
+ * **The property half.** Custom slots need nothing but `GetDevicePropValue` /
+ * `SetDevicePropValue`, and no vendor operation at all — every recipe read and write goes
+ * through those two.
+ *
+ * **The object half** (`0x1008`–`0x100D`) is the settings backup, and only that. The camera's
+ * USB mode is called *RAW CONV./**BACKUP RESTORE***, and the second half of that name is a
+ * single object at handle 0: `GetObjectInfo` then `GetObject` reads the body's whole settings
+ * blob, `SendObjectInfo` then `SendObject` writes one back. Transcribed from `petabyt/libfuji`
+ * `lib/fuji_usb.c` (`fujiusb_download_backup`, `fujiusb_restore_backup`).
+ *
+ * Still deliberately absent: `GetObjectHandles`, `DeleteObject` and the Fuji vendor codes
+ * (`0x900C`/`0x900D`) that the RAW-conversion workflow needs. Nothing here uses them, and an
+ * opcode this app cannot exercise is one nobody would notice going wrong.
  */
 object Operation {
     const val GET_DEVICE_INFO = 0x1001
     const val OPEN_SESSION = 0x1002
     const val CLOSE_SESSION = 0x1003
+    const val GET_OBJECT_INFO = 0x1008
+    const val GET_OBJECT = 0x1009
+    const val SEND_OBJECT_INFO = 0x100c
+    const val SEND_OBJECT = 0x100d
     const val GET_DEVICE_PROP_DESC = 0x1014
     const val GET_DEVICE_PROP_VALUE = 0x1015
     const val SET_DEVICE_PROP_VALUE = 0x1016

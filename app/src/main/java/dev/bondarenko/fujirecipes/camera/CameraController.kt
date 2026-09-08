@@ -32,6 +32,10 @@ import dev.bondarenko.fujirecipes.camera.usb.readSlotRecipe
 import dev.bondarenko.fujirecipes.camera.usb.readSlotRecipes
 import dev.bondarenko.fujirecipes.camera.usb.readCameraDetails
 import dev.bondarenko.fujirecipes.camera.usb.readUsbMode
+import dev.bondarenko.fujirecipes.camera.usb.readCameraReport
+import dev.bondarenko.fujirecipes.camera.usb.downloadBackup
+import dev.bondarenko.fujirecipes.camera.usb.restoreBackup
+import dev.bondarenko.fujirecipes.camera.plan.CameraReport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -391,6 +395,75 @@ class CameraController(
             WriteResult.Failure(error.toCameraError().message)
         } finally {
             if (wakeLock.isHeld) wakeLock.release()
+        }
+    }
+
+    // ─── Diagnostics and backup ─────────────────────────────────────────────
+
+    /**
+     * Walks every property the body will discuss and returns the report.
+     *
+     * Behind the same lock as everything else: it drives the slot selector to C1, so running it
+     * alongside a write would leave the selector somewhere the write did not choose — the same
+     * reason [readSlots] is serialised.
+     */
+    suspend fun readReport(
+        appVersion: String,
+        capturedAt: String,
+        onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
+    ): CameraReport = lock.withLock {
+        val open = session ?: throw IllegalStateException(
+            "The camera is not connected, so there is nothing to report on.",
+        )
+
+        return withContext(Dispatchers.IO) {
+            readCameraReport(open, appVersion, capturedAt, onProgress)
+        }
+    }
+
+    /** Reads the camera's whole settings blob. Serialised like every other camera operation. */
+    suspend fun downloadSettingsBackup(): ByteArray = lock.withLock {
+        val open = session ?: throw IllegalStateException(
+            "The camera is not connected, so there is nothing to back up.",
+        )
+
+        return withContext(Dispatchers.IO) { downloadBackup(open) }
+    }
+
+    /**
+     * Writes a settings blob back to the camera.
+     *
+     * Holds the wake lock for the same reason a slot write does, and more so: this replaces
+     * every setting the body holds, and a doze arriving mid-transfer would leave it partway
+     * through that. The state goes to [CameraState.Writing] so the chip and the screen show
+     * something is happening, with slot 0 standing for "not a slot".
+     */
+    suspend fun restoreSettingsBackup(bytes: ByteArray) = lock.withLock {
+        val open = requireNotNull(session) {
+            "The camera is not connected, so there is nothing to restore to."
+        }
+        val connected = requireNotNull(_state.value as? CameraState.Connected) {
+            "The camera is not connected, so there is nothing to restore to."
+        }
+
+        val wakeLock = (appContext.getSystemService(Context.POWER_SERVICE) as PowerManager)
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_TAG)
+
+        try {
+            wakeLock.acquire(WAKE_LOCK_TIMEOUT_MS)
+            _state.value = CameraState.Writing(
+                slot = 0,
+                done = 0,
+                total = 1,
+                current = "settings",
+            )
+
+            withContext(Dispatchers.IO) { restoreBackup(open, bytes) }
+        } finally {
+            if (wakeLock.isHeld) wakeLock.release()
+            // Back to connected whatever happened. A failure is reported by the thrown
+            // BackupError; leaving the state on Writing would strand the chip.
+            if (_state.value is CameraState.Writing) _state.value = connected
         }
     }
 

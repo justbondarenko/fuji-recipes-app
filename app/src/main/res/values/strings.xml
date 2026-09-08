@@ -233,6 +233,30 @@
     <string name="camera_detail_serial">Serial</string>
     <string name="camera_details_note">Battery, shutter count and lens are read from undocumented camera properties. They are reported as the camera gives them and may be missing or wrong on bodies this app has not been tested against.</string>
 
+    <!-- Camera tools: the diagnostic report, and the settings backup that is the second half
+         of the camera's "USB RAW CONV./BACKUP RESTORE" mode. -->
+    <string name="camera_tools_title">Camera tools</string>
+    <string name="camera_tools_body">A report records what this camera says about itself, so support for bodies this app has not been tested against can be improved. A backup saves every setting the camera holds.</string>
+    <string name="camera_tools_report">Share report</string>
+    <string name="camera_tools_back_up">Back up settings</string>
+    <string name="camera_tools_restore">Restore settings from a file…</string>
+    <string name="camera_tools_working">Working…</string>
+    <string name="camera_tools_report_progress">Reading property %1$d of %2$d…</string>
+    <string name="camera_tools_report_done">Report ready — %1$d properties read.</string>
+    <string name="camera_tools_backup_done">Backed up %1$s of camera settings.</string>
+    <string name="camera_tools_restore_done">Settings restored. Check the camera before relying on them.</string>
+    <string name="camera_tools_backup_progress">Reading the camera\'s settings…</string>
+    <string name="camera_tools_restore_progress">Writing settings to the camera — do not unplug.</string>
+    <string name="camera_tools_file_unreadable">That file could not be read.</string>
+
+    <string name="camera_restore_confirm_title">Replace every setting on the camera?</string>
+    <string name="camera_restore_confirm_body">This overwrites all settings on the connected %1$s with the ones in this file. It cannot be undone from the app, and it is not limited to recipe slots.</string>
+    <string name="camera_restore_confirm_file">%1$s · %2$d bytes</string>
+    <string name="camera_restore_warn_different">This file is named for a %1$s, but a %2$s is connected. Settings from a different body may not mean the same thing on this one.</string>
+    <string name="camera_restore_warn_unknown">This app cannot tell which camera this file came from. Restore it only if you know it came from this body.</string>
+    <string name="camera_restore_confirm_action">Restore settings</string>
+    <string name="camera_restore_cancel">Cancel</string>
+
     <!-- Write to camera — FEAT-006. The stages are PRD §7.4's. -->
     <string name="write_title">Write to camera</string>
     <string name="write_connect_body">Connect the camera before writing “%1$s” to a slot.</string>
