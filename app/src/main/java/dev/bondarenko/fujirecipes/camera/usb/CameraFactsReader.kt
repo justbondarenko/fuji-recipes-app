@@ -1,0 +1,105 @@
+package dev.bondarenko.fujirecipes.camera.usb
+
+import dev.bondarenko.fujirecipes.camera.plan.BATTERY_LEVEL_PROPERTY
+import dev.bondarenko.fujirecipes.camera.plan.CameraDetails
+import dev.bondarenko.fujirecipes.camera.plan.LENS_NAME_PROPERTY
+import dev.bondarenko.fujirecipes.camera.plan.TOTAL_SHOT_COUNT_PROPERTY
+import dev.bondarenko.fujirecipes.camera.plan.USB_MODE_PROPERTY
+import dev.bondarenko.fujirecipes.camera.plan.UsbMode
+import dev.bondarenko.fujirecipes.camera.plan.plausibleBatteryPercent
+import dev.bondarenko.fujirecipes.camera.plan.plausibleLensName
+import dev.bondarenko.fujirecipes.camera.plan.plausibleShutterCount
+import dev.bondarenko.fujirecipes.camera.plan.usbModeFor
+import dev.bondarenko.fujirecipes.camera.ptp.DeviceInfo
+import dev.bondarenko.fujirecipes.camera.ptp.PtpSession
+import dev.bondarenko.fujirecipes.camera.ptp.unpackPtpString
+import dev.bondarenko.fujirecipes.camera.ptp.unpackU16
+import dev.bondarenko.fujirecipes.camera.ptp.unpackU32
+
+/**
+ * Asks a connected body what mode it is in and what it will say about itself.
+ *
+ * Both readers run once, at connect, straight after `GetDeviceInfo`. Four round trips on a link
+ * where reading one slot is dozens, so the cost is not worth optimising; what *is* worth being
+ * careful about is that **neither of these may break a connection that would otherwise work.**
+ * Every failure below is swallowed and reported as "not answered", including the ones that are
+ * not refusals — a timeout here means the pipe is already gone and the very next operation will
+ * say so properly, and failing the connect on a diagnostic read would turn a working camera
+ * into an unusable one for the sake of a battery percentage.
+ *
+ * **`GetDevicePropDesc` first, `GetDevicePropValue` second.** The description carries the data
+ * type *and* the current value in one dataset, so a body that answers it needs no guess about
+ * width or signedness — which is what `PtpSession.describeProperty` was written for and, until
+ * now, the reason nothing called it. A body that refuses the description falls back to reading
+ * the raw value and decoding by payload length: still a guess, but a narrow one.
+ *
+ * Blocking, like everything else on a session. Callers run it on `Dispatchers.IO`.
+ */
+
+/**
+ * Which USB mode the camera's menu is set to.
+ *
+ * A refusal is [UsbMode.UNREPORTED] rather than an error: card-reader/MTP bodies and any body
+ * whose firmware predates the property both land there, and neither is a fault.
+ */
+fun readUsbMode(session: PtpSession): UsbMode {
+    val raw = readNumber(session, USB_MODE_PROPERTY) ?: return UsbMode.UNREPORTED
+    return usbModeFor(raw.toInt())
+}
+
+/**
+ * What the body will report about itself.
+ *
+ * [deviceInfo] supplies firmware and serial, which the session already has in hand from its own
+ * `GetDeviceInfo` and which cost nothing to carry through. The other three cost a round trip
+ * each and are each independently optional.
+ */
+fun readCameraDetails(session: PtpSession, deviceInfo: DeviceInfo?): CameraDetails =
+    CameraDetails(
+        batteryPercent = readNumber(session, BATTERY_LEVEL_PROPERTY)
+            ?.let(::plausibleBatteryPercent),
+        shutterCount = readNumber(session, TOTAL_SHOT_COUNT_PROPERTY)
+            ?.let(::plausibleShutterCount),
+        lens = readText(session, LENS_NAME_PROPERTY)?.let(::plausibleLensName),
+        firmware = deviceInfo?.deviceVersion?.trim()?.ifBlank { null },
+        serialNumber = deviceInfo?.serialNumber?.trim()?.ifBlank { null },
+    )
+
+// ─── Reading one property ───────────────────────────────────────────────────
+
+/**
+ * One property as an unsigned number, or null if the body would not say.
+ *
+ * The description's `currentValue` is preferred because it is typed by the body's own declared
+ * `dataType`. It is null there for an array or a 64-bit scalar, and that null is answered as
+ * null rather than falling through to a raw read that would decode the same bytes worse.
+ */
+private fun readNumber(session: PtpSession, code: Int): Long? {
+    val described = runCatching { session.describeProperty(code) }
+    if (described.isSuccess) return described.getOrNull()?.currentValue as? Long
+
+    val bytes = rawValue(session, code) ?: return null
+
+    // Width by payload length. The body sent exactly as many bytes as the property holds, so
+    // this is right whenever the payload is a plain unsigned scalar — and every property this
+    // file reads is one. Anything else (a struct, a packed pair) has no length this recognises
+    // and is dropped rather than read as a number.
+    return when (bytes.size) {
+        1 -> (bytes[0].toInt() and 0xff).toLong()
+        2 -> unpackU16(bytes).toLong()
+        4 -> unpackU32(bytes)
+        else -> null
+    }
+}
+
+/** One property as a PTP string, or null if the body would not say. */
+private fun readText(session: PtpSession, code: Int): String? {
+    val described = runCatching { session.describeProperty(code) }
+    if (described.isSuccess) return described.getOrNull()?.currentValue as? String
+
+    val bytes = rawValue(session, code) ?: return null
+    return runCatching { unpackPtpString(bytes) }.getOrNull()
+}
+
+private fun rawValue(session: PtpSession, code: Int): ByteArray? =
+    runCatching { session.readPropertyBytes(code) }.getOrNull()

@@ -216,6 +216,23 @@
     <string name="camera_slots_reading">Reading slots from camera…</string>
     <string name="camera_slots_count">%1$d of %2$d configured</string>
 
+    <!-- USB mode (0xD16E). Only the two positively-wrong modes are ever named; a body that
+         will not report its mode says nothing rather than guessing. -->
+    <string name="camera_usb_mode_tether">Tether Shooting</string>
+    <string name="camera_usb_mode_webcam">X Webcam</string>
+    <string name="camera_usb_mode_wrong">The camera is in %1$s mode, so its recipe slots are not reachable. On the camera, set CONNECTION SETTING → USB MODE to USB RAW CONV./BACKUP RESTORE, then reconnect.</string>
+
+    <!-- Camera details. Everything but firmware and serial comes from a reverse-engineered
+         vendor property, which is what the footnote says. -->
+    <string name="camera_details_title">Camera details</string>
+    <string name="camera_detail_battery">Battery</string>
+    <string name="camera_detail_battery_value">%1$d%%</string>
+    <string name="camera_detail_shutter">Shutter count</string>
+    <string name="camera_detail_lens">Lens</string>
+    <string name="camera_detail_firmware">Firmware</string>
+    <string name="camera_detail_serial">Serial</string>
+    <string name="camera_details_note">Battery, shutter count and lens are read from undocumented camera properties. They are reported as the camera gives them and may be missing or wrong on bodies this app has not been tested against.</string>
+
     <!-- Write to camera — FEAT-006. The stages are PRD §7.4's. -->
     <string name="write_title">Write to camera</string>
     <string name="write_connect_body">Connect the camera before writing “%1$s” to a slot.</string>
