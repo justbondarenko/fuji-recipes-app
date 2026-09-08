@@ -36,6 +36,8 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.Add
 import dev.bondarenko.fujirecipes.ui.theme.icons.Check
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.ImageSearch
+import dev.bondarenko.fujirecipes.ui.theme.icons.CameraRoll
+import dev.bondarenko.fujirecipes.ui.theme.icons.LinkedCamera
 import dev.bondarenko.fujirecipes.ui.theme.icons.KeyboardArrowRight
 import dev.bondarenko.fujirecipes.ui.theme.icons.StarRate
 import androidx.compose.material3.Badge
@@ -94,6 +96,10 @@ import kotlinx.coroutines.withContext
 fun PhotoReaderScreen(
     state: PhotoReaderUiState,
     onChoosePhoto: () -> Unit,
+    onChooseCamera: () -> Unit,
+    onToggleCameraPhoto: (Int) -> Unit,
+    onLoadCameraThumbnail: (Int) -> Unit,
+    onAnalyzeCameraPhotos: () -> Unit,
     onSelectPhoto: (Int) -> Unit,
     onAddPhotoToRecipe: (String) -> Unit,
     onOpenRecipe: (String) -> Unit,
@@ -106,6 +112,7 @@ fun PhotoReaderScreen(
         PhotoReaderStage.Empty -> {
             EmptyPhotoReaderState(
                 onChoosePhoto = onChoosePhoto,
+                onChooseCamera = onChooseCamera,
                 modifier = modifier
                     .fillMaxSize()
                     .padding(contentPadding),
@@ -117,6 +124,45 @@ fun PhotoReaderScreen(
                 modifier = modifier
                     .fillMaxSize()
                     .padding(contentPadding),
+            )
+        }
+
+        PhotoReaderStage.CameraLoading -> {
+            ReadingPhotoState(
+                label = stringResource(R.string.photo_camera_loading),
+                modifier = modifier.fillMaxSize().padding(contentPadding),
+            )
+        }
+
+        is PhotoReaderStage.CameraDownloading -> {
+            ReadingPhotoState(
+                label = stringResource(
+                    R.string.photo_camera_downloading,
+                    stage.done + 1,
+                    stage.total,
+                    stage.filename,
+                ),
+                modifier = modifier.fillMaxSize().padding(contentPadding),
+            )
+        }
+
+        is PhotoReaderStage.CameraFailed -> {
+            CameraFailedState(
+                message = stage.message,
+                onRetry = onChooseCamera,
+                onChoosePhoto = onChoosePhoto,
+                modifier = modifier.fillMaxSize().padding(contentPadding),
+            )
+        }
+
+        is PhotoReaderStage.CameraBrowser -> {
+            CameraBrowserState(
+                stage = stage,
+                onToggle = onToggleCameraPhoto,
+                onLoadThumbnail = onLoadCameraThumbnail,
+                onAnalyze = onAnalyzeCameraPhotos,
+                onBack = onReset,
+                modifier = modifier.fillMaxSize().padding(contentPadding),
             )
         }
 
@@ -213,6 +259,7 @@ fun PhotoReaderScreen(
 @Composable
 private fun EmptyPhotoReaderState(
     onChoosePhoto: () -> Unit,
+    onChooseCamera: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     FujiIconPanel(
@@ -224,11 +271,25 @@ private fun EmptyPhotoReaderState(
         actionLabel = stringResource(R.string.photo_action_choose),
         onAction = onChoosePhoto,
         modifier = modifier,
+        extra = {
+            OutlinedButton(onClick = onChooseCamera) {
+                Icon(
+                    imageVector = FujiIcons.LinkedCamera,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.photo_action_choose_camera))
+            }
+        },
     )
 }
 
 @Composable
-private fun ReadingPhotoState(modifier: Modifier = Modifier) {
+private fun ReadingPhotoState(
+    modifier: Modifier = Modifier,
+    label: String = stringResource(R.string.photo_reading),
+) {
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -241,10 +302,164 @@ private fun ReadingPhotoState(modifier: Modifier = Modifier) {
         ) {
             FujiLoadingIndicator(size = 36.dp)
             Text(
-                text = stringResource(R.string.photo_reading),
+                text = label,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun CameraFailedState(
+    message: String,
+    onRetry: () -> Unit,
+    onChoosePhoto: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FujiIconPanel(
+        icon = FujiIcons.LinkedCamera,
+        shape = MaterialShapes.Pill.toShape(),
+        title = stringResource(R.string.photo_camera_error_title),
+        body = message,
+        actionLabel = stringResource(R.string.photo_camera_retry),
+        onAction = onRetry,
+        modifier = modifier,
+        extra = {
+            TextButton(onClick = onChoosePhoto) {
+                Text(stringResource(R.string.photo_action_choose_phone))
+            }
+        },
+    )
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun CameraBrowserState(
+    stage: PhotoReaderStage.CameraBrowser,
+    onToggle: (Int) -> Unit,
+    onLoadThumbnail: (Int) -> Unit,
+    onAnalyze: () -> Unit,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.padding(horizontal = 16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text(
+                    text = stringResource(R.string.photo_camera_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = stringResource(R.string.photo_camera_count, stage.photos.size),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(onClick = onBack) { Text(stringResource(R.string.action_cancel)) }
+        }
+
+        if (stage.photos.isEmpty()) {
+            FujiIconPanel(
+                icon = FujiIcons.CameraRoll,
+                shape = MaterialShapes.Pill.toShape(),
+                title = stringResource(R.string.photo_camera_empty_title),
+                body = stringResource(R.string.photo_camera_empty_body),
+                modifier = Modifier.weight(1f),
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(vertical = 4.dp),
+            ) {
+                items(stage.photos, key = { it.handle }) { photo ->
+                    val selected = photo.handle in stage.selectedHandles
+                    LaunchedEffect(photo.handle, stage.thumbnails[photo.handle]) {
+                        if (stage.thumbnails[photo.handle] == null) onLoadThumbnail(photo.handle)
+                    }
+                    Card(
+                        onClick = { onToggle(photo.handle) },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (selected) {
+                                MaterialTheme.colorScheme.secondaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerLow
+                            },
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (selected) MaterialTheme.colorScheme.secondary else
+                                MaterialTheme.colorScheme.outlineVariant,
+                        ),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier.size(76.dp).clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                val thumbnail = stage.thumbnails[photo.handle]
+                                if (thumbnail != null) {
+                                    AsyncImage(
+                                        model = thumbnail,
+                                        contentDescription = photo.info.filename,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = FujiIcons.CameraRoll,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = photo.info.filename,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    text = photo.info.captureDate.ifEmpty {
+                                        stringResource(R.string.photo_camera_date_unknown)
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            if (selected) {
+                                Icon(
+                                    imageVector = FujiIcons.Check,
+                                    contentDescription = stringResource(R.string.photo_camera_selected),
+                                    tint = MaterialTheme.colorScheme.secondary,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Button(
+                onClick = onAnalyze,
+                enabled = stage.selectedHandles.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+            ) {
+                Text(stringResource(R.string.photo_camera_analyze, stage.selectedHandles.size))
+            }
         }
     }
 }
@@ -1024,10 +1239,14 @@ fun PhotoReaderRouteContent(
     val viewModel: PhotoReaderViewModel = viewModel(
         factory = PhotoReaderViewModel.factory(container) { uri ->
             withContext(Dispatchers.IO) {
-                runCatching {
-                    context.contentResolver.openInputStream(android.net.Uri.parse(uri))
-                        ?.use { it.readBytes() }
-                }.getOrNull()
+                if (uri.startsWith("file:")) {
+                    runCatching { java.io.File(java.net.URI(uri)).readBytes() }.getOrNull()
+                } else {
+                    runCatching {
+                        context.contentResolver.openInputStream(android.net.Uri.parse(uri))
+                            ?.use { it.readBytes() }
+                    }.getOrNull()
+                }
             }
         },
     )
@@ -1054,6 +1273,10 @@ fun PhotoReaderRouteContent(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
             )
         },
+        onChooseCamera = viewModel::browseCamera,
+        onToggleCameraPhoto = viewModel::toggleCameraPhoto,
+        onLoadCameraThumbnail = viewModel::loadCameraThumbnail,
+        onAnalyzeCameraPhotos = viewModel::analyzeCameraSelection,
         onSelectPhoto = viewModel::selectPhoto,
         onAddPhotoToRecipe = viewModel::addPhotoToRecipe,
         onOpenRecipe = onOpenRecipe,

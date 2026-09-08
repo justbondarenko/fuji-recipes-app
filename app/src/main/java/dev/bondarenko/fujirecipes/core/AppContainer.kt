@@ -5,6 +5,7 @@ import dev.bondarenko.fujirecipes.camera.CameraController
 import dev.bondarenko.fujirecipes.core.settings.UiPreferences
 import dev.bondarenko.fujirecipes.core.settings.ViewPreferences
 import dev.bondarenko.fujirecipes.core.store.ImageStore
+import dev.bondarenko.fujirecipes.core.store.CameraMediaCache
 import dev.bondarenko.fujirecipes.core.store.LibraryStore
 import dev.bondarenko.fujirecipes.data.repo.LocalRecipeRepository
 import dev.bondarenko.fujirecipes.data.repo.RecipeRepository
@@ -58,6 +59,10 @@ class AppContainer(context: Context) {
      * camera never registers a USB receiver.
      */
     val cameraController: CameraController by lazy { CameraController(applicationContext) }
+
+    val cameraMediaCache: CameraMediaCache by lazy {
+        CameraMediaCache(File(applicationContext.cacheDir, CameraMediaCache.DIRECTORY_NAME))
+    }
 
     /**
      * The library.

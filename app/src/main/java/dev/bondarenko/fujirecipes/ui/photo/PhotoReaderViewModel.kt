@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.bondarenko.fujirecipes.core.AppContainer
+import dev.bondarenko.fujirecipes.camera.usb.CameraMediaObject
 import dev.bondarenko.fujirecipes.data.photo.MatchResult
 import dev.bondarenko.fujirecipes.data.photo.PhotoReadFailure
 import dev.bondarenko.fujirecipes.data.photo.PhotoReadResult
@@ -24,6 +25,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import java.io.File
+import java.net.URI
 
 /**
  * What the Read screen is showing — FEAT-009 T-09.
@@ -44,6 +47,18 @@ sealed interface PhotoReaderStage {
     data object Empty : PhotoReaderStage
 
     data object Reading : PhotoReaderStage
+
+    data object CameraLoading : PhotoReaderStage
+
+    data class CameraBrowser(
+        val photos: List<CameraMediaObject>,
+        val selectedHandles: Set<Int> = emptySet(),
+        val thumbnails: Map<Int, ByteArray> = emptyMap(),
+    ) : PhotoReaderStage
+
+    data class CameraDownloading(val done: Int, val total: Int, val filename: String) : PhotoReaderStage
+
+    data class CameraFailed(val message: String) : PhotoReaderStage
 
     data class Result(
         val photos: List<AnalyzedPhoto>,
@@ -83,10 +98,15 @@ class PhotoReaderViewModel(
      */
     private val readPhoto: suspend (String) -> ByteArray?,
     private val savePhoto: (suspend (String) -> String?)? = null,
+    private val listCameraPhotos: (suspend () -> List<CameraMediaObject>)? = null,
+    private val fetchCameraThumbnail: (suspend (Int) -> ByteArray?)? = null,
+    private val downloadCameraPhoto: (suspend (CameraMediaObject) -> String)? = null,
+    private val clearCameraFiles: (() -> Unit)? = null,
     private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
 
     private var currentUris: List<String> = emptyList()
+    private val thumbnailLoads = mutableSetOf<Int>()
     private val _state = MutableStateFlow(PhotoReaderUiState())
     val state: StateFlow<PhotoReaderUiState> = _state.asStateFlow()
 
@@ -96,43 +116,116 @@ class PhotoReaderViewModel(
         if (uris.isEmpty()) return
         if (currentUris == uris && _state.value.stage !is PhotoReaderStage.Empty) return
         currentUris = uris
+        viewModelScope.launch {
+            analyze(uris)
+        }
+    }
+
+    private suspend fun analyze(uris: List<String>) {
         _state.value = PhotoReaderUiState(PhotoReaderStage.Reading)
+        val library = repository.library.first { it.hasLoaded }.recipes
+        val results = mutableListOf<AnalyzedPhoto>()
+        var lastFailure: PhotoReadFailure? = null
+
+        for (uri in uris) {
+            val bytes = runCatching { readPhoto(uri) }.getOrNull()
+            if (bytes == null) {
+                lastFailure = PhotoReadFailure.UNREADABLE
+                continue
+            }
+            when (val parsed = withContext(defaultDispatcher) { parseRecipeFromJpeg(bytes) }) {
+                is PhotoReadResult.Failure -> {
+                    lastFailure = parsed.reason
+                }
+                is PhotoReadResult.Success -> {
+                    results += AnalyzedPhoto(
+                        uri = uri,
+                        recipe = parsed.recipe,
+                        matches = findMatches(parsed.recipe, library),
+                    )
+                }
+            }
+        }
+
+        if (results.isEmpty()) {
+            fail(lastFailure ?: PhotoReadFailure.UNREADABLE)
+        } else {
+            _state.value = PhotoReaderUiState(
+                PhotoReaderStage.Result(
+                    photos = results,
+                    selectedIndex = 0,
+                ),
+            )
+        }
+    }
+
+    fun browseCamera() {
+        val list = listCameraPhotos ?: return
+        _state.value = PhotoReaderUiState(PhotoReaderStage.CameraLoading)
+        viewModelScope.launch {
+            runCatching { list() }
+                .onFailure { error ->
+                    _state.value = PhotoReaderUiState(
+                        PhotoReaderStage.CameraFailed(error.message ?: "The camera could not be read."),
+                    )
+                }
+                .onSuccess { photos ->
+                    _state.value = PhotoReaderUiState(PhotoReaderStage.CameraBrowser(photos))
+                }
+        }
+    }
+
+    fun loadCameraThumbnail(handle: Int) {
+        val load = fetchCameraThumbnail ?: return
+        val browser = _state.value.stage as? PhotoReaderStage.CameraBrowser ?: return
+        if (handle in browser.thumbnails || !thumbnailLoads.add(handle)) return
 
         viewModelScope.launch {
-            val library = repository.library.first { it.hasLoaded }.recipes
-            val results = mutableListOf<AnalyzedPhoto>()
-            var lastFailure: PhotoReadFailure? = null
-
-            for (uri in uris) {
-                val bytes = runCatching { readPhoto(uri) }.getOrNull()
-                if (bytes == null) {
-                    lastFailure = PhotoReadFailure.UNREADABLE
-                    continue
+            try {
+                val bytes = runCatching { load(handle) }.getOrNull() ?: return@launch
+                _state.update { state ->
+                    val current = state.stage as? PhotoReaderStage.CameraBrowser ?: return@update state
+                    state.copy(stage = current.copy(thumbnails = current.thumbnails + (handle to bytes)))
                 }
-                when (val parsed = withContext(defaultDispatcher) { parseRecipeFromJpeg(bytes) }) {
-                    is PhotoReadResult.Failure -> {
-                        lastFailure = parsed.reason
-                    }
-                    is PhotoReadResult.Success -> {
-                        results += AnalyzedPhoto(
-                            uri = uri,
-                            recipe = parsed.recipe,
-                            matches = findMatches(parsed.recipe, library),
-                        )
-                    }
-                }
+            } finally {
+                thumbnailLoads -= handle
             }
+        }
+    }
 
-            if (results.isEmpty()) {
-                fail(lastFailure ?: PhotoReadFailure.UNREADABLE)
+    fun toggleCameraPhoto(handle: Int) {
+        _state.update { state ->
+            val browser = state.stage as? PhotoReaderStage.CameraBrowser ?: return@update state
+            val selected = if (handle in browser.selectedHandles) {
+                browser.selectedHandles - handle
             } else {
-                _state.value = PhotoReaderUiState(
-                    PhotoReaderStage.Result(
-                        photos = results,
-                        selectedIndex = 0,
-                    ),
-                )
+                browser.selectedHandles + handle
             }
+            state.copy(stage = browser.copy(selectedHandles = selected))
+        }
+    }
+
+    fun analyzeCameraSelection() {
+        val browser = _state.value.stage as? PhotoReaderStage.CameraBrowser ?: return
+        val download = downloadCameraPhoto ?: return
+        val selected = browser.photos.filter { it.handle in browser.selectedHandles }
+        if (selected.isEmpty()) return
+        viewModelScope.launch {
+            val uris = mutableListOf<String>()
+            for ((index, photo) in selected.withIndex()) {
+                _state.value = PhotoReaderUiState(
+                    PhotoReaderStage.CameraDownloading(index, selected.size, photo.info.filename),
+                )
+                val uri = runCatching { download(photo) }.getOrElse { error ->
+                    _state.value = PhotoReaderUiState(
+                        PhotoReaderStage.CameraFailed(error.message ?: "The photo could not be downloaded."),
+                    )
+                    return@launch
+                }
+                uris += uri
+            }
+            currentUris = uris
+            analyze(uris)
         }
     }
 
@@ -172,6 +265,8 @@ class PhotoReaderViewModel(
 
     fun reset() {
         currentUris = emptyList()
+        thumbnailLoads.clear()
+        clearCameraFiles?.invoke()
         _state.value = PhotoReaderUiState()
     }
 
@@ -232,12 +327,23 @@ class PhotoReaderViewModel(
                     repository = container.recipeRepository,
                     readPhoto = readPhoto,
                     savePhoto = { uriString ->
-                        runCatching {
-                            android.net.Uri.parse(uriString)
-                        }.getOrNull()?.let { uri ->
-                            container.imageStore.saveFromUri(uri)
+                        if (uriString.startsWith("file:")) {
+                            runCatching { File(URI(uriString)) }.getOrNull()?.let { file ->
+                                container.imageStore.saveFromFile(file)
+                            }
+                        } else {
+                            runCatching { android.net.Uri.parse(uriString) }.getOrNull()?.let { uri ->
+                                container.imageStore.saveFromUri(uri)
+                            }
                         }
                     },
+                    listCameraPhotos = { container.cameraController.listCameraPhotos() },
+                    fetchCameraThumbnail = container.cameraController::readCameraPhotoThumbnail,
+                    downloadCameraPhoto = { media ->
+                        container.cameraController.downloadCameraPhoto(media, container.cameraMediaCache)
+                            .toURI().toString()
+                    },
+                    clearCameraFiles = container.cameraMediaCache::clear,
                 )
             }
         }
