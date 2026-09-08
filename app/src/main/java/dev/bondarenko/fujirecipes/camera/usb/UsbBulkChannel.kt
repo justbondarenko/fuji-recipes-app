@@ -98,6 +98,31 @@ class UsbBulkChannel private constructor(
             if (moved == 0) throw PtpFramingError("The USB write moved no bytes.")
             sent += moved
         }
+
+        terminateIfExactMultiple(bytes.size)
+    }
+
+    /**
+     * A zero-length packet after a transfer that exactly fills its last packet.
+     *
+     * Bulk USB ends a transfer with a short packet. A container whose total length is an exact
+     * multiple of the endpoint's maximum packet size has no short packet to end it, so the
+     * device keeps waiting for more and the transfer hangs until the timeout — and the session
+     * is then out of step for good.
+     *
+     * Nothing in this app could reach the case until the settings backup: every other container
+     * is a handful of bytes plus a 12-byte header. A restore sends tens of kilobytes of
+     * whatever length the body's blob happens to be, so roughly one restore in
+     * `maxPacketSize` would have hung. That is exactly the kind of failure that looks like a
+     * flaky cable and is not.
+     */
+    private fun terminateIfExactMultiple(size: Int) {
+        val packet = endpointOut.maxPacketSize
+        if (packet <= 0 || size == 0 || size % packet != 0) return
+
+        // A failure here is not fatal on its own — the camera may already have taken the
+        // transfer as complete — so it is not worth turning a working write into an error.
+        connection.bulkTransfer(endpointOut, ByteArray(0), 0, 0, timeoutMs)
     }
 
     override fun read(maxBytes: Int): ByteArray {

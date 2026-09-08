@@ -31,6 +31,13 @@ object ShareFile {
 
     private const val JSON_MIME = "application/json"
     private const val ZIP_MIME = "application/zip"
+    private const val TEXT_MIME = "text/plain"
+
+    /**
+     * A settings backup is not any registered type, and calling it one would be worse than
+     * saying so: a `.bin` offered as `application/json` invites an app that will mangle it.
+     */
+    private const val BINARY_MIME = "application/octet-stream"
 
     /**
      * Writes [content] as [filename] and opens the share sheet.
@@ -52,7 +59,7 @@ object ShareFile {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
 
         val send = Intent(Intent.ACTION_SEND).apply {
-            type = if (filename.endsWith(".zip")) ZIP_MIME else JSON_MIME
+            type = mimeFor(filename)
             putExtra(Intent.EXTRA_STREAM, uri)
             putExtra(Intent.EXTRA_TITLE, filename)
             // Without this the receiving app gets a URI it is not allowed to read, which
@@ -73,4 +80,11 @@ object ShareFile {
 
     fun share(context: Context, filename: String, text: String) =
         share(context, filename, text.toByteArray(Charsets.UTF_8))
+
+    private fun mimeFor(filename: String): String = when {
+        filename.endsWith(".zip") -> ZIP_MIME
+        filename.endsWith(".txt") -> TEXT_MIME
+        filename.endsWith(".bin") -> BINARY_MIME
+        else -> JSON_MIME
+    }
 }

@@ -42,10 +42,18 @@ import dev.bondarenko.fujirecipes.camera.ptp.unpackU32
  * A refusal is [UsbMode.UNREPORTED] rather than an error: card-reader/MTP bodies and any body
  * whose firmware predates the property both land there, and neither is a fault.
  */
-fun readUsbMode(session: PtpSession): UsbMode {
-    val raw = readNumber(session, USB_MODE_PROPERTY) ?: return UsbMode.UNREPORTED
-    return usbModeFor(raw.toInt())
-}
+fun readUsbMode(session: PtpSession): UsbMode =
+    readUsbModeRaw(session)?.let(::usbModeFor) ?: UsbMode.UNREPORTED
+
+/**
+ * The raw `0xD16E` value, or null.
+ *
+ * The report needs the number as well as the name, so that a body answering a mode this build
+ * has not seen is recorded as the value it actually gave rather than only as "unrecognised" —
+ * the number is the whole finding in that case.
+ */
+fun readUsbModeRaw(session: PtpSession): Int? =
+    readNumber(session, USB_MODE_PROPERTY)?.toInt()
 
 /**
  * What the body will report about itself.

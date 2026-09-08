@@ -52,4 +52,29 @@ class CameraPurityTest {
                 "(working directory is ${File(".").absolutePath})",
         )
     }
+
+    /**
+     * The other half of the same rule, stated by `StepPayload.kt` from the far side: the
+     * decision layer must stay reachable without the byte layer.
+     *
+     * `camera/ptp/` may depend on `camera/plan/` — `StepPayload.kt` does, deliberately, because
+     * packing needs both. The reverse would close the loop and make "the decision layer is
+     * testable on its own" untrue, quietly, one convenient import at a time.
+     */
+    @Test
+    fun `the decision layer does not depend on the byte layer`() {
+        val directory = File("src/main/java/dev/bondarenko/fujirecipes/camera/plan")
+        assertTrue(directory.isDirectory, "camera/plan is missing")
+
+        directory.walkTopDown().filter { it.extension == "kt" }.forEach { source ->
+            source.readLines().forEachIndexed { index, line ->
+                if (line.trim().startsWith("import dev.bondarenko.fujirecipes.camera.ptp.")) {
+                    fail(
+                        "${source.path}:${index + 1} imports the byte layer — camera/plan must " +
+                            "stay reachable without camera/ptp (see StepPayload.kt)",
+                    )
+                }
+            }
+        }
+    }
 }

@@ -146,4 +146,55 @@ class PtpSession(
         )
         expectOk(Operation.SET_DEVICE_PROP_VALUE, result.code)
     }
+
+    // ─── Objects ────────────────────────────────────────────────────────────
+    //
+    // The settings backup, and nothing else. All four take or return raw bytes for the same
+    // reason the property operations do: the layout is the caller's knowledge, and
+    // `PtpFujiObjectInfo` is *not* the ISO 15740 `ObjectInfo` — Fuji moves fields after
+    // `protection`, so a parse written against one silently produces wrong numbers for the
+    // other. `camera/plan/CameraBackup.kt` reads only the leading fields the two layouts
+    // agree on, and treats the payload's own length as the truth about size.
+
+    /**
+     * One object's `ObjectInfo` dataset, raw.
+     *
+     * `libfuji` calls this before `GetObject` on the backup path and does nothing with the
+     * result. Kept because the order is what was observed working, and because its refusal is
+     * the one clean signal that a body has no backup object to give — which is a different
+     * message to the user than a transfer that broke.
+     */
+    fun getObjectInfo(handle: Int): ByteArray {
+        val result = transport.command(Operation.GET_OBJECT_INFO, listOf(handle))
+        expectOk(Operation.GET_OBJECT_INFO, result.code)
+        return result.data
+    }
+
+    /** One object's contents. */
+    fun getObject(handle: Int): ByteArray {
+        val result = transport.command(Operation.GET_OBJECT, listOf(handle))
+        expectOk(Operation.GET_OBJECT, result.code)
+        return result.data
+    }
+
+    /**
+     * Announces an object about to be sent.
+     *
+     * Both parameters are zero on the backup path — storage and parent handle — which is what
+     * the captures show and what `libfuji` sends.
+     */
+    fun sendObjectInfo(dataset: ByteArray) {
+        val result = transport.commandWithData(
+            Operation.SEND_OBJECT_INFO,
+            listOf(0, 0),
+            dataset,
+        )
+        expectOk(Operation.SEND_OBJECT_INFO, result.code)
+    }
+
+    /** The bytes of the object announced by the preceding [sendObjectInfo]. */
+    fun sendObject(bytes: ByteArray) {
+        val result = transport.commandWithData(Operation.SEND_OBJECT, emptyList(), bytes)
+        expectOk(Operation.SEND_OBJECT, result.code)
+    }
 }
