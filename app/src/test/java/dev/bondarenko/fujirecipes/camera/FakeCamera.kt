@@ -99,6 +99,15 @@ class FakeCamera(
     /** What `GetObject` answers, keyed by handle. An absent handle is refused. */
     val objects: MutableMap<Int, ByteArray> = mutableMapOf()
 
+    /** Storage and catalogue facts used by the standard card-browsing operations. */
+    val storageIds: MutableList<Int> = mutableListOf(0x00010001)
+    val objectStorageIds: MutableMap<Int, Int> = mutableMapOf()
+    val objectFormats: MutableMap<Int, Int> = mutableMapOf()
+    val objectParents: MutableMap<Int, Int> = mutableMapOf()
+
+    /** What `GetThumb` answers, keyed by handle. */
+    val thumbnails: MutableMap<Int, ByteArray> = mutableMapOf()
+
     /** The dataset the last `SendObjectInfo` carried. */
     var sentObjectInfo: ByteArray? = null
         private set
@@ -166,10 +175,11 @@ class FakeCamera(
         // that never completes.
         val next = outgoing.removeFirstOrNull() ?: throw PtpTimeoutError(5_000)
 
-        if (next.size <= chunkSize) return next
+        val take = minOf(next.size, chunkSize, maxBytes)
+        if (take == next.size) return next
 
-        outgoing.addFirst(next.copyOfRange(chunkSize, next.size))
-        return next.copyOfRange(0, chunkSize)
+        outgoing.addFirst(next.copyOfRange(take, next.size))
+        return next.copyOfRange(0, take)
     }
 
     override fun close() {
@@ -252,6 +262,24 @@ class FakeCamera(
                 }
             }
 
+            Operation.GET_STORAGE_IDS -> {
+                data(operation, transactionId, u32Array(storageIds))
+                reply(ResponseCode.OK, transactionId)
+            }
+
+            Operation.GET_OBJECT_HANDLES -> {
+                val storage = params.getOrNull(0) ?: -1
+                val format = params.getOrNull(1) ?: 0
+                val parent = params.getOrNull(2) ?: 0
+                val handles = objectInfos.keys.filter { handle ->
+                    (storage == -1 || objectStorageIds[handle] == storage) &&
+                        (format == 0 || objectFormats[handle] == format) &&
+                        (parent == 0 || objectParents[handle] == parent)
+                }
+                data(operation, transactionId, u32Array(handles))
+                reply(ResponseCode.OK, transactionId)
+            }
+
             Operation.SET_DEVICE_PROP_VALUE -> {
                 val code = params.firstOrNull() ?: 0
                 pendingSetProperty = code
@@ -268,6 +296,12 @@ class FakeCamera(
                 operation,
                 transactionId,
                 objects[params.firstOrNull() ?: 0],
+            )
+
+            Operation.GET_THUMB -> answerObject(
+                operation,
+                transactionId,
+                thumbnails[params.firstOrNull() ?: 0],
             )
 
             Operation.SEND_OBJECT_INFO, Operation.SEND_OBJECT -> {
@@ -363,6 +397,11 @@ class FakeCamera(
                 Operation.GET_DEVICE_INFO,
                 Operation.OPEN_SESSION,
                 Operation.CLOSE_SESSION,
+                Operation.GET_STORAGE_IDS,
+                Operation.GET_OBJECT_HANDLES,
+                Operation.GET_OBJECT_INFO,
+                Operation.GET_OBJECT,
+                Operation.GET_THUMB,
                 Operation.GET_DEVICE_PROP_DESC,
                 Operation.GET_DEVICE_PROP_VALUE,
                 Operation.SET_DEVICE_PROP_VALUE,
@@ -378,6 +417,13 @@ class FakeCamera(
         out.write(packPtpString("1.20"))
         out.write(packPtpString("A1B2C3D4"))
 
+        return out.toByteArray()
+    }
+
+    private fun u32Array(values: Collection<Int>): ByteArray {
+        val out = ByteArrayOutputStream()
+        out.write(packU32(values.size))
+        values.forEach { out.write(packU32(it)) }
         return out.toByteArray()
     }
 }

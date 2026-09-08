@@ -66,6 +66,31 @@ class ImageStore(
         }.getOrNull()
     }
 
+    /** Saves an app-private camera download through the same resize and EXIF path as a URI. */
+    suspend fun saveFromFile(file: File): String? = withContext(Dispatchers.IO) {
+        runCatching { file.readBytes() }.getOrNull()?.let { saveBytes(it) }
+    }
+
+    private fun saveBytes(bytes: ByteArray): String? = runCatching {
+        val orientation = getExifOrientation(bytes)
+        val bitmap = decodeSampledBitmap(bytes, MAX_DIMENSION, MAX_DIMENSION) ?: return null
+        val rotated = rotateBitmap(bitmap, orientation)
+        val fileName = "${UUID.randomUUID()}.webp"
+        val targetFile = File(directory, fileName)
+
+        FileOutputStream(targetFile).use { out ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                rotated.compress(Bitmap.CompressFormat.WEBP_LOSSY, COMPRESSION_QUALITY, out)
+            } else {
+                @Suppress("DEPRECATION")
+                rotated.compress(Bitmap.CompressFormat.WEBP, COMPRESSION_QUALITY, out)
+            }
+        }
+        if (rotated != bitmap) bitmap.recycle()
+        rotated.recycle()
+        fileName
+    }.getOrNull()
+
     /**
      * Saves raw image stream directly into the store with the specified or generated [fileName].
      */

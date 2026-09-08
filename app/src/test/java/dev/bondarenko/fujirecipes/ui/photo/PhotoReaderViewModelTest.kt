@@ -1,6 +1,9 @@
 package dev.bondarenko.fujirecipes.ui.photo
 
 import dev.bondarenko.fujirecipes.data.model.Recipe
+import dev.bondarenko.fujirecipes.camera.ptp.PtpObject
+import dev.bondarenko.fujirecipes.camera.ptp.PtpObjectInfo
+import dev.bondarenko.fujirecipes.camera.usb.CameraMediaObject
 import dev.bondarenko.fujirecipes.data.photo.PhotoReadFailure
 import dev.bondarenko.fujirecipes.data.photo.SyntheticJpeg
 import dev.bondarenko.fujirecipes.data.repo.ImportOutcome
@@ -20,6 +23,7 @@ import org.junit.Before
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertContentEquals
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PhotoReaderViewModelTest {
@@ -225,4 +229,64 @@ class PhotoReaderViewModelTest {
         assertEquals(1, updatedStage.selectedIndex)
         assertEquals("content://photo2.jpg", updatedStage.currentPhoto.uri)
     }
+
+    @Test
+    fun `camera browse lazily loads a thumbnail then analyzes selected downloads`() = runTest(testDispatcher) {
+        val jpeg = SyntheticJpeg.fujifilm(listOf(SyntheticJpeg.u16(5121, 1536)))
+        val thumbnail = byteArrayOf(0xff.toByte(), 0xd8.toByte(), 0xff.toByte())
+        val photo = CameraMediaObject(42, objectInfo("DSCF0042.JPG", jpeg.size.toLong()))
+        var downloaded: CameraMediaObject? = null
+        val vm = PhotoReaderViewModel(
+            repository = repo,
+            readPhoto = { jpeg },
+            listCameraPhotos = { listOf(photo) },
+            fetchCameraThumbnail = { thumbnail },
+            downloadCameraPhoto = {
+                downloaded = it
+                "file:/cache/DSCF0042.JPG"
+            },
+            defaultDispatcher = testDispatcher,
+        )
+
+        vm.browseCamera()
+        advanceUntilIdle()
+        var browser = assertIs<PhotoReaderStage.CameraBrowser>(vm.state.value.stage)
+        assertEquals(1, browser.photos.size)
+        assertEquals(emptyMap(), browser.thumbnails)
+
+        vm.loadCameraThumbnail(42)
+        advanceUntilIdle()
+        browser = assertIs<PhotoReaderStage.CameraBrowser>(vm.state.value.stage)
+        assertContentEquals(thumbnail, browser.thumbnails[42])
+
+        vm.toggleCameraPhoto(42)
+        vm.analyzeCameraSelection()
+        advanceUntilIdle()
+
+        assertEquals(photo, downloaded)
+        val result = assertIs<PhotoReaderStage.Result>(vm.state.value.stage)
+        assertEquals("file:/cache/DSCF0042.JPG", result.currentPhoto.uri)
+    }
+
+    private fun objectInfo(filename: String, size: Long) = PtpObjectInfo(
+        storageId = 1,
+        format = PtpObject.FORMAT_JPEG,
+        protectionStatus = 0,
+        compressedSize = size,
+        thumbFormat = PtpObject.FORMAT_JPEG,
+        thumbCompressedSize = 3,
+        thumbWidth = 320,
+        thumbHeight = 240,
+        imageWidth = 6240,
+        imageHeight = 4160,
+        imageBitDepth = 24,
+        parentObject = 0,
+        associationType = 0,
+        associationDescription = 0,
+        sequenceNumber = 0,
+        filename = filename,
+        captureDate = "20260909T120000",
+        modificationDate = "20260909T120000",
+        keywords = "",
+    )
 }

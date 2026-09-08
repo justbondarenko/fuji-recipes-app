@@ -1,5 +1,7 @@
 package dev.bondarenko.fujirecipes.camera.ptp
 
+import java.io.OutputStream
+
 /**
  * A PTP session over one transport.
  *
@@ -149,8 +151,8 @@ class PtpSession(
 
     // ─── Objects ────────────────────────────────────────────────────────────
     //
-    // The settings backup, and nothing else. All four take or return raw bytes for the same
-    // reason the property operations do: the layout is the caller's knowledge, and
+    // Settings backup and ordinary card browsing. Backup operations retain raw bytes because
+    // the layout is the caller's knowledge, and
     // `PtpFujiObjectInfo` is *not* the ISO 15740 `ObjectInfo` — Fuji moves fields after
     // `protection`, so a parse written against one silently produces wrong numbers for the
     // other. `camera/plan/CameraBackup.kt` reads only the leading fields the two layouts
@@ -170,11 +172,54 @@ class PtpSession(
         return result.data
     }
 
+    fun getStorageIds(): List<Int> {
+        val result = transport.command(Operation.GET_STORAGE_IDS)
+        expectOk(Operation.GET_STORAGE_IDS, result.code)
+        return parseU32Array(result.data, "The storage ID dataset")
+    }
+
+    fun getObjectHandles(
+        storageId: Int = PtpObject.ALL_STORAGES,
+        format: Int = PtpObject.ALL_FORMATS,
+        parent: Int = PtpObject.ROOT,
+    ): List<Int> {
+        val result = transport.command(
+            Operation.GET_OBJECT_HANDLES,
+            listOf(storageId, format, parent),
+        )
+        expectOk(Operation.GET_OBJECT_HANDLES, result.code)
+        return parseU32Array(result.data, "The object handle dataset")
+    }
+
+    fun getThumb(handle: Int): ByteArray {
+        val result = transport.command(Operation.GET_THUMB, listOf(handle))
+        expectOk(Operation.GET_THUMB, result.code)
+        return result.data
+    }
+
     /** One object's contents. */
     fun getObject(handle: Int): ByteArray {
         val result = transport.command(Operation.GET_OBJECT, listOf(handle))
         expectOk(Operation.GET_OBJECT, result.code)
         return result.data
+    }
+
+    /** Streams an object without retaining the complete image in the protocol layer. */
+    fun getObject(
+        handle: Int,
+        output: OutputStream,
+        maxBytes: Long,
+        onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
+    ): Long {
+        val result = transport.commandTo(
+            Operation.GET_OBJECT,
+            listOf(handle),
+            output,
+            maxBytes,
+            onProgress,
+        )
+        expectOk(Operation.GET_OBJECT, result.code)
+        return result.bytesWritten
     }
 
     /**

@@ -1,5 +1,8 @@
 package dev.bondarenko.fujirecipes.camera.ptp
 
+import java.io.ByteArrayOutputStream
+import java.io.OutputStream
+
 /**
  * The command / data / response machinery, over an abstract pair of bulk endpoints.
  *
@@ -45,6 +48,8 @@ data class CommandResult(val code: Int, val params: List<Int>, val data: ByteArr
     override fun hashCode(): Int =
         31 * (31 * code + params.hashCode()) + data.contentHashCode()
 }
+
+data class StreamedCommandResult(val code: Int, val params: List<Int>, val bytesWritten: Long)
 
 /**
  * The camera did not answer in time.
@@ -106,6 +111,96 @@ class PtpTransport(private val channel: BulkChannel) {
     }
 
     /**
+     * A command whose data phase is written directly to [output].
+     *
+     * Full-resolution JPEGs routinely exceed [MAX_CONTAINER_BYTES]. Buffering one inside the
+     * protocol layer would briefly keep several copies alive (USB chunk, growing array and the
+     * final image). This variant validates the same framing and transaction fields as [command]
+     * but retains only the twelve-byte container header.
+     */
+    fun commandTo(
+        operation: Int,
+        params: List<Int> = emptyList(),
+        output: OutputStream,
+        maxDataBytes: Long,
+        onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
+    ): StreamedCommandResult {
+        require(maxDataBytes >= 0) { "maxDataBytes must not be negative" }
+
+        val transactionId = nextTransaction()
+        send(packContainer(ContainerType.COMMAND, operation, transactionId, params))
+
+        val first = readAtLeast(CONTAINER_HEADER_SIZE)
+        val declared = containerLength(first)
+        if (declared < CONTAINER_HEADER_SIZE) {
+            throw PtpFramingError("The camera declared a $declared-byte container.")
+        }
+
+        val header = unpackContainer(first.copyOfRange(0, CONTAINER_HEADER_SIZE))
+        validateReply(header, transactionId)
+
+        if (header.type == ContainerType.RESPONSE) {
+            if (declared > MAX_CONTAINER_BYTES) {
+                throw PtpFramingError("The camera declared an oversized $declared-byte response.")
+            }
+            val responseBytes = ByteArrayOutputStream(declared.toInt())
+            responseBytes.write(first)
+            while (responseBytes.size().toLong() < declared) {
+                val next = channel.read((declared - responseBytes.size()).toInt())
+                if (next.isEmpty()) {
+                    throw PtpFramingError(
+                        "The camera stopped after ${responseBytes.size()} of $declared bytes.",
+                    )
+                }
+                responseBytes.write(next)
+            }
+            if (responseBytes.size().toLong() != declared) {
+                throw PtpFramingError("A response container carried unexpected trailing bytes.")
+            }
+            val response = unpackContainer(responseBytes.toByteArray())
+            validateReply(response, transactionId)
+            return StreamedCommandResult(response.code, response.params, 0)
+        }
+        if (header.type != ContainerType.DATA || header.code != operation) {
+            throw PtpFramingError(
+                "Expected data for operation 0x${operation.toString(16)}, got type " +
+                    "0x${header.type.toString(16)} and code 0x${header.code.toString(16)}.",
+            )
+        }
+
+        val total = declared - CONTAINER_HEADER_SIZE
+        if (total > maxDataBytes) {
+            throw PtpFramingError(
+                "The camera declared a $total-byte payload, beyond the $maxDataBytes-byte limit.",
+            )
+        }
+
+        var written = 0L
+        fun writePayload(bytes: ByteArray) {
+            val remaining = total - written
+            if (bytes.size.toLong() > remaining) {
+                throw PtpFramingError("The camera sent bytes beyond its declared container length.")
+            }
+            output.write(bytes)
+            written += bytes.size
+            onProgress(written, total)
+        }
+
+        writePayload(first.copyOfRange(CONTAINER_HEADER_SIZE, first.size))
+        while (written < total) {
+            val next = channel.read(minOf(READ_CHUNK_BYTES.toLong(), total - written).toInt())
+            if (next.isEmpty()) {
+                throw PtpFramingError("The camera stopped after $written of $total payload bytes.")
+            }
+            writePayload(next)
+        }
+
+        val response = receive(transactionId)
+        requireResponse(response)
+        return StreamedCommandResult(response.code, response.params, written)
+    }
+
+    /**
      * A command that sends a payload — `SetDevicePropValue`, and nothing else in this app.
      * Command container, then data container, then the response.
      */
@@ -146,27 +241,52 @@ class PtpTransport(private val channel: BulkChannel) {
      * believing it is not.
      */
     private fun receive(expectedTransactionId: Int): PtpContainer {
-        var bytes = channel.read(READ_CHUNK_BYTES)
+        val first = readAtLeast(4)
 
-        val declared = containerLength(bytes)
-        if (declared > MAX_CONTAINER_BYTES) {
+        val declared = containerLength(first)
+        if (declared < CONTAINER_HEADER_SIZE || declared > MAX_CONTAINER_BYTES) {
             throw PtpFramingError(
                 "The camera declared a $declared-byte container, beyond the " +
-                    "$MAX_CONTAINER_BYTES-byte limit.",
+                    "$CONTAINER_HEADER_SIZE..$MAX_CONTAINER_BYTES-byte range.",
             )
         }
+        if (first.size.toLong() > declared) {
+            throw PtpFramingError("The camera sent bytes beyond its declared container length.")
+        }
 
-        while (bytes.size < declared) {
+        val bytes = ByteArrayOutputStream(declared.toInt())
+        bytes.write(first)
+        while (bytes.size().toLong() < declared) {
             val more = channel.read(READ_CHUNK_BYTES)
             if (more.isEmpty()) {
                 throw PtpFramingError(
-                    "The camera stopped after ${bytes.size} of $declared bytes.",
+                    "The camera stopped after ${bytes.size()} of $declared bytes.",
                 )
             }
-            bytes += more
+            bytes.write(more)
         }
 
-        val container = unpackContainer(bytes)
+        val container = unpackContainer(bytes.toByteArray())
+
+        validateReply(container, expectedTransactionId)
+        return container
+    }
+
+    private fun readAtLeast(count: Int): ByteArray {
+        val bytes = ByteArrayOutputStream(count)
+        while (bytes.size() < count) {
+            val next = channel.read(READ_CHUNK_BYTES)
+            if (next.isEmpty()) {
+                throw PtpFramingError(
+                    "The camera stopped after ${bytes.size()} bytes; $count were needed.",
+                )
+            }
+            bytes.write(next)
+        }
+        return bytes.toByteArray()
+    }
+
+    private fun validateReply(container: PtpContainer, expectedTransactionId: Int) {
 
         // An event container is unsolicited and belongs to no transaction; the camera can
         // send one at any time and it is not the answer to anything.
@@ -181,10 +301,8 @@ class PtpTransport(private val channel: BulkChannel) {
             throw PtpFramingError(
                 "Reply is for transaction ${container.transactionId}, not " +
                     "$expectedTransactionId — a late answer to an earlier request. The " +
-                    "session needs resetting.",
+                "session needs resetting.",
             )
         }
-
-        return container
     }
 }

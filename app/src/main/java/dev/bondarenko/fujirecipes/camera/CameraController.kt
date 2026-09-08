@@ -35,6 +35,11 @@ import dev.bondarenko.fujirecipes.camera.usb.readUsbMode
 import dev.bondarenko.fujirecipes.camera.usb.readCameraReport
 import dev.bondarenko.fujirecipes.camera.usb.downloadBackup
 import dev.bondarenko.fujirecipes.camera.usb.restoreBackup
+import dev.bondarenko.fujirecipes.camera.usb.CameraMediaObject
+import dev.bondarenko.fujirecipes.camera.usb.listCameraJpegs
+import dev.bondarenko.fujirecipes.camera.usb.readCameraThumbnail
+import dev.bondarenko.fujirecipes.core.store.CameraMediaCache
+import java.io.File
 import dev.bondarenko.fujirecipes.camera.plan.CameraReport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -319,6 +324,47 @@ class CameraController(
         val open = session ?: return null
 
         return withContext(Dispatchers.IO) { readSlotRecipe(open, slot) }
+    }
+
+    // ─── Reading photos from the card ──────────────────────────────────────
+
+    suspend fun listCameraPhotos(
+        onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
+    ): List<CameraMediaObject> = lock.withLock {
+        val open = mediaSession()
+        withContext(Dispatchers.IO) { listCameraJpegs(open, onProgress) }
+    }
+
+    suspend fun readCameraPhotoThumbnail(handle: Int): ByteArray? = lock.withLock {
+        val open = mediaSession()
+        withContext(Dispatchers.IO) { readCameraThumbnail(open, handle) }
+    }
+
+    suspend fun downloadCameraPhoto(
+        media: CameraMediaObject,
+        cache: CameraMediaCache,
+        onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
+    ): File = lock.withLock {
+        val open = mediaSession()
+        withContext(Dispatchers.IO) { cache.download(open, media, onProgress) }
+    }
+
+    private fun mediaSession(): PtpSession {
+        val open = session ?: throw IllegalStateException(
+            "Connect the camera before choosing photos from it.",
+        )
+        val connected = _state.value as? CameraState.Connected ?: throw IllegalStateException(
+            "The camera is busy. Wait for the current operation to finish.",
+        )
+        if (connected.usbMode == dev.bondarenko.fujirecipes.camera.plan.UsbMode.RAW_CONVERSION ||
+            connected.usbMode.isKnownWrongMode
+        ) {
+            throw IllegalStateException(
+                "Photo browsing requires USB CARD READER mode. Change the camera's USB mode, " +
+                    "then disconnect and reconnect the cable.",
+            )
+        }
+        return open
     }
 
     // ─── Writing (FEAT-006) ─────────────────────────────────────────────────

@@ -58,22 +58,26 @@ object ContainerType {
  * `SetDevicePropValue`, and no vendor operation at all — every recipe read and write goes
  * through those two.
  *
- * **The object half** (`0x1008`–`0x100D`) is the settings backup, and only that. The camera's
+ * **The object half** covers both ordinary card browsing and settings backup. Card browsing
+ * uses the standard storage, handle, metadata, thumbnail and object operations. The camera's
  * USB mode is called *RAW CONV. / BACKUP RESTORE*, and the second half of that name is a
  * single object at handle 0: `GetObjectInfo` then `GetObject` reads the body's whole settings
  * blob, `SendObjectInfo` then `SendObject` writes one back. Transcribed from `petabyt/libfuji`
  * `lib/fuji_usb.c` (`fujiusb_download_backup`, `fujiusb_restore_backup`).
  *
- * Still deliberately absent: `GetObjectHandles`, `DeleteObject` and the Fuji vendor codes
- * (`0x900C`/`0x900D`) that the RAW-conversion workflow needs. Nothing here uses them, and an
- * opcode this app cannot exercise is one nobody would notice going wrong.
+ * Still deliberately absent: `DeleteObject` and the Fuji vendor codes (`0x900C`/`0x900D`)
+ * that the RAW-conversion workflow needs.
  */
 object Operation {
     const val GET_DEVICE_INFO = 0x1001
     const val OPEN_SESSION = 0x1002
     const val CLOSE_SESSION = 0x1003
+    const val GET_STORAGE_IDS = 0x1004
+    const val GET_STORAGE_INFO = 0x1005
+    const val GET_OBJECT_HANDLES = 0x1007
     const val GET_OBJECT_INFO = 0x1008
     const val GET_OBJECT = 0x1009
+    const val GET_THUMB = 0x100a
     const val SEND_OBJECT_INFO = 0x100c
     const val SEND_OBJECT = 0x100d
     const val GET_DEVICE_PROP_DESC = 0x1014
