@@ -59,7 +59,7 @@ object ContainerType {
  * through those two.
  *
  * **The object half** (`0x1008`–`0x100D`) is the settings backup, and only that. The camera's
- * USB mode is called *RAW CONV./**BACKUP RESTORE***, and the second half of that name is a
+ * USB mode is called *RAW CONV. / BACKUP RESTORE*, and the second half of that name is a
  * single object at handle 0: `GetObjectInfo` then `GetObject` reads the body's whole settings
  * blob, `SendObjectInfo` then `SendObject` writes one back. Transcribed from `petabyt/libfuji`
  * `lib/fuji_usb.c` (`fujiusb_download_backup`, `fujiusb_restore_backup`).
