@@ -45,6 +45,8 @@ import androidx.compose.ui.unit.dp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.camera.CameraModels
 import dev.bondarenko.fujirecipes.camera.CameraState
+import dev.bondarenko.fujirecipes.camera.plan.CameraDetails
+import dev.bondarenko.fujirecipes.camera.plan.UsbMode
 import dev.bondarenko.fujirecipes.camera.plan.SlotNameReading
 import dev.bondarenko.fujirecipes.camera.plan.SlotState
 import dev.bondarenko.fujirecipes.camera.plan.SlotStatus
@@ -53,6 +55,7 @@ import dev.bondarenko.fujirecipes.camera.ptp.responseName
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
+import java.text.NumberFormat
 
 /**
  * The camera's own screen — reached from the third toolbar item.
@@ -176,7 +179,13 @@ fun CameraConnectedContent(
             }
         }
 
-        // ─── 2. Container/Card for Slots / Loading / Bento Grid ─────────────
+        // ─── 2. Wrong USB mode, when the camera positively said so ──────────
+        //
+        // Above the slots rather than below them: it is the reason the grid underneath is
+        // about to fail, and reading the explanation after the failure is the wrong order.
+        UsbModeWarning(state.usbMode)
+
+        // ─── 3. Container/Card for Slots / Loading / Bento Grid ─────────────
         Card(
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
@@ -290,6 +299,9 @@ fun CameraConnectedContent(
                 }
             }
         }
+
+        // ─── 4. What the body says about itself ─────────────────────────────
+        CameraDetailsCard(state.details)
 
         // Additional information notes
         if (state.identity.writable) {
@@ -546,6 +558,125 @@ private fun body(state: CameraState, isCameraAttached: Boolean): String? = when 
     is CameraState.Error -> state.message
 }
 
+/**
+ * The wrong-USB-mode banner, or nothing.
+ *
+ * Only the two modes the camera positively identified get a banner. `UsbMode.UNREPORTED` —
+ * which is where a card-reader body and any body without the property both land — renders
+ * nothing at all, because "we could not tell" must never look like "you are set up wrong".
+ */
+@Composable
+private fun UsbModeWarning(mode: UsbMode) {
+    val name = when (mode) {
+        UsbMode.TETHER_SHOOTING -> stringResource(R.string.camera_usb_mode_tether)
+        UsbMode.WEBCAM -> stringResource(R.string.camera_usb_mode_webcam)
+        else -> return
+    }
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = stringResource(R.string.camera_usb_mode_wrong, name),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            modifier = Modifier.padding(14.dp),
+        )
+    }
+}
+
+/**
+ * Battery, shutter count, lens, firmware and serial — whichever of them the body answered.
+ *
+ * A field the camera refused is simply absent; a body that answered none of them gets no card
+ * rather than a card full of dashes. The footnote appears only when at least one row came from
+ * a vendor property, so a card showing nothing but the two `GetDeviceInfo` fields — which are
+ * plain ISO 15740 — does not carry a caveat that does not apply to it.
+ */
+@Composable
+private fun CameraDetailsCard(details: CameraDetails, modifier: Modifier = Modifier) {
+    if (details.isEmpty) return
+
+    val rows = mutableListOf<Pair<String, String>>()
+    if (details.batteryPercent != null) {
+        rows += stringResource(R.string.camera_detail_battery) to
+            stringResource(R.string.camera_detail_battery_value, details.batteryPercent)
+    }
+    if (details.shutterCount != null) {
+        rows += stringResource(R.string.camera_detail_shutter) to
+            formatCount(details.shutterCount)
+    }
+    if (details.lens != null) {
+        rows += stringResource(R.string.camera_detail_lens) to details.lens
+    }
+    if (details.firmware != null) {
+        rows += stringResource(R.string.camera_detail_firmware) to details.firmware
+    }
+    if (details.serialNumber != null) {
+        rows += stringResource(R.string.camera_detail_serial) to details.serialNumber
+    }
+
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.camera_details_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                rows.forEach { (label, value) -> DetailRow(label = label, value = value) }
+            }
+
+            if (details.hasUnverifiedFields) {
+                Note(stringResource(R.string.camera_details_note))
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 16.dp),
+        )
+    }
+}
+
+/** Grouped by the reader's own locale — a shutter count is the one number here big enough to need it. */
+private fun formatCount(value: Int): String =
+    NumberFormat.getIntegerInstance().format(value)
+
 // ─── Previews ───────────────────────────────────────────────────────────────
 
 private val previewConnectedSlots = slotStates(
@@ -620,6 +751,56 @@ private fun CameraConnectedAllEmptyPreview() {
             CameraConnectedContent(
                 state = CameraState.Connected(CameraModels.identify("X-H2S")),
                 slots = slotStates((1..7).map { SlotNameReading(it, null, read = true) }),
+                isLoadingSlots = false,
+                slotsError = null,
+                onRefresh = {},
+                onDisconnect = {},
+            )
+        }
+    }
+}
+
+@Preview(name = "Connected — Wrong USB mode", showBackground = true)
+@Preview(name = "Connected — Wrong USB mode (Dark)", showBackground = true, uiMode = 0x20)
+@Composable
+private fun CameraConnectedWrongModePreview() {
+    FujiTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            CameraConnectedContent(
+                state = CameraState.Connected(
+                    identity = CameraModels.identify("X100VI"),
+                    usbMode = UsbMode.TETHER_SHOOTING,
+                    details = CameraDetails(batteryPercent = 62, firmware = "1.32"),
+                ),
+                slots = slotStates((1..7).map { SlotNameReading(it, null, read = false) }),
+                isLoadingSlots = false,
+                slotsError = null,
+                onRefresh = {},
+                onDisconnect = {},
+            )
+        }
+    }
+}
+
+@Preview(name = "Connected — Camera details", showBackground = true)
+@Preview(name = "Connected — Camera details (Dark)", showBackground = true, uiMode = 0x20)
+@Composable
+private fun CameraConnectedDetailsPreview() {
+    FujiTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            CameraConnectedContent(
+                state = CameraState.Connected(
+                    identity = CameraModels.identify("X-T5"),
+                    usbMode = UsbMode.RAW_CONVERSION,
+                    details = CameraDetails(
+                        batteryPercent = 87,
+                        shutterCount = 142_037,
+                        lens = "XF23mmF2 R WR",
+                        firmware = "3.10",
+                        serialNumber = "A1B2C3D4",
+                    ),
+                ),
+                slots = previewConnectedSlots,
                 isLoadingSlots = false,
                 slotsError = null,
                 onRefresh = {},

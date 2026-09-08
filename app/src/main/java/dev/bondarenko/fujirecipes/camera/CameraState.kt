@@ -1,5 +1,8 @@
 package dev.bondarenko.fujirecipes.camera
 
+import dev.bondarenko.fujirecipes.camera.plan.CameraDetails
+import dev.bondarenko.fujirecipes.camera.plan.UsbMode
+
 /**
  * What the app knows about the camera, as one value.
  *
@@ -23,7 +26,16 @@ sealed interface CameraState {
     /** Permission is being asked for, or the session is opening. */
     data object Connecting : CameraState
 
-    data class Connected(val identity: ModelIdentity) : CameraState
+    /**
+     * [usbMode] and [details] are what the body said about itself at connect, and both default
+     * to "said nothing" — a body that refuses them still connects, and every caller that only
+     * cares which model is attached is unaffected.
+     */
+    data class Connected(
+        val identity: ModelIdentity,
+        val usbMode: UsbMode = UsbMode.UNREPORTED,
+        val details: CameraDetails = CameraDetails(),
+    ) : CameraState
 
     /** Held during a write (FEAT-006). [current] is the property being written right now. */
     data class Writing(

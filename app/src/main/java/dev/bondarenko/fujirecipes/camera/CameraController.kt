@@ -30,6 +30,8 @@ import dev.bondarenko.fujirecipes.camera.usb.SlotRecipe
 import dev.bondarenko.fujirecipes.camera.usb.readSlotNames
 import dev.bondarenko.fujirecipes.camera.usb.readSlotRecipe
 import dev.bondarenko.fujirecipes.camera.usb.readSlotRecipes
+import dev.bondarenko.fujirecipes.camera.usb.readCameraDetails
+import dev.bondarenko.fujirecipes.camera.usb.readUsbMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -154,7 +156,13 @@ class CameraController(
             val info = opened.open()
 
             session = opened
-            _state.value = CameraState.Connected(CameraModels.identify(info.model))
+            // Both reads swallow their own failures and answer "not reported", so a body that
+            // will not discuss its USB mode or its battery still connects normally.
+            _state.value = CameraState.Connected(
+                identity = CameraModels.identify(info.model),
+                usbMode = readUsbMode(opened),
+                details = readCameraDetails(opened, info),
+            )
         } catch (error: Exception) {
             session = null
             _state.value = error.toCameraError()
