@@ -77,6 +77,7 @@ fun CameraPhotosScreen(
     cameraState: CameraState,
     isCameraAttached: Boolean,
     onConnect: () -> Unit,
+    onRefreshConnection: () -> Unit,
     onRefresh: () -> Unit,
     onFilter: (CameraFileFilter) -> Unit,
     onToggleFile: (Int) -> Unit,
@@ -96,6 +97,14 @@ fun CameraPhotosScreen(
             state = cameraState,
             isCameraAttached = isCameraAttached,
             onConnect = onConnect,
+            modifier = modifier.fillMaxSize().padding(contentPadding),
+        )
+        return
+    }
+
+    if (!cameraState.usbMode.allowsCardBrowsing) {
+        CameraPhotosCardReaderState(
+            onRefresh = onRefreshConnection,
             modifier = modifier.fillMaxSize().padding(contentPadding),
         )
         return
@@ -312,6 +321,23 @@ fun CameraPhotosScreen(
             )
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun CameraPhotosCardReaderState(
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FujiIconPanel(
+        icon = FujiIcons.CameraRoll,
+        shape = MaterialShapes.Pill.toShape(),
+        title = stringResource(R.string.camera_photos_card_reader_title),
+        body = stringResource(R.string.camera_photos_card_reader_body),
+        actionLabel = stringResource(R.string.camera_photos_refresh_connection),
+        onAction = onRefresh,
+        modifier = modifier.padding(24.dp),
+    )
 }
 
 @Composable
@@ -570,8 +596,9 @@ fun CameraPhotosRouteContent(contentPadding: PaddingValues) {
         }
     }
 
-    LaunchedEffect(cameraState is CameraState.Connected) {
-        if (cameraState is CameraState.Connected) viewModel.refresh()
+    LaunchedEffect(cameraState) {
+        val connected = cameraState as? CameraState.Connected
+        if (connected?.usbMode?.allowsCardBrowsing == true) viewModel.refresh()
     }
 
     CameraPhotosScreen(
@@ -579,6 +606,7 @@ fun CameraPhotosRouteContent(contentPadding: PaddingValues) {
         cameraState = cameraState,
         isCameraAttached = container.cameraController.isCameraAttached,
         onConnect = container.cameraController::connect,
+        onRefreshConnection = container.cameraController::reconnect,
         onRefresh = viewModel::refresh,
         onFilter = viewModel::setFilter,
         onToggleFile = viewModel::toggleFile,
