@@ -36,12 +36,16 @@ import dev.bondarenko.fujirecipes.camera.usb.readCameraReport
 import dev.bondarenko.fujirecipes.camera.usb.downloadBackup
 import dev.bondarenko.fujirecipes.camera.usb.restoreBackup
 import dev.bondarenko.fujirecipes.camera.usb.CameraMediaObject
+import dev.bondarenko.fujirecipes.camera.usb.downloadCameraJpeg
+import dev.bondarenko.fujirecipes.camera.usb.downloadCameraRaf
+import dev.bondarenko.fujirecipes.camera.usb.listCameraFiles
 import dev.bondarenko.fujirecipes.camera.usb.listCameraJpegs
 import dev.bondarenko.fujirecipes.camera.usb.listCameraRafs
 import dev.bondarenko.fujirecipes.camera.usb.readCameraThumbnail
 import dev.bondarenko.fujirecipes.core.store.CameraMediaCache
 import dev.bondarenko.fujirecipes.core.store.RawDevelopmentCache
 import java.io.File
+import java.io.OutputStream
 import dev.bondarenko.fujirecipes.camera.usb.RawDevelopmentResult
 import dev.bondarenko.fujirecipes.camera.usb.RawDevelopmentStage
 import dev.bondarenko.fujirecipes.camera.usb.captureRawProfile
@@ -340,6 +344,31 @@ class CameraController(
     ): List<CameraMediaObject> = lock.withLock {
         val open = mediaSession()
         withContext(Dispatchers.IO) { listCameraJpegs(open, onProgress) }
+    }
+
+    suspend fun listCameraFiles(
+        onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
+    ): List<CameraMediaObject> = lock.withLock {
+        val open = mediaSession()
+        withContext(Dispatchers.IO) { listCameraFiles(open, onProgress) }
+    }
+
+    suspend fun downloadCameraJpeg(
+        media: CameraMediaObject,
+        output: OutputStream,
+        onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
+    ): Long = lock.withLock {
+        val open = mediaSession()
+        withContext(Dispatchers.IO) { downloadCameraJpeg(open, media, output, onProgress = onProgress) }
+    }
+
+    suspend fun downloadCameraRaf(
+        media: CameraMediaObject,
+        output: OutputStream,
+        onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
+    ): Long = lock.withLock {
+        val open = mediaSession()
+        withContext(Dispatchers.IO) { downloadCameraRaf(open, media, output, onProgress = onProgress) }
     }
 
     suspend fun readCameraPhotoThumbnail(handle: Int): ByteArray? = lock.withLock {

@@ -23,6 +23,7 @@ import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,6 +34,8 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -62,12 +65,14 @@ import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
 import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
 import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowForward
+import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowBack
 import dev.bondarenko.fujirecipes.ui.theme.icons.CleaningServices
 import dev.bondarenko.fujirecipes.ui.theme.icons.Delete
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.StarRate
 import dev.bondarenko.fujirecipes.ui.theme.icons.StarShine
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CleanupScreen(
     state: CleanupUiState,
@@ -76,13 +81,31 @@ fun CleanupScreen(
     onDeleteGroupDuplicates: (groupId: String) -> Unit,
     onDeleteAllDuplicates: () -> Unit,
     onOpenRecipe: (String) -> Unit,
+    onBack: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
     var groupPendingDelete by remember { mutableStateOf<ExactDuplicateGroup?>(null) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
 
-    when (val stage = state.stage) {
+    Column(modifier = modifier.fillMaxSize()) {
+        TopAppBar(
+            title = { Text(stringResource(R.string.cleanup_title)) },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = FujiIcons.ArrowBack,
+                        contentDescription = stringResource(R.string.action_back),
+                    )
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+            ),
+        )
+
+        Box(modifier = Modifier.weight(1f)) {
+            when (val stage = state.stage) {
         CleanupStage.Initial -> {
             InitialCenteredCleanupScreen(
                 onFindDuplicates = onFindDuplicates,
@@ -248,6 +271,8 @@ fun CleanupScreen(
                         }
                     }
                 }
+            }
+        }
             }
         }
     }
@@ -747,6 +772,7 @@ private fun CleanupRatingBadge(rating: Int, modifier: Modifier = Modifier) {
 @Composable
 fun CleanupRouteContent(
     onOpenRecipe: (String) -> Unit,
+    onBack: () -> Unit,
     contentPadding: PaddingValues,
 ) {
     val context = LocalContext.current
@@ -761,6 +787,7 @@ fun CleanupRouteContent(
         onDeleteGroupDuplicates = viewModel::deleteDuplicatesForGroup,
         onDeleteAllDuplicates = viewModel::deleteAllDuplicates,
         onOpenRecipe = onOpenRecipe,
+        onBack = onBack,
         contentPadding = contentPadding,
     )
 }

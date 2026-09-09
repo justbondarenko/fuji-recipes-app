@@ -22,6 +22,7 @@ import dev.bondarenko.fujirecipes.ui.create.CreateRecipeFlow
 import dev.bondarenko.fujirecipes.ui.nav.AboutRoute
 import dev.bondarenko.fujirecipes.ui.nav.CameraRoute
 import dev.bondarenko.fujirecipes.ui.nav.CleanupRoute
+import dev.bondarenko.fujirecipes.ui.nav.CameraPhotosRoute
 import dev.bondarenko.fujirecipes.ui.nav.DisclaimerRoute
 import dev.bondarenko.fujirecipes.ui.nav.ExportRoute
 import dev.bondarenko.fujirecipes.ui.nav.FileImportRoute
@@ -134,8 +135,9 @@ private fun FujiApp(
         val onImport = destination?.hasRoute<ImportRoute>() == true
         val onFileImport = destination?.hasRoute<FileImportRoute>() == true
         val onExport = destination?.hasRoute<ExportRoute>() == true
+        val onCleanup = destination?.hasRoute<CleanupRoute>() == true
         val showChrome =
-            !onEditor && !onRecipeView && !onImport && !onFileImport && !onExport
+            !onEditor && !onRecipeView && !onImport && !onFileImport && !onExport && !onCleanup
 
         // Not a route: the dialog and the sheet behind it are ways of *starting* the editor,
         // and giving either a destination of its own would put a half-made choice in the back
@@ -160,7 +162,7 @@ private fun FujiApp(
             showChrome = showChrome,
             isLibrarySelected = destination?.hasRoute<LibraryRoute>() == true,
             isReadSelected = destination?.hasRoute<PhotoRoute>() == true,
-            isCleanupSelected = destination?.hasRoute<CleanupRoute>() == true,
+            isCameraPhotosSelected = destination?.hasRoute<CameraPhotosRoute>() == true,
             isMoreSelected = isMoreSelected,
             onLibraryClick = {
                 navController.navigate(LibraryRoute) {
@@ -169,7 +171,9 @@ private fun FujiApp(
                 }
             },
             onReadClick = { navController.navigate(PhotoRoute()) { launchSingleTop = true } },
-            onCleanupClick = { navController.navigate(CleanupRoute) { launchSingleTop = true } },
+            onCameraPhotosClick = {
+                navController.navigate(CameraPhotosRoute) { launchSingleTop = true }
+            },
             onMoreClick = {
                 navController.navigate(MoreRoute) {
                     popUpTo(MoreRoute) { inclusive = true }
