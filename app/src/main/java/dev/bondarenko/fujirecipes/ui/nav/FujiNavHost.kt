@@ -31,6 +31,7 @@ import dev.bondarenko.fujirecipes.ui.importing.ImportRouteContent
 import dev.bondarenko.fujirecipes.ui.photo.PhotoReaderRouteContent
 import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewRouteContent
 import dev.bondarenko.fujirecipes.ui.raw.RawDevelopmentRouteContent
+import dev.bondarenko.fujirecipes.ui.settings.MoreRouteContent
 import dev.bondarenko.fujirecipes.ui.settings.SettingsRouteContent
 import dev.bondarenko.fujirecipes.ui.theme.LocalReducedMotion
 import kotlinx.serialization.Serializable
@@ -85,6 +86,10 @@ data object CameraPhotosRoute
 
 @Serializable
 data object MoreRoute
+
+/** The preferences page, reached by the settings button every page carries. */
+@Serializable
+data object SettingsRoute
 
 /** Bottom bar -> USB status: what is connected, and the connect/disconnect action. */
 @Serializable
@@ -214,6 +219,7 @@ fun FujiNavHost(
                 onCreateRecipe = { navController.navigate(RecipeEditorRoute(null)) },
                 onImportFromCamera = { navController.navigate(ImportRoute) },
                 onDevelopRaw = { id -> navController.navigate(RawDevelopmentRoute(id)) },
+                onOpenSettings = { navController.navigate(SettingsRoute) },
                 contentPadding = contentPadding,
             )
         }
@@ -264,8 +270,15 @@ fun FujiNavHost(
             )
         }
 
-        composable<MoreRoute> {
+        composable<SettingsRoute> {
             SettingsRouteContent(
+                onBack = { navController.popBackStack() },
+                contentPadding = contentPadding,
+            )
+        }
+
+        composable<MoreRoute> {
+            MoreRouteContent(
                 onOpenCleanup = { navController.navigate(CleanupRoute) },
                 onOpenImport = { navController.navigate(ImportRoute) },
                 onOpenFileImport = { navController.navigate(FileImportRoute) },

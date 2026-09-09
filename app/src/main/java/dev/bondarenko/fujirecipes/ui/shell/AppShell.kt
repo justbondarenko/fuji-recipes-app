@@ -8,7 +8,12 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -22,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -30,7 +36,8 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.BookmarkStacks
 import dev.bondarenko.fujirecipes.ui.theme.icons.CameraRoll
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.ImageSearch
-import dev.bondarenko.fujirecipes.ui.theme.icons.Settings
+import dev.bondarenko.fujirecipes.ui.theme.icons.MoreVert
+import dev.bondarenko.fujirecipes.ui.common.FujiSettingsButton
 
 /**
  * The chrome every top-level screen sits inside.
@@ -52,6 +59,13 @@ fun AppShell(
     onReadClick: () -> Unit,
     onCameraPhotosClick: () -> Unit = {},
     onMoreClick: () -> Unit,
+    /** Opens the settings page. The button is the only way in now that the bar has no cog. */
+    onSettingsClick: () -> Unit,
+    /**
+     * Whether the shell draws the settings button. False on the library, which has a search
+     * bar of its own and puts the button in that row instead.
+     */
+    showSettingsButton: Boolean,
     /**
      * The New recipe button was pressed.
      *
@@ -72,6 +86,19 @@ fun AppShell(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surface,
+        topBar = {
+            if (showChrome && showSettingsButton) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    FujiSettingsButton(onClick = onSettingsClick)
+                }
+            }
+        },
         bottomBar = {
             if (showChrome) {
                 NavigationBar {
@@ -114,7 +141,7 @@ fun AppShell(
                         onClick = onMoreClick,
                         icon = {
                             Icon(
-                                imageVector = FujiIcons.Settings,
+                                imageVector = FujiIcons.MoreVert,
                                 contentDescription = null,
                             )
                         },
@@ -172,6 +199,8 @@ private fun AppShellPreview() {
             onReadClick = {},
             onMoreClick = {},
             onCreateClick = {},
+            onSettingsClick = {},
+            showSettingsButton = true,
         ) { padding ->
             dev.bondarenko.fujirecipes.ui.common.PlaceholderScreen(
                 titleRes = R.string.placeholder_more_title,
