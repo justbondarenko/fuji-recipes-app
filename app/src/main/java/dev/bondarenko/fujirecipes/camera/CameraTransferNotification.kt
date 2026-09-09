@@ -97,10 +97,19 @@ fun buildTransferNotification(
 /**
  * The notification for a camera that is connected and doing nothing.
  *
- * **Deliberately not promoted.** A Live Update is for an active process with a start and a
- * finish; a camera sitting plugged in is a state, not a process, and promoting it would park a
- * permanent chip in the status bar. So this is an ordinary low-importance ongoing notification,
- * and only the transfer above ever asks for promotion.
+ * **Promoted, like the transfer.** A connected camera is a state rather than a process with a
+ * start and a finish, so this is not what Live Updates were designed around — but a plugged-in
+ * camera with the app in the background is exactly when the status-bar chip earns its place,
+ * and that was the call made after seeing both on a device.
+ *
+ * Promotion needs no `ProgressStyle`: a standard-style notification qualifies as long as it is
+ * ongoing, carries a content title, uses no custom views, is not a group summary, is **not**
+ * colorized, and its channel is not `IMPORTANCE_MIN`. All of those hold here — the colorized
+ * one is the trap, since a foreground-service notification is the usual place to reach for it.
+ * [setShortCriticalText] is what the chip itself shows, so it stays to a word or two.
+ *
+ * It is still only a request. The user or the manufacturer can refuse it, so everything below
+ * has to read correctly as an ordinary ongoing notification too.
  *
  * Its action is chosen by the USB mode, because the two modes lead to different screens and
  * offering the wrong one is worse than offering none: browsing the card needs
@@ -123,6 +132,12 @@ fun buildConnectedNotification(
         .setCategory(NotificationCompat.CATEGORY_STATUS)
         .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
         .setContentIntent(openAppIntent(context))
+
+    if (Build.VERSION.SDK_INT >= LIVE_UPDATE_SDK) {
+        builder
+            .setShortCriticalText(context.getString(modeShortLabel(mode)))
+            .setRequestPromotedOngoing(true)
+    }
 
     when {
         mode.allowsCardBrowsing -> builder.addAction(
@@ -148,6 +163,15 @@ private fun modeDescription(mode: UsbMode): Int = when (mode) {
     UsbMode.TETHER_SHOOTING -> R.string.camera_connected_tether
     UsbMode.WEBCAM -> R.string.camera_connected_webcam
     UsbMode.UNRECOGNISED, UsbMode.UNREPORTED -> R.string.camera_connected_unknown_mode
+}
+
+/** A word or two, for the status-bar chip. Anything longer is truncated by the system. */
+private fun modeShortLabel(mode: UsbMode): Int = when (mode) {
+    UsbMode.CARD_READER -> R.string.camera_connected_short_card_reader
+    UsbMode.RAW_CONVERSION -> R.string.camera_connected_short_raw_conversion
+    UsbMode.TETHER_SHOOTING -> R.string.camera_connected_short_tether
+    UsbMode.WEBCAM -> R.string.camera_connected_short_webcam
+    UsbMode.UNRECOGNISED, UsbMode.UNREPORTED -> R.string.camera_connected_short_unknown_mode
 }
 
 /** Android 16, where Live Updates arrived. Named rather than inlined so the reason is visible. */

@@ -232,6 +232,11 @@
     <string name="camera_connected_unknown_mode">Connected</string>
     <string name="camera_connected_action_photos">Photos</string>
     <string name="camera_connected_action_camera">Camera</string>
+    <string name="camera_connected_short_card_reader">Card reader</string>
+    <string name="camera_connected_short_raw_conversion">RAW conv.</string>
+    <string name="camera_connected_short_tether">Tether</string>
+    <string name="camera_connected_short_webcam">Webcam</string>
+    <string name="camera_connected_short_unknown_mode">Connected</string>
 
     <!-- Recovery after the process was killed mid-batch -->
     <string name="camera_transfer_interrupted_title">The last download did not finish</string>
