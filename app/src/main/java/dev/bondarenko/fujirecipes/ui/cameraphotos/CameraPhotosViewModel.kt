@@ -62,7 +62,7 @@ data class CameraPhotosUiState(
 class CameraPhotosViewModel(
     private val listFiles: suspend ((Int, Int) -> Unit) -> List<CameraMediaObject>,
     private val fetchThumbnail: suspend (Int) -> ByteArray?,
-    transferState: StateFlow<CameraTransferState?>,
+    private val transferState: StateFlow<CameraTransferState?>,
     private val startTransfer: (List<CameraMediaObject>, String) -> Unit,
     private val cancelTransfer: () -> Unit,
     private val acknowledgeTransfer: () -> Unit,
@@ -81,8 +81,19 @@ class CameraPhotosViewModel(
         viewModelScope.launch { transferState.collect { applyTransfer(it) } }
     }
 
+    /**
+     * True the instant a batch exists, rather than once this screen has heard about it.
+     *
+     * The collector below is asynchronous, so a screen reopened during a batch has a window in
+     * which its own state still says "no download". Reading the shared flow directly closes it:
+     * a card re-scan started in that window would contend with the transfer for the one USB
+     * connection and stall behind whichever file was in flight.
+     */
+    private val transferRunning: Boolean
+        get() = transferState.value is CameraTransferState.Running
+
     fun refresh() {
-        if (_state.value.isLoading || _state.value.download != null) return
+        if (_state.value.isLoading || _state.value.download != null || transferRunning) return
         _state.update {
             it.copy(isLoading = true, scanCurrent = 0, scanTotal = 0, error = null, message = null)
         }
@@ -163,7 +174,7 @@ class CameraPhotosViewModel(
 
     fun downloadSelected(folderUri: String) {
         val selected = _state.value.selectedFiles
-        if (selected.isEmpty() || _state.value.download != null) return
+        if (selected.isEmpty() || _state.value.download != null || transferRunning) return
 
         // Clearing the notice here rather than on the next launch: a new batch is about to
         // overwrite the record the notice was read from.

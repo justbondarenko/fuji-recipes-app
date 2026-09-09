@@ -182,6 +182,36 @@ class CameraPhotosViewModelTest {
         assertEquals(1, cancels)
     }
 
+    /**
+     * The collector is asynchronous, so a screen reopened during a batch briefly believes no
+     * download is running. A re-scan started in that window would contend with the transfer for
+     * the one USB connection.
+     */
+    @Test
+    fun `a screen reopened mid-batch does not rescan the card`() = runTest(dispatcher) {
+        var scans = 0
+        val running = MutableStateFlow<CameraTransferState?>(
+            CameraTransferState.Running(CameraExportProgress(1, 2, "DSCF0001.JPG", 0, 40)),
+        )
+        val vm = CameraPhotosViewModel(
+            listFiles = {
+                scans++
+                listOf(jpeg)
+            },
+            fetchThumbnail = { null },
+            transferState = running,
+            startTransfer = { _, _ -> },
+            cancelTransfer = {},
+            acknowledgeTransfer = {},
+        )
+
+        // Before the collector has run even once, which is exactly the window that matters.
+        vm.refresh()
+        advanceUntilIdle()
+
+        assertEquals(0, scans)
+    }
+
     // ─── Recovery after a process kill ──────────────────────────────────────
 
     private val interrupted = CameraTransferRecord(
