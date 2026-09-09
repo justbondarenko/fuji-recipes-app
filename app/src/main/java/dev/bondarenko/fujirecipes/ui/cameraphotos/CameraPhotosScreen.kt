@@ -341,7 +341,7 @@ private fun CameraFileRow(
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().height(80.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.SpaceAround,
         ) {
             Text(
                 text = file.info.filename,
