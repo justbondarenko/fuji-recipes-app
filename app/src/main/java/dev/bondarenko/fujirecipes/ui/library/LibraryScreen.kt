@@ -64,7 +64,6 @@ import dev.bondarenko.fujirecipes.camera.canWrite
 import androidx.compose.material3.MaterialShapes
 import dev.bondarenko.fujirecipes.ui.camera.WriteSheetHost
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
-import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewBottomSheet
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
 
@@ -97,8 +96,6 @@ fun LibraryScreen(
 ) {
     // Which row is slid open, owned here rather than by each row.
     var openRowId by rememberSaveable { mutableStateOf<String?>(null) }
-    // Which recipe is open in the Material 3 Bottom Sheet
-    var activeRecipeId by rememberSaveable { mutableStateOf<String?>(null) }
     // Which recipe is pending confirmation for deletion from swipe action
     var recipePendingDelete by remember { mutableStateOf<RecipeCardModel?>(null) }
     // Which recipe is currently open in the Write to Camera sheet
@@ -279,10 +276,7 @@ fun LibraryScreen(
                                     showTags = state.showTags,
                                     showFilmSimulation = state.showFilmSimulation,
                                     showRating = state.showRating,
-                                    onClick = {
-                                        activeRecipeId = recipe.id
-                                        onOpenRecipe(recipe.id)
-                                    },
+                                    onClick = { onOpenRecipe(recipe.id) },
                                 )
                             }
                         }
@@ -301,24 +295,6 @@ fun LibraryScreen(
                 }
             }
         }
-    }
-
-    activeRecipeId?.let { recipeId ->
-        RecipeViewBottomSheet(
-            recipeId = recipeId,
-            onDismiss = { activeRecipeId = null },
-            onEdit = { id ->
-                activeRecipeId = null
-                onEditRecipe(id)
-            },
-            onNavigateToRecipe = { targetId ->
-                activeRecipeId = targetId
-            },
-            onDevelopRaw = { id ->
-                activeRecipeId = null
-                onDevelopRaw(id)
-            },
-        )
     }
 
     writeRecipeId?.let { recipeId ->

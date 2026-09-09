@@ -9,8 +9,6 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.bondarenko.fujirecipes.camera.CameraController
-import dev.bondarenko.fujirecipes.camera.CameraState
-import dev.bondarenko.fujirecipes.camera.usb.CameraMediaObject
 import dev.bondarenko.fujirecipes.camera.usb.RawDevelopmentResult
 import dev.bondarenko.fujirecipes.camera.usb.RawDevelopmentStage
 import dev.bondarenko.fujirecipes.camera.usb.RawProfileCalibrationRequired
@@ -31,14 +29,6 @@ sealed interface RawDevelopmentStep {
     data object Loading : RawDevelopmentStep
     data object ChooseRaf : RawDevelopmentStep
     data class Importing(val written: Long, val total: Long?) : RawDevelopmentStep
-    data object LoadingCameraCard : RawDevelopmentStep
-    data class CameraBrowser(val rafs: List<CameraMediaObject>) : RawDevelopmentStep
-    data class DownloadingFromCamera(
-        val filename: String,
-        val written: Long,
-        val total: Long,
-    ) : RawDevelopmentStep
-    data class AwaitingModeSwitch(val sawDisconnect: Boolean = false) : RawDevelopmentStep
     data object Ready : RawDevelopmentStep
     data class Running(val stage: RawDevelopmentStage) : RawDevelopmentStep
     data class CalibrationRequired(
@@ -79,22 +69,6 @@ class RawDevelopmentViewModel(
                 RawDevelopmentUiState(recipe = recipe, step = RawDevelopmentStep.ChooseRaf)
             }
         }
-        viewModelScope.launch {
-            controller.state.collect { camera ->
-                val step = _state.value.step as? RawDevelopmentStep.AwaitingModeSwitch
-                    ?: return@collect
-                when {
-                    camera !is CameraState.Connected && !step.sawDisconnect -> {
-                        _state.value = _state.value.copy(
-                            step = RawDevelopmentStep.AwaitingModeSwitch(sawDisconnect = true),
-                        )
-                    }
-                    camera is CameraState.Connected && step.sawDisconnect -> {
-                        _state.value = _state.value.copy(step = RawDevelopmentStep.Ready)
-                    }
-                }
-            }
-        }
     }
 
     fun connect() = controller.connect()
@@ -133,60 +107,6 @@ class RawDevelopmentViewModel(
                 recipe = recipe,
                 raf = raf,
                 step = RawDevelopmentStep.Ready,
-            )
-        }
-    }
-
-    fun browseCameraCard() {
-        val recipe = _state.value.recipe ?: return
-        _state.value = _state.value.copy(step = RawDevelopmentStep.LoadingCameraCard)
-        viewModelScope.launch {
-            val rafs = runCatching { controller.listCameraRafs() }.getOrElse { error ->
-                _state.value = RawDevelopmentUiState(
-                    recipe = recipe,
-                    step = RawDevelopmentStep.Failed(
-                        error.message ?: "The camera card could not be read.",
-                    ),
-                )
-                return@launch
-            }
-            _state.value = _state.value.copy(step = RawDevelopmentStep.CameraBrowser(rafs))
-        }
-    }
-
-    fun selectCameraRaf(media: CameraMediaObject) {
-        val recipe = _state.value.recipe ?: return
-        viewModelScope.launch {
-            _state.value = _state.value.copy(
-                step = RawDevelopmentStep.DownloadingFromCamera(
-                    media.info.filename,
-                    0,
-                    media.info.compressedSize,
-                ),
-            )
-            val raf = runCatching {
-                controller.downloadCameraRaf(media, cache) { written, total ->
-                    _state.value = _state.value.copy(
-                        step = RawDevelopmentStep.DownloadingFromCamera(
-                            media.info.filename,
-                            written,
-                            total,
-                        ),
-                    )
-                }
-            }.getOrElse { error ->
-                _state.value = RawDevelopmentUiState(
-                    recipe = recipe,
-                    step = RawDevelopmentStep.Failed(
-                        error.message ?: "The RAF could not be downloaded from the camera.",
-                    ),
-                )
-                return@launch
-            }
-            _state.value = RawDevelopmentUiState(
-                recipe = recipe,
-                raf = raf,
-                step = RawDevelopmentStep.AwaitingModeSwitch(),
             )
         }
     }

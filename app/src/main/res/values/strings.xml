@@ -92,6 +92,10 @@
     <string name="action_copy_recipe">Copy recipe as text</string>
     <string name="recipe_copied">Recipe copied to clipboard</string>
     <string name="action_compare_recipe">Compare recipe</string>
+    <string name="action_upload">Upload</string>
+    <string name="action_share">Share</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_compare">Compare</string>
     <string name="compare_title">Compare recipes</string>
     <string name="compare_current">Current</string>
     <string name="compare_target">Target</string>
@@ -113,21 +117,10 @@
     <!-- In-camera RAW development -->
     <string name="raw_development_title">Develop RAW</string>
     <string name="raw_choose_title">Choose a RAF</string>
-    <string name="raw_choose_body">The camera will render it using “%1$s”. Choose a file already on this phone, or copy one from the camera card first.</string>
+    <string name="raw_choose_body">The camera will render it using “%1$s”. Choose a RAF file from this phone.</string>
     <string name="raw_action_choose">Choose from phone</string>
-    <string name="raw_action_browse_camera">Choose from camera</string>
     <string name="raw_action_choose_another">Choose another RAF</string>
     <string name="raw_importing">Checking and copying the RAF…</string>
-    <string name="raw_camera_scanning">Reading RAF files from the camera card…</string>
-    <string name="raw_camera_choose_title">Choose a RAF from the camera card</string>
-    <string name="raw_camera_empty_title">No RAF files found</string>
-    <string name="raw_camera_empty_body">The connected card did not expose any files ending in .RAF. You can still choose a RAF already on the phone.</string>
-    <string name="raw_camera_downloading">Copying %1$s from the camera…</string>
-    <string name="raw_file_size_mb">%1$.1f MB</string>
-    <string name="raw_action_use_file">Use this RAF</string>
-    <string name="raw_switch_mode_title">RAF copied to this phone</string>
-    <string name="raw_switch_mode_body">Disconnect the camera, change CONNECTION MODE to USB RAW CONV./BACKUP RESTORE, then reconnect it. This page will resume automatically.</string>
-    <string name="raw_switch_mode_reconnect">Set CONNECTION MODE to USB RAW CONV./BACKUP RESTORE, then reconnect the camera. This page will resume automatically.</string>
     <string name="raw_camera_ready">%1$s is connected</string>
     <string name="raw_camera_ready_body">Keep the camera in USB RAW CONV./BACKUP RESTORE mode and do not unplug it until the JPEG appears.</string>
     <string name="raw_camera_connecting_body">Waiting for USB permission and the camera session.</string>
