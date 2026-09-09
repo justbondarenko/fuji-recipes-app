@@ -7,7 +7,7 @@
 [![USB PTP](https://img.shields.io/badge/Protocol-USB--C%20PTP%20Direct-FF5722.svg?style=flat)](https://github.com/justbondarenko/fuji-recipes-app)
 [![License: MIT](https://img.shields.io/badge/License-MIT-607D8B.svg?style=flat)](LICENSE)
 
-**Fuji Recipes** is a native, local-first Android companion app for Fujifilm camera owners. It lets you collect, create, organize, and fine-tune film simulation recipes on your phone and **write them directly to your camera's C1–C7 custom slots over a USB-C cable** — completely offline with zero cloud dependencies.
+**Fuji Recipes** is a native, local-first Android companion app for Fujifilm camera owners. It lets you collect and edit film simulation recipes, write them directly to the camera's C1–C7 custom slots, browse and download JPEG/RAF files from the card, analyze camera JPEGs without copying them first, and use the camera's processor to develop RAW files. Everything works over USB-C, completely offline with zero cloud dependencies.
 
 > [!NOTE]
 > **About this project**: I am not a professional photographer — just a Fujifilm camera owner and developer with insomnia :D. This app was vibecoded first and foremost as a personal project for personal use, experimentation, and entertainment, but shared openly with the public because, why not! :)
@@ -22,10 +22,12 @@
 - [📱 Screenshots](#-screenshots)
 - [🌟 Highlights](#-highlights)
 - [📸 Camera Compatibility & Testing](#-camera-compatibility--testing)
-- [🔌 Connecting Your Camera (How to Use)](#-connecting-your-camera-how-to-use)
-  - [1. Set Camera USB Mode](#1-set-camera-usb-mode)
-  - [2. Connect via USB-C](#2-connect-via-usb-c)
-  - [3. Read or Write Recipes](#3-read-or-write-recipes)
+- [🔌 Camera USB Modes & Workflows](#-camera-usb-modes--workflows)
+  - [Connect via USB-C](#connect-via-usb-c)
+  - [Browse and Download Photos](#browse-and-download-photos)
+  - [Analyze JPEGs from the Camera](#analyze-jpegs-from-the-camera)
+  - [Develop a RAW in the Camera](#develop-a-raw-in-the-camera)
+  - [Custom Slots and Camera Tools](#custom-slots-and-camera-tools)
 - [🧪 Testing & Feedback](#-testing--feedback)
 - [🛠️ Building & Developing](#️-building--developing)
   - [Prerequisites](#prerequisites)
@@ -99,6 +101,12 @@ Because the app is 100% offline with zero network access, any AI that actually r
 
 - ⚡ **Direct USB-C Camera Sync**: Connect your camera to your phone via USB-C. The app launches automatically on connection, reads your current `C1`–`C7` custom slot states, and writes full recipe parameter sets directly to the camera body in seconds.
 - 📥 **Import Directly from Camera**: Read existing custom slot recipes off the camera body and save them straight into your offline phone library.
+- 📷 **Browse and Download the Camera Card**: The dedicated **Photos** tab lists JPEG and RAF files independently, with thumbnails, capture dates, file sizes, RAW/JPEG filters, multi-selection, and batch download to a folder chosen through Android's system picker. The camera card is read-only; the app does not delete, rename, or move its files.
+- 🔎 **Analyze JPEGs Straight from the Camera**: Open **Analyze**, choose photos from the connected camera, and run the existing Fujifilm EXIF extraction and recipe matching flow without first importing the files through another gallery app.
+- 🎞️ **In-Camera RAW Development**: Start from a recipe, choose a RAF from the phone or camera card, apply the recipe to the camera's native `0xD185` conversion profile, let the camera render the JPEG, preview it, and save it through Android's document picker. The app preserves camera-native profile fields it does not own.
+- 🔄 **Background Camera Downloads**: Batch downloads run in an Android connected-device foreground service and continue while the app is minimized or the phone is locked. An ongoing notification shows progress and offers cancellation; Android 16 can promote it to a Live Update. If the process is killed, the Photos screen reports the interrupted batch and lets the user keep completed files or remove the incomplete file.
+- 🔋 **Mode-Aware Camera Status**: The Camera screen reports the current connection mode, camera battery level, firmware and serial number, plus shutter count and lens when the body exposes them. Slot controls appear only in a mode that can reach them.
+- 🧰 **Camera Diagnostics and Settings Backup**: Share a detailed camera capability report, save the camera's settings backup, or restore one from a file. These tools make it possible to investigate untested bodies without pretending they are compatible.
 - 📸 **Extract Recipe from Photos**: Pick straight-out-of-camera Fujifilm JPEGs (single or multiple in batch) to decode their embedded MakerNote EXIF metadata. The app extracts the exact film simulation, tone curves, and white balance settings, presents them in a swipeable card carousel, and lets you attach photos directly to matching recipes or save new ones.
 - 📲 **System Share Sheet Action**: Share any photo directly from Google Photos, Gallery, or Files via the "Extract recipe" share sheet action to inspect recipe settings on the fly.
 - 🔍 **Highlight Matching & Likely Recipes**: When analyzing photos, the app compares decoded parameters against your entire library, highlighting exact matches or surfacing likely recipe candidates with percentage similarity and specific differences.
@@ -106,6 +114,7 @@ Because the app is 100% offline with zero network access, any AI that actually r
 - 📝 **Create from Pasted Text**: Copy recipe text from websites (like *Fuji X Weekly*), forums, or notes. The built-in parser automatically identifies parameters and pre-fills the recipe editor.
 - ⚖️ **Side-by-Side Recipe Comparison**: Compare any two recipes in your library to inspect exact parameter differences side by side.
 - 🗂️ **Comprehensive 27-Parameter Engine**: Full support for Fujifilm recipe parameters across sensor generations — Film Simulations (Provia to Reala Ace), Grain Size/Effect, Color Chrome FX & FX Blue, Smooth Skin, Highlight/Shadow tone curves (0.5 steps), Clarity, and 2D White Balance shift with Kelvin temperature.
+- 🧹 **Maintenance Without a Crowded Navigation Bar**: The duplicate-cleanup tool now lives under **More → Maintenance**, while the bottom navigation uses that space for the new camera **Photos** view.
 - 🔒 **100% Offline & Private**: Declares **zero `INTERNET` permissions**. Your recipes live exclusively in app-private storage on your phone (`filesDir/library.json`). No accounts, no cloud sync, and no tracking.
 - 📦 **Lossless Export & Import**: Export your library as a single `.json` file or a `.zip` archive using Android's Storage Access Framework and system share sheet.
 - 🎨 **Material 3 Expressive UI**: Built with Material You Dynamic Color adapting fluidly to your device theme, expressive spring motion, and dark/light mode support.
@@ -116,8 +125,19 @@ Because the app is 100% offline with zero network access, any AI that actually r
 
 Camera communication is handled via PTP (Picture Transfer Protocol) over USB Host mode.
 
+The camera features in this branch were developed against and manually tested with a **Fujifilm X-T50**. Compatibility is feature-specific: standard PTP media operations may exist on other bodies, but custom slots, settings backups, camera properties, and RAW profile layouts are Fuji-specific and can differ by model or firmware.
+
+| Feature | Required camera mode | Verified support |
+|---|---|---|
+| Browse, analyze, and download JPEG/RAF files | `USB CARD READER` | X-T50 hardware |
+| Read/write C1–C7, reports, settings backup/restore | `USB RAW CONV. / BACKUP RESTORE` | X-T50 hardware |
+| In-camera RAW development | `USB RAW CONV. / BACKUP RESTORE` | X-T50 hardware; an X100VI 625-byte profile adapter is present but not hardware-tested by the author |
+| Background downloads and Live Updates | `USB CARD READER` | Android foreground service; promoted Live Update requires Android 16 and system approval |
+
+The compatibility list below describes **custom-slot support**, not a blanket guarantee for every camera feature:
+
 * 🟢 **Tested & Verified on Hardware**: **Fujifilm X-T50** (the only body I personally own)
-* 🟡 **Expected to Work (Untested on Hardware — Feedback Welcome!)**:
+* 🟡 **Expected custom-slot support (untested on hardware — feedback welcome!)**:
   * **X-Trans V bodies** (*X-T5, X100VI, X-H2, X-H2S, X-S20, X-M5, X-E5*)
   * **X-Trans IV bodies** (*X-T4, X-T3, X-T30, X-T30 II, X-Pro3, X-S10, X-E4, X100V*)
   * **GFX 100-series** (*GFX100 II, GFX100, GFX100S, GFX100S II*)
@@ -130,21 +150,66 @@ Camera communication is handled via PTP (Picture Transfer Protocol) over USB Hos
 
 ---
 
-## 🔌 Connecting Your Camera (How to Use)
+## 🔌 Camera USB Modes & Workflows
 
-### 1. Set Camera USB Mode
-Turn on your camera and configure the USB mode:
-- Navigate to **`MENU / OK` → `SET UP` (Wrench) → `CONNECTION SETTING` → `USB MODE`**
-- Set to **`USB RAW CONV. / BACKUP RESTORE`**
+The app uses two camera connection modes because Fujifilm exposes card files and recipe/conversion properties through different USB interfaces.
 
-### 2. Connect via USB-C
+| Camera mode | Use it for |
+|---|---|
+| **`USB CARD READER`** | Browse the card, download JPEG/RAF files, analyze camera JPEGs, or select a RAF for development |
+| **`USB RAW CONV. / BACKUP RESTORE`** | Read/write C1–C7, inspect camera details, share a report, back up/restore settings, or render a RAF with a recipe |
+
+On the camera, the setting is normally under **`MENU / OK` → `SET UP` (Wrench) → `CONNECTION SETTING` → `USB MODE`**. The app reports the detected mode without treating a useful Card Reader connection as an error. Screens hide controls that the current mode cannot support and explain which mode they need.
+
+### Connect via USB-C
+
 - Connect a **USB-C to USB-C** cable between your Android phone and camera.
 - The phone will prompt you to open **Fuji Recipes** automatically via the USB device attach intent.
-- Switch to the **Camera** tab in the bottom navigation bar to view your camera connection status and read the current custom slot contents.
+- Allow USB access when Android asks. Notification permission is optional for the transfer itself, but it is needed to see background progress.
+- The ongoing notification identifies the connected state with a memory-card icon in Card Reader mode and a camera icon in RAW Conversion mode. During a download it switches to the transfer icon and progress state.
 
-### 3. Read or Write Recipes
+Changing USB mode may make the camera disconnect and reconnect. Where appropriate, the app keeps the pending workflow and resumes after the correct mode returns.
+
+### Browse and Download Photos
+
+1. Set the camera to **`USB CARD READER`** and connect it.
+2. Open the **Photos** tab. The app scans JPEG and RAF objects on the card and shows progress for large cards.
+3. Filter by **All**, **JPEG**, or **RAW**, select any files, then tap **Download**.
+4. Choose a destination folder with Android's folder picker. The app writes each camera file independently and leaves the card unchanged.
+
+The foreground service keeps a large batch running while the app is minimized or the screen is locked. Keep the camera connected and powered until it completes. Cancellation is available both in the Photos screen and its notification.
+
+If Photos opens while the camera is in another mode, the screen shows only the Card Reader instructions and a **Refresh** button. Refresh reopens the camera connection after you change its setting.
+
+### Analyze JPEGs from the Camera
+
+1. Connect in **`USB CARD READER`** mode.
+2. Open **Analyze** and choose the camera source.
+3. Select one or more JPEGs from the card and analyze them.
+
+Only the selected JPEGs are copied into the app's temporary cache. From there, the existing Fujifilm MakerNote parser and `RecipeMatcher` produce the same settings, exact matches, likely matches, and differences shown for phone photos.
+
+### Develop a RAW in the Camera
+
+1. Open a recipe and choose **Develop RAW with this recipe**.
+2. Choose a RAF already on the phone, or choose one from the camera while connected in **`USB CARD READER`** mode.
+3. If the RAF came from the card, the app first caches it on the phone. Change the camera to **`USB RAW CONV. / BACKUP RESTORE`**, then reconnect; the pending development flow resumes automatically.
+4. Review the selected recipe and RAF, then tap **Render JPEG**. The app uploads the RAF and patched native profile, waits for the camera processor, downloads the rendered JPEG, and cleans up the temporary camera object.
+5. Preview and save the JPEG through Android's document picker.
+
+A RAF already on the camera still has to pass through the phone: Card Reader mode can expose the file, while RAW Conversion mode accepts the RAF as a host upload. The app does not ask the camera to develop an arbitrary card handle in place.
+
+RAW recipe mapping is deliberately model-specific. The verified X-T50 adapter applies film simulation, exposure compensation, dynamic range, grain, Color Chrome effects, white balance and shift, Kelvin temperature, highlight/shadow tone, color, sharpness, high-ISO noise reduction, and clarity. Camera-native fields without a verified recipe mapping are preserved. An unknown profile is captured for calibration and conversion stops before the app guesses at its layout.
+
+### Custom Slots and Camera Tools
+
+Connect in **`USB RAW CONV. / BACKUP RESTORE`** mode, then:
+
 - **Writing a recipe**: Open any recipe → tap **Write to camera** → choose target slot (`C1` through `C7`) → confirm write.
 - **Reading from the camera**: In the **Camera** tab or via **Settings (`More`) → Import from camera**, read all custom slots from the body into your library.
+- **Inspecting the body**: The Camera tab shows the camera model, battery and connection mode, with any available firmware, serial, shutter-count, and lens details.
+- **Sharing a diagnostic report**: Use **Camera tools → Share report** to export supported operations, properties, mode, details, and slot readings for compatibility investigation.
+- **Backing up or restoring camera settings**: Use the Camera tools backup and restore actions. Keep the camera connected and do not interrupt a restore.
 
 ---
 
@@ -152,7 +217,7 @@ Turn on your camera and configure the USB mode:
 
 Any feedback, bug reports, and compatibility test results are welcome!
 
-- **Found a bug or tested a new camera model?** Please [open an issue on GitHub](https://github.com/justbondarenko/fuji-recipes-app/issues) with your camera model, phone model, and Android version.
+- **Found a bug or tested a new camera model?** Please [open an issue on GitHub](https://github.com/justbondarenko/fuji-recipes-app/issues) with your camera model, firmware, phone model, Android version, selected USB mode, and the feature you tested.
 - **Direct contact & social links**: Open the in-app **About** screen (**Settings (`More`) → About**) for direct email and contact links.
 
 ---
@@ -207,6 +272,7 @@ This project is built using fantastic open-source libraries, tools, and research
 ### Camera Protocol & Reverse-Engineering Research
 - [**filmkit** (`eggricesoy/filmkit`)](https://github.com/eggricesoy/filmkit) (MIT License) — Research on Fujifilm PTP property ranges, parameter encoding, and custom slot codes.
 - [**FujiHack Community** (`fujihack/fujihack`)](https://github.com/fujihack/fujihack) (GPL-3.0 License) — Reverse-engineering documentation, PTP/USB communication research, and MakerNote tag structures. Referenced as technical documentation for camera interoperability.
+- [**libfuji** (`petabyt/libfuji`)](https://github.com/petabyt/libfuji) — Reference implementation for Fujifilm USB modes, settings backup, object transfer, and in-camera RAW conversion sequencing.
 
 ---
 
