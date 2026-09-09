@@ -214,6 +214,9 @@
     <string name="camera_photos_connect_body">Set CONNECTION MODE to USB CARD READER, then connect the camera by USB.</string>
     <string name="camera_photos_attached_body">The camera is attached. Tap Connect to browse its card.</string>
     <string name="camera_photos_busy">The camera is busy with another operation.</string>
+    <string name="camera_photos_card_reader_title">USB Card Reader mode required</string>
+    <string name="camera_photos_card_reader_body">On the camera, set CONNECTION MODE to USB CARD READER, then tap Refresh.</string>
+    <string name="camera_photos_refresh_connection">Refresh</string>
     <string name="camera_photos_cancel_download">Cancel download</string>
     <string name="camera_photos_cancelled">Download cancelled.</string>
 

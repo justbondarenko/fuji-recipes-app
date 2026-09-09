@@ -225,6 +225,21 @@ class CameraController(
         scope.launch { lock.withLock { closeSession(CameraState.Disconnected) } }
     }
 
+    /**
+     * Reopens the attached body so facts that belong to its current USB mode are read again.
+     *
+     * Fuji bodies may re-enumerate when the user changes CONNECTION MODE, but not every body or
+     * Android host reports that transition consistently. The Photos screen therefore offers an
+     * explicit refresh while connected in another mode.
+     */
+    fun reconnect() {
+        if (!hasHostSupport) return
+        scope.launch {
+            lock.withLock { closeSession(CameraState.Disconnected) }
+            connectNow(UsbBulkChannel.findCamera(usbManager))
+        }
+    }
+
     private fun closeSession(next: CameraState) {
         session?.let { runCatching { it.close() } }
         session = null
