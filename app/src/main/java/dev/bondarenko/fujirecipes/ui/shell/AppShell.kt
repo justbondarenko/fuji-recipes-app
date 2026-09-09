@@ -67,6 +67,11 @@ fun AppShell(
      */
     showSettingsButton: Boolean,
     /**
+     * The library is picking rows. Its own floating toolbar takes the corner, so the create
+     * button gets out of the way rather than sitting under it.
+     */
+    isSelecting: Boolean = false,
+    /**
      * The New recipe button was pressed.
      *
      * The shell reports the press and nothing more — `CreateRecipeFlow` owns the choice
@@ -152,7 +157,7 @@ fun AppShell(
         },
         floatingActionButton = {
             AnimatedVisibility(
-                visible = showChrome && isLibrarySelected,
+                visible = showChrome && isLibrarySelected && !isSelecting,
                 enter = slideInHorizontally(
                     initialOffsetX = { fullWidth -> fullWidth * 2 },
                     animationSpec = spring(

@@ -1,5 +1,7 @@
 package dev.bondarenko.fujirecipes.ui.library
 
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -174,6 +176,12 @@ class LibraryViewModel(
 
     fun onDeleteRecipes(ids: Set<String>) {
         viewModelScope.launch { repository.deleteAll(ids) }
+    }
+
+    fun onRateRecipes(ids: Set<String>, rating: Int) {
+        viewModelScope.launch {
+            repository.updateAll(ids, buildJsonObject { put("rating", rating) })
+        }
     }
 
     /** Clears both, which is what the "no matches" panel offers. */

@@ -104,17 +104,7 @@ class LocalRecipeRepository(
                 )
 
             val at = now()
-            // A partial body, applied key by key over what is stored — so a key this build
-            // never displayed is carried through an edit untouched (`coding-standards.md` P2).
-            // Identity and order are then forced back: they are not the caller's to change.
-            val candidate = JsonObject(
-                existing.toJson() + body + mapOf(
-                    "id" to JsonPrimitive(existing.id),
-                    "sortKey" to JsonPrimitive(existing.sortKey),
-                    "createdAt" to JsonPrimitive(existing.createdAt),
-                    "updatedAt" to JsonPrimitive(at),
-                ),
-            )
+            val candidate = patched(existing, body, at)
 
             val updated = decode(candidate)
                 ?: return@withLock LibraryResult.Failure(rejection(candidate))
@@ -122,6 +112,36 @@ class LocalRecipeRepository(
             commit(next, at)?.let { return@withLock LibraryResult.Failure(it) }
             LibraryResult.Success(updated)
         }
+
+    /** One commit for the whole selection — see [deleteAll] for why the loop is not enough. */
+    override suspend fun updateAll(ids: Set<String>, body: JsonObject): LibraryResult<Unit> =
+        mutating.withLock {
+            val current = editable() ?: return@withLock unreadable()
+            if (current.none { it.id in ids }) return@withLock LibraryResult.Success(Unit)
+
+            val at = now()
+            val next = current.map { existing ->
+                if (existing.id !in ids) return@map existing
+                decode(patched(existing, body, at))
+                    ?: return@withLock LibraryResult.Failure(rejection(patched(existing, body, at)))
+            }
+            commit(next, at)?.let { return@withLock LibraryResult.Failure(it) }
+            LibraryResult.Success(Unit)
+        }
+
+    /**
+     * A partial body applied key by key over what is stored — so a key this build never
+     * displayed is carried through an edit untouched (`coding-standards.md` P2). Identity and
+     * order are then forced back: they are not the caller's to change.
+     */
+    private fun patched(existing: Recipe, body: JsonObject, at: String): JsonObject = JsonObject(
+        existing.toJson() + body + mapOf(
+            "id" to JsonPrimitive(existing.id),
+            "sortKey" to JsonPrimitive(existing.sortKey),
+            "createdAt" to JsonPrimitive(existing.createdAt),
+            "updatedAt" to JsonPrimitive(at),
+        ),
+    )
 
     /** Idempotent: deleting a recipe that is already gone is the outcome the caller wanted. */
     override suspend fun delete(id: String): LibraryResult<Unit> = mutating.withLock {

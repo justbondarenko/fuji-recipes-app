@@ -163,6 +163,8 @@ private fun slideDirection(
 fun FujiNavHost(
     navController: NavHostController,
     contentPadding: PaddingValues,
+    /** The library entered or left selection mode; the shell hides its FAB while it is on. */
+    onLibrarySelectionChange: (Boolean) -> Unit = {},
 ) {
     // Hoisted: the transition lambdas below are not composable, so they cannot read either of
     // these themselves.
@@ -220,6 +222,7 @@ fun FujiNavHost(
                 onImportFromCamera = { navController.navigate(ImportRoute) },
                 onDevelopRaw = { id -> navController.navigate(RawDevelopmentRoute(id)) },
                 onOpenSettings = { navController.navigate(SettingsRoute) },
+                onSelectionChange = onLibrarySelectionChange,
                 contentPadding = contentPadding,
             )
         }
