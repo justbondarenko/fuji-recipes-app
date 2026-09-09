@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,12 +20,11 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -93,7 +93,16 @@ fun CameraPhotosScreen(
         return
     }
 
-    val actionsEnabled = !state.isLoading && state.download == null
+    if (state.isLoading) {
+        CameraPhotosLoadingState(
+            current = state.scanCurrent,
+            total = state.scanTotal,
+            modifier = modifier.fillMaxSize().padding(contentPadding),
+        )
+        return
+    }
+
+    val actionsEnabled = state.download == null
     Box(modifier = modifier.fillMaxSize().padding(contentPadding)) {
         Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -167,24 +176,6 @@ fun CameraPhotosScreen(
             )
         }
 
-        if (state.isLoading) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                Text(
-                    text = if (state.scanTotal > 0) {
-                        stringResource(R.string.camera_photos_scanning_progress, state.scanCurrent, state.scanTotal)
-                    } else {
-                        stringResource(R.string.camera_photos_scanning)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-
         val notice = state.error ?: state.message
         if (notice != null) {
             Surface(
@@ -204,11 +195,6 @@ fun CameraPhotosScreen(
         }
 
         when {
-            state.isLoading && state.files.isEmpty() -> Box(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentAlignment = Alignment.Center,
-            ) { CircularProgressIndicator() }
-
             state.hasScanned && state.files.isEmpty() -> FujiIconPanel(
                 icon = FujiIcons.CameraRoll,
                 shape = MaterialShapes.Pill.toShape(),
@@ -298,7 +284,7 @@ fun CameraPhotosScreen(
                     )
                 },
                 text = {
-                    Text(stringResource(R.string.camera_photos_download_selected, state.selectedHandles.size))
+                    Text(stringResource(R.string.camera_photos_download, state.selectedHandles.size))
                 },
                 modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
             )
@@ -344,32 +330,68 @@ private fun CameraFileRow(
                 }
             }
         },
-        supportingContent = {
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(
-                    text = formatCameraCaptureDate(file.info.captureDate)
-                        ?: stringResource(R.string.photo_camera_date_unknown),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = "${fileTypeLabel(file)} · ${formatBytes(file.info.compressedSize)}",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+        trailingContent = {
+            Box(
+                modifier = Modifier.height(80.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Checkbox(checked = selected, onCheckedChange = { onToggle() }, enabled = enabled)
             }
         },
-        trailingContent = {
-            Checkbox(checked = selected, onCheckedChange = { onToggle() }, enabled = enabled)
-        },
     ) {
-        Text(
-            text = file.info.filename,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Column(
+            modifier = Modifier.fillMaxWidth().height(80.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = file.info.filename,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = formatCameraCaptureDate(file.info.captureDate)
+                    ?: stringResource(R.string.photo_camera_date_unknown),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = "${fileTypeLabel(file)} · ${formatBytes(file.info.compressedSize)}",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun CameraPhotosLoadingState(
+    current: Int,
+    total: Int,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            CircularWavyProgressIndicator()
+            Text(
+                text = if (total > 0) {
+                    stringResource(R.string.camera_photos_scanning_progress, current, total)
+                } else {
+                    stringResource(R.string.camera_photos_scanning)
+                },
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
