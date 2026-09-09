@@ -4,6 +4,8 @@ import android.content.ContentResolver
 import android.net.Uri
 import android.provider.DocumentsContract
 import dev.bondarenko.fujirecipes.camera.CameraController
+import dev.bondarenko.fujirecipes.camera.usb.CameraMediaError
+import dev.bondarenko.fujirecipes.camera.usb.CameraMediaFailure
 import dev.bondarenko.fujirecipes.camera.usb.CameraMediaObject
 import dev.bondarenko.fujirecipes.camera.usb.CameraMediaType
 import dev.bondarenko.fujirecipes.camera.usb.mediaType
@@ -29,6 +31,9 @@ class CameraPhotoExporter(
         files: List<CameraMediaObject>,
         treeUri: Uri,
         onProgress: (CameraExportProgress) -> Unit = {},
+        isCancelled: () -> Boolean = { false },
+        onFileStarted: (filename: String) -> Unit = {},
+        onFileFinished: (filename: String) -> Unit = {},
     ): CameraDownloadResult = withContext(Dispatchers.IO) {
         require(files.isNotEmpty()) { "Select at least one camera file." }
         val parent = DocumentsContract.buildDocumentUriUsingTree(
@@ -43,6 +48,15 @@ class CameraPhotoExporter(
         try {
             for ((index, media) in files.withIndex()) {
                 val filename = media.info.filename.safeFilename()
+                // Between files, not only within one: a cancel arriving in the gap must not
+                // start the next download just because the last chunk had already gone by.
+                if (isCancelled()) {
+                    throw CameraMediaError(
+                        CameraMediaFailure.CANCELLED,
+                        "The download was cancelled before $filename.",
+                    )
+                }
+                onFileStarted(filename)
                 val type = requireNotNull(media.mediaType) { "$filename is not a JPEG or RAF file." }
                 val mimeType = if (type == CameraMediaType.JPEG) "image/jpeg" else "image/x-fuji-raf"
                 val document = DocumentsContract.createDocument(resolver, parent, mimeType, filename)
@@ -61,15 +75,16 @@ class CameraPhotoExporter(
                         )
                     }
                     if (type == CameraMediaType.JPEG) {
-                        cameraController.downloadCameraJpeg(media, output, progress)
+                        cameraController.downloadCameraJpeg(media, output, progress, isCancelled)
                     } else {
-                        cameraController.downloadCameraRaf(media, output, progress)
+                        cameraController.downloadCameraRaf(media, output, progress, isCancelled)
                     }
                 } ?: error("The selected folder could not open $filename for writing.")
                 completed += media.info.compressedSize
                 onProgress(
                     CameraExportProgress(index + 1, files.size, filename, completed, total),
                 )
+                onFileFinished(filename)
                 saved += filename
             }
         } catch (error: Exception) {
@@ -79,6 +94,42 @@ class CameraPhotoExporter(
             throw error
         }
         CameraDownloadResult(saved)
+    }
+
+    /**
+     * Removes one file this app wrote into [treeUri].
+     *
+     * Only ever used for the file a killed process left half-written: the exporter's own
+     * cleanup handles every failure it can see, and a process death is the one case where no
+     * code of ours runs at all. Returns false when the file is already gone, which is not an
+     * error — the user may have deleted it themselves.
+     */
+    suspend fun deleteDocument(
+        treeUri: Uri,
+        filename: String,
+    ): Boolean = withContext(Dispatchers.IO) {
+        val children = DocumentsContract.buildChildDocumentsUriUsingTree(
+            treeUri,
+            DocumentsContract.getTreeDocumentId(treeUri),
+        )
+        val columns = arrayOf(
+            DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+            DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+        )
+
+        runCatching {
+            resolver.query(children, columns, null, null, null)?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(1) != filename) continue
+                    val document = DocumentsContract.buildDocumentUriUsingTree(
+                        treeUri,
+                        cursor.getString(0),
+                    )
+                    return@runCatching DocumentsContract.deleteDocument(resolver, document)
+                }
+            }
+            false
+        }.getOrDefault(false)
     }
 
     private fun String.safeFilename(): String =

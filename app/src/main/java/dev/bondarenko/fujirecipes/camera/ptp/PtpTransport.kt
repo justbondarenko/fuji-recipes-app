@@ -58,7 +58,18 @@ data class CommandResult(val code: Int, val params: List<Int>, val data: ByteArr
         31 * (31 * code + params.hashCode()) + data.contentHashCode()
 }
 
-data class StreamedCommandResult(val code: Int, val params: List<Int>, val bytesWritten: Long)
+/**
+ * [cancelled] means the caller asked to stop part-way and the rest of the payload was read and
+ * discarded rather than written. The bytes still had to cross the wire: a data phase abandoned
+ * half-read leaves the camera mid-container and the next command reading the tail of this one.
+ * Draining costs the remainder of one object and keeps the session usable.
+ */
+data class StreamedCommandResult(
+    val code: Int,
+    val params: List<Int>,
+    val bytesWritten: Long,
+    val cancelled: Boolean = false,
+)
 
 /**
  * The camera did not answer in time.
@@ -70,6 +81,17 @@ data class StreamedCommandResult(val code: Int, val params: List<Int>, val bytes
 class PtpTimeoutError(val timeoutMs: Int) : Exception(
     "The camera did not answer within ${timeoutMs}ms. Check the cable and that the camera " +
         "is still awake.",
+)
+
+/**
+ * The user stopped a transfer that was under way.
+ *
+ * Not a [PtpFramingError]: nothing is out of step and the session needs no reset. It is thrown
+ * rather than returned because no caller can do anything with half an object — every one of
+ * them has to discard the partial file and stop.
+ */
+class PtpTransferCancelled(val handle: Int) : Exception(
+    "The transfer of object 0x${handle.toString(16)} was cancelled.",
 )
 
 const val DEFAULT_TIMEOUT_MS = 5_000
@@ -126,6 +148,9 @@ class PtpTransport(private val channel: BulkChannel) {
      * protocol layer would briefly keep several copies alive (USB chunk, growing array and the
      * final image). This variant validates the same framing and transaction fields as [command]
      * but retains only the twelve-byte container header.
+     *
+     * [isCancelled] is polled between chunks. A cancel stops the *writing*, not the reading:
+     * see [StreamedCommandResult.cancelled] for why the remainder is drained instead.
      */
     fun commandTo(
         operation: Int,
@@ -133,6 +158,7 @@ class PtpTransport(private val channel: BulkChannel) {
         output: OutputStream,
         maxDataBytes: Long,
         onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
+        isCancelled: () -> Boolean = { false },
     ): StreamedCommandResult {
         require(maxDataBytes >= 0) { "maxDataBytes must not be negative" }
 
@@ -184,29 +210,37 @@ class PtpTransport(private val channel: BulkChannel) {
             )
         }
 
+        var read = 0L
         var written = 0L
+        var cancelled = false
         fun writePayload(bytes: ByteArray) {
-            val remaining = total - written
+            val remaining = total - read
             if (bytes.size.toLong() > remaining) {
                 throw PtpFramingError("The camera sent bytes beyond its declared container length.")
             }
+            read += bytes.size
+            // Once cancelled the bytes are still read off the wire, but nothing downstream is
+            // told about them: a progress bar that keeps climbing after Cancel is a lie.
+            if (cancelled) return
             output.write(bytes)
             written += bytes.size
             onProgress(written, total)
         }
 
+        cancelled = isCancelled()
         writePayload(first.copyOfRange(CONTAINER_HEADER_SIZE, first.size))
-        while (written < total) {
-            val next = channel.read(minOf(READ_CHUNK_BYTES.toLong(), total - written).toInt())
+        while (read < total) {
+            if (!cancelled && isCancelled()) cancelled = true
+            val next = channel.read(minOf(READ_CHUNK_BYTES.toLong(), total - read).toInt())
             if (next.isEmpty()) {
-                throw PtpFramingError("The camera stopped after $written of $total payload bytes.")
+                throw PtpFramingError("The camera stopped after $read of $total payload bytes.")
             }
             writePayload(next)
         }
 
         val response = receive(transactionId)
         requireResponse(response)
-        return StreamedCommandResult(response.code, response.params, written)
+        return StreamedCommandResult(response.code, response.params, written, cancelled)
     }
 
     /**

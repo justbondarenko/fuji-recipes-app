@@ -210,12 +210,18 @@ class PtpSession(
         return result.data
     }
 
-    /** Streams an object without retaining the complete image in the protocol layer. */
+    /**
+     * Streams an object without retaining the complete image in the protocol layer.
+     *
+     * Throws [PtpTransferCancelled] if [isCancelled] turned true part-way. The session is still
+     * usable afterwards — the remainder of the object was drained rather than abandoned.
+     */
     fun getObject(
         handle: Int,
         output: OutputStream,
         maxBytes: Long,
         onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
+        isCancelled: () -> Boolean = { false },
     ): Long {
         val result = transport.commandTo(
             Operation.GET_OBJECT,
@@ -223,8 +229,10 @@ class PtpSession(
             output,
             maxBytes,
             onProgress,
+            isCancelled,
         )
         expectOk(Operation.GET_OBJECT, result.code)
+        if (result.cancelled) throw PtpTransferCancelled(handle)
         return result.bytesWritten
     }
 

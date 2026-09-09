@@ -5,6 +5,7 @@ import dev.bondarenko.fujirecipes.camera.ptp.PtpError
 import dev.bondarenko.fujirecipes.camera.ptp.PtpObject
 import dev.bondarenko.fujirecipes.camera.ptp.PtpObjectInfo
 import dev.bondarenko.fujirecipes.camera.ptp.PtpSession
+import dev.bondarenko.fujirecipes.camera.ptp.PtpTransferCancelled
 import dev.bondarenko.fujirecipes.camera.ptp.ResponseCode
 import dev.bondarenko.fujirecipes.camera.ptp.parseObjectInfo
 import java.io.OutputStream
@@ -32,6 +33,9 @@ enum class CameraMediaFailure {
     NO_STORAGE,
     TOO_LARGE,
     INCOMPLETE_TRANSFER,
+
+    /** The user stopped it. Distinct from the failures because nothing went wrong. */
+    CANCELLED,
 }
 
 class CameraMediaError(
@@ -188,6 +192,7 @@ fun downloadCameraJpeg(
     output: OutputStream,
     maxBytes: Long = MAX_CAMERA_JPEG_BYTES,
     onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
+    isCancelled: () -> Boolean = { false },
 ): Long {
     val advertised = media.info.compressedSize
     if (advertised > maxBytes) {
@@ -198,7 +203,15 @@ fun downloadCameraJpeg(
     }
 
     val checkingOutput = PrefixCheckingOutputStream(output, 3)
-    val written = session.getObject(media.handle, checkingOutput, maxBytes, onProgress)
+    val written = try {
+        session.getObject(media.handle, checkingOutput, maxBytes, onProgress, isCancelled)
+    } catch (cancelled: PtpTransferCancelled) {
+        throw CameraMediaError(
+            CameraMediaFailure.CANCELLED,
+            "The download of ${media.info.filename} was cancelled.",
+            cancelled,
+        )
+    }
     if (advertised != 0L && written != advertised) {
         throw CameraMediaError(
             CameraMediaFailure.INCOMPLETE_TRANSFER,
@@ -220,6 +233,7 @@ fun downloadCameraRaf(
     output: OutputStream,
     maxBytes: Long = MAX_CAMERA_RAF_BYTES,
     onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
+    isCancelled: () -> Boolean = { false },
 ): Long {
     val advertised = media.info.compressedSize
     if (advertised > maxBytes) {
@@ -229,7 +243,15 @@ fun downloadCameraRaf(
         )
     }
     val checkingOutput = PrefixCheckingOutputStream(output, RAF_SIGNATURE.size)
-    val written = session.getObject(media.handle, checkingOutput, maxBytes, onProgress)
+    val written = try {
+        session.getObject(media.handle, checkingOutput, maxBytes, onProgress, isCancelled)
+    } catch (cancelled: PtpTransferCancelled) {
+        throw CameraMediaError(
+            CameraMediaFailure.CANCELLED,
+            "The download of ${media.info.filename} was cancelled.",
+            cancelled,
+        )
+    }
     if (advertised != 0L && written != advertised) {
         throw CameraMediaError(
             CameraMediaFailure.INCOMPLETE_TRANSFER,

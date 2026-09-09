@@ -15,6 +15,23 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!--
+      Camera downloads run in a foreground service rather than a coroutine on a screen. A wake
+      lock keeps the CPU awake but gives Android no reason to spare the process: once the
+      activity stops, a process holding only a coroutine is cached, and a cached process may be
+      killed at any time. `connectedDevice` is the service type Android provides for a
+      user-initiated transfer over an attached USB device.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+
+    <!--
+      The transfer's progress notification, and nothing else. Runtime-requested on API 33+, and
+      a refusal costs only the notification: the service, and therefore the download, runs
+      either way.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
       FEAT-005. Declared required: a device without USB host cannot do the thing the app
       exists for (`steering/tech-stack.md` §4).
     -->
@@ -94,6 +111,16 @@
                 <action android:name="android.hardware.usb.action.USB_DEVICE_DETACHED" />
             </intent-filter>
         </receiver>
+
+        <!--
+          The batch is handed to the service through the shared `CameraTransfers` object rather
+          than through this Intent: a card object carries a `PtpObjectInfo` from the pure
+          protocol layer, which must not learn about `Parcelable` (`coding-standards.md` P4).
+        -->
+        <service
+            android:name=".camera.CameraTransferService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
 
         <!--
           FEAT-008: exports are shared as content:// URIs so the OS share sheet can hand them
