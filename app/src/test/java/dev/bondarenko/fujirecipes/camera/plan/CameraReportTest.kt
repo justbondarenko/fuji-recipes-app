@@ -12,6 +12,7 @@ class CameraReportTest {
         properties: List<ProbedProperty> = emptyList(),
         usbMode: UsbMode = UsbMode.RAW_CONVERSION,
         usbModeRaw: Int? = 6,
+        slots: List<SlotProbe> = emptyList(),
     ) = CameraReport(
         appVersion = "1.1.0",
         capturedAt = "2026-09-08T21:17:00Z",
@@ -28,6 +29,7 @@ class CameraReportTest {
         propertiesListed = listOf(0xd18c),
         selectedSlot = 1,
         properties = properties,
+        slots = slots,
     )
 
     // ─── Provenance ─────────────────────────────────────────────────────────
@@ -205,5 +207,75 @@ class CameraReportTest {
 
         assertTrue(text.contains("PROPERTIES (0 probed"))
         assertTrue(text.contains("none"))
+    }
+
+    // ─── The slot table ─────────────────────────────────────────────────────
+
+    private fun slot(number: Int, name: String?, filmSim: Int, nr: Int?) = SlotProbe(
+        slot = number,
+        name = name,
+        values = mapOf(0xd192 to filmSim, 0xd1a1 to nr),
+    )
+
+    /**
+     * The question the table exists to answer, and it has to be answerable by reading across
+     * one line: a row identical in all seven columns is a constant the camera keeps there, and
+     * one that varies is a setting. `0xD1A1` is the live case — `eggricesoy/filmkit` calls it a
+     * sentinel and this project's own table calls it a noise-reduction encoding.
+     */
+    @Test
+    fun `a row shows the same code across every slot`() {
+        val text = renderCameraReport(
+            report(
+                slots = listOf(
+                    slot(1, "Kodak Gold 200", 0x0b, 0x8000),
+                    slot(2, "Acros Night", 0x0c, 0x8000),
+                ),
+            ),
+        )
+
+        val filmSimRow = text.lines().first { it.contains("0xD192") }
+        val nrRow = text.lines().first { it.contains("0xD1A1") }
+
+        assertTrue(filmSimRow.contains("000B"), filmSimRow)
+        assertTrue(filmSimRow.contains("000C"), filmSimRow)
+        // Identical in both columns, which is the finding.
+        assertEquals(2, Regex("8000").findAll(nrRow).count(), nrRow)
+    }
+
+    @Test
+    fun `slot names are listed above the table`() {
+        val text = renderCameraReport(
+            report(slots = listOf(slot(1, "Kodak Gold 200", 0x0b, 0x8000))),
+        )
+
+        assertTrue(text.contains("CUSTOM SLOT NAMES"))
+        assertTrue(text.contains("C1  “Kodak Gold 200”"))
+    }
+
+    @Test
+    fun `an unnamed slot says so rather than being blank`() {
+        val text = renderCameraReport(report(slots = listOf(slot(3, null, 0x0b, null))))
+
+        assertTrue(text.contains("C3  (unnamed)"))
+    }
+
+    /** A refused code has to be visibly different from one that answered zero. */
+    @Test
+    fun `a refused slot value is marked, not shown as a number`() {
+        val text = renderCameraReport(report(slots = listOf(slot(1, "x", 0x0b, null))))
+
+        val nrRow = text.lines().first { it.contains("0xD1A1") }
+
+        assertTrue(nrRow.contains("————"), nrRow)
+        assertFalse(nrRow.contains("0000"), nrRow)
+    }
+
+    @Test
+    fun `a body with no selector gets no table and says why`() {
+        val text = renderCameraReport(report())
+
+        assertTrue(text.contains("CUSTOM SLOTS (0)"))
+        assertTrue(text.contains("would not take the slot selector"))
     }
 }

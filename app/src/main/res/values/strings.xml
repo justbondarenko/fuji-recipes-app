@@ -227,6 +227,8 @@
     <string name="camera_details_title">Camera details</string>
     <string name="camera_detail_battery">Battery</string>
     <string name="camera_detail_battery_value">%1$d%%</string>
+    <!-- A level, not a percentage: an X-T50 reports 0-10 and calling 10 "10%" was wrong. -->
+    <string name="camera_detail_battery_level">%1$d / %2$d</string>
     <string name="camera_detail_shutter">Shutter count</string>
     <string name="camera_detail_lens">Lens</string>
     <string name="camera_detail_firmware">Firmware</string>
