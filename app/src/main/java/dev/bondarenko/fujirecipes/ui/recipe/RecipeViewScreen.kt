@@ -237,7 +237,7 @@ fun RecipeViewContent(
                 )
 
                 if (recipe != null) {
-                    RecipeFloatingToolbar(
+                    RecipeActionBar(
                         recipe = recipe,
                         groups = state.groups,
                         onEdit = onEdit,
@@ -260,7 +260,7 @@ fun RecipeViewContent(
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun RecipeFloatingToolbar(
+private fun RecipeActionBar(
     recipe: RecipeHeader,
     groups: List<SettingsGroup>,
     onEdit: () -> Unit,
