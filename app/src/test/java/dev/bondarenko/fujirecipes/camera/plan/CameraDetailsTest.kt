@@ -8,23 +8,65 @@ import kotlin.test.assertTrue
 
 class CameraDetailsTest {
 
-    @Test
-    fun `a battery percentage is accepted across its whole range`() {
-        assertEquals(0, plausibleBatteryPercent(0))
-        assertEquals(87, plausibleBatteryPercent(87))
-        assertEquals(100, plausibleBatteryPercent(100))
-    }
+    // ─── Battery ────────────────────────────────────────────────────────────
 
     /**
-     * The property's meaning is taken on `libfuji`'s word, not from a capture. Anything outside
-     * the range that word implies means the code holds something else on this body — bars, a
-     * packed struct — and the honest answer is to show nothing.
+     * The bug this type exists to prevent. An X-T50 reports 10 on a scale whose declared
+     * maximum is 10 — a full battery — and the old code rendered that as "10%".
      */
     @Test
-    fun `a value that cannot be a percentage is dropped`() {
-        assertNull(plausibleBatteryPercent(101))
-        assertNull(plausibleBatteryPercent(-1))
-        assertNull(plausibleBatteryPercent(0xffff))
+    fun `a full battery on a ten-point scale is not ten percent`() {
+        val level = plausibleBatteryLevel(10, declaredMax = 10)!!
+
+        assertEquals(10, level.value)
+        assertEquals(10, level.max)
+        assertTrue(level.maxDeclared)
+        assertFalse(level.isPercentage)
+    }
+
+    @Test
+    fun `a body that declares no scale gets the assumed one, and says so`() {
+        val level = plausibleBatteryLevel(10)!!
+
+        assertEquals(10, level.value)
+        assertEquals(ASSUMED_BATTERY_MAX, level.max)
+        assertFalse(level.maxDeclared)
+    }
+
+    /** A body that really does report percent is rendered as percent. */
+    @Test
+    fun `a hundred-point scale is a percentage`() {
+        val level = plausibleBatteryLevel(87, declaredMax = 100)!!
+
+        assertEquals(87, level.value)
+        assertTrue(level.isPercentage)
+    }
+
+    @Test
+    fun `a value above the body's own scale is dropped`() {
+        assertNull(plausibleBatteryLevel(11, declaredMax = 10))
+        assertNull(plausibleBatteryLevel(101, declaredMax = 100))
+        // The assumed scale applies the same way.
+        assertNull(plausibleBatteryLevel(11))
+        assertNull(plausibleBatteryLevel(0xffff))
+    }
+
+    @Test
+    fun `a negative level is dropped`() {
+        assertNull(plausibleBatteryLevel(-1))
+        assertNull(plausibleBatteryLevel(-1, declaredMax = 10))
+    }
+
+    @Test
+    fun `a flat battery is a reading, not an absence`() {
+        assertEquals(0, plausibleBatteryLevel(0, declaredMax = 10)?.value)
+    }
+
+    /** A declared maximum that is not a scale means the property is not a battery level. */
+    @Test
+    fun `an implausible declared scale is refused outright`() {
+        assertNull(plausibleBatteryLevel(0, declaredMax = 0))
+        assertNull(plausibleBatteryLevel(5, declaredMax = 65535))
     }
 
     @Test
@@ -69,7 +111,7 @@ class CameraDetailsTest {
     @Test
     fun `only vendor-property fields raise the caveat`() {
         assertFalse(CameraDetails(firmware = "1.20", serialNumber = "A1B2").hasUnverifiedFields)
-        assertTrue(CameraDetails(batteryPercent = 50).hasUnverifiedFields)
+        assertTrue(CameraDetails(battery = BatteryLevel(5, 10, maxDeclared = true)).hasUnverifiedFields)
         assertTrue(CameraDetails(shutterCount = 10).hasUnverifiedFields)
         assertTrue(CameraDetails(lens = "XF35mmF1.4 R").hasUnverifiedFields)
     }

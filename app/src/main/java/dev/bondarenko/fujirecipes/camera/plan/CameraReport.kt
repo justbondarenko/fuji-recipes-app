@@ -50,6 +50,24 @@ data class ProbedProperty(
     val refusal: String? = null,
 )
 
+/**
+ * One custom slot, read with the selector pointed at it.
+ *
+ * The preset registers follow the selector, so a single reading of them is one recipe rather
+ * than a statement about the body. Seven readings laid side by side are a different thing: a
+ * value that is identical across all seven is a constant the camera keeps there, and one that
+ * varies is a setting. That distinction is not obtainable from one slot, and it is what settles
+ * codes like `0xD1A1`, which `eggricesoy/filmkit` calls a sentinel and this project's own table
+ * calls a noise-reduction encoding.
+ */
+data class SlotProbe(
+    val slot: Int,
+    /** The camera's own name for the slot, or null when it would not give one. */
+    val name: String?,
+    /** Preset code to its raw 16-bit value, or null where the body refused it. */
+    val values: Map<Int, Int?>,
+)
+
 data class CameraReport(
     val appVersion: String,
     /** Supplied by the caller; the pure layer has no clock. */
@@ -69,9 +87,12 @@ data class CameraReport(
     val propertiesListed: List<Int> = emptyList(),
     val captureFormats: List<Int> = emptyList(),
     val imageFormats: List<Int> = emptyList(),
-    /** Which custom slot the selector was pointed at before the properties were read. */
+    /** Which custom slot the selector was pointed at while [properties] were read. */
     val selectedSlot: Int?,
+    /** Everything outside the preset block, walked once. */
     val properties: List<ProbedProperty> = emptyList(),
+    /** The preset block, walked once per slot. Empty when the body has no selector. */
+    val slots: List<SlotProbe> = emptyList(),
 )
 
 // ─── Rendering ──────────────────────────────────────────────────────────────
@@ -115,10 +136,56 @@ fun renderCameraReport(report: CameraReport): String = buildString {
         report.properties.forEach { appendLine(propertyLine(it)) }
     }
     appendLine()
+
+    appendSlots(report.slots)
+
     appendLine("A code with no name is one this build will not guess at; its declared type and")
     appendLine("allowed values above are what identify it. “·” marks a code the body did not")
-    appendLine("list in GetDeviceInfo but answered for anyway.")
+    appendLine("list in GetDeviceInfo but answered for anyway. In the slot table a value is the")
+    appendLine("raw 16 bits the body returned, and “————” means it refused that code for that slot;")
+    appendLine("a row identical across all seven slots is a constant, not a setting.")
 }
+
+/**
+ * The preset block, one column per slot.
+ *
+ * A matrix rather than seven blocks: the question these registers have to answer is whether a
+ * code varies between slots, and that is a question about a row. Seven separate listings put
+ * the seven readings of `0xD1A1` a hundred and eighty lines apart.
+ */
+private fun StringBuilder.appendSlots(slots: List<SlotProbe>) {
+    if (slots.isEmpty()) {
+        appendLine("CUSTOM SLOTS (0)")
+        appendLine("  none — the body would not take the slot selector")
+        appendLine()
+        return
+    }
+
+    appendLine("CUSTOM SLOT NAMES")
+    slots.forEach { slot ->
+        appendLine("  C${slot.slot}  " + (slot.name?.let { "“$it”" } ?: "(unnamed)"))
+    }
+    appendLine()
+
+    appendLine("CUSTOM SLOTS (${slots.size}) — raw 16-bit value per slot")
+    append("  ").append("code".padEnd(8)).append("name".padEnd(28))
+    slots.forEach { append("C${it.slot}".padEnd(6)) }
+    appendLine()
+
+    PRESET_MATRIX_CODES.forEach { code ->
+        append("  ").append(hex(code).padEnd(8)).append((propertyName(code) ?: "").padEnd(28))
+        slots.forEach { slot ->
+            val value = slot.values[code]
+            append((value?.let { raw16(it) } ?: "————").padEnd(6))
+        }
+        appendLine()
+    }
+    appendLine()
+}
+
+/** A slot value as the four hex digits the body actually returned. */
+private fun raw16(value: Int): String =
+    (value and 0xffff).toString(16).uppercase().padStart(4, '0')
 
 private fun usbModeLine(report: CameraReport): String {
     val name = when (report.usbMode) {
