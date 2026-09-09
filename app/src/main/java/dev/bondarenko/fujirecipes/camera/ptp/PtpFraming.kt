@@ -65,8 +65,9 @@ object ContainerType {
  * blob, `SendObjectInfo` then `SendObject` writes one back. Transcribed from `petabyt/libfuji`
  * `lib/fuji_usb.c` (`fujiusb_download_backup`, `fujiusb_restore_backup`).
  *
- * Still deliberately absent: `DeleteObject` and the Fuji vendor codes (`0x900C`/`0x900D`)
- * that the RAW-conversion workflow needs.
+ * RAW conversion adds `DeleteObject` and Fuji's vendor upload codes (`0x900C`/`0x900D`):
+ * the source RAF is sent through the vendor operations and only the newly rendered result is
+ * eligible for deletion.
  */
 object Operation {
     const val GET_DEVICE_INFO = 0x1001
@@ -78,8 +79,11 @@ object Operation {
     const val GET_OBJECT_INFO = 0x1008
     const val GET_OBJECT = 0x1009
     const val GET_THUMB = 0x100a
+    const val DELETE_OBJECT = 0x100b
     const val SEND_OBJECT_INFO = 0x100c
     const val SEND_OBJECT = 0x100d
+    const val FUJI_SEND_OBJECT_INFO = 0x900c
+    const val FUJI_SEND_OBJECT = 0x900d
     const val GET_DEVICE_PROP_DESC = 0x1014
     const val GET_DEVICE_PROP_VALUE = 0x1015
     const val SET_DEVICE_PROP_VALUE = 0x1016
@@ -279,6 +283,19 @@ fun packContainer(
     buffer.put(data)
 
     return buffer.array()
+}
+
+/** The header for a streamed data container, without allocating its payload. */
+fun packDataContainerHeader(code: Int, transactionId: Int, payloadLength: Long): ByteArray {
+    require(payloadLength >= 0 && payloadLength <= 0xffffffffL - CONTAINER_HEADER_SIZE) {
+        "A PTP data payload must fit in the container's uint32 length."
+    }
+    return ByteBuffer.allocate(CONTAINER_HEADER_SIZE).order(ByteOrder.LITTLE_ENDIAN)
+        .putInt((CONTAINER_HEADER_SIZE + payloadLength).toInt())
+        .putShort(ContainerType.DATA.toShort())
+        .putShort(code.toShort())
+        .putInt(transactionId)
+        .array()
 }
 
 /**

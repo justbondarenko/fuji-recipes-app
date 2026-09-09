@@ -1,6 +1,7 @@
 package dev.bondarenko.fujirecipes.camera.ptp
 
 import java.io.OutputStream
+import java.io.InputStream
 
 /**
  * A PTP session over one transport.
@@ -197,6 +198,11 @@ class PtpSession(
         return result.data
     }
 
+    fun deleteObject(handle: Int) {
+        val result = transport.command(Operation.DELETE_OBJECT, listOf(handle, 0))
+        expectOk(Operation.DELETE_OBJECT, result.code)
+    }
+
     /** One object's contents. */
     fun getObject(handle: Int): ByteArray {
         val result = transport.command(Operation.GET_OBJECT, listOf(handle))
@@ -241,5 +247,31 @@ class PtpSession(
     fun sendObject(bytes: ByteArray) {
         val result = transport.commandWithData(Operation.SEND_OBJECT, emptyList(), bytes)
         expectOk(Operation.SEND_OBJECT, result.code)
+    }
+
+    /** Announces a RAF to Fuji's RAW-conversion service. */
+    fun sendFujiRawObjectInfo(dataset: ByteArray) {
+        val result = transport.commandWithData(
+            Operation.FUJI_SEND_OBJECT_INFO,
+            listOf(0, 0, 0),
+            dataset,
+        )
+        expectOk(Operation.FUJI_SEND_OBJECT_INFO, result.code)
+    }
+
+    /** Streams the RAF bytes through Fuji's vendor SendObject2 operation. */
+    fun sendFujiRawObject(
+        input: InputStream,
+        length: Long,
+        onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
+    ) {
+        val result = transport.commandWithDataFrom(
+            Operation.FUJI_SEND_OBJECT,
+            emptyList(),
+            input,
+            length,
+            onProgress,
+        )
+        expectOk(Operation.FUJI_SEND_OBJECT, result.code)
     }
 }

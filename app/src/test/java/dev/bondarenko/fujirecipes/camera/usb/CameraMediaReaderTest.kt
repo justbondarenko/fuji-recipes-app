@@ -28,6 +28,18 @@ class CameraMediaReaderTest {
     }
 
     @Test
+    fun `lists RAF candidates independently of their vendor object format`() {
+        val camera = FakeCamera()
+        add(camera, 10, "OLD.RAF", "20250101T000000", 0xb103)
+        add(camera, 20, "NEW.raf", "20260101T000000", 0x3800)
+        add(camera, 30, "JPEG.JPG", "20270101T000000", PtpObject.FORMAT_JPEG)
+
+        val media = listCameraRafs(opened(camera))
+
+        assertEquals(listOf("NEW.raf", "OLD.RAF"), media.map { it.info.filename })
+    }
+
+    @Test
     fun `returns valid thumbnails and rejects malformed ones`() {
         val camera = FakeCamera()
         camera.thumbnails[1] = byteArrayOf(0xff.toByte(), 0xd8.toByte(), 0xff.toByte(), 1)

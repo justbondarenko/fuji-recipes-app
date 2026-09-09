@@ -90,6 +90,7 @@ fun LibraryScreen(
     onDeleteRecipe: (String) -> Unit,
     onCreateRecipe: () -> Unit,
     onImportFromCamera: () -> Unit,
+    onDevelopRaw: (String) -> Unit = {},
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
     canWriteToCamera: Boolean = false,
@@ -313,6 +314,10 @@ fun LibraryScreen(
             onNavigateToRecipe = { targetId ->
                 activeRecipeId = targetId
             },
+            onDevelopRaw = { id ->
+                activeRecipeId = null
+                onDevelopRaw(id)
+            },
         )
     }
 
@@ -359,6 +364,7 @@ fun LibraryRouteContent(
     onEditRecipe: (String) -> Unit,
     onCreateRecipe: () -> Unit,
     onImportFromCamera: () -> Unit,
+    onDevelopRaw: (String) -> Unit,
     contentPadding: PaddingValues,
 ) {
     val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
@@ -380,6 +386,7 @@ fun LibraryRouteContent(
         onDeleteRecipe = viewModel::onDeleteRecipe,
         onCreateRecipe = onCreateRecipe,
         onImportFromCamera = onImportFromCamera,
+        onDevelopRaw = onDevelopRaw,
         contentPadding = contentPadding,
         canWriteToCamera = camera.canWrite,
     )
@@ -465,4 +472,3 @@ private fun LibraryNoMatchesPreview() {
         )
     }
 }
-

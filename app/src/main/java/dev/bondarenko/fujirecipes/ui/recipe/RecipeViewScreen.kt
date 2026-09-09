@@ -133,6 +133,7 @@ fun RecipeViewBottomSheet(
     onEdit: (String) -> Unit,
     modifier: Modifier = Modifier,
     onNavigateToRecipe: ((String) -> Unit)? = null,
+    onDevelopRaw: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val container = (context.applicationContext as FujiRecipesApp).container
@@ -169,6 +170,7 @@ fun RecipeViewBottomSheet(
                 }
             },
             onCompareRecipe = { compareOpen = true },
+            onDevelopRaw = { onDevelopRaw(recipeId) },
         )
 
         if (writeOpen) {
@@ -204,6 +206,7 @@ fun RecipeViewScreen(
     canWriteToCamera: Boolean = false,
     onExportRecipe: () -> Unit = {},
     onCompareRecipe: () -> Unit = {},
+    onDevelopRaw: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -242,6 +245,7 @@ fun RecipeViewScreen(
             canWriteToCamera = canWriteToCamera,
             onExportRecipe = onExportRecipe,
             onCompareRecipe = onCompareRecipe,
+            onDevelopRaw = onDevelopRaw,
         )
     }
 }
@@ -262,6 +266,7 @@ fun RecipeViewContent(
     canWriteToCamera: Boolean = false,
     onExportRecipe: () -> Unit = {},
     onCompareRecipe: () -> Unit = {},
+    onDevelopRaw: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     when {
@@ -306,6 +311,7 @@ fun RecipeViewContent(
                         onWriteToCamera = onWriteToCamera,
                         canWriteToCamera = canWriteToCamera,
                         onCompareRecipe = onCompareRecipe,
+                        onDevelopRaw = onDevelopRaw,
                         modifier = Modifier.align(Alignment.BottomCenter),
                     )
                 }
@@ -328,6 +334,7 @@ private fun RecipeFloatingToolbar(
     onWriteToCamera: () -> Unit,
     canWriteToCamera: Boolean,
     onCompareRecipe: () -> Unit,
+    onDevelopRaw: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -375,6 +382,13 @@ private fun RecipeFloatingToolbar(
                 Icon(
                     imageVector = FujiIcons.FileExport,
                     contentDescription = stringResource(R.string.action_export_recipe),
+                )
+            }
+
+            IconButton(onClick = onDevelopRaw) {
+                Icon(
+                    imageVector = FujiIcons.DiscoverTune,
+                    contentDescription = stringResource(R.string.action_develop_raw),
                 )
             }
         }
@@ -943,6 +957,7 @@ fun RecipeViewRouteContent(
     recipeId: String,
     onBack: () -> Unit,
     onEdit: () -> Unit,
+    onDevelopRaw: () -> Unit,
 ) {
     val context = LocalContext.current
     val container = (context.applicationContext as FujiRecipesApp).container
@@ -969,6 +984,7 @@ fun RecipeViewRouteContent(
             }
         },
         onCompareRecipe = { compareOpen = true },
+        onDevelopRaw = onDevelopRaw,
     )
 
     if (writeOpen) {
