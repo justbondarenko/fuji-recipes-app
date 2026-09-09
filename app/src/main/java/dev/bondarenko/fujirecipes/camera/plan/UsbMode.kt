@@ -37,10 +37,20 @@ enum class UsbMode {
     WEBCAM,
 
     /**
-     * The body refused the property, or the read failed.
+     * `USB CARD READER` — the body is an MTP mass-storage device over the still-image class.
      *
-     * Says nothing about the mode: card-reader/MTP mode lands here, and so does any body whose
-     * firmware does not carry `0xD16E`. Never presented as a diagnosis.
+     * Not one of `libfuji`'s `FujiUSBModes` values, and it never can be: a body in this mode
+     * refuses `0xD16E` outright. It is identified from `GetDeviceInfo` instead — see
+     * [looksLikeCardReader] — which is why it is the one mode named without the property
+     * answering. The card is browsable here and the preset block is not.
+     */
+    CARD_READER,
+
+    /**
+     * The body refused the property and did not look like a card reader either.
+     *
+     * Says nothing about the mode — a body whose firmware does not carry `0xD16E` lands here.
+     * Never presented as a diagnosis.
      */
     UNREPORTED,
 
@@ -49,15 +59,26 @@ enum class UsbMode {
     ;
 
     /**
-     * Whether this mode is known to be the wrong one.
+     * Whether this mode is known to be the wrong one *for the preset block*.
      *
-     * Only the two positively-identified wrong modes are true. [UNREPORTED] and [UNRECOGNISED]
-     * are deliberately false — "we could not tell" is not "you are in the wrong mode", and
-     * showing a mode warning to someone whose camera is set correctly is worse than showing
-     * nothing.
+     * Only positively-identified modes are true. [UNREPORTED] and [UNRECOGNISED] are
+     * deliberately false — "we could not tell" is not "you are in the wrong mode", and showing
+     * a mode warning to someone whose camera is set correctly is worse than showing nothing.
+     *
+     * [CARD_READER] is true because the slots really are unreachable there, even though it is
+     * the *right* mode for browsing the card. Wrong is relative to the recipe slots, which is
+     * what the banner carrying this is about.
      */
     val isKnownWrongMode: Boolean
-        get() = this == TETHER_SHOOTING || this == WEBCAM
+        get() = this == TETHER_SHOOTING || this == WEBCAM || this == CARD_READER
+
+    /** Whether the camera card can be browsed. The photo screen's precondition. */
+    val allowsCardBrowsing: Boolean
+        get() = this == CARD_READER
+
+    /** Whether the preset block and the settings blob are reachable. */
+    val allowsRecipeWork: Boolean
+        get() = this == RAW_CONVERSION
 }
 
 /** The raw values `0xD16E` answers with, per `libfuji`'s `enum FujiUSBModes`. */
@@ -70,4 +91,55 @@ fun usbModeFor(value: Int): UsbMode = when (value) {
     MODE_RAW_CONVERSION -> UsbMode.RAW_CONVERSION
     MODE_WEBCAM -> UsbMode.WEBCAM
     else -> UsbMode.UNRECOGNISED
+}
+
+/**
+ * The MTP object-property operations, which a still-image camera in its own mode does not
+ * advertise. Verified against `petabyt/libpict` `src/ptp.h:118-122`; an X-T50 in card-reader
+ * mode advertises `0x9801`-`0x9803` and `0x9805`, and notably not `0x9804`.
+ */
+private val MTP_OBJECT_PROPERTY_OPERATIONS = listOf(0x9801, 0x9802, 0x9803)
+
+/** `SessionInitiatorVersionInfo` and `PerceivedDeviceType`: the two MTP device properties. */
+private const val MTP_SESSION_INITIATOR_VERSION_INFO = 0xd406
+private const val MTP_PERCEIVED_DEVICE_TYPE = 0xd407
+
+/**
+ * Whether this body is answering as an MTP device rather than as a camera.
+ *
+ * Both device properties **and** the read-only object-property operations are required. Either
+ * signal alone is thin; together they are what an X-T50 in `USB CARD READER` advertises and
+ * what the same body in `USB RAW CONV./BACKUP RESTORE` does not.
+ *
+ * This is a positive identification or nothing. A body that fails the test is not thereby in
+ * any other mode — it is simply one this build cannot name, which is [UsbMode.UNREPORTED].
+ */
+fun looksLikeCardReader(
+    operationsSupported: List<Int>,
+    devicePropertiesSupported: List<Int>,
+): Boolean {
+    val hasMtpProperties = MTP_SESSION_INITIATOR_VERSION_INFO in devicePropertiesSupported &&
+        MTP_PERCEIVED_DEVICE_TYPE in devicePropertiesSupported
+    val hasMtpOperations = MTP_OBJECT_PROPERTY_OPERATIONS.all { it in operationsSupported }
+
+    return hasMtpProperties && hasMtpOperations
+}
+
+/**
+ * The mode, from the property where the body answers it and from `GetDeviceInfo` where it does
+ * not.
+ *
+ * The property wins whenever it answers: it is the body's own statement about its menu, and
+ * `GetDeviceInfo` is an inference. The inference only ever runs on a refusal, and only ever
+ * produces [UsbMode.CARD_READER] or [UsbMode.UNREPORTED] — never one of the values `0xD16E`
+ * would have given, because guessing those would put a fabrication where a fact belongs.
+ */
+fun usbModeFrom(
+    reportedValue: Int?,
+    operationsSupported: List<Int>,
+    devicePropertiesSupported: List<Int>,
+): UsbMode = when {
+    reportedValue != null -> usbModeFor(reportedValue)
+    looksLikeCardReader(operationsSupported, devicePropertiesSupported) -> UsbMode.CARD_READER
+    else -> UsbMode.UNREPORTED
 }

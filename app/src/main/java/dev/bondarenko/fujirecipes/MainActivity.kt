@@ -17,6 +17,9 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import dev.bondarenko.fujirecipes.camera.DESTINATION_CAMERA
+import dev.bondarenko.fujirecipes.camera.DESTINATION_PHOTOS
+import dev.bondarenko.fujirecipes.camera.EXTRA_DESTINATION
 import dev.bondarenko.fujirecipes.ui.camera.CameraToolbarItemHost
 import dev.bondarenko.fujirecipes.ui.create.CreateRecipeFlow
 import dev.bondarenko.fujirecipes.ui.nav.AboutRoute
@@ -42,10 +45,14 @@ import androidx.compose.runtime.LaunchedEffect
 class MainActivity : ComponentActivity() {
     private var sharedPhotoUri by mutableStateOf<String?>(null)
 
+    /** Set by a notification action; consumed once, by the navigation below. */
+    private var pendingDestination by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         connectIfLaunchedByCamera(intent)
         sharedPhotoUri = extractSharedImageUri(intent)
+        pendingDestination = intent.getStringExtra(EXTRA_DESTINATION)
         // Mandatory on Android 15+ regardless, so it is done deliberately here rather than
         // discovered in a release build.
         enableEdgeToEdge()
@@ -58,6 +65,8 @@ class MainActivity : ComponentActivity() {
             FujiApp(
                 sharedPhotoUri = sharedPhotoUri,
                 onSharedPhotoHandled = { sharedPhotoUri = null },
+                pendingDestination = pendingDestination,
+                onDestinationHandled = { pendingDestination = null },
             )
         }
     }
@@ -67,6 +76,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         connectIfLaunchedByCamera(intent)
         extractSharedImageUri(intent)?.let { uri -> sharedPhotoUri = uri }
+        intent.getStringExtra(EXTRA_DESTINATION)?.let { pendingDestination = it }
     }
 
     /**
@@ -108,11 +118,37 @@ class MainActivity : ComponentActivity() {
 private fun FujiApp(
     sharedPhotoUri: String? = null,
     onSharedPhotoHandled: () -> Unit = {},
+    pendingDestination: String? = null,
+    onDestinationHandled: () -> Unit = {},
 ) {
     FujiTheme {
         val navController = rememberNavController()
         val backStackEntry by navController.currentBackStackEntryAsState()
         val destination = backStackEntry?.destination
+
+        /**
+         * A notification action naming a screen.
+         *
+         * `popUpTo(LibraryRoute)` rather than a plain navigate: arriving from outside the app
+         * should land *on* that screen, not on top of whatever back stack a previous session
+         * left behind.
+         */
+        LaunchedEffect(pendingDestination) {
+            when (pendingDestination) {
+                DESTINATION_PHOTOS -> navController.navigate(CameraPhotosRoute) {
+                    popUpTo(LibraryRoute)
+                    launchSingleTop = true
+                }
+
+                DESTINATION_CAMERA -> navController.navigate(CameraRoute) {
+                    popUpTo(LibraryRoute)
+                    launchSingleTop = true
+                }
+
+                else -> return@LaunchedEffect
+            }
+            onDestinationHandled()
+        }
 
         LaunchedEffect(sharedPhotoUri) {
             val uri = sharedPhotoUri ?: return@LaunchedEffect

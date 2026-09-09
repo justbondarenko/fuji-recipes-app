@@ -192,6 +192,9 @@ private fun usbModeLine(report: CameraReport): String {
         UsbMode.TETHER_SHOOTING -> "tether shooting"
         UsbMode.RAW_CONVERSION -> "RAW conv./backup restore"
         UsbMode.WEBCAM -> "webcam"
+        // Inferred from the MTP signature, not read from 0xD16E, so there is no number to
+        // print beside it — `usbModeRaw` is null by definition here.
+        UsbMode.CARD_READER -> "card reader (inferred from the MTP signature)"
         UsbMode.UNRECOGNISED -> "unrecognised"
         UsbMode.UNREPORTED -> return NOT_REPORTED
     }

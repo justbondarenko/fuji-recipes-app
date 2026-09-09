@@ -72,6 +72,44 @@ class CameraFactsReaderTest {
         assertEquals(UsbMode.WEBCAM, readUsbMode(connected(camera)))
     }
 
+    /**
+     * The property never answers in card-reader mode and never will, so the only way to name
+     * that mode is the device info the session already read.
+     */
+    @Test
+    fun `a card reader is identified from its MTP signature when the property refuses`() {
+        val camera = FakeCamera().apply {
+            extraOperations += listOf(0x9801, 0x9802, 0x9803, 0x9805)
+            extraProperties += listOf(0xd406, 0xd407)
+        }
+
+        val session = connected(camera)
+
+        assertEquals(UsbMode.CARD_READER, readUsbMode(session, session.deviceInfo))
+    }
+
+    /** Without the signature, a refusal is still a refusal. No guessing. */
+    @Test
+    fun `a body with no signature and no property stays unreported`() {
+        val camera = FakeCamera()
+        val session = connected(camera)
+
+        assertEquals(UsbMode.UNREPORTED, readUsbMode(session, session.deviceInfo))
+    }
+
+    @Test
+    fun `the property still wins over the signature`() {
+        val camera = FakeCamera().apply {
+            propertyValues[USB_MODE_PROPERTY] = packU16(6)
+            extraOperations += listOf(0x9801, 0x9802, 0x9803, 0x9805)
+            extraProperties += listOf(0xd406, 0xd407)
+        }
+
+        val session = connected(camera)
+
+        assertEquals(UsbMode.RAW_CONVERSION, readUsbMode(session, session.deviceInfo))
+    }
+
     // ─── Details ────────────────────────────────────────────────────────────
 
     @Test
