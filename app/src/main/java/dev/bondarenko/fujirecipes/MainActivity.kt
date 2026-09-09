@@ -182,6 +182,8 @@ private fun FujiApp(
         // and giving either a destination of its own would put a half-made choice in the back
         // stack behind every recipe.
         var creating by remember { mutableStateOf(false) }
+        // Owned here because the flag decides the shell's FAB, which the library cannot reach.
+        var librarySelecting by remember { mutableStateOf(false) }
 
         CreateRecipeFlow(
             visible = creating,
@@ -223,6 +225,7 @@ private fun FujiApp(
             onSettingsClick = { navController.navigate(SettingsRoute) { launchSingleTop = true } },
             // The library puts the button in its search row instead — see LibraryToolbar.
             showSettingsButton = destination?.hasRoute<LibraryRoute>() != true,
+            isSelecting = librarySelecting,
             cameraItem = {
                 CameraToolbarItemHost(
                     selected = destination?.hasRoute<CameraRoute>() == true,
@@ -233,6 +236,7 @@ private fun FujiApp(
             FujiNavHost(
                 navController = navController,
                 contentPadding = contentPadding,
+                onLibrarySelectionChange = { librarySelecting = it },
             )
         }
     }

@@ -233,6 +233,26 @@ class LocalRecipeRepositoryTest {
         assertEquals(listOf("First"), repository.library.value.recipes.map { it.name })
     }
 
+    @Test
+    fun `updateAll applies the body to every selected recipe and leaves the rest`() = runTest {
+        val repository = repository()
+        repository.create(body("First"))
+        repository.create(body("Second", simulation = "velvia"))
+        repository.create(body("Third"))
+        val recipes = repository.library.value.recipes
+        val rated = setOf(
+            recipes.first { it.name == "First" }.id,
+            recipes.first { it.name == "Third" }.id,
+        )
+
+        assertIs<LibraryResult.Success<*>>(
+            repository.updateAll(rated, buildJsonObject { put("rating", 4) }),
+        )
+
+        val after = repository.library.value.recipes.associate { it.name to it.rating }
+        assertEquals(mapOf("First" to 4, "Second" to 0, "Third" to 4), after)
+    }
+
     // ─── Import ─────────────────────────────────────────────────────────────
 
     @Test

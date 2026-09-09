@@ -1,5 +1,13 @@
 package dev.bondarenko.fujirecipes.ui.library
 
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import dev.bondarenko.fujirecipes.ui.theme.icons.StarBorder
+import dev.bondarenko.fujirecipes.ui.theme.icons.StarRate
 import androidx.activity.compose.BackHandler
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.res.pluralStringResource
@@ -96,6 +104,8 @@ fun LibraryScreen(
     onImportFromCamera: () -> Unit,
     onDevelopRaw: (String) -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onRateRecipes: (Set<String>, Int) -> Unit = { _, _ -> },
+    onSelectionChange: (Boolean) -> Unit = {},
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
     canWriteToCamera: Boolean = false,
@@ -112,8 +122,13 @@ fun LibraryScreen(
     var deleteSelectionPending by remember { mutableStateOf(false) }
     val selecting = selectedIds.isNotEmpty()
 
+    var ratingPickerOpen by remember { mutableStateOf(false) }
+
     // The gesture everyone tries first to get out of selection mode.
     BackHandler(enabled = selecting) { selectedIds = emptySet() }
+
+    LaunchedEffect(selecting) { onSelectionChange(selecting) }
+    DisposableEffect(Unit) { onDispose { onSelectionChange(false) } }
     val coroutineScope = rememberCoroutineScope()
 
     // No pull-to-refresh: there is nowhere to refresh *from*. The library is a file on this
@@ -187,11 +202,9 @@ fun LibraryScreen(
                                 LibrarySelectionBar(
                                     count = selectedIds.size,
                                     allSelected = selectedIds.size == state.visible.size,
-                                    onClear = { selectedIds = emptySet() },
                                     onSelectAll = {
                                         selectedIds = state.visible.map { it.id }.toSet()
                                     },
-                                    onDelete = { deleteSelectionPending = true },
                                 )
                             } else {
                             LibraryToolbar(
@@ -345,6 +358,25 @@ fun LibraryScreen(
                 }
             }
         }
+
+        if (selecting) {
+            LibrarySelectionToolbar(
+                ratingPickerOpen = ratingPickerOpen,
+                onRatingPickerOpenChange = { ratingPickerOpen = it },
+                onDelete = { deleteSelectionPending = true },
+                onRate = { rating ->
+                    val ids = selectedIds
+                    selectedIds = emptySet()
+                    onRateRecipes(ids, rating)
+                },
+                onClear = { selectedIds = emptySet() },
+                // The screen's Box fills the whole scaffold, bars included, so the bottom
+                // inset has to be applied here or the toolbar lands behind the navigation bar.
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = contentPadding.calculateBottomPadding()),
+            )
+        }
     }
 
     writeRecipeId?.let { recipeId ->
@@ -417,23 +449,13 @@ fun LibraryScreen(
  * and the one destructive thing the mode exists for.
  */
 @Composable
-private fun LibrarySelectionBar(
-    count: Int,
-    allSelected: Boolean,
-    onClear: () -> Unit,
-    onSelectAll: () -> Unit,
-    onDelete: () -> Unit,
-) {
+private fun LibrarySelectionBar(count: Int, allSelected: Boolean, onSelectAll: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onClear) {
-            Icon(
-                imageVector = FujiIcons.Close,
-                contentDescription = stringResource(R.string.action_clear_selection),
-            )
-        }
         Text(
             text = pluralStringResource(R.plurals.selected_count, count, count),
             style = MaterialTheme.typography.titleMedium,
@@ -442,11 +464,83 @@ private fun LibrarySelectionBar(
         TextButton(onClick = onSelectAll, enabled = !allSelected) {
             Text(stringResource(R.string.action_select_all))
         }
+    }
+}
+
+/**
+ * The actions for the rows that are picked, in the corner the create button vacates.
+ *
+ * Rating opens a menu rather than a dialog: five values is a list, and a dialog for a list of
+ * five would be a bigger interruption than the change it makes.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun LibrarySelectionToolbar(
+    ratingPickerOpen: Boolean,
+    onRatingPickerOpenChange: (Boolean) -> Unit,
+    onDelete: () -> Unit,
+    onRate: (Int) -> Unit,
+    onClear: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    HorizontalFloatingToolbar(
+        expanded = true,
+        // Vibrant, not standard: the standard container is the same tone as the cards it
+        // floats over, which left the actions reading as three loose icons.
+        colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
+        // No navigationBarsPadding here: the shell's Scaffold has already inset this content
+        // area above its own bar, and insetting twice would park the toolbar behind it.
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+    ) {
         IconButton(onClick = onDelete) {
             Icon(
                 imageVector = FujiIcons.Delete,
                 contentDescription = stringResource(R.string.action_delete),
-                tint = MaterialTheme.colorScheme.error,
+            )
+        }
+
+        Box {
+            IconButton(onClick = { onRatingPickerOpenChange(true) }) {
+                Icon(
+                    imageVector = FujiIcons.StarRate,
+                    contentDescription = stringResource(R.string.action_set_rating),
+                )
+            }
+            DropdownMenu(
+                expanded = ratingPickerOpen,
+                onDismissRequest = { onRatingPickerOpenChange(false) },
+            ) {
+                // Descending, and zero last: it is the "no rating" entry, not a sixth star.
+                (5 downTo 0).forEach { value ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (value == 0) {
+                                    stringResource(R.string.rating_none)
+                                } else {
+                                    pluralStringResource(R.plurals.rating_stars, value, value)
+                                },
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = if (value == 0) FujiIcons.StarBorder else FujiIcons.StarRate,
+                                contentDescription = null,
+                            )
+                        },
+                        onClick = {
+                            onRatingPickerOpenChange(false)
+                            onRate(value)
+                        },
+                    )
+                }
+            }
+        }
+
+        IconButton(onClick = onClear) {
+            Icon(
+                imageVector = FujiIcons.Close,
+                contentDescription = stringResource(R.string.action_clear_selection),
             )
         }
     }
@@ -461,6 +555,7 @@ fun LibraryRouteContent(
     onImportFromCamera: () -> Unit,
     onDevelopRaw: (String) -> Unit,
     onOpenSettings: () -> Unit,
+    onSelectionChange: (Boolean) -> Unit,
     contentPadding: PaddingValues,
 ) {
     val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
@@ -485,6 +580,8 @@ fun LibraryRouteContent(
         onImportFromCamera = onImportFromCamera,
         onDevelopRaw = onDevelopRaw,
         onOpenSettings = onOpenSettings,
+        onRateRecipes = viewModel::onRateRecipes,
+        onSelectionChange = onSelectionChange,
         contentPadding = contentPadding,
         canWriteToCamera = camera.canWrite,
     )

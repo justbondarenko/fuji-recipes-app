@@ -167,6 +167,12 @@
     <string name="discard_title">Discard your changes?</string>
     <string name="discard_body">You have unsaved edits to this recipe.</string>
     <string name="action_select_all">Select all</string>
+    <string name="action_set_rating">Set rating</string>
+    <string name="rating_none">No rating</string>
+    <plurals name="rating_stars">
+        <item quantity="one">%1$d star</item>
+        <item quantity="other">%1$d stars</item>
+    </plurals>
     <string name="action_clear_selection">Clear selection</string>
     <plurals name="selected_count">
         <item quantity="one">%1$d selected</item>
