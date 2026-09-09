@@ -90,6 +90,7 @@ fun LibraryScreen(
     onCreateRecipe: () -> Unit,
     onImportFromCamera: () -> Unit,
     onDevelopRaw: (String) -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
     canWriteToCamera: Boolean = false,
@@ -177,6 +178,7 @@ fun LibraryScreen(
                                 onToggleSortDirection = onToggleSortDirection,
                                 onFiltersChange = onFiltersChange,
                                 onClearSearchAndFilters = onClearSearchAndFilters,
+                                onOpenSettings = onOpenSettings,
                             )
                             Spacer(Modifier.height(10.dp))
                         }
@@ -341,6 +343,7 @@ fun LibraryRouteContent(
     onCreateRecipe: () -> Unit,
     onImportFromCamera: () -> Unit,
     onDevelopRaw: (String) -> Unit,
+    onOpenSettings: () -> Unit,
     contentPadding: PaddingValues,
 ) {
     val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
@@ -363,6 +366,7 @@ fun LibraryRouteContent(
         onCreateRecipe = onCreateRecipe,
         onImportFromCamera = onImportFromCamera,
         onDevelopRaw = onDevelopRaw,
+        onOpenSettings = onOpenSettings,
         contentPadding = contentPadding,
         canWriteToCamera = camera.canWrite,
     )

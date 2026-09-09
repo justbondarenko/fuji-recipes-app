@@ -36,6 +36,7 @@ import dev.bondarenko.fujirecipes.ui.nav.MoreRoute
 import dev.bondarenko.fujirecipes.ui.nav.PhotoRoute
 import dev.bondarenko.fujirecipes.ui.nav.RecipeEditorRoute
 import dev.bondarenko.fujirecipes.ui.nav.RecipeViewRoute
+import dev.bondarenko.fujirecipes.ui.nav.SettingsRoute
 import dev.bondarenko.fujirecipes.ui.shell.AppShell
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 
@@ -172,8 +173,10 @@ private fun FujiApp(
         val onFileImport = destination?.hasRoute<FileImportRoute>() == true
         val onExport = destination?.hasRoute<ExportRoute>() == true
         val onCleanup = destination?.hasRoute<CleanupRoute>() == true
-        val showChrome =
-            !onEditor && !onRecipeView && !onImport && !onFileImport && !onExport && !onCleanup
+        // Settings is a subpage with its own bar and back arrow, like About.
+        val onSettings = destination?.hasRoute<SettingsRoute>() == true
+        val showChrome = !onEditor && !onRecipeView && !onImport && !onFileImport &&
+            !onExport && !onCleanup && !onSettings
 
         // Not a route: the dialog and the sheet behind it are ways of *starting* the editor,
         // and giving either a destination of its own would put a half-made choice in the back
@@ -217,6 +220,9 @@ private fun FujiApp(
                 }
             },
             onCreateClick = { creating = true },
+            onSettingsClick = { navController.navigate(SettingsRoute) { launchSingleTop = true } },
+            // The library puts the button in its search row instead — see LibraryToolbar.
+            showSettingsButton = destination?.hasRoute<LibraryRoute>() != true,
             cameraItem = {
                 CameraToolbarItemHost(
                     selected = destination?.hasRoute<CameraRoute>() == true,

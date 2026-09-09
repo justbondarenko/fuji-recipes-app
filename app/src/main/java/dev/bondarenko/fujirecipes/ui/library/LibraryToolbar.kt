@@ -35,6 +35,7 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.KeyboardArrowDown
 import dev.bondarenko.fujirecipes.ui.theme.icons.Label
 import dev.bondarenko.fujirecipes.ui.theme.icons.PhotoCamera
 import dev.bondarenko.fujirecipes.ui.theme.icons.Schedule
+import dev.bondarenko.fujirecipes.ui.common.FujiSettingsButton
 import dev.bondarenko.fujirecipes.ui.theme.icons.Search
 import dev.bondarenko.fujirecipes.ui.theme.icons.Sort
 import dev.bondarenko.fujirecipes.ui.theme.icons.SortByAlpha
@@ -113,6 +114,7 @@ fun LibraryToolbar(
     onToggleSortDirection: () -> Unit,
     onFiltersChange: (LibraryFilters) -> Unit,
     onClearSearchAndFilters: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var filtersOpen by rememberSaveable { mutableStateOf(false) }
@@ -125,33 +127,43 @@ fun LibraryToolbar(
          * The **search app bar** (`m3.material.io/components/app-bars`): the search field is
          * the bar, rather than a text field sitting under a title.
          */
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+        // The one page that already owns the top of the screen: the settings button rides in
+        // the search row rather than in the shell's bar above it.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            SearchBarDefaults.InputField(
-                query = state.search,
-                onQueryChange = onSearchChange,
-                onSearch = {},
-                expanded = false,
-                onExpandedChange = {},
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text(stringResource(R.string.search_placeholder)) },
-                leadingIcon = { Icon(FujiIcons.Search, contentDescription = null) },
-                trailingIcon = {
-                    if (state.search.isNotEmpty()) {
-                        IconButton(onClick = { onSearchChange("") }) {
-                            Icon(
-                                FujiIcons.Clear,
-                                contentDescription = stringResource(R.string.action_clear_search),
-                            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+            ) {
+                SearchBarDefaults.InputField(
+                    query = state.search,
+                    onQueryChange = onSearchChange,
+                    onSearch = {},
+                    expanded = false,
+                    onExpandedChange = {},
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text(stringResource(R.string.search_placeholder)) },
+                    leadingIcon = { Icon(FujiIcons.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (state.search.isNotEmpty()) {
+                            IconButton(onClick = { onSearchChange("") }) {
+                                Icon(
+                                    FujiIcons.Clear,
+                                    contentDescription = stringResource(R.string.action_clear_search),
+                                )
+                            }
                         }
-                    }
-                },
-            )
+                    },
+                )
+            }
+
+            FujiSettingsButton(onClick = onOpenSettings)
         }
 
         Row(
@@ -810,6 +822,7 @@ private fun LibraryToolbarPreview() {
                 onToggleSortDirection = {},
                 onFiltersChange = {},
                 onClearSearchAndFilters = {},
+                onOpenSettings = {},
             )
         }
     }

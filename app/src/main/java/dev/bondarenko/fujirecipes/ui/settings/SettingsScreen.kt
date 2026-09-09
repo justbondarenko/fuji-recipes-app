@@ -20,7 +20,11 @@ import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -48,22 +52,19 @@ import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.icons.FileExport
 import dev.bondarenko.fujirecipes.ui.theme.icons.FileSave
 import dev.bondarenko.fujirecipes.ui.theme.icons.CleaningServices
+import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowBack
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.Info
 import dev.bondarenko.fujirecipes.ui.theme.icons.KeyboardArrowRight
 import dev.bondarenko.fujirecipes.ui.theme.icons.LinkedCamera
 
 /**
- * Settings — UI configuration and backup/restore.
+ * More — everything the app can do to the library that is not a preference.
+ *
+ * Preferences live on [SettingsScreen], behind the button each page carries.
  */
 @Composable
-fun SettingsScreen(
-    preferences: StoredUiPreferences,
-    onSelectRecipeViewMode: (RecipeViewMode) -> Unit,
-    onToggleShowPhotos: (Boolean) -> Unit,
-    onToggleShowTags: (Boolean) -> Unit,
-    onToggleShowFilmSimulation: (Boolean) -> Unit,
-    onToggleShowRating: (Boolean) -> Unit,
+fun MoreScreen(
     onOpenCleanup: () -> Unit,
     onOpenImport: () -> Unit,
     onOpenFileImport: () -> Unit,
@@ -85,47 +86,6 @@ fun SettingsScreen(
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
-        )
-
-        SectionHeader(stringResource(R.string.settings_section_recipe_view))
-
-        RecipeViewModeSetting(
-            mode = preferences.recipeViewMode,
-            onSelectMode = onSelectRecipeViewMode,
-        )
-
-        HorizontalDivider(
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-        )
-
-        SectionHeader(stringResource(R.string.settings_section_library))
-
-        SettingsToggleRow(
-            title = stringResource(R.string.settings_photos_title),
-            checked = preferences.showPhotos,
-            onCheckedChange = onToggleShowPhotos,
-        )
-
-        SettingsToggleRow(
-            title = stringResource(R.string.settings_tags_title),
-            checked = preferences.showTags,
-            onCheckedChange = onToggleShowTags,
-        )
-
-        SettingsToggleRow(
-            title = stringResource(R.string.settings_film_simulation_title),
-            checked = preferences.showFilmSimulation,
-            onCheckedChange = onToggleShowFilmSimulation,
-        )
-
-        SettingsToggleRow(
-            title = stringResource(R.string.settings_rating_title),
-            checked = preferences.showRating,
-            onCheckedChange = onToggleShowRating,
-        )
-
-        HorizontalDivider(
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
         )
 
         SectionHeader(stringResource(R.string.settings_maintenance))
@@ -366,7 +326,7 @@ private fun SettingsCard(
 }
 
 @Composable
-fun SettingsRouteContent(
+fun MoreRouteContent(
     onOpenCleanup: () -> Unit,
     onOpenImport: () -> Unit,
     onOpenFileImport: () -> Unit,
@@ -374,6 +334,106 @@ fun SettingsRouteContent(
     onOpenAbout: () -> Unit,
     contentPadding: PaddingValues,
 ) {
+    MoreScreen(
+        onOpenCleanup = onOpenCleanup,
+        onOpenImport = onOpenImport,
+        onOpenFileImport = onOpenFileImport,
+        onOpenExport = onOpenExport,
+        onOpenAbout = onOpenAbout,
+        contentPadding = contentPadding,
+    )
+}
+
+/**
+ * Settings — the preferences that change how the library reads.
+ *
+ * Its own page, reached by the button every other page carries, with a top bar and a back
+ * arrow like the other subpages.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(
+    preferences: StoredUiPreferences,
+    onSelectRecipeViewMode: (RecipeViewMode) -> Unit,
+    onToggleShowPhotos: (Boolean) -> Unit,
+    onToggleShowTags: (Boolean) -> Unit,
+    onToggleShowFilmSimulation: (Boolean) -> Unit,
+    onToggleShowRating: (Boolean) -> Unit,
+    onBack: () -> Unit,
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxSize()) {
+        TopAppBar(
+            title = {
+                Text(
+                    text = stringResource(R.string.nav_settings),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = FujiIcons.ArrowBack,
+                        contentDescription = stringResource(R.string.action_back),
+                    )
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+            ),
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(bottom = contentPadding.calculateBottomPadding()),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            SectionHeader(stringResource(R.string.settings_section_recipe_view))
+
+            RecipeViewModeSetting(
+                mode = preferences.recipeViewMode,
+                onSelectMode = onSelectRecipeViewMode,
+            )
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            )
+
+            SectionHeader(stringResource(R.string.settings_section_library))
+
+            SettingsToggleRow(
+                title = stringResource(R.string.settings_photos_title),
+                checked = preferences.showPhotos,
+                onCheckedChange = onToggleShowPhotos,
+            )
+
+            SettingsToggleRow(
+                title = stringResource(R.string.settings_tags_title),
+                checked = preferences.showTags,
+                onCheckedChange = onToggleShowTags,
+            )
+
+            SettingsToggleRow(
+                title = stringResource(R.string.settings_film_simulation_title),
+                checked = preferences.showFilmSimulation,
+                onCheckedChange = onToggleShowFilmSimulation,
+            )
+
+            SettingsToggleRow(
+                title = stringResource(R.string.settings_rating_title),
+                checked = preferences.showRating,
+                onCheckedChange = onToggleShowRating,
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsRouteContent(onBack: () -> Unit, contentPadding: PaddingValues) {
     val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
     val viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.factory(container))
     val preferences by viewModel.state.collectAsStateWithLifecycle()
@@ -385,13 +445,25 @@ fun SettingsRouteContent(
         onToggleShowTags = viewModel::onToggleShowTags,
         onToggleShowFilmSimulation = viewModel::onToggleShowFilmSimulation,
         onToggleShowRating = viewModel::onToggleShowRating,
-        onOpenCleanup = onOpenCleanup,
-        onOpenImport = onOpenImport,
-        onOpenFileImport = onOpenFileImport,
-        onOpenExport = onOpenExport,
-        onOpenAbout = onOpenAbout,
+        onBack = onBack,
         contentPadding = contentPadding,
     )
+}
+
+@Preview(name = "More — light", showBackground = true, heightDp = 900)
+@Preview(name = "More — dark", showBackground = true, uiMode = 0x20, heightDp = 900)
+@Composable
+private fun MorePreview() {
+    FujiTheme {
+        MoreScreen(
+            onOpenCleanup = {},
+            onOpenImport = {},
+            onOpenFileImport = {},
+            onOpenExport = {},
+            onOpenAbout = {},
+            contentPadding = PaddingValues(0.dp),
+        )
+    }
 }
 
 @Preview(name = "Settings — light", showBackground = true, heightDp = 900)
@@ -406,11 +478,7 @@ private fun SettingsPreview() {
             onToggleShowTags = {},
             onToggleShowFilmSimulation = {},
             onToggleShowRating = {},
-            onOpenCleanup = {},
-            onOpenImport = {},
-            onOpenFileImport = {},
-            onOpenExport = {},
-            onOpenAbout = {},
+            onBack = {},
             contentPadding = PaddingValues(0.dp),
         )
     }
