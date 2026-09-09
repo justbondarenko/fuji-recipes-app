@@ -32,6 +32,13 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!--
+      Android 16+. Asks that the transfer's progress notification be promoted to a Live Update,
+      which is what puts it on the lock screen and in the status-bar chip. A request, not a
+      guarantee: the user or the manufacturer can refuse promotion, so nothing depends on it.
+    -->
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+
+    <!--
       FEAT-005. Declared required: a device without USB host cannot do the thing the app
       exists for (`steering/tech-stack.md` §4).
     -->

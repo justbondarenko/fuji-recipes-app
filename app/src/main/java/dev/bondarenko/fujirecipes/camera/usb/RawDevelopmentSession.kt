@@ -88,9 +88,16 @@ fun developRaw(
     try {
         output.parentFile?.mkdirs()
         FileOutputStream(output).use { sink ->
-            session.getObject(outputHandle, sink, MAX_CAMERA_JPEG_BYTES) { written, total ->
-                onStage(RawDevelopmentStage.Downloading(written, total))
-            }
+            // Named, not trailing: `getObject` takes a cancellation predicate after the
+            // progress callback, and a trailing lambda would silently bind to that instead.
+            session.getObject(
+                handle = outputHandle,
+                output = sink,
+                maxBytes = MAX_CAMERA_JPEG_BYTES,
+                onProgress = { written, total ->
+                    onStage(RawDevelopmentStage.Downloading(written, total))
+                },
+            )
             sink.fd.sync()
         }
         if (!output.hasJpegSignature()) {
