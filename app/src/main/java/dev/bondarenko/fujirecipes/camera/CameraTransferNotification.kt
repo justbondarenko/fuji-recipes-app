@@ -79,7 +79,7 @@ fun buildTransferNotification(
         builder
             .setStyle(NotificationCompat.ProgressStyle().setProgress(percent))
             .setShortCriticalText("$percent%")
-            .requestPromotedOngoing(true)
+            .setRequestPromotedOngoing(true)
     } else {
         builder.setProgress(100, percent, false)
     }
