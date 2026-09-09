@@ -41,10 +41,8 @@ import dev.bondarenko.fujirecipes.camera.usb.downloadCameraJpeg
 import dev.bondarenko.fujirecipes.camera.usb.downloadCameraRaf
 import dev.bondarenko.fujirecipes.camera.usb.listCameraFiles
 import dev.bondarenko.fujirecipes.camera.usb.listCameraJpegs
-import dev.bondarenko.fujirecipes.camera.usb.listCameraRafs
 import dev.bondarenko.fujirecipes.camera.usb.readCameraThumbnail
 import dev.bondarenko.fujirecipes.core.store.CameraMediaCache
-import dev.bondarenko.fujirecipes.core.store.RawDevelopmentCache
 import java.io.File
 import java.io.OutputStream
 import dev.bondarenko.fujirecipes.camera.usb.RawDevelopmentResult
@@ -419,22 +417,6 @@ class CameraController(
     suspend fun downloadCameraPhoto(
         media: CameraMediaObject,
         cache: CameraMediaCache,
-        onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
-    ): File = lock.withLock {
-        val open = mediaSession()
-        withContext(Dispatchers.IO) { cache.download(open, media, onProgress) }
-    }
-
-    suspend fun listCameraRafs(
-        onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
-    ): List<CameraMediaObject> = lock.withLock {
-        val open = mediaSession()
-        withContext(Dispatchers.IO) { listCameraRafs(open, onProgress) }
-    }
-
-    suspend fun downloadCameraRaf(
-        media: CameraMediaObject,
-        cache: RawDevelopmentCache,
         onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
     ): File = lock.withLock {
         val open = mediaSession()

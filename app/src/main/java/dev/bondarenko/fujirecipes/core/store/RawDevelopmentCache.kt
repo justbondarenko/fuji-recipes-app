@@ -1,11 +1,6 @@
 package dev.bondarenko.fujirecipes.core.store
 
-import dev.bondarenko.fujirecipes.camera.ptp.PtpSession
-import dev.bondarenko.fujirecipes.camera.usb.CameraMediaError
-import dev.bondarenko.fujirecipes.camera.usb.CameraMediaFailure
-import dev.bondarenko.fujirecipes.camera.usb.CameraMediaObject
 import java.io.File
-import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -50,49 +45,6 @@ class RawDevelopmentCache(private val directory: File) {
 
     fun outputFile(source: File): File =
         File(directory, "${source.nameWithoutExtension}-developed.jpg")
-
-    /** Streams a selected card object into the same validated cache as the phone picker. */
-    fun download(
-        session: PtpSession,
-        media: CameraMediaObject,
-        onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
-    ): File {
-        val expected = media.info.compressedSize
-        if (expected > MAX_RAF_BYTES) {
-            throw CameraMediaError(
-                CameraMediaFailure.TOO_LARGE,
-                "${media.info.filename} is larger than the 128 MB RAF limit.",
-            )
-        }
-        val safeName = media.info.filename.substringBeforeLast('.').sanitize().ifEmpty { "selected" }
-        val partial = File(directory, "$safeName.raf.part")
-        val target = File(directory, "$safeName.raf")
-        partial.delete()
-        try {
-            val written = FileOutputStream(partial).use { output ->
-                session.getObject(media.handle, output, MAX_RAF_BYTES, onProgress).also {
-                    output.fd.sync()
-                }
-            }
-            if (written != expected) {
-                throw CameraMediaError(
-                    CameraMediaFailure.INCOMPLETE_TRANSFER,
-                    "${media.info.filename} declared $expected bytes but transferred $written.",
-                )
-            }
-            if (!partial.hasRafSignature()) {
-                throw IllegalArgumentException(
-                    "${media.info.filename} did not contain a Fujifilm RAF signature.",
-                )
-            }
-            target.delete()
-            if (!partial.renameTo(target)) error("The completed RAF could not be moved into the cache.")
-            return target
-        } catch (error: Exception) {
-            partial.delete()
-            throw error
-        }
-    }
 
     fun clear() {
         directory.listFiles()?.forEach { it.delete() }

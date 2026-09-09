@@ -11,11 +11,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,7 +37,6 @@ import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.camera.CameraState
 import dev.bondarenko.fujirecipes.camera.plan.UsbMode
-import dev.bondarenko.fujirecipes.camera.usb.CameraMediaObject
 import dev.bondarenko.fujirecipes.camera.usb.RawDevelopmentStage
 import dev.bondarenko.fujirecipes.core.share.ShareFile
 import dev.bondarenko.fujirecipes.ui.common.FujiCenteredLoading
@@ -58,8 +55,6 @@ fun RawDevelopmentScreen(
     camera: CameraState,
     onBack: () -> Unit,
     onChooseRaf: () -> Unit,
-    onBrowseCameraCard: () -> Unit,
-    onSelectCameraRaf: (CameraMediaObject) -> Unit,
     onChooseAnotherRaf: () -> Unit,
     onConnect: () -> Unit,
     onRender: () -> Unit,
@@ -106,8 +101,6 @@ fun RawDevelopmentScreen(
                         body = stringResource(R.string.raw_choose_body, state.recipe?.name.orEmpty()),
                         primaryLabel = stringResource(R.string.raw_action_choose),
                         onPrimary = onChooseRaf,
-                        secondaryLabel = stringResource(R.string.raw_action_browse_camera),
-                        onSecondary = onBrowseCameraCard,
                         modifier = Modifier.fillParentMaxSize(),
                     )
                 }
@@ -117,58 +110,6 @@ fun RawDevelopmentScreen(
                         label = stringResource(R.string.raw_importing),
                         progress = step.total?.takeIf { it > 0 }?.let { total ->
                             { step.written.toFloat() / total.toFloat() }
-                        },
-                        modifier = Modifier.fillParentMaxSize(),
-                    )
-                }
-
-                RawDevelopmentStep.LoadingCameraCard -> item {
-                    FujiCenteredLoading(
-                        label = stringResource(R.string.raw_camera_scanning),
-                        modifier = Modifier.fillParentMaxSize(),
-                    )
-                }
-
-                is RawDevelopmentStep.CameraBrowser -> {
-                    if (step.rafs.isEmpty()) {
-                        item {
-                            LibraryPanel(
-                                title = stringResource(R.string.raw_camera_empty_title),
-                                body = stringResource(R.string.raw_camera_empty_body),
-                                primaryLabel = stringResource(R.string.raw_action_choose),
-                                onPrimary = onChooseRaf,
-                            )
-                        }
-                    } else {
-                        item {
-                            Text(
-                                stringResource(R.string.raw_camera_choose_title),
-                                style = MaterialTheme.typography.titleLarge,
-                            )
-                        }
-                        items(step.rafs, key = { it.handle }) { media ->
-                            CameraRafRow(media = media, onSelect = { onSelectCameraRaf(media) })
-                        }
-                    }
-                }
-
-                is RawDevelopmentStep.DownloadingFromCamera -> item {
-                    FujiCenteredLoading(
-                        label = stringResource(R.string.raw_camera_downloading, step.filename),
-                        progress = {
-                            step.written.toFloat() / step.total.coerceAtLeast(1).toFloat()
-                        },
-                        modifier = Modifier.fillParentMaxSize(),
-                    )
-                }
-
-                is RawDevelopmentStep.AwaitingModeSwitch -> item {
-                    LibraryPanel(
-                        title = stringResource(R.string.raw_switch_mode_title),
-                        body = if (step.sawDisconnect) {
-                            stringResource(R.string.raw_switch_mode_reconnect)
-                        } else {
-                            stringResource(R.string.raw_switch_mode_body)
                         },
                         modifier = Modifier.fillParentMaxSize(),
                     )
@@ -294,30 +235,6 @@ private fun RafSummary(state: RawDevelopmentUiState) {
 }
 
 @Composable
-private fun CameraRafRow(media: CameraMediaObject, onSelect: () -> Unit) {
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(media.info.filename, style = MaterialTheme.typography.titleMedium)
-            Text(
-                stringResource(R.string.raw_file_size_mb, media.info.compressedSize / (1024.0 * 1024.0)),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Button(onClick = onSelect, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.raw_action_use_file))
-            }
-        }
-    }
-}
-
-@Composable
 private fun CameraReadiness(
     camera: CameraState,
     onConnect: () -> Unit,
@@ -422,8 +339,6 @@ fun RawDevelopmentRouteContent(
         camera = camera,
         onBack = onBack,
         onChooseRaf = { chooseRaf.launch(arrayOf("*/*")) },
-        onBrowseCameraCard = viewModel::browseCameraCard,
-        onSelectCameraRaf = viewModel::selectCameraRaf,
         onChooseAnotherRaf = viewModel::chooseAnotherRaf,
         onConnect = viewModel::connect,
         onRender = viewModel::render,

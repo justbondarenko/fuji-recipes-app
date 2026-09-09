@@ -209,7 +209,7 @@ fun FujiNavHost(
     ) {
         composable<LibraryRoute> {
             LibraryRouteContent(
-                onOpenRecipe = {},
+                onOpenRecipe = { id -> navController.navigate(RecipeViewRoute(id)) },
                 onEditRecipe = { id -> navController.navigate(RecipeEditorRoute(id)) },
                 onCreateRecipe = { navController.navigate(RecipeEditorRoute(null)) },
                 onImportFromCamera = { navController.navigate(ImportRoute) },
@@ -225,6 +225,7 @@ fun FujiNavHost(
                 onBack = { navController.popBackStack() },
                 onEdit = { navController.navigate(RecipeEditorRoute(route.id)) },
                 onDevelopRaw = { navController.navigate(RawDevelopmentRoute(route.id)) },
+                onNavigateToRecipe = { targetId -> navController.navigate(RecipeViewRoute(targetId)) },
             )
         }
 

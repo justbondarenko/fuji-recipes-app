@@ -1,5 +1,11 @@
 package dev.bondarenko.fujirecipes.ui.recipe
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.SplitButtonDefaults
+import androidx.compose.material3.SplitButtonLayout
+import androidx.compose.ui.graphics.graphicsLayer
+import dev.bondarenko.fujirecipes.ui.theme.icons.KeyboardArrowDown
 import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
@@ -14,6 +20,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -33,8 +40,10 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.Diamond
 import dev.bondarenko.fujirecipes.ui.theme.icons.DiscoverTune
 import dev.bondarenko.fujirecipes.ui.theme.icons.Edit
 import dev.bondarenko.fujirecipes.ui.theme.icons.Exposure
-import dev.bondarenko.fujirecipes.ui.theme.icons.FileExport
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.ImagesMode
+import dev.bondarenko.fujirecipes.ui.theme.icons.MoreVert
+import dev.bondarenko.fujirecipes.ui.theme.icons.Share
 import dev.bondarenko.fujirecipes.ui.theme.icons.Grain
 import dev.bondarenko.fujirecipes.ui.theme.icons.Palette
 import dev.bondarenko.fujirecipes.ui.theme.icons.PhotoCamera
@@ -43,20 +52,17 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.Tonality
 import dev.bondarenko.fujirecipes.ui.theme.icons.Tonality2
 import dev.bondarenko.fujirecipes.ui.theme.icons.TransitionDissolve
 import dev.bondarenko.fujirecipes.ui.theme.icons.WbAuto
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.HorizontalFloatingToolbar
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.toShape
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -67,7 +73,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
 import androidx.compose.material3.carousel.rememberCarouselState
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
@@ -118,77 +123,6 @@ import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
 import dev.bondarenko.fujirecipes.ui.recipe.compare.RecipeCompareBottomSheet
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
-
-/**
- * Recipe view presented inside a Material 3 Modal Bottom Sheet.
- *
- * It opens taking up to 80% screen space (partially expanded) and seamlessly expands
- * to full screen as the user scrolls through the Bento Grid parameters.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun RecipeViewBottomSheet(
-    recipeId: String,
-    onDismiss: () -> Unit,
-    onEdit: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    onNavigateToRecipe: ((String) -> Unit)? = null,
-    onDevelopRaw: (String) -> Unit = {},
-) {
-    val context = LocalContext.current
-    val container = (context.applicationContext as FujiRecipesApp).container
-    val viewModel: RecipeViewModel =
-        viewModel(factory = RecipeViewModel.factory(container, recipeId), key = recipeId)
-    val state by viewModel.state.collectAsStateWithLifecycle()
-
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scope = rememberCoroutineScope()
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-        modifier = modifier,
-    ) {
-        val camera by container.cameraController.state.collectAsStateWithLifecycle()
-        var writeOpen by remember { mutableStateOf(false) }
-        var compareOpen by remember { mutableStateOf(false) }
-
-        RecipeViewContent(
-            state = state,
-            onClose = onDismiss,
-            onEdit = { onEdit(recipeId) },
-            onChangedOnlyChange = viewModel::onChangedOnlyChange,
-            onRatingChange = viewModel::onRatingChange,
-            onTagsChange = viewModel::onTagsChange,
-            onWriteToCamera = { writeOpen = true },
-            canWriteToCamera = camera.canWrite,
-            onExportRecipe = {
-                viewModel.buildExport { filename, content ->
-                    ShareFile.share(context, filename, content)
-                }
-            },
-            onCompareRecipe = { compareOpen = true },
-            onDevelopRaw = { onDevelopRaw(recipeId) },
-        )
-
-        if (writeOpen) {
-            WriteSheetHost(recipeId = recipeId, onDismiss = { writeOpen = false })
-        }
-
-        if (compareOpen) {
-            RecipeCompareBottomSheet(
-                baseRecipeId = recipeId,
-                onDismiss = { compareOpen = false },
-                onNavigateToRecipe = { targetId ->
-                    compareOpen = false
-                    onNavigateToRecipe?.invoke(targetId)
-                },
-            )
-        }
-    }
-}
 
 /**
  * Full-screen Recipe View Screen (used for deep linking or standalone view routes).
@@ -321,8 +255,8 @@ fun RecipeViewContent(
 }
 
 /**
- * Consolidated floating actions: Floating Toolbar (Edit, Copy as text, Export)
- * and adjacent FAB (Write to camera).
+ * Split button: writing to the camera is the one action worth a label, and everything
+ * else hangs off the trailing menu.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -341,58 +275,16 @@ private fun RecipeFloatingToolbar(
     val clipboardManager = LocalClipboardManager.current
     val copiedMessage = stringResource(R.string.recipe_copied)
     val tooltipState = rememberTooltipState(isPersistent = true)
+    var menuOpen by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
-    Row(
+    val height = SplitButtonDefaults.MediumContainerHeight
+
+    Box(
         modifier = modifier
             .padding(horizontal = 16.dp, vertical = 16.dp)
             .navigationBarsPadding(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        HorizontalFloatingToolbar(expanded = true) {
-            IconButton(onClick = onEdit) {
-                Icon(
-                    imageVector = FujiIcons.Edit,
-                    contentDescription = stringResource(R.string.action_edit),
-                )
-            }
-
-            IconButton(onClick = onCompareRecipe) {
-                Icon(
-                    imageVector = FujiIcons.TextCompare,
-                    contentDescription = stringResource(R.string.action_compare_recipe),
-                )
-            }
-
-            IconButton(
-                onClick = {
-                    val text = RecipeTextFormatter.format(recipe, groups)
-                    clipboardManager.setText(AnnotatedString(text))
-                    Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
-                },
-            ) {
-                Icon(
-                    imageVector = FujiIcons.ContentCopy,
-                    contentDescription = stringResource(R.string.action_copy_recipe),
-                )
-            }
-
-            IconButton(onClick = onExportRecipe) {
-                Icon(
-                    imageVector = FujiIcons.FileExport,
-                    contentDescription = stringResource(R.string.action_export_recipe),
-                )
-            }
-
-            IconButton(onClick = onDevelopRaw) {
-                Icon(
-                    imageVector = FujiIcons.DiscoverTune,
-                    contentDescription = stringResource(R.string.action_develop_raw),
-                )
-            }
-        }
-
         TooltipBox(
             positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
             tooltip = {
@@ -402,39 +294,128 @@ private fun RecipeFloatingToolbar(
             },
             state = tooltipState,
         ) {
-            FloatingActionButton(
-                onClick = {
-                    if (canWriteToCamera) {
-                        onWriteToCamera()
-                    } else {
-                        coroutineScope.launch {
-                            tooltipState.show()
+            SplitButtonLayout(
+                leadingButton = {
+                    // Styled as disabled but still clickable when no camera is attached: the
+                    // tap is what raises the tooltip explaining why, which a disabled button
+                    // could never do.
+                    SplitButtonDefaults.LeadingButton(
+                        onClick = {
+                            if (canWriteToCamera) {
+                                onWriteToCamera()
+                            } else {
+                                coroutineScope.launch { tooltipState.show() }
+                            }
+                        },
+                        shapes = SplitButtonDefaults.leadingButtonShapesFor(height),
+                        contentPadding = SplitButtonDefaults.MediumLeadingButtonContentPadding,
+                        colors = if (canWriteToCamera) {
+                            ButtonDefaults.buttonColors()
+                        } else {
+                            // The M3 disabled tokens, applied to an enabled button: it looks
+                            // unavailable but still answers the tap with the tooltip.
+                            ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.onSurface
+                                    .copy(alpha = 0.12f),
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                                    .copy(alpha = 0.38f),
+                            )
+                        },
+                        modifier = Modifier.heightIn(height),
+                    ) {
+                        Icon(
+                            imageVector = FujiIcons.PhotoCamera,
+                            contentDescription = null,
+                            modifier = Modifier.size(ButtonDefaults.iconSizeFor(height)),
+                        )
+                        Spacer(Modifier.size(ButtonDefaults.iconSpacingFor(height)))
+                        Text(
+                            text = stringResource(R.string.action_upload),
+                            style = ButtonDefaults.textStyleFor(height),
+                        )
+                    }
+                },
+                trailingButton = {
+                    // The menu lives inside the trailing button so it drops from the control
+                    // that opened it rather than from the layout's edge.
+                    Box {
+                        SplitButtonDefaults.TrailingButton(
+                            checked = menuOpen,
+                            onCheckedChange = { menuOpen = it },
+                            shapes = SplitButtonDefaults.trailingButtonShapesFor(height),
+                            contentPadding = SplitButtonDefaults.MediumTrailingButtonContentPadding,
+                            modifier = Modifier.heightIn(height),
+                        ) {
+                            val rotation: Float by animateFloatAsState(
+                                targetValue = if (menuOpen) 180f else 0f,
+                                label = "menu chevron",
+                            )
+                            Icon(
+                                imageVector = FujiIcons.KeyboardArrowDown,
+                                contentDescription = stringResource(R.string.action_more),
+                                modifier = Modifier
+                                    .size(SplitButtonDefaults.MediumTrailingButtonIconSize)
+                                    .graphicsLayer { rotationZ = rotation },
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = menuOpen,
+                            onDismissRequest = { menuOpen = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_edit)) },
+                                leadingIcon = { Icon(FujiIcons.Edit, contentDescription = null) },
+                                onClick = {
+                                    menuOpen = false
+                                    onEdit()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.raw_development_title)) },
+                                leadingIcon = {
+                                    Icon(FujiIcons.ImagesMode, contentDescription = null)
+                                },
+                                onClick = {
+                                    menuOpen = false
+                                    onDevelopRaw()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_share)) },
+                                leadingIcon = { Icon(FujiIcons.Share, contentDescription = null) },
+                                onClick = {
+                                    menuOpen = false
+                                    onExportRecipe()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_copy)) },
+                                leadingIcon = {
+                                    Icon(FujiIcons.ContentCopy, contentDescription = null)
+                                },
+                                onClick = {
+                                    menuOpen = false
+                                    val text = RecipeTextFormatter.format(recipe, groups)
+                                    clipboardManager.setText(AnnotatedString(text))
+                                    Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT)
+                                        .show()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.action_compare)) },
+                                leadingIcon = {
+                                    Icon(FujiIcons.TextCompare, contentDescription = null)
+                                },
+                                onClick = {
+                                    menuOpen = false
+                                    onCompareRecipe()
+                                },
+                            )
                         }
                     }
                 },
-                shape = RoundedCornerShape(16.dp),
-                containerColor = if (canWriteToCamera) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
-                },
-                contentColor = if (canWriteToCamera) {
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                },
-                elevation = FloatingActionButtonDefaults.elevation(
-                    defaultElevation = 3.dp,
-                    pressedElevation = 6.dp,
-                ),
-                modifier = Modifier.size(56.dp),
-            ) {
-                Icon(
-                    imageVector = FujiIcons.PhotoCamera,
-                    contentDescription = stringResource(R.string.action_write_to_camera),
-                    modifier = Modifier.size(24.dp),
-                )
-            }
+            )
         }
     }
 }
@@ -958,6 +939,7 @@ fun RecipeViewRouteContent(
     onBack: () -> Unit,
     onEdit: () -> Unit,
     onDevelopRaw: () -> Unit,
+    onNavigateToRecipe: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val container = (context.applicationContext as FujiRecipesApp).container
@@ -992,7 +974,14 @@ fun RecipeViewRouteContent(
     }
 
     if (compareOpen) {
-        RecipeCompareBottomSheet(baseRecipeId = recipeId, onDismiss = { compareOpen = false })
+        RecipeCompareBottomSheet(
+            baseRecipeId = recipeId,
+            onDismiss = { compareOpen = false },
+            onNavigateToRecipe = { targetId ->
+                compareOpen = false
+                onNavigateToRecipe(targetId)
+            },
+        )
     }
 }
 
