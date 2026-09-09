@@ -1,5 +1,22 @@
 package dev.bondarenko.fujirecipes.ui.raw
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.toShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.heightIn
+import dev.bondarenko.fujirecipes.camera.usb.RawDevelopmentResult
+import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
+import dev.bondarenko.fujirecipes.ui.theme.icons.ImagesMode
+import dev.bondarenko.fujirecipes.ui.theme.icons.Warning
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -10,15 +27,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -40,7 +53,6 @@ import dev.bondarenko.fujirecipes.camera.plan.UsbMode
 import dev.bondarenko.fujirecipes.camera.usb.RawDevelopmentStage
 import dev.bondarenko.fujirecipes.core.share.ShareFile
 import dev.bondarenko.fujirecipes.ui.common.FujiCenteredLoading
-import dev.bondarenko.fujirecipes.ui.library.LibraryPanel
 import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowBack
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import kotlinx.coroutines.Dispatchers
@@ -48,7 +60,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun RawDevelopmentScreen(
     state: RawDevelopmentUiState,
@@ -80,202 +92,219 @@ fun RawDevelopmentScreen(
             ),
         )
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                top = 8.dp,
-                bottom = 24.dp + contentPadding.calculateBottomPadding(),
-            ),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            when (val step = state.step) {
-                RawDevelopmentStep.Loading -> item {
-                    FujiCenteredLoading(modifier = Modifier.fillParentMaxSize())
-                }
+        val panelModifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = contentPadding.calculateBottomPadding())
 
-                RawDevelopmentStep.ChooseRaf -> item {
-                    LibraryPanel(
-                        title = stringResource(R.string.raw_choose_title),
-                        body = stringResource(R.string.raw_choose_body, state.recipe?.name.orEmpty()),
-                        primaryLabel = stringResource(R.string.raw_action_choose),
-                        onPrimary = onChooseRaf,
-                        modifier = Modifier.fillParentMaxSize(),
-                    )
-                }
+        when (val step = state.step) {
+            RawDevelopmentStep.Loading -> FujiCenteredLoading(modifier = panelModifier)
 
-                is RawDevelopmentStep.Importing -> item {
-                    FujiCenteredLoading(
-                        label = stringResource(R.string.raw_importing),
-                        progress = step.total?.takeIf { it > 0 }?.let { total ->
-                            { step.written.toFloat() / total.toFloat() }
-                        },
-                        modifier = Modifier.fillParentMaxSize(),
-                    )
-                }
+            RawDevelopmentStep.ChooseRaf -> FujiIconPanel(
+                icon = FujiIcons.ImagesMode,
+                shape = MaterialShapes.Pill.toShape(),
+                title = stringResource(R.string.raw_choose_title),
+                body = stringResource(R.string.raw_choose_body, state.recipe?.name.orEmpty()),
+                actionLabel = stringResource(R.string.raw_action_choose),
+                onAction = onChooseRaf,
+                modifier = panelModifier,
+            )
 
-                RawDevelopmentStep.Ready -> {
-                    item { RafSummary(state) }
-                    item {
-                        CameraReadiness(
-                            camera = camera,
-                            onConnect = onConnect,
-                            onRender = onRender,
-                        )
-                    }
-                    item {
-                        OutlinedButton(
-                            onClick = onChooseAnotherRaf,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(stringResource(R.string.raw_action_choose_another))
-                        }
-                    }
-                }
+            is RawDevelopmentStep.Importing -> FujiCenteredLoading(
+                label = stringResource(R.string.raw_importing),
+                progress = step.total?.takeIf { it > 0 }?.let { total ->
+                    { step.written.toFloat() / total.toFloat() }
+                },
+                modifier = panelModifier,
+            )
 
-                is RawDevelopmentStep.Running -> item {
-                    val progress = step.stage.progress()
-                    FujiCenteredLoading(
-                        label = stageLabel(step.stage),
-                        progress = progress,
-                        modifier = Modifier.fillParentMaxSize(),
-                    )
-                }
+            RawDevelopmentStep.Ready -> CameraReadiness(
+                camera = camera,
+                rafName = state.raf?.name.orEmpty(),
+                onConnect = onConnect,
+                onRender = onRender,
+                onChooseAnotherRaf = onChooseAnotherRaf,
+                modifier = panelModifier,
+            )
 
-                is RawDevelopmentStep.CalibrationRequired -> item {
-                    LibraryPanel(
-                        title = stringResource(R.string.raw_calibration_title, step.cameraModel),
-                        body = stringResource(R.string.raw_calibration_body, step.profile.size),
-                        primaryLabel = stringResource(R.string.raw_action_share_profile),
-                        onPrimary = {
-                            onShareProfile(
-                                "${step.cameraModel.safeFilename()}-d185.bin",
-                                step.profile,
-                            )
-                        },
-                        secondaryLabel = stringResource(R.string.raw_action_choose_another),
-                        onSecondary = onChooseAnotherRaf,
-                        modifier = Modifier.fillParentMaxSize(),
-                    )
-                }
+            is RawDevelopmentStep.Running -> FujiCenteredLoading(
+                label = stageLabel(step.stage),
+                progress = step.stage.progress(),
+                modifier = panelModifier,
+            )
 
-                is RawDevelopmentStep.Complete -> {
-                    item {
-                        AsyncImage(
-                            model = step.result.jpeg,
-                            contentDescription = stringResource(R.string.raw_result_description),
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(360.dp),
-                        )
-                    }
-                    item {
-                        LibraryPanel(
-                            title = stringResource(R.string.raw_complete_title),
-                            body = if (step.result.width != null && step.result.height != null) {
-                                stringResource(
-                                    R.string.raw_complete_body_dimensions,
-                                    step.result.width,
-                                    step.result.height,
-                                    step.result.patch.appliedFields.size,
-                                    step.result.patch.preservedFields.size,
-                                )
-                            } else {
-                                stringResource(
-                                    R.string.raw_complete_body,
-                                    step.result.patch.appliedFields.size,
-                                    step.result.patch.preservedFields.size,
-                                )
-                            },
-                            primaryLabel = stringResource(R.string.raw_action_save_jpeg),
-                            onPrimary = { onSave(step.result.jpeg) },
-                            secondaryLabel = stringResource(R.string.raw_action_choose_another),
-                            onSecondary = onChooseAnotherRaf,
-                        )
-                    }
-                }
+            is RawDevelopmentStep.CalibrationRequired -> FujiIconPanel(
+                icon = FujiIcons.Warning,
+                shape = MaterialShapes.Pill.toShape(),
+                title = stringResource(R.string.raw_calibration_title, step.cameraModel),
+                body = stringResource(R.string.raw_calibration_body, step.profile.size),
+                actionLabel = stringResource(R.string.raw_action_share_profile),
+                onAction = {
+                    onShareProfile("${step.cameraModel.safeFilename()}-d185.bin", step.profile)
+                },
+                modifier = panelModifier,
+                extra = { ChooseAnotherRafButton(onChooseAnotherRaf) },
+            )
 
-                is RawDevelopmentStep.Failed -> item {
-                    LibraryPanel(
-                        title = stringResource(R.string.raw_failed_title),
-                        body = step.message,
-                        primaryLabel = stringResource(R.string.raw_action_try_again),
-                        onPrimary = onRetry,
-                        secondaryLabel = stringResource(R.string.raw_action_choose_another),
-                        onSecondary = onChooseAnotherRaf,
-                        modifier = Modifier.fillParentMaxSize(),
-                    )
-                }
-            }
-        }
-    }
-}
+            is RawDevelopmentStep.Complete -> RawResultPanel(
+                result = step.result,
+                onSave = onSave,
+                onChooseAnotherRaf = onChooseAnotherRaf,
+                modifier = panelModifier,
+            )
 
-@Composable
-private fun RafSummary(state: RawDevelopmentUiState) {
-    Card(
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(state.recipe?.name.orEmpty(), style = MaterialTheme.typography.titleLarge)
-            Text(
-                state.raf?.name.orEmpty(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            is RawDevelopmentStep.Failed -> FujiIconPanel(
+                icon = FujiIcons.Warning,
+                shape = MaterialShapes.Pill.toShape(),
+                title = stringResource(R.string.raw_failed_title),
+                body = step.message,
+                actionLabel = stringResource(R.string.raw_action_try_again),
+                onAction = onRetry,
+                modifier = panelModifier,
+                extra = { ChooseAnotherRafButton(onChooseAnotherRaf) },
             )
         }
     }
 }
 
+/**
+ * The rendered JPEG standing in for the panel's icon: the picture is what the page has to
+ * say, so it takes the shape's place and the rest of the layout is unchanged.
+ */
+@Composable
+private fun RawResultPanel(
+    result: RawDevelopmentResult,
+    onSave: (File) -> Unit,
+    onChooseAnotherRaf: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 28.dp, vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        AsyncImage(
+            model = result.jpeg,
+            contentDescription = stringResource(R.string.raw_result_description),
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(320.dp)
+                .clip(RoundedCornerShape(24.dp)),
+        )
+        Text(
+            text = stringResource(R.string.raw_complete_title),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            text = if (result.width != null && result.height != null) {
+                stringResource(
+                    R.string.raw_complete_body_dimensions,
+                    result.width,
+                    result.height,
+                    result.patch.appliedFields.size,
+                    result.patch.preservedFields.size,
+                )
+            } else {
+                stringResource(
+                    R.string.raw_complete_body,
+                    result.patch.appliedFields.size,
+                    result.patch.preservedFields.size,
+                )
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Button(
+            onClick = { onSave(result.jpeg) },
+            modifier = Modifier
+                .padding(top = 8.dp)
+                .heightIn(min = ButtonDefaults.MediumContainerHeight),
+            contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.MediumContainerHeight),
+        ) {
+            Text(stringResource(R.string.raw_action_save_jpeg))
+        }
+        ChooseAnotherRafButton(onChooseAnotherRaf)
+    }
+}
+
+@Composable
+private fun ChooseAnotherRafButton(onClick: () -> Unit) {
+    TextButton(onClick = onClick) {
+        Text(stringResource(R.string.raw_action_choose_another))
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun CameraReadiness(
     camera: CameraState,
+    rafName: String,
     onConnect: () -> Unit,
     onRender: () -> Unit,
+    onChooseAnotherRaf: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    val title: String
+    val body: String
+    var actionLabel: String? = null
+    var action: (() -> Unit)? = null
+
     when (camera) {
         is CameraState.Connected -> {
             if (camera.usbMode == UsbMode.RAW_CONVERSION || camera.usbMode == UsbMode.UNREPORTED) {
-                LibraryPanel(
-                    title = stringResource(R.string.raw_camera_ready, camera.identity.model),
-                    body = stringResource(R.string.raw_camera_ready_body),
-                    primaryLabel = stringResource(R.string.raw_action_render),
-                    onPrimary = onRender,
-                )
+                title = stringResource(R.string.raw_camera_ready, camera.identity.model)
+                body = stringResource(R.string.raw_camera_ready_body)
+                actionLabel = stringResource(R.string.raw_action_render)
+                action = onRender
             } else {
-                LibraryPanel(
-                    title = stringResource(R.string.raw_camera_not_ready),
-                    body = stringResource(R.string.raw_camera_wrong_mode_body),
-                )
+                title = stringResource(R.string.raw_camera_not_ready)
+                body = stringResource(R.string.raw_camera_wrong_mode_body)
             }
         }
 
-        CameraState.Connecting -> LibraryPanel(
-            title = stringResource(R.string.camera_chip_connecting),
-            body = stringResource(R.string.raw_camera_connecting_body),
-        )
+        CameraState.Connecting -> {
+            title = stringResource(R.string.camera_chip_connecting)
+            body = stringResource(R.string.raw_camera_connecting_body)
+        }
 
-        is CameraState.Error -> LibraryPanel(
-            title = stringResource(R.string.raw_camera_not_ready),
-            body = camera.message,
-            primaryLabel = stringResource(R.string.camera_action_connect),
-            onPrimary = onConnect,
-        )
+        is CameraState.Error -> {
+            title = stringResource(R.string.raw_camera_not_ready)
+            body = camera.message
+            actionLabel = stringResource(R.string.camera_action_connect)
+            action = onConnect
+        }
 
-        else -> LibraryPanel(
-            title = stringResource(R.string.raw_camera_not_ready),
-            body = stringResource(R.string.raw_camera_not_ready_body),
-            primaryLabel = stringResource(R.string.camera_action_connect),
-            onPrimary = onConnect,
-        )
+        else -> {
+            title = stringResource(R.string.raw_camera_not_ready)
+            body = stringResource(R.string.raw_camera_not_ready_body)
+            actionLabel = stringResource(R.string.camera_action_connect)
+            action = onConnect
+        }
     }
+
+    FujiIconPanel(
+        icon = FujiIcons.ImagesMode,
+        shape = MaterialShapes.Pill.toShape(),
+        title = title,
+        body = body,
+        actionLabel = actionLabel,
+        onAction = action,
+        modifier = modifier,
+        extra = {
+            Text(
+                text = rafName,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            ChooseAnotherRafButton(onChooseAnotherRaf)
+        },
+    )
 }
 
 @Composable
