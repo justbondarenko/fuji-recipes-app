@@ -123,7 +123,7 @@ fun buildConnectedNotification(
     mode: UsbMode,
 ): Notification {
     val builder = NotificationCompat.Builder(context, TRANSFER_CHANNEL_ID)
-        .setSmallIcon(R.drawable.ic_notification_transfer)
+        .setSmallIcon(connectedNotificationIcon(mode))
         .setContentTitle(cameraLabel)
         .setContentText(context.getString(modeDescription(mode)))
         .setOngoing(true)
@@ -154,6 +154,17 @@ fun buildConnectedNotification(
     }
 
     return builder.build()
+}
+
+/** The status-bar silhouette follows what the connected camera can currently do. */
+internal fun connectedNotificationIcon(mode: UsbMode): Int = when (mode) {
+    UsbMode.CARD_READER -> R.drawable.ic_notification_storage
+    UsbMode.RAW_CONVERSION,
+    UsbMode.TETHER_SHOOTING,
+    UsbMode.WEBCAM,
+    UsbMode.UNRECOGNISED,
+    UsbMode.UNREPORTED,
+    -> R.drawable.ic_notification_camera
 }
 
 /** What the camera can be used for right now, in the user's terms rather than the protocol's. */
