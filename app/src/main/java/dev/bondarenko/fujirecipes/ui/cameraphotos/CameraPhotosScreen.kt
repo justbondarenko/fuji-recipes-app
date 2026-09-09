@@ -3,9 +3,8 @@ package dev.bondarenko.fujirecipes.ui.cameraphotos
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,23 +15,26 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,6 +59,7 @@ import dev.bondarenko.fujirecipes.camera.usb.CameraMediaType
 import dev.bondarenko.fujirecipes.camera.usb.mediaType
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.theme.icons.CameraRoll
+import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowDownwardAlt
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.LinkedCamera
 import dev.bondarenko.fujirecipes.ui.theme.icons.Refresh
@@ -91,7 +94,8 @@ fun CameraPhotosScreen(
     }
 
     val actionsEnabled = !state.isLoading && state.download == null
-    Column(modifier = modifier.fillMaxSize().padding(contentPadding)) {
+    Box(modifier = modifier.fillMaxSize().padding(contentPadding)) {
+        Column(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -116,23 +120,29 @@ fun CameraPhotosScreen(
 
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
         ) {
-            CameraFileFilter.entries.forEach { filter ->
-                FilterChip(
-                    selected = state.filter == filter,
-                    onClick = { onFilter(filter) },
+            CameraFileFilter.entries.forEachIndexed { index, filter ->
+                ToggleButton(
+                    checked = state.filter == filter,
+                    onCheckedChange = { onFilter(filter) },
                     enabled = actionsEnabled,
-                    label = {
-                        Text(
-                            when (filter) {
-                                CameraFileFilter.ALL -> stringResource(R.string.camera_photos_filter_all)
-                                CameraFileFilter.JPEG -> stringResource(R.string.camera_photos_jpeg)
-                                CameraFileFilter.RAW -> stringResource(R.string.camera_photos_raw)
-                            },
-                        )
+                    shapes = when (index) {
+                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                        CameraFileFilter.entries.lastIndex ->
+                            ButtonGroupDefaults.connectedTrailingButtonShapes()
+                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
                     },
-                )
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(
+                        when (filter) {
+                            CameraFileFilter.ALL -> stringResource(R.string.camera_photos_filter_all)
+                            CameraFileFilter.JPEG -> stringResource(R.string.camera_photos_jpeg)
+                            CameraFileFilter.RAW -> stringResource(R.string.camera_photos_raw)
+                        },
+                    )
+                }
             }
         }
 
@@ -222,10 +232,10 @@ fun CameraPhotosScreen(
 
             else -> LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                items(state.filteredFiles, key = { it.handle }) { file ->
+                itemsIndexed(state.filteredFiles, key = { _, file -> file.handle }) { index, file ->
                     LaunchedEffect(file.handle, state.thumbnails[file.handle]) {
                         if (state.thumbnails[file.handle] == null) onLoadThumbnail(file.handle)
                     }
@@ -234,49 +244,64 @@ fun CameraPhotosScreen(
                         thumbnail = state.thumbnails[file.handle],
                         selected = file.handle in state.selectedHandles,
                         enabled = actionsEnabled,
+                        index = index,
+                        count = state.filteredFiles.size,
                         onToggle = { onToggleFile(file.handle) },
                     )
                 }
             }
         }
 
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            tonalElevation = 3.dp,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
+        state.download?.let { download ->
             Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                state.download?.let { download ->
-                    val progress = if (download.totalBytes > 0) {
-                        (download.written.toFloat() / download.totalBytes).coerceIn(0f, 1f)
-                    } else 0f
-                    LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth())
-                    Text(
-                        text = stringResource(
-                            R.string.camera_photos_downloading,
-                            download.currentFile,
-                            download.totalFiles,
-                            download.filename,
-                            formatBytes(download.written),
-                            formatBytes(download.totalBytes),
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Button(
-                    onClick = onChooseFolder,
-                    enabled = actionsEnabled && state.selectedHandles.isNotEmpty(),
+                val progress = if (download.totalBytes > 0) {
+                    (download.written.toFloat() / download.totalBytes).coerceIn(0f, 1f)
+                } else 0f
+                val animatedProgress by animateFloatAsState(
+                    targetValue = progress,
+                    animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
+                    label = "camera download progress",
+                )
+                LinearWavyProgressIndicator(
+                    progress = { animatedProgress },
                     modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.camera_photos_download_selected, state.selectedHandles.size))
-                }
+                )
+                Text(
+                    text = stringResource(
+                        R.string.camera_photos_downloading,
+                        download.currentFile,
+                        download.totalFiles,
+                        download.filename,
+                        formatBytes(download.written),
+                        formatBytes(download.totalBytes),
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
+        }
+
+        }
+
+        if (actionsEnabled && state.selectedHandles.isNotEmpty()) {
+            ExtendedFloatingActionButton(
+                onClick = onChooseFolder,
+                icon = {
+                    Icon(
+                        imageVector = FujiIcons.ArrowDownwardAlt,
+                        contentDescription = null,
+                    )
+                },
+                text = {
+                    Text(stringResource(R.string.camera_photos_download_selected, state.selectedHandles.size))
+                },
+                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+            )
         }
     }
 }
@@ -287,26 +312,21 @@ private fun CameraFileRow(
     thumbnail: ByteArray?,
     selected: Boolean,
     enabled: Boolean,
+    index: Int,
+    count: Int,
     onToggle: () -> Unit,
 ) {
-    Card(
-        colors = CardDefaults.cardColors(
+    ListItem(
+        onClick = onToggle,
+        enabled = enabled,
+        shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
+        colors = ListItemDefaults.segmentedColors(
             containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer
                 else MaterialTheme.colorScheme.surfaceContainerLow,
         ),
-        border = BorderStroke(
-            1.dp,
-            if (selected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outlineVariant,
-        ),
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onToggle),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Checkbox(checked = selected, onCheckedChange = { onToggle() }, enabled = enabled)
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth(),
+        leadingContent = {
             Box(
                 modifier = Modifier.size(64.dp).clip(RoundedCornerShape(12.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainerHighest),
@@ -323,26 +343,33 @@ private fun CameraFileRow(
                     Icon(FujiIcons.CameraRoll, contentDescription = null)
                 }
             }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        },
+        supportingContent = {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
-                    text = file.info.filename,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = file.info.captureDate.ifBlank { stringResource(R.string.photo_camera_date_unknown) },
-                    style = MaterialTheme.typography.bodySmall,
+                    text = formatCameraCaptureDate(file.info.captureDate)
+                        ?: stringResource(R.string.photo_camera_date_unknown),
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text = "${fileTypeLabel(file)} · ${formatBytes(file.info.compressedSize)}",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
-        }
+        },
+        trailingContent = {
+            Checkbox(checked = selected, onCheckedChange = { onToggle() }, enabled = enabled)
+        },
+    ) {
+        Text(
+            text = file.info.filename,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
