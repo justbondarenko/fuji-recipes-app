@@ -56,7 +56,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -116,6 +115,7 @@ import dev.bondarenko.fujirecipes.data.fields.FieldFormatting
 import dev.bondarenko.fujirecipes.data.fields.FieldGroup
 import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
 import dev.bondarenko.fujirecipes.ui.common.SectionHeader
+import dev.bondarenko.fujirecipes.ui.common.FujiAnchoredMenu
 import dev.bondarenko.fujirecipes.ui.common.errorMessageFor
 import dev.bondarenko.fujirecipes.ui.editor.RatingInput
 import dev.bondarenko.fujirecipes.ui.editor.TagInput
@@ -359,7 +359,7 @@ private fun RecipeActionBar(
                             )
                         }
 
-                        DropdownMenu(
+                        FujiAnchoredMenu(
                             expanded = menuOpen,
                             onDismissRequest = { menuOpen = false },
                         ) {

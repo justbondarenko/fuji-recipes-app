@@ -1,6 +1,5 @@
 package dev.bondarenko.fujirecipes.ui.library
 
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
@@ -75,6 +74,7 @@ import dev.bondarenko.fujirecipes.data.library.SortId
 import dev.bondarenko.fujirecipes.camera.canWrite
 import androidx.compose.material3.MaterialShapes
 import dev.bondarenko.fujirecipes.ui.camera.WriteSheetHost
+import dev.bondarenko.fujirecipes.ui.common.FujiAnchoredMenu
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
@@ -506,7 +506,7 @@ private fun LibrarySelectionToolbar(
                     contentDescription = stringResource(R.string.action_set_rating),
                 )
             }
-            DropdownMenu(
+            FujiAnchoredMenu(
                 expanded = ratingPickerOpen,
                 onDismissRequest = { onRatingPickerOpenChange(false) },
             ) {
