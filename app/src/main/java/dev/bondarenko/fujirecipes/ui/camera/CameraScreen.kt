@@ -18,6 +18,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.Battery5Bar
+import dev.bondarenko.fujirecipes.ui.theme.icons.Cable
 import dev.bondarenko.fujirecipes.ui.theme.icons.PhotoCamera
 import dev.bondarenko.fujirecipes.ui.theme.icons.Refresh
 import androidx.compose.material3.Button
@@ -167,7 +169,7 @@ fun CameraConnectedContent(
                     }
                 }
 
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = state.identity.model.ifBlank { stringResource(R.string.camera_chip_connected) },
                         style = MaterialTheme.typography.headlineSmall,
@@ -176,10 +178,9 @@ fun CameraConnectedContent(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Text(
-                        text = state.identity.label.ifBlank { stringResource(R.string.camera_writes_available) },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    CameraBatteryStatus(
+                        battery = state.details.battery,
+                        chargedColor = greenAccent,
                     )
                 }
             }
@@ -192,122 +193,121 @@ fun CameraConnectedContent(
             }
         }
 
-        // ─── 2. Wrong USB mode, when the camera positively said so ──────────
-        //
-        // Above the slots rather than below them: it is the reason the grid underneath is
-        // about to fail, and reading the explanation after the failure is the wrong order.
-        UsbModeWarning(state.usbMode)
+        // ─── 2. Connection mode, when the camera positively identifies it ──────
+        UsbModeStatus(state.usbMode)
 
         // ─── 3. Container/Card for Slots / Loading / Bento Grid ─────────────
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            ),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+        if (!state.usbMode.isKnownWrongMode) {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                ),
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    Text(
-                        text = stringResource(R.string.camera_slots_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        if (!isLoadingSlots && slotsError == null && slots.isNotEmpty()) {
-                            val occupiedCount = slots.count { it.status == SlotStatus.NAMED }
-                            Text(
-                                text = stringResource(R.string.camera_slots_count, occupiedCount, slots.size),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                        Text(
+                            text = stringResource(R.string.camera_slots_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
 
-                        IconButton(
-                            onClick = onRefresh,
-                            enabled = !isLoadingSlots,
-                            modifier = Modifier.size(36.dp),
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(
-                                imageVector = FujiIcons.Refresh,
-                                contentDescription = stringResource(R.string.write_slot_refresh),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                    }
-                }
-
-                when {
-                    isLoadingSlots -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(220.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(14.dp),
-                            ) {
-                                FujiLoadingIndicator(
-                                    size = 44.dp,
-                                    color = greenAccent,
-                                )
+                            if (!isLoadingSlots && slotsError == null && slots.isNotEmpty()) {
+                                val occupiedCount = slots.count { it.status == SlotStatus.NAMED }
                                 Text(
-                                    text = stringResource(R.string.camera_slots_reading),
-                                    style = MaterialTheme.typography.bodyMedium,
+                                    text = stringResource(R.string.camera_slots_count, occupiedCount, slots.size),
+                                    style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                        }
-                    }
 
-                    slotsError != null -> {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.errorContainer,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            IconButton(
+                                onClick = onRefresh,
+                                enabled = !isLoadingSlots,
+                                modifier = Modifier.size(36.dp),
                             ) {
-                                Text(
-                                    text = slotsError,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                Icon(
+                                    imageVector = FujiIcons.Refresh,
+                                    contentDescription = stringResource(R.string.write_slot_refresh),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp),
                                 )
-                                Button(
-                                    onClick = onRefresh,
-                                    modifier = Modifier.align(Alignment.End),
-                                ) {
-                                    Text(stringResource(R.string.camera_action_retry))
-                                }
                             }
                         }
                     }
 
-                    else -> {
-                        CameraSlotsBentoGrid(
-                            slots = slots,
-                            greenAccent = greenAccent,
-                            onSelectSlot = onSelectSlot,
-                        )
+                    when {
+                        isLoadingSlots -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(220.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                                ) {
+                                    FujiLoadingIndicator(
+                                        size = 44.dp,
+                                        color = greenAccent,
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.camera_slots_reading),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+
+                        slotsError != null -> {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Text(
+                                        text = slotsError,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                    )
+                                    Button(
+                                        onClick = onRefresh,
+                                        modifier = Modifier.align(Alignment.End),
+                                    ) {
+                                        Text(stringResource(R.string.camera_action_retry))
+                                    }
+                                }
+                            }
+                        }
+
+                        else -> {
+                            CameraSlotsBentoGrid(
+                                slots = slots,
+                                greenAccent = greenAccent,
+                                onSelectSlot = onSelectSlot,
+                            )
+                        }
                     }
                 }
             }
@@ -325,7 +325,7 @@ fun CameraConnectedContent(
         )
 
         // Additional information notes
-        if (state.identity.writable) {
+        if (state.identity.writable && !state.usbMode.isKnownWrongMode) {
             Note(stringResource(R.string.camera_slot_note))
         } else if (state.identity.note != null) {
             Note(state.identity.note)
@@ -580,19 +580,16 @@ private fun body(state: CameraState, isCameraAttached: Boolean): String? = when 
 }
 
 /**
- * The wrong-USB-mode banner, or nothing.
+ * The camera's reported connection mode, or nothing when it could not be identified.
  *
- * Only a positively identified mode gets a banner. `UsbMode.UNREPORTED` — where a body that
- * carries neither the property nor the MTP signature lands — renders nothing at all, because
- * "we could not tell" must never look like "you are set up wrong".
- *
- * Card-reader mode does get one now that it is identifiable: the slots really are unreachable
- * there, and this screen is about the slots.
+ * This is deliberately neutral status, not an error. Card-reader mode is useful for the Photos
+ * screen even though it cannot expose recipe slots.
  */
 @Composable
-private fun UsbModeWarning(mode: UsbMode) {
+private fun UsbModeStatus(mode: UsbMode) {
     val name = when (mode) {
         UsbMode.TETHER_SHOOTING -> stringResource(R.string.camera_usb_mode_tether)
+        UsbMode.RAW_CONVERSION -> stringResource(R.string.camera_usb_mode_raw_conversion)
         UsbMode.WEBCAM -> stringResource(R.string.camera_usb_mode_webcam)
         UsbMode.CARD_READER -> stringResource(R.string.camera_usb_mode_card_reader)
         else -> return
@@ -600,20 +597,71 @@ private fun UsbModeWarning(mode: UsbMode) {
 
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.errorContainer,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = Modifier.fillMaxWidth(),
     ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = FujiIcons.Cable,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+            Text(
+                text = stringResource(R.string.camera_usb_mode_status, name),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+internal enum class BatteryChargeBand { LOW, MEDIUM, HIGH }
+
+internal fun batteryChargeBand(battery: BatteryLevel): BatteryChargeBand = when {
+    battery.value * 10 < battery.max * 2 -> BatteryChargeBand.LOW
+    battery.value * 10 <= battery.max * 5 -> BatteryChargeBand.MEDIUM
+    else -> BatteryChargeBand.HIGH
+}
+
+@Composable
+private fun CameraBatteryStatus(battery: BatteryLevel?, chargedColor: Color) {
+    val color = when (battery?.let(::batteryChargeBand)) {
+        BatteryChargeBand.LOW -> MaterialTheme.colorScheme.error
+        BatteryChargeBand.MEDIUM -> MaterialTheme.colorScheme.tertiary
+        BatteryChargeBand.HIGH -> chargedColor
+        null -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val value = when {
+        battery == null -> stringResource(R.string.camera_detail_battery_unavailable)
+        battery.isPercentage -> stringResource(R.string.camera_detail_battery_value, battery.value)
+        else -> stringResource(R.string.camera_detail_battery_level, battery.value, battery.max)
+    }
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = FujiIcons.Battery5Bar,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(18.dp),
+        )
         Text(
-            text = stringResource(R.string.camera_usb_mode_wrong, name),
+            text = stringResource(R.string.camera_detail_battery_status, value),
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onErrorContainer,
-            modifier = Modifier.padding(14.dp),
+            color = color,
         )
     }
 }
 
 /**
- * Battery, shutter count, lens, firmware and serial — whichever of them the body answered.
+ * Shutter count, lens, firmware and serial — whichever of them the body answered.
  *
  * A field the camera refused is simply absent; a body that answered none of them gets no card
  * rather than a card full of dashes. The footnote appears only when at least one row came from
@@ -622,24 +670,7 @@ private fun UsbModeWarning(mode: UsbMode) {
  */
 @Composable
 private fun CameraDetailsCard(details: CameraDetails, modifier: Modifier = Modifier) {
-    if (details.isEmpty) return
-
     val rows = mutableListOf<Pair<String, String>>()
-    val battery = details.battery
-    if (battery != null) {
-        // A percentage only when the body's own scale is one. Anything else is shown as the
-        // level it is, because "10" out of ten is a full battery and "10%" is nearly a dead one.
-        rows += stringResource(R.string.camera_detail_battery) to
-            if (battery.isPercentage) {
-                stringResource(R.string.camera_detail_battery_value, battery.value)
-            } else {
-                stringResource(
-                    R.string.camera_detail_battery_level,
-                    battery.value,
-                    battery.max,
-                )
-            }
-    }
     if (details.shutterCount != null) {
         rows += stringResource(R.string.camera_detail_shutter) to
             formatCount(details.shutterCount)
@@ -653,6 +684,7 @@ private fun CameraDetailsCard(details: CameraDetails, modifier: Modifier = Modif
     if (details.serialNumber != null) {
         rows += stringResource(R.string.camera_detail_serial) to details.serialNumber
     }
+    if (rows.isEmpty()) return
 
     Card(
         shape = RoundedCornerShape(20.dp),
@@ -678,7 +710,7 @@ private fun CameraDetailsCard(details: CameraDetails, modifier: Modifier = Modif
                 rows.forEach { (label, value) -> DetailRow(label = label, value = value) }
             }
 
-            if (details.hasUnverifiedFields) {
+            if (details.shutterCount != null || details.lens != null) {
                 Note(stringResource(R.string.camera_details_note))
             }
         }

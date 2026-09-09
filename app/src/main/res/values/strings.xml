@@ -307,7 +307,6 @@
     <string name="camera_state_connecting_body">Opening a session with the camera.</string>
     <string name="camera_state_error_title">The camera could not be reached</string>
     <string name="camera_ptp_code">Camera response: %1$s</string>
-    <string name="camera_writes_available">Ready to write recipes to C1–C7.</string>
     <string name="camera_action_connect">Connect</string>
     <string name="camera_action_retry">Try again</string>
     <string name="camera_action_disconnect">Disconnect</string>
@@ -316,25 +315,27 @@
     <string name="camera_slots_reading">Reading slots from camera…</string>
     <string name="camera_slots_count">%1$d of %2$d configured</string>
 
-    <!-- USB mode (0xD16E). Only the two positively-wrong modes are ever named; a body that
-         will not report its mode says nothing rather than guessing. -->
+    <!-- USB mode (0xD16E). A body that cannot identify its mode says nothing rather than
+         guessing. -->
     <string name="camera_usb_mode_tether">Tether Shooting</string>
+    <string name="camera_usb_mode_raw_conversion">USB RAW Conversion / Backup Restore</string>
     <string name="camera_usb_mode_webcam">X Webcam</string>
     <string name="camera_usb_mode_card_reader">USB Card Reader</string>
-    <string name="camera_usb_mode_wrong">The camera is in %1$s mode, so its recipe slots are not reachable. On the camera, set CONNECTION SETTING → USB MODE to USB RAW CONV./BACKUP RESTORE, then reconnect.</string>
+    <string name="camera_usb_mode_status">Connection mode: %1$s</string>
 
     <!-- Camera details. Everything but firmware and serial comes from a reverse-engineered
          vendor property, which is what the footnote says. -->
     <string name="camera_details_title">Camera details</string>
-    <string name="camera_detail_battery">Battery</string>
     <string name="camera_detail_battery_value">%1$d%%</string>
     <!-- A level, not a percentage: an X-T50 reports 0-10 and calling 10 "10%" was wrong. -->
     <string name="camera_detail_battery_level">%1$d / %2$d</string>
+    <string name="camera_detail_battery_status">Battery: %1$s</string>
+    <string name="camera_detail_battery_unavailable">Unavailable</string>
     <string name="camera_detail_shutter">Shutter count</string>
     <string name="camera_detail_lens">Lens</string>
     <string name="camera_detail_firmware">Firmware</string>
     <string name="camera_detail_serial">Serial</string>
-    <string name="camera_details_note">Battery, shutter count and lens are read from undocumented camera properties. They are reported as the camera gives them and may be missing or wrong on bodies this app has not been tested against.</string>
+    <string name="camera_details_note">Shutter count and lens are read from undocumented camera properties. They are reported as the camera gives them and may be missing or wrong on bodies this app has not been tested against.</string>
 
     <!-- Camera tools: the diagnostic report, and the settings backup that is the second half
          of the camera's "USB RAW CONV./BACKUP RESTORE" mode. -->
