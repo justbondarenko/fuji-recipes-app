@@ -38,6 +38,23 @@ interface RecipeRepository {
     suspend fun delete(id: String): LibraryResult<Unit>
 
     /**
+     * Delete several at once — the library's selection mode.
+     *
+     * One call rather than a loop over [delete] for the same reason as [importAll]: the
+     * library is rewritten whole on every mutation, so N deletions as N calls means N file
+     * writes and N republished lists, with the list re-laying out under the user's finger
+     * between each. The default here is that loop, for implementations that have nothing to
+     * gain from batching; the local store overrides it with a single commit.
+     */
+    suspend fun deleteAll(ids: Set<String>): LibraryResult<Unit> {
+        ids.forEach { id ->
+            val result = delete(id)
+            if (result is LibraryResult.Failure) return result
+        }
+        return LibraryResult.Success(Unit)
+    }
+
+    /**
      * Import several recipes at once — FEAT-007, FEAT-012.
      *
      * One call rather than a loop over [create], because it is **atomic**: every entry is

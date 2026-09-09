@@ -134,6 +134,16 @@ class LocalRecipeRepository(
         LibraryResult.Success(Unit)
     }
 
+    /** One commit for the whole selection, so a bulk delete is one write and one emission. */
+    override suspend fun deleteAll(ids: Set<String>): LibraryResult<Unit> = mutating.withLock {
+        val current = editable() ?: return@withLock unreadable()
+        if (current.none { it.id in ids }) return@withLock LibraryResult.Success(Unit)
+
+        commit(current.filterNot { it.id in ids }, now())
+            ?.let { return@withLock LibraryResult.Failure(it) }
+        LibraryResult.Success(Unit)
+    }
+
     /**
      * Import a batch — the local half of what `POST /api/import` used to do.
      *

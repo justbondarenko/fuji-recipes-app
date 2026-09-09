@@ -1,5 +1,9 @@
 package dev.bondarenko.fujirecipes.ui.library
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.res.pluralStringResource
+import dev.bondarenko.fujirecipes.ui.theme.icons.Close
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -87,6 +91,7 @@ fun LibraryScreen(
     onOpenRecipe: (String) -> Unit,
     onEditRecipe: (String) -> Unit,
     onDeleteRecipe: (String) -> Unit,
+    onDeleteRecipes: (Set<String>) -> Unit,
     onCreateRecipe: () -> Unit,
     onImportFromCamera: () -> Unit,
     onDevelopRaw: (String) -> Unit = {},
@@ -101,6 +106,14 @@ fun LibraryScreen(
     var recipePendingDelete by remember { mutableStateOf<RecipeCardModel?>(null) }
     // Which recipe is currently open in the Write to Camera sheet
     var writeRecipeId by rememberSaveable { mutableStateOf<String?>(null) }
+    // Selection mode: empty means off. Deliberately not saved — a rotation mid-selection is
+    // rare, and coming back to a cleared list is safer than coming back to a stale one.
+    var selectedIds by remember { mutableStateOf(emptySet<String>()) }
+    var deleteSelectionPending by remember { mutableStateOf(false) }
+    val selecting = selectedIds.isNotEmpty()
+
+    // The gesture everyone tries first to get out of selection mode.
+    BackHandler(enabled = selecting) { selectedIds = emptySet() }
     val coroutineScope = rememberCoroutineScope()
 
     // No pull-to-refresh: there is nowhere to refresh *from*. The library is a file on this
@@ -170,6 +183,17 @@ fun LibraryScreen(
                 else -> {
                     item {
                         Column {
+                            if (selecting) {
+                                LibrarySelectionBar(
+                                    count = selectedIds.size,
+                                    allSelected = selectedIds.size == state.visible.size,
+                                    onClear = { selectedIds = emptySet() },
+                                    onSelectAll = {
+                                        selectedIds = state.visible.map { it.id }.toSet()
+                                    },
+                                    onDelete = { deleteSelectionPending = true },
+                                )
+                            } else {
                             LibraryToolbar(
                                 state = state,
                                 onSearchChange = onSearchChange,
@@ -180,6 +204,7 @@ fun LibraryScreen(
                                 onClearSearchAndFilters = onClearSearchAndFilters,
                                 onOpenSettings = onOpenSettings,
                             )
+                            }
                             Spacer(Modifier.height(10.dp))
                         }
                     }
@@ -213,6 +238,40 @@ fun LibraryScreen(
                         }
                     } else {
                         itemsIndexed(state.visible, key = { _, recipe -> recipe.id }) { index, recipe ->
+                            val card: @Composable () -> Unit = {
+                                RecipeCard(
+                                    recipe = recipe,
+                                    shapes = ListItemDefaults.segmentedShapes(
+                                        index = index,
+                                        count = state.visible.size,
+                                    ),
+                                    showPhoto = state.showPhotos,
+                                    showTags = state.showTags,
+                                    showFilmSimulation = state.showFilmSimulation,
+                                    showRating = state.showRating,
+                                    selected = recipe.id in selectedIds,
+                                    onLongClick = { selectedIds = selectedIds + recipe.id },
+                                    onClick = {
+                                        if (selecting) {
+                                            selectedIds = if (recipe.id in selectedIds) {
+                                                selectedIds - recipe.id
+                                            } else {
+                                                selectedIds + recipe.id
+                                            }
+                                        } else {
+                                            onOpenRecipe(recipe.id)
+                                        }
+                                    },
+                                )
+                            }
+
+                            // Swiping a row open while picking rows would put a single-recipe
+                            // delete next to a selection's delete. One at a time.
+                            if (selecting) {
+                                card()
+                                return@itemsIndexed
+                            }
+
                             SwipeActionsRow(
                                 isOpen = openRowId == recipe.id,
                                 // One at a time: two rows open at once is how a delete gets
@@ -268,18 +327,7 @@ fun LibraryScreen(
                                     )
                                 },
                             ) {
-                                RecipeCard(
-                                    recipe = recipe,
-                                    shapes = ListItemDefaults.segmentedShapes(
-                                        index = index,
-                                        count = state.visible.size,
-                                    ),
-                                    showPhoto = state.showPhotos,
-                                    showTags = state.showTags,
-                                    showFilmSimulation = state.showFilmSimulation,
-                                    showRating = state.showRating,
-                                    onClick = { onOpenRecipe(recipe.id) },
-                                )
+                                card()
                             }
                         }
 
@@ -303,6 +351,35 @@ fun LibraryScreen(
         WriteSheetHost(
             recipeId = recipeId,
             onDismiss = { writeRecipeId = null },
+        )
+    }
+
+    if (deleteSelectionPending) {
+        val count = selectedIds.size
+        AlertDialog(
+            onDismissRequest = { deleteSelectionPending = false },
+            title = { Text(pluralStringResource(R.plurals.delete_selection_title, count, count)) },
+            text = { Text(pluralStringResource(R.plurals.delete_selection_body, count, count)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val ids = selectedIds
+                        deleteSelectionPending = false
+                        selectedIds = emptySet()
+                        onDeleteRecipes(ids)
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) {
+                    Text(stringResource(R.string.action_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteSelectionPending = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
         )
     }
 
@@ -335,6 +412,46 @@ fun LibraryScreen(
     }
 }
 
+/**
+ * What the search row becomes while rows are being picked: how many, all of them, or none,
+ * and the one destructive thing the mode exists for.
+ */
+@Composable
+private fun LibrarySelectionBar(
+    count: Int,
+    allSelected: Boolean,
+    onClear: () -> Unit,
+    onSelectAll: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onClear) {
+            Icon(
+                imageVector = FujiIcons.Close,
+                contentDescription = stringResource(R.string.action_clear_selection),
+            )
+        }
+        Text(
+            text = pluralStringResource(R.plurals.selected_count, count, count),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onSelectAll, enabled = !allSelected) {
+            Text(stringResource(R.string.action_select_all))
+        }
+        IconButton(onClick = onDelete) {
+            Icon(
+                imageVector = FujiIcons.Delete,
+                contentDescription = stringResource(R.string.action_delete),
+                tint = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
 /** The wiring, kept out of the screen so the screen stays previewable. */
 @Composable
 fun LibraryRouteContent(
@@ -363,6 +480,7 @@ fun LibraryRouteContent(
         onOpenRecipe = onOpenRecipe,
         onEditRecipe = onEditRecipe,
         onDeleteRecipe = viewModel::onDeleteRecipe,
+        onDeleteRecipes = viewModel::onDeleteRecipes,
         onCreateRecipe = onCreateRecipe,
         onImportFromCamera = onImportFromCamera,
         onDevelopRaw = onDevelopRaw,
@@ -393,7 +511,7 @@ private fun LibraryScreenPreview() {
             ),
             onSearchChange = {}, onSortChange = {}, onFiltersChange = {},
             onClearSearchAndFilters = {}, onRetry = {}, onOpenRecipe = {},
-            onEditRecipe = {}, onDeleteRecipe = {}, onCreateRecipe = {},
+            onEditRecipe = {}, onDeleteRecipe = {}, onDeleteRecipes = {}, onCreateRecipe = {},
             onImportFromCamera = {},
             contentPadding = PaddingValues(0.dp),
         )
@@ -411,7 +529,7 @@ private fun LibraryUnreadablePreview() {
             ),
             onSearchChange = {}, onSortChange = {}, onFiltersChange = {},
             onClearSearchAndFilters = {}, onRetry = {}, onOpenRecipe = {},
-            onEditRecipe = {}, onDeleteRecipe = {}, onCreateRecipe = {},
+            onEditRecipe = {}, onDeleteRecipe = {}, onDeleteRecipes = {}, onCreateRecipe = {},
             onImportFromCamera = {},
             contentPadding = PaddingValues(0.dp),
         )
@@ -426,7 +544,7 @@ private fun LibraryEmptyPreview() {
             state = LibraryUiState(hasLoaded = true, totalCount = 0),
             onSearchChange = {}, onSortChange = {}, onFiltersChange = {},
             onClearSearchAndFilters = {}, onRetry = {}, onOpenRecipe = {},
-            onEditRecipe = {}, onDeleteRecipe = {}, onCreateRecipe = {},
+            onEditRecipe = {}, onDeleteRecipe = {}, onDeleteRecipes = {}, onCreateRecipe = {},
             onImportFromCamera = {},
             contentPadding = PaddingValues(0.dp),
         )
@@ -446,7 +564,7 @@ private fun LibraryNoMatchesPreview() {
             ),
             onSearchChange = {}, onSortChange = {}, onFiltersChange = {},
             onClearSearchAndFilters = {}, onRetry = {}, onOpenRecipe = {},
-            onEditRecipe = {}, onDeleteRecipe = {}, onCreateRecipe = {},
+            onEditRecipe = {}, onDeleteRecipe = {}, onDeleteRecipes = {}, onCreateRecipe = {},
             onImportFromCamera = {},
             contentPadding = PaddingValues(0.dp),
         )

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import dev.bondarenko.fujirecipes.ui.theme.icons.Check
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.StarRate
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -72,11 +73,21 @@ fun RecipeCard(
     showTags: Boolean = true,
     showFilmSimulation: Boolean = true,
     showRating: Boolean = true,
+    onLongClick: (() -> Unit)? = null,
+    /** Selection mode: the row is picked, and says so by its container rather than a badge. */
+    selected: Boolean = false,
 ) {
     ListItem(
         onClick = onClick,
+        onLongClick = onLongClick,
         shapes = shapes ?: ListItemDefaults.segmentedShapes(index = 0, count = 1),
-        colors = ListItemDefaults.segmentedColors(containerColor = cardColor()),
+        colors = ListItemDefaults.segmentedColors(
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                cardColor()
+            },
+        ),
         // 💡 ROW PADDING — how much air the whole row has. Raise `RowVerticalPadding` for a
         //    taller, calmer list; lower it to fit more recipes on screen.
         contentPadding = PaddingValues(
@@ -84,7 +95,16 @@ fun RecipeCard(
             vertical = RowVerticalPadding,
         ),
         modifier = modifier.fillMaxWidth(),
-        leadingContent = if (showPhoto && recipe.firstImage != null) {
+        leadingContent = if (selected) {
+            {
+                Icon(
+                    imageVector = FujiIcons.Check,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        } else if (showPhoto && recipe.firstImage != null) {
             {
                 val context = LocalContext.current
                 val imageStore = remember(context) { (context.applicationContext as FujiRecipesApp).container.imageStore }

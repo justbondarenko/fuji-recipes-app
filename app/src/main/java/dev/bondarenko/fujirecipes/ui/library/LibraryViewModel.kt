@@ -172,6 +172,10 @@ class LibraryViewModel(
         viewModelScope.launch { repository.delete(id) }
     }
 
+    fun onDeleteRecipes(ids: Set<String>) {
+        viewModelScope.launch { repository.deleteAll(ids) }
+    }
+
     /** Clears both, which is what the "no matches" panel offers. */
     fun onClearSearchAndFilters() {
         search.update { "" }
