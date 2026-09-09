@@ -206,6 +206,33 @@ class LocalRecipeRepositoryTest {
         assertIs<LibraryResult.Success<*>>(repository.delete("nobody"))
     }
 
+    @Test
+    fun `deleteAll removes every selected recipe in one commit`() = runTest {
+        val repository = repository()
+        repository.create(body("First"))
+        repository.create(body("Second", simulation = "velvia"))
+        repository.create(body("Third"))
+        val recipes = repository.library.value.recipes
+        val doomed = setOf(
+            recipes.first { it.name == "First" }.id,
+            recipes.first { it.name == "Third" }.id,
+        )
+
+        assertIs<LibraryResult.Success<*>>(repository.deleteAll(doomed))
+
+        assertEquals(listOf("Second"), repository.library.value.recipes.map { it.name })
+    }
+
+    @Test
+    fun `deleteAll of ids that are already gone changes nothing`() = runTest {
+        val repository = repository()
+        repository.create(body("First"))
+
+        assertIs<LibraryResult.Success<*>>(repository.deleteAll(setOf("nobody", "no-one")))
+
+        assertEquals(listOf("First"), repository.library.value.recipes.map { it.name })
+    }
+
     // ─── Import ─────────────────────────────────────────────────────────────
 
     @Test
