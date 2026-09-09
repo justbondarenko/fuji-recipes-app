@@ -31,6 +31,7 @@ import dev.bondarenko.fujirecipes.camera.usb.readSlotNames
 import dev.bondarenko.fujirecipes.camera.usb.readSlotRecipe
 import dev.bondarenko.fujirecipes.camera.usb.readSlotRecipes
 import dev.bondarenko.fujirecipes.camera.usb.readCameraDetails
+import dev.bondarenko.fujirecipes.camera.plan.UsbMode
 import dev.bondarenko.fujirecipes.camera.usb.readUsbMode
 import dev.bondarenko.fujirecipes.camera.usb.readCameraReport
 import dev.bondarenko.fujirecipes.camera.usb.downloadBackup
@@ -180,9 +181,15 @@ class CameraController(
             // will not discuss its USB mode or its battery still connects normally.
             _state.value = CameraState.Connected(
                 identity = CameraModels.identify(info.model),
-                usbMode = readUsbMode(opened),
+                usbMode = readUsbMode(opened, info),
                 details = readCameraDetails(opened, info),
             )
+
+            // A connected camera is worth a foreground service on its own: it keeps the USB
+            // session alive while the app is minimised, and it ties the notification to the
+            // process that actually holds the connection, so a killed process cannot leave a
+            // notification behind pointing at a camera nobody is talking to.
+            CameraTransferService.start(appContext)
         } catch (error: Exception) {
             session = null
             _state.value = error.toCameraError()
@@ -426,8 +433,12 @@ class CameraController(
         val connected = _state.value as? CameraState.Connected ?: throw IllegalStateException(
             "The camera is busy. Wait for the current operation to finish.",
         )
-        if (connected.usbMode == dev.bondarenko.fujirecipes.camera.plan.UsbMode.RAW_CONVERSION ||
-            connected.usbMode.isKnownWrongMode
+        // Positively-identified non-card-reader modes only. `UNREPORTED` passes: it means the
+        // body would not say, and refusing on "we could not tell" would block a camera that is
+        // set correctly. `CARD_READER` is now positively identified and passes on its own
+        // merits rather than by falling through.
+        if (connected.usbMode != UsbMode.CARD_READER &&
+            connected.usbMode != UsbMode.UNREPORTED
         ) {
             throw IllegalStateException(
                 "Photo browsing requires USB CARD READER mode. Change the camera's USB mode, " +
@@ -478,8 +489,8 @@ class CameraController(
         val connected = _state.value as? CameraState.Connected ?: throw IllegalStateException(
             "The camera is busy. Wait for the current operation to finish.",
         )
-        if (connected.usbMode != dev.bondarenko.fujirecipes.camera.plan.UsbMode.RAW_CONVERSION &&
-            connected.usbMode != dev.bondarenko.fujirecipes.camera.plan.UsbMode.UNREPORTED
+        if (connected.usbMode != UsbMode.RAW_CONVERSION &&
+            connected.usbMode != UsbMode.UNREPORTED
         ) {
             throw IllegalStateException(
                 "RAW development requires USB RAW CONV./BACKUP RESTORE mode. Change the camera " +

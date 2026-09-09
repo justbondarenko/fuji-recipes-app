@@ -582,15 +582,19 @@ private fun body(state: CameraState, isCameraAttached: Boolean): String? = when 
 /**
  * The wrong-USB-mode banner, or nothing.
  *
- * Only the two modes the camera positively identified get a banner. `UsbMode.UNREPORTED` —
- * which is where a card-reader body and any body without the property both land — renders
- * nothing at all, because "we could not tell" must never look like "you are set up wrong".
+ * Only a positively identified mode gets a banner. `UsbMode.UNREPORTED` — where a body that
+ * carries neither the property nor the MTP signature lands — renders nothing at all, because
+ * "we could not tell" must never look like "you are set up wrong".
+ *
+ * Card-reader mode does get one now that it is identifiable: the slots really are unreachable
+ * there, and this screen is about the slots.
  */
 @Composable
 private fun UsbModeWarning(mode: UsbMode) {
     val name = when (mode) {
         UsbMode.TETHER_SHOOTING -> stringResource(R.string.camera_usb_mode_tether)
         UsbMode.WEBCAM -> stringResource(R.string.camera_usb_mode_webcam)
+        UsbMode.CARD_READER -> stringResource(R.string.camera_usb_mode_card_reader)
         else -> return
     }
 

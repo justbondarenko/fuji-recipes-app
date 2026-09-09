@@ -12,8 +12,7 @@ import dev.bondarenko.fujirecipes.camera.plan.ProbeOutcome
 import dev.bondarenko.fujirecipes.camera.plan.ProbedProperty
 import dev.bondarenko.fujirecipes.camera.plan.SlotProbe
 import dev.bondarenko.fujirecipes.camera.plan.renderAllowedValues
-import dev.bondarenko.fujirecipes.camera.plan.usbModeFor
-import dev.bondarenko.fujirecipes.camera.plan.UsbMode
+import dev.bondarenko.fujirecipes.camera.plan.usbModeFrom
 import dev.bondarenko.fujirecipes.camera.ptp.PtpError
 import dev.bondarenko.fujirecipes.camera.ptp.PtpSession
 import dev.bondarenko.fujirecipes.camera.ptp.dataTypeName
@@ -98,7 +97,11 @@ fun readCameraReport(
         vendorExtensionId = info?.vendorExtensionId ?: 0,
         vendorExtensionVersion = info?.vendorExtensionVersion ?: 0,
         vendorExtensionDescription = info?.vendorExtensionDescription.orEmpty(),
-        usbMode = usbModeRaw?.let(::usbModeFor) ?: UsbMode.UNREPORTED,
+        usbMode = usbModeFrom(
+            reportedValue = usbModeRaw,
+            operationsSupported = info?.operationsSupported.orEmpty(),
+            devicePropertiesSupported = listed,
+        ),
         usbModeRaw = usbModeRaw,
         operationsSupported = info?.operationsSupported.orEmpty(),
         eventsSupported = info?.eventsSupported.orEmpty(),

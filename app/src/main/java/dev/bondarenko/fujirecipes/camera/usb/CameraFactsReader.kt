@@ -12,6 +12,7 @@ import dev.bondarenko.fujirecipes.camera.plan.UsbMode
 import dev.bondarenko.fujirecipes.camera.plan.plausibleLensName
 import dev.bondarenko.fujirecipes.camera.plan.plausibleShutterCount
 import dev.bondarenko.fujirecipes.camera.plan.usbModeFor
+import dev.bondarenko.fujirecipes.camera.plan.usbModeFrom
 import dev.bondarenko.fujirecipes.camera.ptp.DeviceInfo
 import dev.bondarenko.fujirecipes.camera.ptp.PtpSession
 import dev.bondarenko.fujirecipes.camera.ptp.unpackPtpString
@@ -41,11 +42,26 @@ import dev.bondarenko.fujirecipes.camera.ptp.unpackU32
 /**
  * Which USB mode the camera's menu is set to.
  *
- * A refusal is [UsbMode.UNREPORTED] rather than an error: card-reader/MTP bodies and any body
- * whose firmware predates the property both land there, and neither is a fault.
+ * A refusal is [UsbMode.UNREPORTED] rather than an error: a body whose firmware predates the
+ * property lands there, and that is not a fault. Prefer the two-argument overload, which can
+ * also name card-reader mode — this one has only the property to go on.
  */
 fun readUsbMode(session: PtpSession): UsbMode =
     readUsbModeRaw(session)?.let(::usbModeFor) ?: UsbMode.UNREPORTED
+
+/**
+ * The same, with `GetDeviceInfo` as a second source.
+ *
+ * A card-reader body refuses `0xD16E` and always will, so the property alone can never name
+ * that mode. The MTP signature in the device info can, at no extra cost — the session read it
+ * when it opened. The property still wins wherever it answers; the signature is consulted only
+ * on a refusal, and can only ever conclude "card reader" or "still could not tell".
+ */
+fun readUsbMode(session: PtpSession, deviceInfo: DeviceInfo?): UsbMode = usbModeFrom(
+    reportedValue = readUsbModeRaw(session),
+    operationsSupported = deviceInfo?.operationsSupported.orEmpty(),
+    devicePropertiesSupported = deviceInfo?.devicePropertiesSupported.orEmpty(),
+)
 
 /**
  * The raw `0xD16E` value, or null.

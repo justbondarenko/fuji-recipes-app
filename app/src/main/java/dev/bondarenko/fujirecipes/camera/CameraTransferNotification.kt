@@ -11,9 +11,16 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import dev.bondarenko.fujirecipes.MainActivity
 import dev.bondarenko.fujirecipes.R
+import dev.bondarenko.fujirecipes.camera.plan.UsbMode
 import dev.bondarenko.fujirecipes.core.store.CameraExportProgress
 
 const val TRANSFER_NOTIFICATION_ID = 4101
+
+/** Which screen a notification action should land on. Read by `MainActivity`. */
+const val EXTRA_DESTINATION = "dev.bondarenko.fujirecipes.extra.DESTINATION"
+
+const val DESTINATION_PHOTOS = "camera-photos"
+const val DESTINATION_CAMERA = "camera"
 
 private const val TRANSFER_CHANNEL_ID = "camera-transfers"
 
@@ -87,6 +94,62 @@ fun buildTransferNotification(
     return builder.build()
 }
 
+/**
+ * The notification for a camera that is connected and doing nothing.
+ *
+ * **Deliberately not promoted.** A Live Update is for an active process with a start and a
+ * finish; a camera sitting plugged in is a state, not a process, and promoting it would park a
+ * permanent chip in the status bar. So this is an ordinary low-importance ongoing notification,
+ * and only the transfer above ever asks for promotion.
+ *
+ * Its action is chosen by the USB mode, because the two modes lead to different screens and
+ * offering the wrong one is worse than offering none: browsing the card needs
+ * `USB CARD READER`, and everything to do with recipes needs `USB RAW CONV./BACKUP RESTORE`.
+ * A mode this build cannot name gets no action at all — tapping the notification still opens
+ * the app, which is the honest fallback when we do not know what the camera can do.
+ */
+fun buildConnectedNotification(
+    context: Context,
+    cameraLabel: String,
+    mode: UsbMode,
+): Notification {
+    val builder = NotificationCompat.Builder(context, TRANSFER_CHANNEL_ID)
+        .setSmallIcon(R.drawable.ic_notification_transfer)
+        .setContentTitle(cameraLabel)
+        .setContentText(context.getString(modeDescription(mode)))
+        .setOngoing(true)
+        .setSilent(true)
+        .setOnlyAlertOnce(true)
+        .setCategory(NotificationCompat.CATEGORY_STATUS)
+        .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+        .setContentIntent(openAppIntent(context))
+
+    when {
+        mode.allowsCardBrowsing -> builder.addAction(
+            R.drawable.ic_notification_transfer,
+            context.getString(R.string.camera_connected_action_photos),
+            openDestinationIntent(context, DESTINATION_PHOTOS),
+        )
+
+        mode.allowsRecipeWork -> builder.addAction(
+            R.drawable.ic_notification_transfer,
+            context.getString(R.string.camera_connected_action_camera),
+            openDestinationIntent(context, DESTINATION_CAMERA),
+        )
+    }
+
+    return builder.build()
+}
+
+/** What the camera can be used for right now, in the user's terms rather than the protocol's. */
+private fun modeDescription(mode: UsbMode): Int = when (mode) {
+    UsbMode.CARD_READER -> R.string.camera_connected_card_reader
+    UsbMode.RAW_CONVERSION -> R.string.camera_connected_raw_conversion
+    UsbMode.TETHER_SHOOTING -> R.string.camera_connected_tether
+    UsbMode.WEBCAM -> R.string.camera_connected_webcam
+    UsbMode.UNRECOGNISED, UsbMode.UNREPORTED -> R.string.camera_connected_unknown_mode
+}
+
 /** Android 16, where Live Updates arrived. Named rather than inlined so the reason is visible. */
 private const val LIVE_UPDATE_SDK = 36
 
@@ -101,6 +164,24 @@ private fun openAppIntent(context: Context): PendingIntent = PendingIntent.getAc
     },
     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
 )
+
+/**
+ * Opens the app on a named screen.
+ *
+ * The request code is derived from the destination: two `PendingIntent`s that differ only in
+ * their extras and share a request code are the *same* intent as far as the system is
+ * concerned, and the second would silently reuse the first's extras.
+ */
+private fun openDestinationIntent(context: Context, destination: String): PendingIntent =
+    PendingIntent.getActivity(
+        context,
+        destination.hashCode(),
+        Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra(EXTRA_DESTINATION, destination)
+        },
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
 
 private fun cancelIntent(context: Context): PendingIntent = PendingIntent.getService(
     context,

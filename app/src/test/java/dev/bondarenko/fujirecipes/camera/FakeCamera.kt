@@ -46,6 +46,16 @@ class FakeCamera(
     /** Datasets `GetDevicePropDesc` answers with, keyed by the code that was asked about. */
     val describeAnswers: MutableMap<Int, ByteArray> = mutableMapOf()
 
+    /**
+     * Extra codes for `GetDeviceInfo` to advertise, on top of the Fuji ones.
+     *
+     * What a body advertises is how card-reader mode is identified, so a test needs to be able
+     * to dress this one up as an MTP device rather than a camera.
+     */
+    val extraOperations: MutableList<Int> = mutableListOf()
+
+    val extraProperties: MutableList<Int> = mutableListOf()
+
     /** A camera that has stopped answering: every read times out. */
     var silent: Boolean = false
 
@@ -438,7 +448,7 @@ class FakeCamera(
         }
 
         u16Array(
-            listOf(
+            extraOperations + listOf(
                 Operation.GET_DEVICE_INFO,
                 Operation.OPEN_SESSION,
                 Operation.CLOSE_SESSION,
@@ -456,7 +466,7 @@ class FakeCamera(
             ),
         )
         u16Array(emptyList())
-        u16Array(propertyCodes)
+        u16Array(propertyCodes + extraProperties)
         u16Array(emptyList())
         u16Array(listOf(0x3801))
 

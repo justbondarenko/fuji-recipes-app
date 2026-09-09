@@ -75,6 +75,17 @@ class CameraReportTest {
         assertTrue(text.contains("11 (unrecognised)"))
     }
 
+    /** Inferred, not read, so there is no number to print beside it. */
+    @Test
+    fun `card reader mode says how it was identified and prints no number`() {
+        val text = renderCameraReport(
+            report(usbMode = UsbMode.CARD_READER, usbModeRaw = null),
+        )
+
+        assertTrue(text.contains("card reader"))
+        assertTrue(text.contains("MTP signature"))
+    }
+
     @Test
     fun `a body that would not say is not given a mode`() {
         val text = renderCameraReport(
