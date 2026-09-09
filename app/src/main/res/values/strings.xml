@@ -5,6 +5,7 @@
     <!-- Navigation -->
     <string name="nav_library">Recipes</string>
     <string name="nav_cleanup">Cleanup</string>
+    <string name="nav_camera_photos">Photos</string>
     <string name="nav_more">Settings</string>
     <string name="nav_create">New recipe</string>
 
@@ -190,6 +191,30 @@
     <string name="settings_film_simulation_title">Film simulation</string>
     <string name="settings_rating_title">Rating</string>
     <string name="settings_backup_restore">Backup &amp; Restore</string>
+    <string name="settings_maintenance">Maintenance</string>
+
+    <!-- Camera card downloads -->
+    <string name="camera_photos_title">Camera photos</string>
+    <string name="camera_photos_count">%1$d files on the card</string>
+    <string name="camera_photos_refresh">Refresh photos</string>
+    <string name="camera_photos_scanning">Reading the camera card…</string>
+    <string name="camera_photos_scanning_progress">Reading file %1$d of %2$d…</string>
+    <string name="camera_photos_empty_title">No photos found</string>
+    <string name="camera_photos_empty_body">The card did not expose any JPEG or RAF photos.</string>
+    <string name="camera_photos_jpeg">JPEG</string>
+    <string name="camera_photos_raw">RAW</string>
+    <string name="camera_photos_filter_all">All</string>
+    <string name="camera_photos_select_all">Select all</string>
+    <string name="camera_photos_clear">Clear</string>
+    <string name="camera_photos_selected_count">%1$d selected</string>
+    <string name="camera_photos_download_selected">Download selected (%1$d)</string>
+    <string name="camera_photos_filter_empty">No files match this filter.</string>
+    <string name="camera_photos_downloading">File %1$d of %2$d: %3$s · %4$s of %5$s</string>
+    <string name="camera_photos_connect_title">Connect your camera</string>
+    <string name="camera_photos_connect_body">Set CONNECTION MODE to USB CARD READER, then connect the camera by USB.</string>
+    <string name="camera_photos_attached_body">The camera is attached. Tap Connect to browse its card.</string>
+    <string name="camera_photos_busy">The camera is busy with another operation.</string>
+    <string name="action_dismiss">Dismiss</string>
     <string name="settings_import_camera_title">Import from camera</string>
     <string name="settings_import_camera_subtitle">Import saved presets</string>
     <string name="settings_about">About</string>

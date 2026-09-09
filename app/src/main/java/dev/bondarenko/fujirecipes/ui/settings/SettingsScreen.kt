@@ -47,6 +47,7 @@ import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.icons.FileExport
 import dev.bondarenko.fujirecipes.ui.theme.icons.FileSave
+import dev.bondarenko.fujirecipes.ui.theme.icons.CleaningServices
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.Info
 import dev.bondarenko.fujirecipes.ui.theme.icons.KeyboardArrowRight
@@ -63,6 +64,7 @@ fun SettingsScreen(
     onToggleShowTags: (Boolean) -> Unit,
     onToggleShowFilmSimulation: (Boolean) -> Unit,
     onToggleShowRating: (Boolean) -> Unit,
+    onOpenCleanup: () -> Unit,
     onOpenImport: () -> Unit,
     onOpenFileImport: () -> Unit,
     onOpenExport: () -> Unit,
@@ -120,6 +122,20 @@ fun SettingsScreen(
             title = stringResource(R.string.settings_rating_title),
             checked = preferences.showRating,
             onCheckedChange = onToggleShowRating,
+        )
+
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+        )
+
+        SectionHeader(stringResource(R.string.settings_maintenance))
+
+        SettingsCard(
+            title = stringResource(R.string.cleanup_title),
+            subtitle = stringResource(R.string.cleanup_subtitle),
+            icon = FujiIcons.CleaningServices,
+            onClick = onOpenCleanup,
+            showChevron = true,
         )
 
         HorizontalDivider(
@@ -351,6 +367,7 @@ private fun SettingsCard(
 
 @Composable
 fun SettingsRouteContent(
+    onOpenCleanup: () -> Unit,
     onOpenImport: () -> Unit,
     onOpenFileImport: () -> Unit,
     onOpenExport: () -> Unit,
@@ -368,6 +385,7 @@ fun SettingsRouteContent(
         onToggleShowTags = viewModel::onToggleShowTags,
         onToggleShowFilmSimulation = viewModel::onToggleShowFilmSimulation,
         onToggleShowRating = viewModel::onToggleShowRating,
+        onOpenCleanup = onOpenCleanup,
         onOpenImport = onOpenImport,
         onOpenFileImport = onOpenFileImport,
         onOpenExport = onOpenExport,
@@ -388,6 +406,7 @@ private fun SettingsPreview() {
             onToggleShowTags = {},
             onToggleShowFilmSimulation = {},
             onToggleShowRating = {},
+            onOpenCleanup = {},
             onOpenImport = {},
             onOpenFileImport = {},
             onOpenExport = {},

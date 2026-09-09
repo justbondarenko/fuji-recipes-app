@@ -27,7 +27,7 @@ import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.icons.Add
 import dev.bondarenko.fujirecipes.ui.theme.icons.BookmarkStacks
-import dev.bondarenko.fujirecipes.ui.theme.icons.CleaningServices
+import dev.bondarenko.fujirecipes.ui.theme.icons.CameraRoll
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.ImageSearch
 import dev.bondarenko.fujirecipes.ui.theme.icons.Settings
@@ -46,11 +46,11 @@ fun AppShell(
     showChrome: Boolean,
     isLibrarySelected: Boolean,
     isReadSelected: Boolean,
-    isCleanupSelected: Boolean = false,
+    isCameraPhotosSelected: Boolean = false,
     isMoreSelected: Boolean,
     onLibraryClick: () -> Unit,
     onReadClick: () -> Unit,
-    onCleanupClick: () -> Unit = {},
+    onCameraPhotosClick: () -> Unit = {},
     onMoreClick: () -> Unit,
     /**
      * The New recipe button was pressed.
@@ -98,15 +98,15 @@ fun AppShell(
                         label = { Text(stringResource(R.string.nav_read)) },
                     )
                     NavigationBarItem(
-                        selected = isCleanupSelected,
-                        onClick = onCleanupClick,
+                        selected = isCameraPhotosSelected,
+                        onClick = onCameraPhotosClick,
                         icon = {
                             Icon(
-                                imageVector = FujiIcons.CleaningServices,
+                                imageVector = FujiIcons.CameraRoll,
                                 contentDescription = null,
                             )
                         },
-                        label = { Text(stringResource(R.string.nav_cleanup)) },
+                        label = { Text(stringResource(R.string.nav_camera_photos)) },
                     )
                     cameraItem?.invoke(this)
                     NavigationBarItem(

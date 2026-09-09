@@ -21,6 +21,7 @@ import androidx.navigation.toRoute
 import dev.bondarenko.fujirecipes.ui.about.AboutRouteContent
 import dev.bondarenko.fujirecipes.ui.about.DisclaimerRouteContent
 import dev.bondarenko.fujirecipes.ui.camera.CameraRouteContent
+import dev.bondarenko.fujirecipes.ui.cameraphotos.CameraPhotosRouteContent
 import dev.bondarenko.fujirecipes.ui.cleanup.CleanupRouteContent
 import dev.bondarenko.fujirecipes.ui.library.LibraryRouteContent
 import dev.bondarenko.fujirecipes.ui.editor.RecipeEditorRouteContent
@@ -78,6 +79,10 @@ data class PhotoRoute(val initialUri: String? = null)
 @Serializable
 data object CleanupRoute
 
+/** Bottom bar → Photos: browse and download JPEG/RAF files from the camera card. */
+@Serializable
+data object CameraPhotosRoute
+
 @Serializable
 data object MoreRoute
 
@@ -116,7 +121,7 @@ private fun NavDestination?.toolbarIndex(): Int = when {
     this == null -> -1
     hasRoute<LibraryRoute>() -> 0
     hasRoute<PhotoRoute>() -> 1
-    hasRoute<CleanupRoute>() -> 2
+    hasRoute<CameraPhotosRoute>() -> 2
     hasRoute<CameraRoute>() -> 3
     hasRoute<MoreRoute>() -> 4
     else -> -1
@@ -260,6 +265,7 @@ fun FujiNavHost(
 
         composable<MoreRoute> {
             SettingsRouteContent(
+                onOpenCleanup = { navController.navigate(CleanupRoute) },
                 onOpenImport = { navController.navigate(ImportRoute) },
                 onOpenFileImport = { navController.navigate(FileImportRoute) },
                 onOpenExport = { navController.navigate(ExportRoute) },
@@ -301,9 +307,14 @@ fun FujiNavHost(
             )
         }
 
+        composable<CameraPhotosRoute> {
+            CameraPhotosRouteContent(contentPadding = contentPadding)
+        }
+
         composable<CleanupRoute> {
             CleanupRouteContent(
                 onOpenRecipe = { id -> navController.navigate(RecipeViewRoute(id)) },
+                onBack = { navController.popBackStack() },
                 contentPadding = contentPadding,
             )
         }

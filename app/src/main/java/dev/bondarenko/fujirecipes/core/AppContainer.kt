@@ -6,6 +6,7 @@ import dev.bondarenko.fujirecipes.core.settings.UiPreferences
 import dev.bondarenko.fujirecipes.core.settings.ViewPreferences
 import dev.bondarenko.fujirecipes.core.store.ImageStore
 import dev.bondarenko.fujirecipes.core.store.CameraMediaCache
+import dev.bondarenko.fujirecipes.core.store.CameraPhotoExporter
 import dev.bondarenko.fujirecipes.core.store.RawDevelopmentCache
 import dev.bondarenko.fujirecipes.core.store.LibraryStore
 import dev.bondarenko.fujirecipes.data.repo.LocalRecipeRepository
@@ -63,6 +64,10 @@ class AppContainer(context: Context) {
 
     val cameraMediaCache: CameraMediaCache by lazy {
         CameraMediaCache(File(applicationContext.cacheDir, CameraMediaCache.DIRECTORY_NAME))
+    }
+
+    val cameraPhotoExporter: CameraPhotoExporter by lazy {
+        CameraPhotoExporter(applicationContext.contentResolver, cameraController)
     }
 
     val rawDevelopmentCache: RawDevelopmentCache by lazy {

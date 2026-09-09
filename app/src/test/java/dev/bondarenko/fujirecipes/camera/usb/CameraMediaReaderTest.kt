@@ -40,6 +40,48 @@ class CameraMediaReaderTest {
     }
 
     @Test
+    fun `lists matching JPEG and RAF as independent files`() {
+        val camera = FakeCamera()
+        add(camera, 10, "DSCF0001.JPG", "20260101T000000", PtpObject.FORMAT_JPEG)
+        add(camera, 11, "DSCF0001.RAF", "20260101T000000", 0xb103)
+        add(camera, 20, "DSCF0002.JPG", "20260102T000000", PtpObject.FORMAT_JPEG)
+
+        val files = listCameraFiles(opened(camera))
+
+        assertEquals(
+            listOf("DSCF0002.JPG", "DSCF0001.RAF", "DSCF0001.JPG"),
+            files.map { it.info.filename },
+        )
+        assertEquals(listOf(20, 11, 10), files.map { it.handle })
+    }
+
+    @Test
+    fun `streams a RAF and verifies its signature`() {
+        val camera = FakeCamera()
+        val raf = "FUJIFILMCCD-RAW ".toByteArray() + ByteArray(1024) { 7 }
+        add(camera, 7, "DSCF0001.RAF", "20260101T000000", 0xb103, raf)
+        val session = opened(camera)
+        val media = listCameraRafs(session).single()
+        val output = ByteArrayOutputStream()
+
+        val written = downloadCameraRaf(session, media, output)
+
+        assertEquals(raf.size.toLong(), written)
+        assertContentEquals(raf, output.toByteArray())
+    }
+
+    @Test
+    fun `rejects a camera object that is not really a RAF`() {
+        val camera = FakeCamera()
+        add(camera, 7, "DSCF0001.RAF", "20260101T000000", 0xb103, byteArrayOf(1, 2, 3))
+        val session = opened(camera)
+
+        assertFailsWith<CameraMediaError> {
+            downloadCameraRaf(session, listCameraRafs(session).single(), ByteArrayOutputStream())
+        }
+    }
+
+    @Test
     fun `returns valid thumbnails and rejects malformed ones`() {
         val camera = FakeCamera()
         camera.thumbnails[1] = byteArrayOf(0xff.toByte(), 0xd8.toByte(), 0xff.toByte(), 1)
@@ -53,7 +95,11 @@ class CameraMediaReaderTest {
     @Test
     fun `streams an object larger than the old control-container limit`() {
         val camera = FakeCamera()
-        val jpeg = ByteArray(9 * 1024 * 1024) { (it and 0xff).toByte() }
+        val jpeg = ByteArray(9 * 1024 * 1024) { (it and 0xff).toByte() }.also {
+            it[0] = 0xff.toByte()
+            it[1] = 0xd8.toByte()
+            it[2] = 0xff.toByte()
+        }
         add(camera, 7, "LARGE.JPG", "20260101T000000", PtpObject.FORMAT_JPEG, jpeg)
         camera.chunkSize = 31 * 1024
         val session = opened(camera)
