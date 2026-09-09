@@ -1,12 +1,14 @@
 package dev.bondarenko.fujirecipes.camera.usb
 
 import dev.bondarenko.fujirecipes.camera.plan.BATTERY_LEVEL_PROPERTY
+import dev.bondarenko.fujirecipes.camera.plan.BatteryLevel
+import dev.bondarenko.fujirecipes.camera.plan.STANDARD_BATTERY_PROPERTY
+import dev.bondarenko.fujirecipes.camera.plan.plausibleBatteryLevel
 import dev.bondarenko.fujirecipes.camera.plan.CameraDetails
 import dev.bondarenko.fujirecipes.camera.plan.LENS_NAME_PROPERTY
 import dev.bondarenko.fujirecipes.camera.plan.TOTAL_SHOT_COUNT_PROPERTY
 import dev.bondarenko.fujirecipes.camera.plan.USB_MODE_PROPERTY
 import dev.bondarenko.fujirecipes.camera.plan.UsbMode
-import dev.bondarenko.fujirecipes.camera.plan.plausibleBatteryPercent
 import dev.bondarenko.fujirecipes.camera.plan.plausibleLensName
 import dev.bondarenko.fujirecipes.camera.plan.plausibleShutterCount
 import dev.bondarenko.fujirecipes.camera.plan.usbModeFor
@@ -64,14 +66,39 @@ fun readUsbModeRaw(session: PtpSession): Int? =
  */
 fun readCameraDetails(session: PtpSession, deviceInfo: DeviceInfo?): CameraDetails =
     CameraDetails(
-        batteryPercent = readNumber(session, BATTERY_LEVEL_PROPERTY)
-            ?.let(::plausibleBatteryPercent),
+        battery = readBattery(session),
         shutterCount = readNumber(session, TOTAL_SHOT_COUNT_PROPERTY)
             ?.let(::plausibleShutterCount),
         lens = readText(session, LENS_NAME_PROPERTY)?.let(::plausibleLensName),
         firmware = deviceInfo?.deviceVersion?.trim()?.ifBlank { null },
         serialNumber = deviceInfo?.serialNumber?.trim()?.ifBlank { null },
     )
+
+/**
+ * The battery, from whichever of the two properties this body has.
+ *
+ * **Both are tried because an X-T50 has them in opposite modes**: `0x5001` answers in
+ * card-reader mode and is absent in RAW conversion mode, while `0xD36A` is the other way round.
+ * The standard one is asked first, because where it can be described it declares its own scale
+ * — and that scale turned out to be 0–10, which is the whole reason this returns a level rather
+ * than a percentage.
+ */
+private fun readBattery(session: PtpSession): BatteryLevel? =
+    readBatteryFrom(session, STANDARD_BATTERY_PROPERTY)
+        ?: readBatteryFrom(session, BATTERY_LEVEL_PROPERTY)
+
+private fun readBatteryFrom(session: PtpSession, code: Int): BatteryLevel? {
+    val described = runCatching { session.describeProperty(code) }.getOrNull()
+    if (described != null) {
+        val value = described.currentValue as? Long ?: return null
+        return plausibleBatteryLevel(value, described.range?.max)
+    }
+
+    // No description, so no declared scale either. The assumed maximum carries a measurement
+    // behind it (see ASSUMED_BATTERY_MAX) and is marked as assumed in the result.
+    val raw = rawValue(session, code)?.let(::numberFromBytes) ?: return null
+    return plausibleBatteryLevel(raw)
+}
 
 // ─── Reading one property ───────────────────────────────────────────────────
 
@@ -86,18 +113,22 @@ private fun readNumber(session: PtpSession, code: Int): Long? {
     val described = runCatching { session.describeProperty(code) }
     if (described.isSuccess) return described.getOrNull()?.currentValue as? Long
 
-    val bytes = rawValue(session, code) ?: return null
+    return rawValue(session, code)?.let(::numberFromBytes)
+}
 
-    // Width by payload length. The body sent exactly as many bytes as the property holds, so
-    // this is right whenever the payload is a plain unsigned scalar — and every property this
-    // file reads is one. Anything else (a struct, a packed pair) has no length this recognises
-    // and is dropped rather than read as a number.
-    return when (bytes.size) {
-        1 -> (bytes[0].toInt() and 0xff).toLong()
-        2 -> unpackU16(bytes).toLong()
-        4 -> unpackU32(bytes)
-        else -> null
-    }
+/**
+ * Width by payload length.
+ *
+ * The body sent exactly as many bytes as the property holds, so this is right whenever the
+ * payload is a plain unsigned scalar — and every property read this way is one. Anything else
+ * (a struct, a packed pair, a string) has no length this recognises and is dropped rather than
+ * read as a number.
+ */
+internal fun numberFromBytes(bytes: ByteArray): Long? = when (bytes.size) {
+    1 -> (bytes[0].toInt() and 0xff).toLong()
+    2 -> unpackU16(bytes).toLong()
+    4 -> unpackU32(bytes)
+    else -> null
 }
 
 /** One property as a PTP string, or null if the body would not say. */

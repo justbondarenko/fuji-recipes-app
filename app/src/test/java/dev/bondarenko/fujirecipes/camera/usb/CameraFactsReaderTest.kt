@@ -1,7 +1,9 @@
 package dev.bondarenko.fujirecipes.camera.usb
 
 import dev.bondarenko.fujirecipes.camera.FakeCamera
+import dev.bondarenko.fujirecipes.camera.plan.ASSUMED_BATTERY_MAX
 import dev.bondarenko.fujirecipes.camera.plan.BATTERY_LEVEL_PROPERTY
+import dev.bondarenko.fujirecipes.camera.plan.STANDARD_BATTERY_PROPERTY
 import dev.bondarenko.fujirecipes.camera.plan.LENS_NAME_PROPERTY
 import dev.bondarenko.fujirecipes.camera.plan.TOTAL_SHOT_COUNT_PROPERTY
 import dev.bondarenko.fujirecipes.camera.plan.USB_MODE_PROPERTY
@@ -75,14 +77,14 @@ class CameraFactsReaderTest {
     @Test
     fun `reads battery, shutter count and lens, with firmware and serial from device info`() {
         val camera = FakeCamera()
-        camera.propertyValues[BATTERY_LEVEL_PROPERTY] = packU16(87)
+        camera.propertyValues[BATTERY_LEVEL_PROPERTY] = packU16(8)
         camera.propertyValues[TOTAL_SHOT_COUNT_PROPERTY] = packU32(142_037)
         camera.propertyValues[LENS_NAME_PROPERTY] = packPtpString("XF23mmF2 R WR")
 
         val session = connected(camera)
         val details = readCameraDetails(session, session.deviceInfo)
 
-        assertEquals(87, details.batteryPercent)
+        assertEquals(8, details.battery?.value)
         assertEquals(142_037, details.shutterCount)
         assertEquals("XF23mmF2 R WR", details.lens)
         assertEquals("1.20", details.firmware)
@@ -103,13 +105,13 @@ class CameraFactsReaderTest {
     @Test
     fun `one refused property costs only that one field`() {
         val camera = FakeCamera()
-        camera.propertyValues[BATTERY_LEVEL_PROPERTY] = packU16(42)
+        camera.propertyValues[BATTERY_LEVEL_PROPERTY] = packU16(4)
         // Shutter count and lens are simply never answered.
 
         val session = connected(camera)
         val details = readCameraDetails(session, session.deviceInfo)
 
-        assertEquals(42, details.batteryPercent)
+        assertEquals(4, details.battery?.value)
         assertNull(details.shutterCount)
         assertNull(details.lens)
         assertEquals("1.20", details.firmware)
@@ -128,7 +130,7 @@ class CameraFactsReaderTest {
         val session = connected(camera)
         val details = readCameraDetails(session, session.deviceInfo)
 
-        assertNull(details.batteryPercent)
+        assertNull(details.battery)
         assertNull(details.shutterCount)
     }
 
@@ -155,13 +157,65 @@ class CameraFactsReaderTest {
 
         val details = readCameraDetails(session, session.deviceInfo)
 
-        assertNull(details.batteryPercent)
+        assertNull(details.battery)
         assertEquals("1.20", details.firmware)
         assertEquals(UsbMode.UNREPORTED, readUsbMode(session))
+    }
+
+    // ─── Battery ────────────────────────────────────────────────────────────
+
+    /**
+     * The two properties live in opposite USB modes on an X-T50, so the standard one is asked
+     * first and the vendor one is the fallback — not an either/or.
+     */
+    @Test
+    fun `the standard battery property is preferred and brings its own scale`() {
+        val camera = FakeCamera()
+        camera.describeAnswers[STANDARD_BATTERY_PROPERTY] =
+            rangeDescription(STANDARD_BATTERY_PROPERTY, current = 10, min = 0, max = 10)
+        // Present too, and must not win.
+        camera.propertyValues[BATTERY_LEVEL_PROPERTY] = packU16(3)
+
+        val session = connected(camera)
+        val battery = readCameraDetails(session, session.deviceInfo).battery!!
+
+        assertEquals(10, battery.value)
+        assertEquals(10, battery.max)
+        assertTrue(battery.maxDeclared)
+        assertFalse(battery.isPercentage)
+    }
+
+    @Test
+    fun `the vendor property answers when the standard one is absent`() {
+        val camera = FakeCamera()
+        camera.propertyValues[BATTERY_LEVEL_PROPERTY] = packU32(10)
+
+        val session = connected(camera)
+        val battery = readCameraDetails(session, session.deviceInfo).battery!!
+
+        assertEquals(10, battery.value)
+        assertEquals(ASSUMED_BATTERY_MAX, battery.max)
+        assertFalse(battery.maxDeclared)
+    }
+
+    /** An X-T50 returns four bytes for `0xD36A`, not two. */
+    @Test
+    fun `a four-byte battery payload reads as a level`() {
+        val camera = FakeCamera()
+        camera.propertyValues[BATTERY_LEVEL_PROPERTY] = packU32(7)
+
+        val session = connected(camera)
+
+        assertEquals(7, readCameraDetails(session, session.deviceInfo).battery?.value)
     }
 
     /** A minimal `DevicePropDesc` dataset: code, type, GetSet, default, current. */
     private fun description(code: Int, currentValue: Int): ByteArray =
         packU16(code) + packU16(DataType.UINT16) + byteArrayOf(1) + packU16(0) +
             packU16(currentValue)
+
+    /** The same, with a range form so a declared scale can be read back. */
+    private fun rangeDescription(code: Int, current: Int, min: Int, max: Int): ByteArray =
+        packU16(code) + packU16(DataType.UINT16) + byteArrayOf(1) + packU16(0) +
+            packU16(current) + byteArrayOf(0x01) + packU16(min) + packU16(max) + packU16(1)
 }

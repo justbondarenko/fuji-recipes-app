@@ -15,8 +15,11 @@ package dev.bondarenko.fujirecipes.camera.plan
  * - **The preset block** (`0xD18C`–`0xD1A5`). This project's own captures, via
  *   `field-definitions.md` §7 and `eggricesoy/filmkit` — the same source `CameraEncoding.kt`
  *   uses, and the two files must not disagree.
- * - **The six singletons** this app reads or names outside that block: `0xD16E`, `0xD183`,
- *   `0xD185`, `0xD310`, `0xD36A`, `0xD36D`.
+ * - **The singletons** this app reads or names outside that block: `0xD16E`, `0xD183`,
+ *   `0xD184`, `0xD185`, `0xD186`, `0xD187`, `0xD310`, `0xD36A`, `0xD36D`. The last three of the
+ *   `0xD18x` group were identified from an X-T50 run: `0xD184` returned an IOP code string and
+ *   `0xD186`/`0xD187` both returned `X-T50_01…`, which is the `prop_group_version` that
+ *   `petabyt/libfuji`'s profile parser names — matching the codes that header gives them.
  *
  * **What is deliberately not in here, and why.** The shooting-property range `0xD001`–`0xD10B`
  * is named in both `eggricesoy/filmkit` and `petabyt/libfuji`, and **the two contradict each
@@ -45,6 +48,9 @@ private const val UNIDENTIFIED = "(unidentified)"
  */
 private val FUJI_PROPERTY_NAMES: Map<Int, String> = mapOf(
     0xd16e to "USBMode",
+    0xd184 to "IOPCode",
+    0xd186 to "TetherRawConditionCode",
+    0xd187 to "TetherRawCompatibilityCode",
     0xd183 to "StartRawConversion",
     0xd185 to "RawConvProfile",
     0xd310 to "TotalShotCount",
@@ -153,5 +159,27 @@ fun operationName(code: Int): String? = OPERATION_NAMES[code]
  * has always read the preset block without consulting that list, and it works — so a report
  * that only walked `devicePropertiesSupported` would miss exactly the codes it exists to
  * document. These are asked for on top of whatever the body did list.
+ *
+ * `0x5001` is in here despite being standard: an X-T50 lists it in card-reader mode and not in
+ * RAW conversion mode, and it is the one property that declares the battery scale.
  */
-val ALWAYS_PROBED_PROPERTIES: List<Int> = FUJI_PROPERTY_NAMES.keys.sorted()
+val ALWAYS_PROBED_PROPERTIES: List<Int> =
+    (FUJI_PROPERTY_NAMES.keys + STANDARD_BATTERY_PROPERTY).sorted()
+
+/**
+ * The custom-slot block.
+ *
+ * These registers **follow the slot selector**, so a single reading of them describes one
+ * recipe rather than the body. A report walks them once per slot and lays the seven readings
+ * side by side; everything else is walked once. `0xD18C` stays in the range on purpose — read
+ * back per slot it is the check that the selector actually moved.
+ */
+val PRESET_BLOCK: IntRange = 0xd18c..0xd1a5
+
+/**
+ * The preset codes a report tabulates per slot.
+ *
+ * The name is excluded because it is a string rather than a 16-bit value and gets its own line
+ * above the table.
+ */
+val PRESET_MATRIX_CODES: List<Int> = PRESET_BLOCK.filter { it != PRESET_NAME_PROPERTY }

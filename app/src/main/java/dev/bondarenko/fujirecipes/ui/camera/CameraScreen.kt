@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.camera.CameraModels
 import dev.bondarenko.fujirecipes.camera.CameraState
+import dev.bondarenko.fujirecipes.camera.plan.BatteryLevel
 import dev.bondarenko.fujirecipes.camera.plan.CameraDetails
 import dev.bondarenko.fujirecipes.camera.plan.UsbMode
 import dev.bondarenko.fujirecipes.camera.plan.SlotNameReading
@@ -620,9 +621,20 @@ private fun CameraDetailsCard(details: CameraDetails, modifier: Modifier = Modif
     if (details.isEmpty) return
 
     val rows = mutableListOf<Pair<String, String>>()
-    if (details.batteryPercent != null) {
+    val battery = details.battery
+    if (battery != null) {
+        // A percentage only when the body's own scale is one. Anything else is shown as the
+        // level it is, because "10" out of ten is a full battery and "10%" is nearly a dead one.
         rows += stringResource(R.string.camera_detail_battery) to
-            stringResource(R.string.camera_detail_battery_value, details.batteryPercent)
+            if (battery.isPercentage) {
+                stringResource(R.string.camera_detail_battery_value, battery.value)
+            } else {
+                stringResource(
+                    R.string.camera_detail_battery_level,
+                    battery.value,
+                    battery.max,
+                )
+            }
     }
     if (details.shutterCount != null) {
         rows += stringResource(R.string.camera_detail_shutter) to
@@ -790,7 +802,10 @@ private fun CameraConnectedWrongModePreview() {
                 state = CameraState.Connected(
                     identity = CameraModels.identify("X100VI"),
                     usbMode = UsbMode.TETHER_SHOOTING,
-                    details = CameraDetails(batteryPercent = 62, firmware = "1.32"),
+                    details = CameraDetails(
+                        battery = BatteryLevel(6, 10, maxDeclared = true),
+                        firmware = "1.32",
+                    ),
                 ),
                 slots = slotStates((1..7).map { SlotNameReading(it, null, read = false) }),
                 isLoadingSlots = false,
@@ -813,7 +828,7 @@ private fun CameraConnectedDetailsPreview() {
                     identity = CameraModels.identify("X-T5"),
                     usbMode = UsbMode.RAW_CONVERSION,
                     details = CameraDetails(
-                        batteryPercent = 87,
+                        battery = BatteryLevel(10, 10, maxDeclared = true),
                         shutterCount = 142_037,
                         lens = "XF23mmF2 R WR",
                         firmware = "3.10",
