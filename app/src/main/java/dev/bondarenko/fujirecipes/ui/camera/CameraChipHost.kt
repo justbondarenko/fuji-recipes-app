@@ -72,7 +72,8 @@ fun CameraRouteContent(contentPadding: PaddingValues) {
     var pendingBytes by remember(state) { mutableStateOf<ByteArray?>(null) }
 
     LaunchedEffect(state, refreshCounter) {
-        if (state is CameraState.Connected) {
+        val connected = state as? CameraState.Connected
+        if (connected != null && !connected.usbMode.isKnownWrongMode) {
             isLoadingSlots = true
             slotsError = null
             runCatching { controller.readSlots() }
