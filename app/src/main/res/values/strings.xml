@@ -214,6 +214,22 @@
     <string name="camera_photos_connect_body">Set CONNECTION MODE to USB CARD READER, then connect the camera by USB.</string>
     <string name="camera_photos_attached_body">The camera is attached. Tap Connect to browse its card.</string>
     <string name="camera_photos_busy">The camera is busy with another operation.</string>
+    <string name="camera_photos_cancel_download">Cancel download</string>
+    <string name="camera_photos_cancelled">Download cancelled.</string>
+
+    <!-- Background transfers -->
+    <string name="camera_transfer_channel_name">Camera downloads</string>
+    <string name="camera_transfer_channel_description">Progress while photos are copied from a connected camera.</string>
+    <string name="camera_transfer_notification_title">Downloading %1$d of %2$d</string>
+    <string name="camera_transfer_cancel">Cancel</string>
+    <string name="camera_transfer_unknown_camera">Camera</string>
+
+    <!-- Recovery after the process was killed mid-batch -->
+    <string name="camera_transfer_interrupted_title">The last download did not finish</string>
+    <string name="camera_transfer_interrupted_body">%1$d of %2$d files were saved. “%3$s” was still copying and may be incomplete.</string>
+    <string name="camera_transfer_interrupted_body_no_pending">%1$d of %2$d files were saved before the download stopped.</string>
+    <string name="camera_transfer_delete_partial">Delete “%1$s”</string>
+    <string name="action_keep">Keep</string>
     <string name="action_dismiss">Dismiss</string>
     <string name="settings_import_camera_title">Import from camera</string>
     <string name="settings_import_camera_subtitle">Import saved presets</string>

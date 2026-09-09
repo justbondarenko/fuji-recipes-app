@@ -2,11 +2,13 @@ package dev.bondarenko.fujirecipes.core
 
 import android.content.Context
 import dev.bondarenko.fujirecipes.camera.CameraController
+import dev.bondarenko.fujirecipes.camera.CameraTransfers
 import dev.bondarenko.fujirecipes.core.settings.UiPreferences
 import dev.bondarenko.fujirecipes.core.settings.ViewPreferences
 import dev.bondarenko.fujirecipes.core.store.ImageStore
 import dev.bondarenko.fujirecipes.core.store.CameraMediaCache
 import dev.bondarenko.fujirecipes.core.store.CameraPhotoExporter
+import dev.bondarenko.fujirecipes.core.store.CameraTransferStore
 import dev.bondarenko.fujirecipes.core.store.RawDevelopmentCache
 import dev.bondarenko.fujirecipes.core.store.LibraryStore
 import dev.bondarenko.fujirecipes.data.repo.LocalRecipeRepository
@@ -68,6 +70,23 @@ class AppContainer(context: Context) {
 
     val cameraPhotoExporter: CameraPhotoExporter by lazy {
         CameraPhotoExporter(applicationContext.contentResolver, cameraController)
+    }
+
+    /**
+     * The record of an unfinished download, in `filesDir` rather than `cacheDir`: the OS may
+     * reclaim a cache directory, and a record that can vanish is one that reports "nothing went
+     * wrong" after something did.
+     */
+    val cameraTransferStore: CameraTransferStore by lazy {
+        CameraTransferStore(File(applicationContext.filesDir, CameraTransferStore.FILE_NAME))
+    }
+
+    /**
+     * Shared by the screen that starts a download and the foreground service that runs it, so
+     * the batch outlives the screen — and so a killed process leaves a record behind.
+     */
+    val cameraTransfers: CameraTransfers by lazy {
+        CameraTransfers(cameraPhotoExporter, cameraTransferStore)
     }
 
     val rawDevelopmentCache: RawDevelopmentCache by lazy {

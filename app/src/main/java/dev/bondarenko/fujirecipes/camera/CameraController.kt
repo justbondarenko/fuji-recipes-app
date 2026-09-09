@@ -357,18 +357,36 @@ class CameraController(
         media: CameraMediaObject,
         output: OutputStream,
         onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
+        isCancelled: () -> Boolean = { false },
     ): Long = lock.withLock {
         val open = mediaSession()
-        withContext(Dispatchers.IO) { downloadCameraJpeg(open, media, output, onProgress = onProgress) }
+        withContext(Dispatchers.IO) {
+            downloadCameraJpeg(
+                open,
+                media,
+                output,
+                onProgress = onProgress,
+                isCancelled = isCancelled,
+            )
+        }
     }
 
     suspend fun downloadCameraRaf(
         media: CameraMediaObject,
         output: OutputStream,
         onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
+        isCancelled: () -> Boolean = { false },
     ): Long = lock.withLock {
         val open = mediaSession()
-        withContext(Dispatchers.IO) { downloadCameraRaf(open, media, output, onProgress = onProgress) }
+        withContext(Dispatchers.IO) {
+            downloadCameraRaf(
+                open,
+                media,
+                output,
+                onProgress = onProgress,
+                isCancelled = isCancelled,
+            )
+        }
     }
 
     suspend fun readCameraPhotoThumbnail(handle: Int): ByteArray? = lock.withLock {

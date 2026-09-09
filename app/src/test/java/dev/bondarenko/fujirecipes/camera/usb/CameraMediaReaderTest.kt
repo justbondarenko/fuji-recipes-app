@@ -11,6 +11,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class CameraMediaReaderTest {
     private fun opened(camera: FakeCamera) = PtpSession(PtpTransport(camera)).also { it.open() }
@@ -125,6 +126,118 @@ class CameraMediaReaderTest {
         }
 
         assertEquals(CameraMediaFailure.TOO_LARGE, error.reason)
+    }
+
+    // ─── Cancellation ───────────────────────────────────────────────────────
+
+    private fun jpeg(size: Int): ByteArray = ByteArray(size) { (it and 0xff).toByte() }.also {
+        it[0] = 0xff.toByte()
+        it[1] = 0xd8.toByte()
+        it[2] = 0xff.toByte()
+    }
+
+    /**
+     * The point of draining rather than abandoning: after a cancel the camera is still in step,
+     * so the very next download works. Hanging up mid-container would leave the tail of the
+     * cancelled image queued, and the next command would read it as its own reply.
+     */
+    @Test
+    fun `a cancelled download stops writing and leaves the session usable`() {
+        val camera = FakeCamera()
+        val big = jpeg(512 * 1024)
+        val small = jpeg(64)
+        add(camera, 7, "BIG.JPG", "20260102T000000", PtpObject.FORMAT_JPEG, big)
+        add(camera, 8, "SMALL.JPG", "20260101T000000", PtpObject.FORMAT_JPEG, small)
+        camera.chunkSize = 16 * 1024
+        val session = opened(camera)
+        val files = listCameraJpegs(session)
+        val output = ByteArrayOutputStream()
+        var polls = 0
+
+        val error = assertFailsWith<CameraMediaError> {
+            downloadCameraJpeg(
+                session = session,
+                media = files.first { it.handle == 7 },
+                output = output,
+                isCancelled = { polls++ > 0 },
+            )
+        }
+
+        assertEquals(CameraMediaFailure.CANCELLED, error.reason)
+        assertTrue(output.size() < big.size, "the whole image was written anyway")
+
+        val second = ByteArrayOutputStream()
+        val written = downloadCameraJpeg(session, files.first { it.handle == 8 }, second)
+
+        assertEquals(small.size.toLong(), written)
+        assertContentEquals(small, second.toByteArray())
+    }
+
+    /** Cancelled before the first chunk lands: nothing is written at all. */
+    @Test
+    fun `a download cancelled at the outset writes nothing`() {
+        val camera = FakeCamera()
+        add(camera, 7, "BIG.JPG", "20260101T000000", PtpObject.FORMAT_JPEG, jpeg(256 * 1024))
+        camera.chunkSize = 16 * 1024
+        val session = opened(camera)
+        val output = ByteArrayOutputStream()
+
+        val error = assertFailsWith<CameraMediaError> {
+            downloadCameraJpeg(
+                session = session,
+                media = listCameraJpegs(session).single(),
+                output = output,
+                isCancelled = { true },
+            )
+        }
+
+        assertEquals(CameraMediaFailure.CANCELLED, error.reason)
+        assertEquals(0, output.size())
+    }
+
+    /** A cancel that never fires must not change what a download does. */
+    @Test
+    fun `a download that is never cancelled is unaffected`() {
+        val camera = FakeCamera()
+        val image = jpeg(128 * 1024)
+        add(camera, 7, "DSCF0001.JPG", "20260101T000000", PtpObject.FORMAT_JPEG, image)
+        camera.chunkSize = 16 * 1024
+        val session = opened(camera)
+        val output = ByteArrayOutputStream()
+
+        val written = downloadCameraJpeg(
+            session = session,
+            media = listCameraJpegs(session).single(),
+            output = output,
+            isCancelled = { false },
+        )
+
+        assertEquals(image.size.toLong(), written)
+        assertContentEquals(image, output.toByteArray())
+    }
+
+    /** Progress must not keep climbing after the user has stopped it. */
+    @Test
+    fun `progress stops being reported once cancelled`() {
+        val camera = FakeCamera()
+        add(camera, 7, "BIG.JPG", "20260101T000000", PtpObject.FORMAT_JPEG, jpeg(512 * 1024))
+        camera.chunkSize = 16 * 1024
+        val session = opened(camera)
+        val reported = mutableListOf<Long>()
+        var polls = 0
+
+        assertFailsWith<CameraMediaError> {
+            downloadCameraJpeg(
+                session = session,
+                media = listCameraJpegs(session).single(),
+                output = ByteArrayOutputStream(),
+                onProgress = { written, _ -> reported += written },
+                isCancelled = { polls++ > 1 },
+            )
+        }
+
+        assertTrue(reported.isNotEmpty())
+        assertTrue(reported.last() < 512 * 1024, "progress ran to completion after a cancel")
     }
 
     private fun add(

@@ -1,6 +1,9 @@
 package dev.bondarenko.fujirecipes.ui.cameraphotos
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
@@ -47,6 +50,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -57,6 +61,7 @@ import dev.bondarenko.fujirecipes.camera.CameraState
 import dev.bondarenko.fujirecipes.camera.usb.CameraMediaObject
 import dev.bondarenko.fujirecipes.camera.usb.CameraMediaType
 import dev.bondarenko.fujirecipes.camera.usb.mediaType
+import dev.bondarenko.fujirecipes.core.store.CameraTransferRecord
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.theme.icons.CameraRoll
 import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowDownwardAlt
@@ -80,6 +85,9 @@ fun CameraPhotosScreen(
     onLoadThumbnail: (Int) -> Unit,
     onChooseFolder: () -> Unit,
     onClearNotice: () -> Unit,
+    onCancelDownload: () -> Unit,
+    onDeletePartial: () -> Unit,
+    onKeepPartial: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
@@ -176,6 +184,14 @@ fun CameraPhotosScreen(
             )
         }
 
+        state.interrupted?.let { interrupted ->
+            InterruptedBatchCard(
+                record = interrupted,
+                onDelete = onDeletePartial,
+                onKeep = onKeepPartial,
+            )
+        }
+
         val notice = state.error ?: state.message
         if (notice != null) {
             Surface(
@@ -269,6 +285,12 @@ fun CameraPhotosScreen(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
+                // The same cancel the notification offers. It is honoured between USB chunks,
+                // so it lands within one read rather than at the end of the current file.
+                TextButton(
+                    onClick = onCancelDownload,
+                    modifier = Modifier.align(Alignment.End),
+                ) { Text(stringResource(R.string.camera_photos_cancel_download)) }
             }
         }
 
@@ -436,6 +458,65 @@ private fun CameraPhotosConnectionState(
     )
 }
 
+/**
+ * What a killed process left behind.
+ *
+ * Only the pending file is offered for deletion. The ones before it finished, are whole, and
+ * are what the user asked for — deleting them because a later file was interrupted would be the
+ * app throwing away its own work.
+ */
+@Composable
+private fun InterruptedBatchCard(
+    record: CameraTransferRecord,
+    onDelete: () -> Unit,
+    onKeep: () -> Unit,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 6.dp, top = 10.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.camera_transfer_interrupted_title),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            val pending = record.pendingFile
+            Text(
+                text = if (pending != null) {
+                    stringResource(
+                        R.string.camera_transfer_interrupted_body,
+                        record.completedCount,
+                        record.totalFiles,
+                        pending,
+                    )
+                } else {
+                    stringResource(
+                        R.string.camera_transfer_interrupted_body_no_pending,
+                        record.completedCount,
+                        record.totalFiles,
+                    )
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = onKeep) { Text(stringResource(R.string.action_keep)) }
+                if (pending != null) {
+                    TextButton(onClick = onDelete) {
+                        Text(stringResource(R.string.camera_transfer_delete_partial, pending))
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun fileTypeLabel(file: CameraMediaObject): String = when (file.mediaType) {
     CameraMediaType.RAW -> stringResource(R.string.camera_photos_raw)
@@ -467,6 +548,28 @@ fun CameraPhotosRouteContent(contentPadding: PaddingValues) {
         }
     }
 
+    /**
+     * Asked at the moment it becomes useful, not on the way into the app.
+     *
+     * A refusal costs the progress notification and nothing else: the foreground service, and
+     * with it the download, runs either way. So the folder picker opens whatever the answer is.
+     */
+    val notificationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { folderPicker.launch(null) }
+
+    val chooseFolder: () -> Unit = {
+        val needsPermission = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+
+        if (needsPermission) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            folderPicker.launch(null)
+        }
+    }
+
     LaunchedEffect(cameraState is CameraState.Connected) {
         if (cameraState is CameraState.Connected) viewModel.refresh()
     }
@@ -482,8 +585,11 @@ fun CameraPhotosRouteContent(contentPadding: PaddingValues) {
         onSelectAll = viewModel::selectAllVisible,
         onClearSelection = viewModel::clearSelection,
         onLoadThumbnail = viewModel::loadThumbnail,
-        onChooseFolder = { folderPicker.launch(null) },
+        onChooseFolder = chooseFolder,
         onClearNotice = viewModel::clearNotice,
+        onCancelDownload = viewModel::cancelDownload,
+        onDeletePartial = viewModel::deleteInterruptedPartial,
+        onKeepPartial = viewModel::dismissInterrupted,
         contentPadding = contentPadding,
     )
 }
