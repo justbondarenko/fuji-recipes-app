@@ -14,6 +14,7 @@ import dev.bondarenko.fujirecipes.camera.ptp.packU32
 import dev.bondarenko.fujirecipes.camera.ptp.unpackContainer
 import dev.bondarenko.fujirecipes.camera.ptp.unpackU16
 import java.io.ByteArrayOutputStream
+import java.io.InputStream
 
 /**
  * A camera that speaks PTP back, over the same [BulkChannel] the USB transport implements.
@@ -91,6 +92,9 @@ class FakeCamera(
     /** Every property write, in the order the camera received it. */
     val writes: MutableList<Write> = mutableListOf()
 
+    /** Test hook for behavior caused by a property write, such as a completed RAW render. */
+    var afterPropertyWrite: ((property: Int, payload: ByteArray) -> Unit)? = null
+
     // ─── Objects (the settings backup) ──────────────────────────────────────
 
     /** What `GetObjectInfo` answers, keyed by handle. An absent handle is refused. */
@@ -161,6 +165,28 @@ class FakeCamera(
             ContainerType.DATA -> onData(container.data)
             else -> error("The fake camera was sent a container of type ${container.type}")
         }
+    }
+
+    override fun writeStream(
+        prefix: ByteArray,
+        input: InputStream,
+        payloadLength: Long,
+        onProgress: (written: Long, total: Long) -> Unit,
+    ) {
+        val header = unpackContainer(prefix)
+        require(header.type == ContainerType.DATA)
+        val out = ByteArrayOutputStream(payloadLength.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
+        val buffer = ByteArray(64 * 1024)
+        var readTotal = 0L
+        while (readTotal < payloadLength) {
+            val count = input.read(buffer, 0, minOf(buffer.size.toLong(), payloadLength - readTotal).toInt())
+            if (count < 0) error("Stream ended early")
+            if (count == 0) continue
+            out.write(buffer, 0, count)
+            readTotal += count
+            onProgress(readTotal, payloadLength)
+        }
+        onData(out.toByteArray())
     }
 
     override fun read(maxBytes: Int): ByteArray {
@@ -304,9 +330,24 @@ class FakeCamera(
                 thumbnails[params.firstOrNull() ?: 0],
             )
 
-            Operation.SEND_OBJECT_INFO, Operation.SEND_OBJECT -> {
+            Operation.SEND_OBJECT_INFO,
+            Operation.SEND_OBJECT,
+            Operation.FUJI_SEND_OBJECT_INFO,
+            Operation.FUJI_SEND_OBJECT,
+            -> {
                 pendingObjectOperation = operation
                 reply(ResponseCode.OK, transactionId)
+            }
+
+            Operation.DELETE_OBJECT -> {
+                val handle = params.firstOrNull() ?: 0
+                if (objectInfos.remove(handle) == null && objects.remove(handle) == null) {
+                    reply(ResponseCode.INVALID_OBJECT_HANDLE, transactionId)
+                } else {
+                    objects.remove(handle)
+                    thumbnails.remove(handle)
+                    reply(ResponseCode.OK, transactionId)
+                }
             }
 
             else -> reply(ResponseCode.OPERATION_NOT_SUPPORTED, transactionId)
@@ -329,13 +370,13 @@ class FakeCamera(
         }
 
         when (pendingObjectOperation) {
-            Operation.SEND_OBJECT_INFO -> {
+            Operation.SEND_OBJECT_INFO, Operation.FUJI_SEND_OBJECT_INFO -> {
                 sentObjectInfo = payload
                 pendingObjectOperation = null
                 return
             }
 
-            Operation.SEND_OBJECT -> {
+            Operation.SEND_OBJECT, Operation.FUJI_SEND_OBJECT -> {
                 sentObject = payload
                 pendingObjectOperation = null
                 return
@@ -353,6 +394,8 @@ class FakeCamera(
         if (echoWrites && refuseProperty[code] == null) {
             propertyValues[code] = readBackAs[code] ?: payload
         }
+
+        if (refuseProperty[code] == null) afterPropertyWrite?.invoke(code, payload)
 
         unplugAfterWrites?.let { limit -> if (writes.size >= limit) unplugged = true }
     }
@@ -376,6 +419,8 @@ class FakeCamera(
             Operation.SET_DEVICE_PROP_VALUE,
             Operation.SEND_OBJECT_INFO,
             Operation.SEND_OBJECT,
+            Operation.FUJI_SEND_OBJECT_INFO,
+            Operation.FUJI_SEND_OBJECT,
         )
     }
 
@@ -402,9 +447,12 @@ class FakeCamera(
                 Operation.GET_OBJECT_INFO,
                 Operation.GET_OBJECT,
                 Operation.GET_THUMB,
+                Operation.DELETE_OBJECT,
                 Operation.GET_DEVICE_PROP_DESC,
                 Operation.GET_DEVICE_PROP_VALUE,
                 Operation.SET_DEVICE_PROP_VALUE,
+                Operation.FUJI_SEND_OBJECT_INFO,
+                Operation.FUJI_SEND_OBJECT,
             ),
         )
         u16Array(emptyList())

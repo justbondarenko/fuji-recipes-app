@@ -29,6 +29,7 @@ import dev.bondarenko.fujirecipes.ui.importing.FileImportRouteContent
 import dev.bondarenko.fujirecipes.ui.importing.ImportRouteContent
 import dev.bondarenko.fujirecipes.ui.photo.PhotoReaderRouteContent
 import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewRouteContent
+import dev.bondarenko.fujirecipes.ui.raw.RawDevelopmentRouteContent
 import dev.bondarenko.fujirecipes.ui.settings.SettingsRouteContent
 import dev.bondarenko.fujirecipes.ui.theme.LocalReducedMotion
 import kotlinx.serialization.Serializable
@@ -64,6 +65,10 @@ data class RecipeEditorRoute(
 /** Read-only. Reached by tapping a card; its Edit action leads to [RecipeEditorRoute]. */
 @Serializable
 data class RecipeViewRoute(val id: String)
+
+/** Recipe + phone RAF -> JPEG rendered by the connected camera. */
+@Serializable
+data class RawDevelopmentRoute(val recipeId: String)
 
 /** Bottom bar → Read: decode a photo's MakerNote and match it (FEAT-009). */
 @Serializable
@@ -203,6 +208,7 @@ fun FujiNavHost(
                 onEditRecipe = { id -> navController.navigate(RecipeEditorRoute(id)) },
                 onCreateRecipe = { navController.navigate(RecipeEditorRoute(null)) },
                 onImportFromCamera = { navController.navigate(ImportRoute) },
+                onDevelopRaw = { id -> navController.navigate(RawDevelopmentRoute(id)) },
                 contentPadding = contentPadding,
             )
         }
@@ -213,6 +219,16 @@ fun FujiNavHost(
                 recipeId = route.id,
                 onBack = { navController.popBackStack() },
                 onEdit = { navController.navigate(RecipeEditorRoute(route.id)) },
+                onDevelopRaw = { navController.navigate(RawDevelopmentRoute(route.id)) },
+            )
+        }
+
+        composable<RawDevelopmentRoute> { entry ->
+            val route = entry.toRoute<RawDevelopmentRoute>()
+            RawDevelopmentRouteContent(
+                recipeId = route.recipeId,
+                onBack = { navController.popBackStack() },
+                contentPadding = contentPadding,
             )
         }
 

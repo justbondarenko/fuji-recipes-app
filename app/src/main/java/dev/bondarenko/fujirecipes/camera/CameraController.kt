@@ -37,9 +37,16 @@ import dev.bondarenko.fujirecipes.camera.usb.downloadBackup
 import dev.bondarenko.fujirecipes.camera.usb.restoreBackup
 import dev.bondarenko.fujirecipes.camera.usb.CameraMediaObject
 import dev.bondarenko.fujirecipes.camera.usb.listCameraJpegs
+import dev.bondarenko.fujirecipes.camera.usb.listCameraRafs
 import dev.bondarenko.fujirecipes.camera.usb.readCameraThumbnail
 import dev.bondarenko.fujirecipes.core.store.CameraMediaCache
+import dev.bondarenko.fujirecipes.core.store.RawDevelopmentCache
 import java.io.File
+import dev.bondarenko.fujirecipes.camera.usb.RawDevelopmentResult
+import dev.bondarenko.fujirecipes.camera.usb.RawDevelopmentStage
+import dev.bondarenko.fujirecipes.camera.usb.captureRawProfile
+import dev.bondarenko.fujirecipes.camera.usb.developRaw as runRawDevelopment
+import dev.bondarenko.fujirecipes.data.model.Recipe
 import dev.bondarenko.fujirecipes.camera.plan.CameraReport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -349,6 +356,22 @@ class CameraController(
         withContext(Dispatchers.IO) { cache.download(open, media, onProgress) }
     }
 
+    suspend fun listCameraRafs(
+        onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
+    ): List<CameraMediaObject> = lock.withLock {
+        val open = mediaSession()
+        withContext(Dispatchers.IO) { listCameraRafs(open, onProgress) }
+    }
+
+    suspend fun downloadCameraRaf(
+        media: CameraMediaObject,
+        cache: RawDevelopmentCache,
+        onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
+    ): File = lock.withLock {
+        val open = mediaSession()
+        withContext(Dispatchers.IO) { cache.download(open, media, onProgress) }
+    }
+
     private fun mediaSession(): PtpSession {
         val open = session ?: throw IllegalStateException(
             "Connect the camera before choosing photos from it.",
@@ -362,6 +385,58 @@ class CameraController(
             throw IllegalStateException(
                 "Photo browsing requires USB CARD READER mode. Change the camera's USB mode, " +
                     "then disconnect and reconnect the cable.",
+            )
+        }
+        return open
+    }
+
+    // ─── In-camera RAW development ─────────────────────────────────────────
+
+    suspend fun developRaw(
+        raf: File,
+        recipe: Recipe,
+        output: File,
+        onStage: (RawDevelopmentStage) -> Unit = {},
+    ): RawDevelopmentResult = lock.withLock {
+        val open = rawDevelopmentSession()
+        val wakeLock = (appContext.getSystemService(Context.POWER_SERVICE) as PowerManager)
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_TAG)
+        try {
+            wakeLock.acquire(WAKE_LOCK_TIMEOUT_MS)
+            withContext(Dispatchers.IO) {
+                runRawDevelopment(open, raf, recipe, output, onStage)
+            }
+        } catch (error: Exception) {
+            if (error is PtpFramingError || error is PtpTimeoutError) {
+                closeSession(error.toCameraError())
+            }
+            throw error
+        } finally {
+            if (wakeLock.isHeld) wakeLock.release()
+        }
+    }
+
+    suspend fun captureRawDevelopmentProfile(
+        raf: File,
+        onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
+    ): ByteArray = lock.withLock {
+        val open = rawDevelopmentSession()
+        withContext(Dispatchers.IO) { captureRawProfile(open, raf, onProgress) }
+    }
+
+    private fun rawDevelopmentSession(): PtpSession {
+        val open = session ?: throw IllegalStateException(
+            "Connect the camera before developing a RAW file.",
+        )
+        val connected = _state.value as? CameraState.Connected ?: throw IllegalStateException(
+            "The camera is busy. Wait for the current operation to finish.",
+        )
+        if (connected.usbMode != dev.bondarenko.fujirecipes.camera.plan.UsbMode.RAW_CONVERSION &&
+            connected.usbMode != dev.bondarenko.fujirecipes.camera.plan.UsbMode.UNREPORTED
+        ) {
+            throw IllegalStateException(
+                "RAW development requires USB RAW CONV./BACKUP RESTORE mode. Change the camera " +
+                    "setting, then disconnect and reconnect the cable.",
             )
         }
         return open

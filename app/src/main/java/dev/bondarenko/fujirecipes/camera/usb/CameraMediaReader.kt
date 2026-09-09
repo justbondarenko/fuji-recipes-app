@@ -75,6 +75,52 @@ fun listCameraJpegs(
     )
 }
 
+/**
+ * RAF candidates on the card.
+ *
+ * Fuji bodies do not consistently advertise one PTP object-format code for RAF across the
+ * available protocol reports. The catalogue therefore uses the filename only to offer a
+ * candidate; [RawDevelopmentCache.download] performs the second, authoritative check against
+ * the RAF file signature before the object can enter a conversion job.
+ */
+fun listCameraRafs(
+    session: PtpSession,
+    onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
+): List<CameraMediaObject> {
+    val required = listOf(
+        Operation.GET_STORAGE_IDS,
+        Operation.GET_OBJECT_HANDLES,
+        Operation.GET_OBJECT_INFO,
+        Operation.GET_OBJECT,
+    )
+    if (required.any { !session.supportsOperation(it) }) {
+        throw CameraMediaError(
+            CameraMediaFailure.UNSUPPORTED,
+            "The camera does not expose the PTP object operations needed to browse its card.",
+        )
+    }
+    val storages = session.getStorageIds()
+    if (storages.isEmpty()) {
+        throw CameraMediaError(CameraMediaFailure.NO_STORAGE, "The camera reports no mounted card.")
+    }
+    val handles = storages.flatMap { storage -> session.getObjectHandles(storage) }.distinct()
+    val objects = handles.mapIndexedNotNull { index, handle ->
+        onProgress(index, handles.size)
+        val info = parseObjectInfo(session.getObjectInfo(handle))
+        if (info.filename.endsWith(".raf", ignoreCase = true) && info.compressedSize > 0) {
+            CameraMediaObject(handle, info)
+        } else {
+            null
+        }
+    }
+    onProgress(handles.size, handles.size)
+    return objects.sortedWith(
+        compareByDescending<CameraMediaObject> { it.info.captureDate }
+            .thenByDescending { it.info.filename }
+            .thenByDescending { it.handle.toLong() and 0xffffffffL },
+    )
+}
+
 /** Thumbnail failure is local to a tile; null means use the placeholder. */
 fun readCameraThumbnail(session: PtpSession, objectHandle: Int): ByteArray? {
     if (!session.supportsOperation(Operation.GET_THUMB)) return null

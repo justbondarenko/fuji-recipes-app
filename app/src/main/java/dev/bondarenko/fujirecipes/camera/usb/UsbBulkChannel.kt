@@ -10,6 +10,7 @@ import dev.bondarenko.fujirecipes.camera.ptp.BulkChannel
 import dev.bondarenko.fujirecipes.camera.ptp.DEFAULT_TIMEOUT_MS
 import dev.bondarenko.fujirecipes.camera.ptp.PtpFramingError
 import dev.bondarenko.fujirecipes.camera.ptp.PtpTimeoutError
+import java.io.InputStream
 
 /**
  * The USB half of the transport: everything that touches hardware, and nothing else.
@@ -82,13 +83,18 @@ class UsbBulkChannel private constructor(
 ) : BulkChannel {
 
     override fun write(bytes: ByteArray) {
+        writeRaw(bytes, bytes.size)
+        terminateIfExactMultiple(bytes.size.toLong())
+    }
+
+    private fun writeRaw(bytes: ByteArray, count: Int) {
         var sent = 0
-        while (sent < bytes.size) {
+        while (sent < count) {
             val moved = connection.bulkTransfer(
                 endpointOut,
                 bytes,
                 sent,
-                bytes.size - sent,
+                count - sent,
                 timeoutMs,
             )
             // Android reports a timeout and a transport error identically, as a negative
@@ -98,8 +104,45 @@ class UsbBulkChannel private constructor(
             if (moved == 0) throw PtpFramingError("The USB write moved no bytes.")
             sent += moved
         }
+    }
 
-        terminateIfExactMultiple(bytes.size)
+    override fun writeStream(
+        prefix: ByteArray,
+        input: InputStream,
+        payloadLength: Long,
+        onProgress: (written: Long, total: Long) -> Unit,
+    ) {
+        require(payloadLength >= 0)
+        val packet = endpointOut.maxPacketSize.coerceAtLeast(1)
+        // The 511-packet transfer size mirrors X RAW Studio/libfuji captures while ensuring
+        // every intermediate Android bulk transfer ends on a packet boundary.
+        val buffer = ByteArray(packet * 511)
+        prefix.copyInto(buffer)
+        var buffered = prefix.size
+        var payloadWritten = 0L
+
+        while (payloadWritten < payloadLength) {
+            val wanted = minOf(buffer.size - buffered.toLong(), payloadLength - payloadWritten).toInt()
+            val read = input.read(buffer, buffered, wanted)
+            if (read < 0) {
+                throw PtpFramingError(
+                    "The upload source stopped after $payloadWritten of $payloadLength bytes.",
+                )
+            }
+            if (read == 0) continue
+            buffered += read
+            payloadWritten += read
+
+            if (buffered == buffer.size) {
+                writeRaw(buffer, buffered)
+                buffered = 0
+                onProgress(payloadWritten, payloadLength)
+            }
+        }
+
+        if (buffered > 0) writeRaw(buffer, buffered)
+        terminateIfExactMultiple(prefix.size + payloadLength)
+        onProgress(payloadWritten, payloadLength)
     }
 
     /**
@@ -116,9 +159,9 @@ class UsbBulkChannel private constructor(
      * `maxPacketSize` would have hung. That is exactly the kind of failure that looks like a
      * flaky cable and is not.
      */
-    private fun terminateIfExactMultiple(size: Int) {
+    private fun terminateIfExactMultiple(size: Long) {
         val packet = endpointOut.maxPacketSize
-        if (packet <= 0 || size == 0 || size % packet != 0) return
+        if (packet <= 0 || size == 0L || size % packet != 0L) return
 
         // A failure here is not fatal on its own — the camera may already have taken the
         // transfer as complete — so it is not worth turning a working write into an error.

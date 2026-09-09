@@ -2,6 +2,7 @@ package dev.bondarenko.fujirecipes.camera.ptp
 
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
+import java.io.InputStream
 
 /**
  * The command / data / response machinery, over an abstract pair of bulk endpoints.
@@ -24,6 +25,14 @@ import java.io.OutputStream
 interface BulkChannel {
     /** Writes every byte, or throws. */
     fun write(bytes: ByteArray)
+
+    /** Writes [prefix] and exactly [payloadLength] bytes as one logical bulk transfer. */
+    fun writeStream(
+        prefix: ByteArray,
+        input: InputStream,
+        payloadLength: Long,
+        onProgress: (written: Long, total: Long) -> Unit,
+    )
 
     /** Reads up to [maxBytes]; an empty array means the device sent nothing. */
     fun read(maxBytes: Int): ByteArray
@@ -209,6 +218,28 @@ class PtpTransport(private val channel: BulkChannel) {
 
         send(packContainer(ContainerType.COMMAND, operation, transactionId, params))
         send(packContainer(ContainerType.DATA, operation, transactionId, data = data))
+
+        val container = receive(transactionId)
+        requireResponse(container)
+        return CommandResult(container.code, container.params, ByteArray(0))
+    }
+
+    /** A data-out command whose payload is too large to materialise as one byte array. */
+    fun commandWithDataFrom(
+        operation: Int,
+        params: List<Int>,
+        input: InputStream,
+        length: Long,
+        onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
+    ): CommandResult {
+        val transactionId = nextTransaction()
+        send(packContainer(ContainerType.COMMAND, operation, transactionId, params))
+        channel.writeStream(
+            prefix = packDataContainerHeader(operation, transactionId, length),
+            input = input,
+            payloadLength = length,
+            onProgress = onProgress,
+        )
 
         val container = receive(transactionId)
         requireResponse(container)

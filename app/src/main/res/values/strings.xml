@@ -107,6 +107,51 @@
     </plurals>
     <string name="recipe_not_found_title">Recipe not found</string>
     <string name="recipe_not_found_body">This recipe is no longer in your library.</string>
+    <string name="action_develop_raw">Develop RAW with this recipe</string>
+
+    <!-- In-camera RAW development -->
+    <string name="raw_development_title">Develop RAW</string>
+    <string name="raw_choose_title">Choose a RAF</string>
+    <string name="raw_choose_body">The camera will render it using “%1$s”. Choose a file already on this phone, or copy one from the camera card first.</string>
+    <string name="raw_action_choose">Choose from phone</string>
+    <string name="raw_action_browse_camera">Choose from camera</string>
+    <string name="raw_action_choose_another">Choose another RAF</string>
+    <string name="raw_importing">Checking and copying the RAF…</string>
+    <string name="raw_camera_scanning">Reading RAF files from the camera card…</string>
+    <string name="raw_camera_choose_title">Choose a RAF from the camera card</string>
+    <string name="raw_camera_empty_title">No RAF files found</string>
+    <string name="raw_camera_empty_body">The connected card did not expose any files ending in .RAF. You can still choose a RAF already on the phone.</string>
+    <string name="raw_camera_downloading">Copying %1$s from the camera…</string>
+    <string name="raw_file_size_mb">%1$.1f MB</string>
+    <string name="raw_action_use_file">Use this RAF</string>
+    <string name="raw_switch_mode_title">RAF copied to this phone</string>
+    <string name="raw_switch_mode_body">Disconnect the camera, change CONNECTION MODE to USB RAW CONV./BACKUP RESTORE, then reconnect it. This page will resume automatically.</string>
+    <string name="raw_switch_mode_reconnect">Set CONNECTION MODE to USB RAW CONV./BACKUP RESTORE, then reconnect the camera. This page will resume automatically.</string>
+    <string name="raw_camera_ready">%1$s is connected</string>
+    <string name="raw_camera_ready_body">Keep the camera in USB RAW CONV./BACKUP RESTORE mode and do not unplug it until the JPEG appears.</string>
+    <string name="raw_camera_connecting_body">Waiting for USB permission and the camera session.</string>
+    <string name="raw_camera_not_ready">Camera not ready</string>
+    <string name="raw_camera_not_ready_body">Set the camera to USB RAW CONV./BACKUP RESTORE, connect it by USB, then tap Connect.</string>
+    <string name="raw_camera_wrong_mode_body">Change CONNECTION MODE to USB RAW CONV./BACKUP RESTORE, then disconnect and reconnect the camera.</string>
+    <string name="raw_action_render">Render JPEG</string>
+    <string name="raw_stage_preparing">Preparing the camera…</string>
+    <string name="raw_stage_uploading">Uploading RAF to the camera…</string>
+    <string name="raw_stage_applying">Applying the recipe…</string>
+    <string name="raw_stage_processing">The camera is rendering the JPEG…</string>
+    <string name="raw_stage_downloading">Downloading the rendered JPEG…</string>
+    <string name="raw_stage_cleaning">Finishing safely…</string>
+    <string name="raw_calibration_title">%1$s needs calibration</string>
+    <string name="raw_calibration_body">The camera connection and RAF upload worked. Its %1$d-byte native 0xD185 profile was captured, but this build will not guess how this model lays out recipe fields. Share the profile to add a verified adapter; no conversion was triggered.</string>
+    <string name="raw_action_share_profile">Share profile</string>
+    <string name="raw_complete_title">JPEG rendered</string>
+    <string name="raw_complete_body">Applied %1$d verified recipe fields and preserved %2$d camera-native fields.</string>
+    <string name="raw_complete_body_dimensions">%1$d × %2$d px. Applied %3$d verified recipe fields and preserved %4$d camera-native fields.</string>
+    <string name="raw_action_save_jpeg">Save JPEG</string>
+    <string name="raw_result_description">JPEG rendered by the camera</string>
+    <string name="raw_failed_title">RAW development stopped</string>
+    <string name="raw_action_try_again">Try again</string>
+    <string name="raw_saved">JPEG saved</string>
+    <string name="raw_save_failed">The JPEG could not be saved</string>
 
     <!-- Editor -->
     <string name="editor_new">New recipe</string>
