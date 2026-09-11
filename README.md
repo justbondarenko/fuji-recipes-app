@@ -89,7 +89,7 @@ See the app in action: **[screenshot tour](screenshots/README.md)** — the reci
 - 📥 **[Import Directly from Camera](screenshots/README.md#-maintenance--tools)**: Read existing custom slot recipes off the camera body and save them straight into your offline phone library.
 - 📷 **[Browse and Download the Camera Card](screenshots/README.md#-camera-connection--custom-slots)**: The dedicated **Photos** tab lists JPEG and RAF files independently, with thumbnails, capture dates, file sizes, RAW/JPEG filters, multi-selection, and batch download to a folder chosen through Android's system picker. The camera card is read-only; the app does not delete, rename, or move its files.
 - 🔎 **[Analyze JPEGs Straight from the Camera](screenshots/README.md#-analysing-photos)**: Open **Analyze**, choose photos from the connected camera, and run the existing Fujifilm EXIF extraction and recipe matching flow without first importing the files through another gallery app.
-- 🎞️ **[In-Camera RAW Development](screenshots/README.md#-viewing-a-recipe)**: Start from a recipe, choose a RAF from the phone, apply the recipe to the camera's native `0xD185` conversion profile, let the camera render the JPEG, preview it, and save it through Android's document picker. The app preserves camera-native profile fields it does not own.
+- 🎞️ **[In-Camera RAW Development](screenshots/README.md#-developing-a-raw-in-the-camera)**: Start from a recipe, choose a RAF from the phone, apply the recipe to the camera's native `0xD185` conversion profile, let the camera render the JPEG, preview it, and save it through Android's document picker. The app preserves camera-native profile fields it does not own.
 - 🔄 **[Background Camera Downloads](screenshots/README.md#-camera-connection--custom-slots)**: Batch downloads run in an Android connected-device foreground service and continue while the app is minimized or the phone is locked. An ongoing notification shows progress and offers cancellation; Android 16 can promote it to a Live Update. If the process is killed, the Photos screen reports the interrupted batch and lets the user keep completed files or remove the incomplete file.
 - 🔋 **[Mode-Aware Camera Status](screenshots/README.md#-camera-connection--custom-slots)**: The Camera screen reports the current connection mode, camera battery level, firmware and serial number, plus shutter count and lens when the body exposes them. Slot controls appear only in a mode that can reach them.
 - 🧰 **Camera Diagnostics**: Share a detailed camera capability report. This makes it possible to investigate untested bodies without pretending they are compatible.
@@ -184,7 +184,7 @@ Only the selected JPEGs are copied into the app's temporary cache. From there, t
 
 ### Develop a RAW in the Camera
 
-> 📱 See it: [the recipe action menu](screenshots/README.md#-viewing-a-recipe)
+> 📱 See it: [the recipe action menu](screenshots/README.md#-viewing-a-recipe) · [a rendered result](screenshots/README.md#-developing-a-raw-in-the-camera)
 
 1. Open a recipe and choose **Develop RAW** from its menu.
 2. Choose a RAF from the phone.
