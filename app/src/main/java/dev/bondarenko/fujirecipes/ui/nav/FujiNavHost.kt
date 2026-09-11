@@ -20,7 +20,6 @@ import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.toRoute
 import dev.bondarenko.fujirecipes.ui.about.AboutRouteContent
 import dev.bondarenko.fujirecipes.ui.about.DisclaimerRouteContent
-import dev.bondarenko.fujirecipes.ui.camera.CameraRouteContent
 import dev.bondarenko.fujirecipes.ui.cameraphotos.CameraPhotosRouteContent
 import dev.bondarenko.fujirecipes.ui.cleanup.CleanupRouteContent
 import dev.bondarenko.fujirecipes.ui.library.LibraryRouteContent
@@ -91,10 +90,6 @@ data object MoreRoute
 @Serializable
 data object SettingsRoute
 
-/** Bottom bar -> USB status: what is connected, and the connect/disconnect action. */
-@Serializable
-data object CameraRoute
-
 /** More → Import: read the camera's C1–C7 into the library (FEAT-007). */
 @Serializable
 data object ImportRoute
@@ -127,8 +122,7 @@ private fun NavDestination?.toolbarIndex(): Int = when {
     hasRoute<LibraryRoute>() -> 0
     hasRoute<PhotoRoute>() -> 1
     hasRoute<CameraPhotosRoute>() -> 2
-    hasRoute<CameraRoute>() -> 3
-    hasRoute<MoreRoute>() -> 4
+    hasRoute<MoreRoute>() -> 3
     else -> -1
 }
 
@@ -304,10 +298,6 @@ fun FujiNavHost(
                 onBack = { navController.popBackStack() },
                 contentPadding = contentPadding,
             )
-        }
-
-        composable<CameraRoute> {
-            CameraRouteContent(contentPadding = contentPadding)
         }
 
         composable<PhotoRoute> { entry ->

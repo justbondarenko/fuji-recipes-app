@@ -85,6 +85,7 @@
 
     <!-- Recipe view -->
     <string name="action_back">Back</string>
+    <string name="action_close">Close</string>
     <string name="action_edit">Edit</string>
     <string name="action_back_to_list">Back to recipes</string>
     <string name="changed_only">Changed only</string>
@@ -338,7 +339,11 @@
     <string name="camera_usb_mode_raw_conversion">USB RAW Conversion / Backup Restore</string>
     <string name="camera_usb_mode_webcam">X Webcam</string>
     <string name="camera_usb_mode_card_reader">USB Card Reader</string>
-    <string name="camera_usb_mode_status">Connection mode: %1$s</string>
+    <string name="camera_usb_mode_title">Connection mode</string>
+    <string name="camera_usb_mode_tether_body">The camera is waiting to be shot from a computer. Recipe slots and card photos are both out of reach until its USB setting is changed.</string>
+    <string name="camera_usb_mode_raw_conversion_body">The right mode: recipe slots can be read and written, and photos can be developed from RAW.</string>
+    <string name="camera_usb_mode_webcam_body">The camera is acting as a webcam. Switch its USB setting to RAW conversion / backup restore to reach recipe slots.</string>
+    <string name="camera_usb_mode_card_reader_body">Card photos can be browsed in this mode. Recipe slots need the camera\'s RAW conversion / backup restore mode.</string>
 
     <!-- Camera details. Everything but firmware and serial comes from a reverse-engineered
          vendor property, which is what the footnote says. -->
@@ -355,12 +360,12 @@
     <string name="camera_details_note">Shutter count and lens are read from undocumented camera properties. They are reported as the camera gives them and may be missing or wrong on bodies this app has not been tested against.</string>
 
     <!-- Camera tools: the diagnostic report. -->
-    <string name="camera_tools_title">Camera tools</string>
-    <string name="camera_tools_body">A report records what this camera says about itself, so support for bodies this app has not been tested against can be improved.</string>
     <string name="camera_tools_report">Share report</string>
-    <string name="camera_tools_working">Working…</string>
-    <string name="camera_tools_report_progress">Reading property %1$d of %2$d…</string>
-    <string name="camera_tools_report_done">Report ready — %1$d properties read.</string>
+    <string name="camera_report_revealed">The camera report is now available.</string>
+    <plurals name="camera_report_countdown">
+        <item quantity="one">1 more tap to reach the camera report.</item>
+        <item quantity="other">%1$d more taps to reach the camera report.</item>
+    </plurals>
 
     <!-- Write to camera — FEAT-006. The stages are PRD §7.4's. -->
     <string name="write_title">Write to camera</string>

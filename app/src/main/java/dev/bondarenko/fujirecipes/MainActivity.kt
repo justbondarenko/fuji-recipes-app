@@ -7,11 +7,15 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.core.content.IntentCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -20,10 +24,11 @@ import androidx.navigation.compose.rememberNavController
 import dev.bondarenko.fujirecipes.camera.DESTINATION_CAMERA
 import dev.bondarenko.fujirecipes.camera.DESTINATION_PHOTOS
 import dev.bondarenko.fujirecipes.camera.EXTRA_DESTINATION
-import dev.bondarenko.fujirecipes.ui.camera.CameraToolbarItemHost
+import dev.bondarenko.fujirecipes.ui.camera.CameraSheetButtonHost
+import dev.bondarenko.fujirecipes.ui.camera.CameraSheetHost
+import dev.bondarenko.fujirecipes.ui.camera.LocalCameraSheetOpener
 import dev.bondarenko.fujirecipes.ui.create.CreateRecipeFlow
 import dev.bondarenko.fujirecipes.ui.nav.AboutRoute
-import dev.bondarenko.fujirecipes.ui.nav.CameraRoute
 import dev.bondarenko.fujirecipes.ui.nav.CleanupRoute
 import dev.bondarenko.fujirecipes.ui.nav.CameraPhotosRoute
 import dev.bondarenko.fujirecipes.ui.nav.DisclaimerRoute
@@ -127,6 +132,9 @@ private fun FujiApp(
         val backStackEntry by navController.currentBackStackEntryAsState()
         val destination = backStackEntry?.destination
 
+        // The camera side sheet opens over any screen, so its state belongs above all of them.
+        var cameraSheetOpen by remember { mutableStateOf(false) }
+
         /**
          * A notification action naming a screen.
          *
@@ -141,10 +149,9 @@ private fun FujiApp(
                     launchSingleTop = true
                 }
 
-                DESTINATION_CAMERA -> navController.navigate(CameraRoute) {
-                    popUpTo(LibraryRoute)
-                    launchSingleTop = true
-                }
+                // The camera is a sheet over whatever is on screen, so the notification
+                // opens it where the user already is rather than moving them first.
+                DESTINATION_CAMERA -> cameraSheetOpen = true
 
                 else -> return@LaunchedEffect
             }
@@ -199,45 +206,54 @@ private fun FujiApp(
             destination?.hasRoute<AboutRoute>() == true ||
             destination?.hasRoute<DisclaimerRoute>() == true
 
-        AppShell(
-            showChrome = showChrome,
-            isLibrarySelected = destination?.hasRoute<LibraryRoute>() == true,
-            isReadSelected = destination?.hasRoute<PhotoRoute>() == true,
-            isCameraPhotosSelected = destination?.hasRoute<CameraPhotosRoute>() == true,
-            isMoreSelected = isMoreSelected,
-            onLibraryClick = {
-                navController.navigate(LibraryRoute) {
-                    popUpTo(LibraryRoute) { inclusive = true }
-                    launchSingleTop = true
+        CompositionLocalProvider(LocalCameraSheetOpener provides { cameraSheetOpen = true }) {
+            // The sheet is drawn over the shell rather than inside it: a modal covers the
+            // navigation bar too.
+            Box(modifier = Modifier.fillMaxSize()) {
+                AppShell(
+                    showChrome = showChrome,
+                    isLibrarySelected = destination?.hasRoute<LibraryRoute>() == true,
+                    isReadSelected = destination?.hasRoute<PhotoRoute>() == true,
+                    isCameraPhotosSelected = destination?.hasRoute<CameraPhotosRoute>() == true,
+                    isMoreSelected = isMoreSelected,
+                    onLibraryClick = {
+                        navController.navigate(LibraryRoute) {
+                            popUpTo(LibraryRoute) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                    onReadClick = { navController.navigate(PhotoRoute()) { launchSingleTop = true } },
+                    onCameraPhotosClick = {
+                        navController.navigate(CameraPhotosRoute) { launchSingleTop = true }
+                    },
+                    onMoreClick = {
+                        navController.navigate(MoreRoute) {
+                            popUpTo(MoreRoute) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                    onCreateClick = { creating = true },
+                    isSelecting = librarySelecting,
+                    // The library carries the button in its own search row, so the shell's corner
+                    // stays empty there rather than showing it twice.
+                    topBarAction = if (destination?.hasRoute<LibraryRoute>() == true) {
+                        null
+                    } else {
+                        { CameraSheetButtonHost() }
+                    },
+                ) { contentPadding ->
+                    FujiNavHost(
+                        navController = navController,
+                        contentPadding = contentPadding,
+                        onLibrarySelectionChange = { librarySelecting = it },
+                    )
                 }
-            },
-            onReadClick = { navController.navigate(PhotoRoute()) { launchSingleTop = true } },
-            onCameraPhotosClick = {
-                navController.navigate(CameraPhotosRoute) { launchSingleTop = true }
-            },
-            onMoreClick = {
-                navController.navigate(MoreRoute) {
-                    popUpTo(MoreRoute) { inclusive = true }
-                    launchSingleTop = true
-                }
-            },
-            onCreateClick = { creating = true },
-            onSettingsClick = { navController.navigate(SettingsRoute) { launchSingleTop = true } },
-            // The library puts the button in its search row instead — see LibraryToolbar.
-            showSettingsButton = destination?.hasRoute<LibraryRoute>() != true,
-            isSelecting = librarySelecting,
-            cameraItem = {
-                CameraToolbarItemHost(
-                    selected = destination?.hasRoute<CameraRoute>() == true,
-                    onClick = { navController.navigate(CameraRoute) { launchSingleTop = true } },
+
+                CameraSheetHost(
+                    visible = cameraSheetOpen,
+                    onDismiss = { cameraSheetOpen = false },
                 )
-            },
-        ) { contentPadding ->
-            FujiNavHost(
-                navController = navController,
-                contentPadding = contentPadding,
-                onLibrarySelectionChange = { librarySelecting = it },
-            )
+            }
         }
     }
 }

@@ -1,6 +1,5 @@
 package dev.bondarenko.fujirecipes.ui.library
 
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.runtime.DisposableEffect
@@ -74,7 +73,9 @@ import dev.bondarenko.fujirecipes.data.library.SortId
 import dev.bondarenko.fujirecipes.camera.canWrite
 import androidx.compose.material3.MaterialShapes
 import dev.bondarenko.fujirecipes.ui.camera.WriteSheetHost
+import dev.bondarenko.fujirecipes.ui.camera.CameraSheetButtonHost
 import dev.bondarenko.fujirecipes.ui.common.FujiAnchoredMenu
+import dev.bondarenko.fujirecipes.ui.common.FujiMenuItem
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
@@ -104,6 +105,8 @@ fun LibraryScreen(
     onImportFromCamera: () -> Unit,
     onDevelopRaw: (String) -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    /** The camera side sheet's button, which the library shows in its search row. */
+    cameraButton: @Composable () -> Unit = {},
     onRateRecipes: (Set<String>, Int) -> Unit = { _, _ -> },
     onSelectionChange: (Boolean) -> Unit = {},
     contentPadding: PaddingValues,
@@ -216,6 +219,7 @@ fun LibraryScreen(
                                 onFiltersChange = onFiltersChange,
                                 onClearSearchAndFilters = onClearSearchAndFilters,
                                 onOpenSettings = onOpenSettings,
+                                cameraButton = cameraButton,
                             )
                             }
                             Spacer(Modifier.height(10.dp))
@@ -509,32 +513,24 @@ private fun LibrarySelectionToolbar(
             FujiAnchoredMenu(
                 expanded = ratingPickerOpen,
                 onDismissRequest = { onRatingPickerOpenChange(false) },
-            ) {
-                // Descending, and zero last: it is the "no rating" entry, not a sixth star.
-                (5 downTo 0).forEach { value ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                if (value == 0) {
-                                    stringResource(R.string.rating_none)
-                                } else {
-                                    pluralStringResource(R.plurals.rating_stars, value, value)
-                                },
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = if (value == 0) FujiIcons.StarBorder else FujiIcons.StarRate,
-                                contentDescription = null,
-                            )
-                        },
-                        onClick = {
-                            onRatingPickerOpenChange(false)
-                            onRate(value)
-                        },
-                    )
-                }
-            }
+                groups = listOf {
+                    // Descending, and zero last: it is the "no rating" entry, not a sixth star.
+                    (5 downTo 0).forEach { value ->
+                        FujiMenuItem(
+                            text = if (value == 0) {
+                                stringResource(R.string.rating_none)
+                            } else {
+                                pluralStringResource(R.plurals.rating_stars, value, value)
+                            },
+                            icon = if (value == 0) FujiIcons.StarBorder else FujiIcons.StarRate,
+                            onClick = {
+                                onRatingPickerOpenChange(false)
+                                onRate(value)
+                            },
+                        )
+                    }
+                },
+            )
         }
 
         IconButton(onClick = onClear) {
@@ -580,6 +576,7 @@ fun LibraryRouteContent(
         onImportFromCamera = onImportFromCamera,
         onDevelopRaw = onDevelopRaw,
         onOpenSettings = onOpenSettings,
+        cameraButton = { CameraSheetButtonHost() },
         onRateRecipes = viewModel::onRateRecipes,
         onSelectionChange = onSelectionChange,
         contentPadding = contentPadding,

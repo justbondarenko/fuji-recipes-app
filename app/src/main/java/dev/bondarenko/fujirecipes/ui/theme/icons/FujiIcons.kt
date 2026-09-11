@@ -13231,3 +13231,210 @@ public val FujiIcons.MoreVert: ImageVector
 private var _moreVertW300: ImageVector? = null
 private var _moreVertW400: ImageVector? = null
 private var _moreVertW500: ImageVector? = null
+
+/** Material Symbols Rounded `code_xml`. */
+public val FujiIcons.CodeXml: ImageVector
+    get() = when (FujiIconConfig.weight) {
+        IconWeight.W300 -> _codeXmlW300 ?: ImageVector.Builder(
+          name = "code_xml",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(3.4f, 12f)
+            lineToRelative(3.1f, 3.1f)
+            quadToRelative(0.2f, 0.21f, 0.21f, 0.49f)
+            reflectiveQuadTo(6.5f, 16.08f)
+            reflectiveQuadTo(6f, 16.29f)
+            reflectiveQuadTo(5.51f, 16.08f)
+            lineTo(2.03f, 12.6f)
+            quadTo(1.77f, 12.34f, 1.77f, 12f)
+            reflectiveQuadTo(2.03f, 11.4f)
+            lineTo(5.51f, 7.92f)
+            quadTo(5.72f, 7.71f, 6f, 7.71f)
+            reflectiveQuadTo(6.5f, 7.92f)
+            reflectiveQuadTo(6.71f, 8.41f)
+            reflectiveQuadTo(6.5f, 8.9f)
+            lineTo(3.4f, 12f)
+            close()
+            moveToRelative(5.78f, 7.36f)
+            quadTo(9.05f, 19.1f, 9.14f, 18.83f)
+            lineTo(13.54f, 4.75f)
+            quadTo(13.63f, 4.47f, 13.89f, 4.34f)
+            reflectiveQuadTo(14.41f, 4.29f)
+            reflectiveQuadToRelative(0.42f, 0.34f)
+            reflectiveQuadToRelative(0.05f, 0.52f)
+            lineTo(10.46f, 19.25f)
+            quadToRelative(-0.1f, 0.27f, -0.34f, 0.41f)
+            reflectiveQuadTo(9.6f, 19.71f)
+            reflectiveQuadTo(9.19f, 19.36f)
+            close()
+            moveTo(20.6f, 12f)
+            lineTo(17.51f, 8.9f)
+            quadTo(17.29f, 8.69f, 17.29f, 8.41f)
+            reflectiveQuadTo(17.5f, 7.92f)
+            reflectiveQuadTo(18f, 7.71f)
+            reflectiveQuadToRelative(0.5f, 0.21f)
+            lineToRelative(3.47f, 3.47f)
+            quadToRelative(0.26f, 0.26f, 0.26f, 0.6f)
+            reflectiveQuadToRelative(-0.26f, 0.6f)
+            lineTo(18.5f, 16.08f)
+            quadTo(18.28f, 16.29f, 18f, 16.29f)
+            reflectiveQuadTo(17.5f, 16.08f)
+            reflectiveQuadTo(17.29f, 15.59f)
+            reflectiveQuadTo(17.51f, 15.1f)
+            lineTo(20.6f, 12f)
+            close()
+          }
+        }
+        .build().also { _codeXmlW300 = it }
+        IconWeight.W400 -> _codeXmlW400 ?: ImageVector.Builder(
+          name = "code_xml",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(3.83f, 12f)
+            lineTo(6.7f, 14.88f)
+            quadToRelative(0.28f, 0.3f, 0.29f, 0.71f)
+            reflectiveQuadTo(6.7f, 16.3f)
+            reflectiveQuadTo(6f, 16.6f)
+            reflectiveQuadTo(5.3f, 16.3f)
+            lineTo(1.7f, 12.7f)
+            quadTo(1.4f, 12.4f, 1.4f, 12f)
+            reflectiveQuadTo(1.7f, 11.3f)
+            lineTo(5.3f, 7.7f)
+            quadTo(5.6f, 7.4f, 6f, 7.4f)
+            reflectiveQuadTo(6.7f, 7.7f)
+            reflectiveQuadTo(7f, 8.41f)
+            reflectiveQuadTo(6.7f, 9.13f)
+            lineTo(3.83f, 12f)
+            close()
+            moveToRelative(5.09f, 7.51f)
+            quadTo(8.73f, 19.15f, 8.85f, 18.75f)
+            lineToRelative(4.4f, -14.1f)
+            quadToRelative(0.13f, -0.4f, 0.49f, -0.59f)
+            reflectiveQuadTo(14.5f, 4f)
+            reflectiveQuadToRelative(0.59f, 0.49f)
+            reflectiveQuadToRelative(0.06f, 0.76f)
+            lineToRelative(-4.4f, 14.1f)
+            quadToRelative(-0.13f, 0.4f, -0.49f, 0.59f)
+            reflectiveQuadTo(9.5f, 20f)
+            reflectiveQuadTo(8.91f, 19.51f)
+            close()
+            moveTo(20.18f, 12f)
+            lineTo(17.3f, 9.13f)
+            quadTo(17f, 8.82f, 17f, 8.41f)
+            reflectiveQuadTo(17.3f, 7.7f)
+            reflectiveQuadTo(18f, 7.4f)
+            reflectiveQuadToRelative(0.7f, 0.3f)
+            lineToRelative(3.6f, 3.6f)
+            quadToRelative(0.3f, 0.3f, 0.3f, 0.7f)
+            reflectiveQuadToRelative(-0.3f, 0.7f)
+            lineToRelative(-3.6f, 3.6f)
+            quadTo(18.4f, 16.6f, 18f, 16.6f)
+            reflectiveQuadTo(17.3f, 16.3f)
+            reflectiveQuadTo(17f, 15.59f)
+            reflectiveQuadToRelative(0.3f, -0.71f)
+            lineTo(20.18f, 12f)
+            close()
+          }
+        }
+        .build().also { _codeXmlW400 = it }
+        IconWeight.W500 -> _codeXmlW500 ?: ImageVector.Builder(
+          name = "code_xml",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(4.02f, 12f)
+            lineTo(6.8f, 14.78f)
+            quadToRelative(0.32f, 0.34f, 0.33f, 0.81f)
+            reflectiveQuadTo(6.8f, 16.4f)
+            reflectiveQuadTo(6f, 16.74f)
+            reflectiveQuadTo(5.2f, 16.4f)
+            lineTo(1.6f, 12.8f)
+            quadTo(1.26f, 12.46f, 1.26f, 12f)
+            reflectiveQuadTo(1.6f, 11.2f)
+            lineTo(5.2f, 7.6f)
+            quadTo(5.55f, 7.26f, 6f, 7.26f)
+            reflectiveQuadTo(6.8f, 7.6f)
+            reflectiveQuadTo(7.14f, 8.41f)
+            reflectiveQuadTo(6.8f, 9.22f)
+            lineTo(4.02f, 12f)
+            close()
+            moveToRelative(4.77f, 7.58f)
+            quadTo(8.58f, 19.16f, 8.72f, 18.71f)
+            lineToRelative(4.4f, -14.1f)
+            quadTo(13.26f, 4.15f, 13.67f, 3.94f)
+            reflectiveQuadTo(14.54f, 3.87f)
+            reflectiveQuadToRelative(0.67f, 0.56f)
+            reflectiveQuadToRelative(0.07f, 0.87f)
+            lineToRelative(-4.4f, 14.1f)
+            quadToRelative(-0.14f, 0.45f, -0.56f, 0.67f)
+            reflectiveQuadTo(9.46f, 20.13f)
+            reflectiveQuadTo(8.79f, 19.58f)
+            close()
+            moveTo(19.98f, 12f)
+            lineTo(17.2f, 9.22f)
+            quadTo(16.86f, 8.88f, 16.86f, 8.41f)
+            reflectiveQuadTo(17.2f, 7.6f)
+            reflectiveQuadTo(18f, 7.26f)
+            reflectiveQuadTo(18.8f, 7.6f)
+            lineToRelative(3.6f, 3.59f)
+            quadToRelative(0.34f, 0.34f, 0.34f, 0.8f)
+            reflectiveQuadTo(22.4f, 12.8f)
+            lineTo(18.8f, 16.4f)
+            quadTo(18.45f, 16.74f, 18f, 16.74f)
+            reflectiveQuadTo(17.2f, 16.4f)
+            reflectiveQuadTo(16.86f, 15.59f)
+            reflectiveQuadTo(17.2f, 14.78f)
+            lineTo(19.98f, 12f)
+            close()
+          }
+        }
+        .build().also { _codeXmlW500 = it }
+    }
+
+private var _codeXmlW300: ImageVector? = null
+private var _codeXmlW400: ImageVector? = null
+private var _codeXmlW500: ImageVector? = null

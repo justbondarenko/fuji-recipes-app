@@ -56,7 +56,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialShapes
@@ -116,6 +115,7 @@ import dev.bondarenko.fujirecipes.data.fields.FieldGroup
 import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
 import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.common.FujiAnchoredMenu
+import dev.bondarenko.fujirecipes.ui.common.FujiMenuItem
 import dev.bondarenko.fujirecipes.ui.common.errorMessageFor
 import dev.bondarenko.fujirecipes.ui.editor.RatingInput
 import dev.bondarenko.fujirecipes.ui.editor.TagInput
@@ -279,6 +279,9 @@ private fun RecipeActionBar(
     val coroutineScope = rememberCoroutineScope()
 
     val height = SplitButtonDefaults.MediumContainerHeight
+    // Aliased: the menu below passes its own `groups`, and two different lists under one name
+    // inside the same call is a trap for whoever reads the copy action next.
+    val settingsGroups = groups
 
     Box(
         modifier = modifier
@@ -362,57 +365,65 @@ private fun RecipeActionBar(
                         FujiAnchoredMenu(
                             expanded = menuOpen,
                             onDismissRequest = { menuOpen = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.action_edit)) },
-                                leadingIcon = { Icon(FujiIcons.Edit, contentDescription = null) },
-                                onClick = {
-                                    menuOpen = false
-                                    onEdit()
+                            groups = listOf(
+                                // Working on this recipe…
+                                {
+                                    FujiMenuItem(
+                                        text = stringResource(R.string.action_edit),
+                                        icon = FujiIcons.Edit,
+                                        onClick = {
+                                            menuOpen = false
+                                            onEdit()
+                                        },
+                                    )
+                                    FujiMenuItem(
+                                        text = stringResource(R.string.action_compare),
+                                        icon = FujiIcons.TextCompare,
+                                        onClick = {
+                                            menuOpen = false
+                                            onCompareRecipe()
+                                        },
+                                    )
                                 },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.raw_development_title)) },
-                                leadingIcon = {
-                                    Icon(FujiIcons.ImagesMode, contentDescription = null)
+                                // …applying it to a photo…
+                                {
+                                    FujiMenuItem(
+                                        text = stringResource(R.string.raw_development_title),
+                                        icon = FujiIcons.ImagesMode,
+                                        onClick = {
+                                            menuOpen = false
+                                            onDevelopRaw()
+                                        },
+                                    )
                                 },
-                                onClick = {
-                                    menuOpen = false
-                                    onDevelopRaw()
+                                // …and sending it somewhere else.
+                                {
+                                    FujiMenuItem(
+                                        text = stringResource(R.string.action_share),
+                                        icon = FujiIcons.Share,
+                                        onClick = {
+                                            menuOpen = false
+                                            onExportRecipe()
+                                        },
+                                    )
+                                    FujiMenuItem(
+                                        text = stringResource(R.string.action_copy),
+                                        icon = FujiIcons.ContentCopy,
+                                        onClick = {
+                                            menuOpen = false
+                                            val text = RecipeTextFormatter
+                                                .format(recipe, settingsGroups)
+                                            clipboardManager.setText(AnnotatedString(text))
+                                            Toast.makeText(
+                                                context,
+                                                copiedMessage,
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
+                                        },
+                                    )
                                 },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.action_share)) },
-                                leadingIcon = { Icon(FujiIcons.Share, contentDescription = null) },
-                                onClick = {
-                                    menuOpen = false
-                                    onExportRecipe()
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.action_copy)) },
-                                leadingIcon = {
-                                    Icon(FujiIcons.ContentCopy, contentDescription = null)
-                                },
-                                onClick = {
-                                    menuOpen = false
-                                    val text = RecipeTextFormatter.format(recipe, groups)
-                                    clipboardManager.setText(AnnotatedString(text))
-                                    Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT)
-                                        .show()
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.action_compare)) },
-                                leadingIcon = {
-                                    Icon(FujiIcons.TextCompare, contentDescription = null)
-                                },
-                                onClick = {
-                                    menuOpen = false
-                                    onCompareRecipe()
-                                },
-                            )
-                        }
+                            ),
+                        )
                     }
                 },
             )

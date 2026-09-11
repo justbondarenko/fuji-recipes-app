@@ -116,6 +116,11 @@ fun LibraryToolbar(
     onClearSearchAndFilters: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * The camera side sheet's button. A slot, so the toolbar stays previewable and knows
+     * nothing about USB; empty everywhere but the running app.
+     */
+    cameraButton: @Composable () -> Unit = {},
 ) {
     var filtersOpen by rememberSaveable { mutableStateOf(false) }
 
@@ -127,13 +132,16 @@ fun LibraryToolbar(
          * The **search app bar** (`m3.material.io/components/app-bars`): the search field is
          * the bar, rather than a text field sitting under a title.
          */
-        // The one page that already owns the top of the screen: the settings button rides in
-        // the search row rather than in the shell's bar above it.
+        // The one page that already owns the top of the screen: the view options and the
+        // camera ride in the search row rather than in a bar of their own above it —
+        // (cog) [search] (camera).
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            FujiSettingsButton(onClick = onOpenSettings)
+
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -163,7 +171,7 @@ fun LibraryToolbar(
                 )
             }
 
-            FujiSettingsButton(onClick = onOpenSettings)
+            cameraButton()
         }
 
         Row(
