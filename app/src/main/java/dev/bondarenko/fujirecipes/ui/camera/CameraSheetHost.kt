@@ -1,7 +1,16 @@
 package dev.bondarenko.fujirecipes.ui.camera
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -10,27 +19,33 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.bondarenko.fujirecipes.BuildConfig
 import dev.bondarenko.fujirecipes.FujiRecipesApp
-import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.camera.CameraState
 import dev.bondarenko.fujirecipes.camera.plan.SlotNameReading
 import dev.bondarenko.fujirecipes.camera.plan.renderCameraReport
 import dev.bondarenko.fujirecipes.camera.plan.slotStates
+import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.core.share.ShareFile
+import dev.bondarenko.fujirecipes.ui.common.FujiModalSideSheet
+import dev.bondarenko.fujirecipes.ui.theme.icons.Close
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 /**
- * The navigation bar item and the screen it opens, wired to the controller.
+ * The button, the side sheet it opens, and the screen inside it, wired to the controller.
  *
  * The wiring lives here rather than in `AppShell` or `MainActivity` so the shell keeps knowing
- * nothing about the camera, and so `CameraToolbarItem` and `CameraStatusContent` stay
+ * nothing about the camera, and so `CameraSheetButton` and `CameraStatusContent` stay
  * state-and-lambda composables that previews and UI tests can render
  * (`coding-standards.md`, Compose conventions).
  *
@@ -39,14 +54,59 @@ import java.time.format.DateTimeFormatter
  * which is the wrong way round.
  */
 @Composable
-fun RowScope.CameraToolbarItemHost(selected: Boolean, onClick: () -> Unit) {
+fun CameraSheetButtonHost(modifier: Modifier = Modifier) {
     val state by cameraController().state.collectAsStateWithLifecycle()
+    val open = LocalCameraSheetOpener.current
 
-    CameraToolbarItem(state = state, selected = selected, onClick = onClick)
+    CameraSheetButton(state = state, onClick = open, modifier = modifier)
+}
+
+/**
+ * The camera side sheet: the screen below, behind a title row with a way out.
+ *
+ * A sheet rather than a destination in the navigation bar, so the bar's places stay for
+ * features and the camera can be reached from any of them.
+ */
+@Composable
+fun CameraSheetHost(visible: Boolean, onDismiss: () -> Unit) {
+    FujiModalSideSheet(visible = visible, onDismissRequest = onDismiss) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 8.dp, top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.camera_sheet_title),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = FujiIcons.Close,
+                        contentDescription = stringResource(R.string.action_close),
+                    )
+                }
+            }
+
+            // Rendered only while the sheet is up: the slot read talks to the camera, and it
+            // has no business running behind a closed sheet.
+            if (visible) {
+                CameraSheetContent(
+                    contentPadding = PaddingValues(bottom = 16.dp),
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
 }
 
 @Composable
-fun CameraRouteContent(contentPadding: PaddingValues) {
+fun CameraSheetContent(
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+) {
     val controller = cameraController()
     val state by controller.state.collectAsStateWithLifecycle()
 
@@ -86,20 +146,17 @@ fun CameraRouteContent(contentPadding: PaddingValues) {
         }
     }
 
-    // ─── Camera tools ───────────────────────────────────────────────────────
+    // ─── The diagnostic report ──────────────────────────────────────────────
     //
     // Held here rather than in a ViewModel for the same reason the rest of this screen is:
-    // `CameraController` already outlives every screen. Resetting on `state` clears a stale
-    // "report ready" the moment the cable is pulled, which would otherwise sit there
-    // describing a camera that is gone.
+    // `CameraController` already outlives every screen. Resetting on `state` releases the
+    // button the moment the cable is pulled.
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var tools by remember(state) { mutableStateOf(CameraToolsState()) }
-
-    val reportProgressFormat = stringResource(R.string.camera_tools_report_progress)
-    val reportDoneFormat = stringResource(R.string.camera_tools_report_done)
+    var isReportRunning by remember(state) { mutableStateOf(false) }
 
     CameraScreen(
+        modifier = modifier,
         state = state,
         isCameraAttached = controller.isCameraAttached,
         slots = slots,
@@ -110,27 +167,16 @@ fun CameraRouteContent(contentPadding: PaddingValues) {
         onConnect = controller::connect,
         onDisconnect = controller::disconnect,
         contentPadding = contentPadding,
-        tools = tools,
+        isReportRunning = isReportRunning,
         onShareReport = {
             scope.launch {
-                tools = CameraToolsState(running = CameraTask.REPORT)
-                tools = runCameraTask {
+                isReportRunning = true
+                // Nothing on screen reports the outcome any more, so a camera that stops
+                // answering partway through must not take the app down with it.
+                runCatching {
                     val report = controller.readReport(
                         appVersion = BuildConfig.VERSION_NAME,
                         capturedAt = timestamp(),
-                        // The report runs on Dispatchers.IO, so its progress arrives on a
-                        // background thread. Hopped back onto the composition's scope rather
-                        // than written from there: snapshot state tolerates a cross-thread
-                        // write, but the value only becomes visible when that thread's
-                        // snapshot is applied, which is not a thing to make a progress
-                        // indicator depend on.
-                        onProgress = { done, total ->
-                            scope.launch {
-                                tools = tools.copy(
-                                    progress = String.format(reportProgressFormat, done, total),
-                                )
-                            }
-                        },
                     )
 
                     ShareFile.share(
@@ -138,9 +184,8 @@ fun CameraRouteContent(contentPadding: PaddingValues) {
                         filename = "fuji-camera-report-${fileStamp()}.txt",
                         text = renderCameraReport(report),
                     )
-
-                    String.format(reportDoneFormat, report.properties.size)
                 }
+                isReportRunning = false
             }
         },
     )
@@ -158,26 +203,6 @@ fun CameraRouteContent(contentPadding: PaddingValues) {
 @Composable
 private fun cameraController() =
     (LocalContext.current.applicationContext as FujiRecipesApp).container.cameraController
-
-// ─── Camera-tool plumbing ───────────────────────────────────────────────────
-
-/**
- * Runs one camera tool and turns whatever happened into the next state.
- *
- * A camera tool ends with cleared progress, one sentence, and a flag saying whether that
- * sentence is bad news. A dropped cable arrives as an exception carrying a message written for
- * a person (P5), so the message is used as-is; anything with no message at all falls back to
- * naming its type, which is still better than an empty box.
- */
-private suspend fun runCameraTask(block: suspend () -> String): CameraToolsState = try {
-    CameraToolsState(message = block(), messageIsError = false)
-} catch (error: Exception) {
-    CameraToolsState(
-        message = error.message?.takeIf { it.isNotBlank() }
-            ?: "The camera operation failed (${error::class.simpleName}).",
-        messageIsError = true,
-    )
-}
 
 /** UTC, because a report read by someone else should not be in the reader's guess at a zone. */
 private fun timestamp(): String = DateTimeFormatter.ISO_INSTANT.format(Instant.now())

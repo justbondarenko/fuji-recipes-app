@@ -1,6 +1,8 @@
 package dev.bondarenko.fujirecipes.ui.camera
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,12 +22,15 @@ import androidx.compose.foundation.verticalScroll
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.Battery5Bar
 import dev.bondarenko.fujirecipes.ui.theme.icons.Cable
+import dev.bondarenko.fujirecipes.ui.theme.icons.CodeXml
 import dev.bondarenko.fujirecipes.ui.theme.icons.PhotoCamera
 import dev.bondarenko.fujirecipes.ui.theme.icons.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialShapes
@@ -35,9 +40,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +70,7 @@ import dev.bondarenko.fujirecipes.camera.ptp.responseName
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.common.FujiLoadingIndicator
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
+import android.widget.Toast
 import java.text.NumberFormat
 
 /**
@@ -80,7 +93,7 @@ fun CameraScreen(
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     contentPadding: PaddingValues,
-    tools: CameraToolsState = CameraToolsState(),
+    isReportRunning: Boolean = false,
     onShareReport: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -93,7 +106,7 @@ fun CameraScreen(
             onRefresh = onRefreshSlots,
             onSelectSlot = onSelectSlot,
             onDisconnect = onDisconnect,
-            tools = tools,
+            isReportRunning = isReportRunning,
             onShareReport = onShareReport,
             modifier = modifier
                 .fillMaxSize()
@@ -115,6 +128,7 @@ fun CameraScreen(
 /**
  * Connected state content: Green-colorized header and Bento grid of camera slots inside a card.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CameraConnectedContent(
     state: CameraState.Connected,
@@ -124,12 +138,22 @@ fun CameraConnectedContent(
     onRefresh: () -> Unit,
     onSelectSlot: (Int) -> Unit = {},
     onDisconnect: () -> Unit,
-    tools: CameraToolsState = CameraToolsState(),
+    isReportRunning: Boolean = false,
     onShareReport: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val dark = isSystemInDarkTheme()
     val greenAccent = if (dark) Color(0xFF6ABF69) else Color(0xFF2E7D32)
+
+    // The report is a developer's tool, not a photographer's, so it is hidden behind the same
+    // gesture Android hides developer options behind: tap the badge until it gives in.
+    val context = LocalContext.current
+    var reportTaps by remember { mutableIntStateOf(0) }
+    // One toast, replaced on every tap. Left to queue, fifteen fast taps line up fifteen
+    // toasts and the countdown goes on counting long after the button is already there.
+    var reportToast by remember { mutableStateOf<Toast?>(null) }
+    val reportRevealed = reportTaps >= ReportTapsToReveal
+    val revealedMessage = stringResource(R.string.camera_report_revealed)
 
     Column(
         modifier = modifier
@@ -137,53 +161,85 @@ fun CameraConnectedContent(
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        // ─── 1. Header with Camera Name (Colorized in Green) ────────────────
-        Row(
+        // ─── 1. The body, in the shape-and-icon panel the empty screens use ─────
+        //
+        // Same pattern as `FujiIconPanel` at a smaller shape size: this page has content under
+        // the header, so the panel announces the camera rather than filling the screen.
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f),
+            Box(
+                modifier = Modifier
+                    .size(88.dp)
+                    .clip(MaterialShapes.Pentagon.toShape())
+                    .background(greenAccent)
+                    .clickable(enabled = !reportRevealed) {
+                        reportTaps++
+                        // Counted off the new tally, so the fifth tap already says ten to go.
+                        val left = ReportTapsToReveal - reportTaps
+                        val message = when {
+                            left <= 0 -> revealedMessage
+                            reportTaps >= ReportTapsBeforeCountdown -> context.resources
+                                .getQuantityString(R.plurals.camera_report_countdown, left, left)
+                            else -> null
+                        }
+                        reportToast?.cancel()
+                        reportToast = message?.let {
+                            Toast.makeText(context, it, Toast.LENGTH_SHORT).also(Toast::show)
+                        }
+                    },
+                contentAlignment = Alignment.Center,
             ) {
-                Surface(
-                    shape = CircleShape,
-                    color = greenAccent.copy(alpha = 0.15f),
-                    modifier = Modifier.size(48.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = FujiIcons.PhotoCamera,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier.size(36.dp),
+                )
+            }
+
+            Text(
+                text = state.identity.model.ifBlank { stringResource(R.string.camera_chip_connected) },
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+
+            CameraBatteryStatus(
+                battery = state.details.battery,
+                chargedColor = greenAccent,
+            )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (reportRevealed) {
+                    FilledTonalButton(
+                        onClick = onShareReport,
+                        enabled = !isReportRunning,
+                        shape = RoundedCornerShape(12.dp),
+                    ) {
                         Icon(
-                            imageVector = FujiIcons.PhotoCamera,
+                            imageVector = FujiIcons.CodeXml,
                             contentDescription = null,
-                            tint = greenAccent,
-                            modifier = Modifier.size(26.dp),
+                            modifier = Modifier.size(ButtonDefaults.IconSize),
                         )
+                        Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                        Text(stringResource(R.string.camera_tools_report))
                     }
                 }
 
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = state.identity.model.ifBlank { stringResource(R.string.camera_chip_connected) },
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = greenAccent,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    CameraBatteryStatus(
-                        battery = state.details.battery,
-                        chargedColor = greenAccent,
-                    )
+                OutlinedButton(
+                    onClick = onDisconnect,
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text(stringResource(R.string.camera_action_disconnect))
                 }
-            }
-
-            OutlinedButton(
-                onClick = onDisconnect,
-                shape = RoundedCornerShape(12.dp),
-            ) {
-                Text(stringResource(R.string.camera_action_disconnect))
             }
         }
 
@@ -309,12 +365,6 @@ fun CameraConnectedContent(
 
         // ─── 4. What the body says about itself ─────────────────────────────
         CameraDetailsCard(state.details)
-
-        // ─── 5. Report ──────────────────────────────────────────────────────
-        CameraToolsCard(
-            state = tools,
-            onShareReport = onShareReport,
-        )
 
         // Additional information notes
         if (state.identity.writable && !state.usbMode.isKnownWrongMode) {
@@ -519,6 +569,10 @@ fun CameraStatusContent(
     )
 }
 
+/** Taps on the camera badge that reveal the report button, and when the count starts talking. */
+private const val ReportTapsToReveal = 15
+private const val ReportTapsBeforeCountdown = 5
+
 private enum class ActionKind { CONNECT, DISCONNECT }
 
 private data class CameraAction(val label: Int, val kind: ActionKind)
@@ -586,28 +640,51 @@ private fun UsbModeStatus(mode: UsbMode) {
         UsbMode.CARD_READER -> stringResource(R.string.camera_usb_mode_card_reader)
         else -> return
     }
+    val explanation = when (mode) {
+        UsbMode.TETHER_SHOOTING -> stringResource(R.string.camera_usb_mode_tether_body)
+        UsbMode.RAW_CONVERSION -> stringResource(R.string.camera_usb_mode_raw_conversion_body)
+        UsbMode.WEBCAM -> stringResource(R.string.camera_usb_mode_webcam_body)
+        else -> stringResource(R.string.camera_usb_mode_card_reader_body)
+    }
 
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Icon(
                 imageVector = FujiIcons.Cable,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(24.dp),
             )
-            Text(
-                text = stringResource(R.string.camera_usb_mode_status, name),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = stringResource(R.string.camera_usb_mode_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = explanation,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

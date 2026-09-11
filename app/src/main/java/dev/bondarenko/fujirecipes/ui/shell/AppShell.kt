@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FabPosition
@@ -37,7 +36,6 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.CameraRoll
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.ImageSearch
 import dev.bondarenko.fujirecipes.ui.theme.icons.MoreVert
-import dev.bondarenko.fujirecipes.ui.common.FujiSettingsButton
 
 /**
  * The chrome every top-level screen sits inside.
@@ -59,13 +57,6 @@ fun AppShell(
     onReadClick: () -> Unit,
     onCameraPhotosClick: () -> Unit = {},
     onMoreClick: () -> Unit,
-    /** Opens the settings page. The button is the only way in now that the bar has no cog. */
-    onSettingsClick: () -> Unit,
-    /**
-     * Whether the shell draws the settings button. False on the library, which has a search
-     * bar of its own and puts the button in that row instead.
-     */
-    showSettingsButton: Boolean,
     /**
      * The library is picking rows. Its own floating toolbar takes the corner, so the create
      * button gets out of the way rather than sitting under it.
@@ -80,27 +71,28 @@ fun AppShell(
     onCreateClick: () -> Unit,
     modifier: Modifier = Modifier,
     /**
-     * The camera status, rendered as the fourth item of the navigation bar.
+     * What sits in the top-right corner of the page.
      *
-     * A slot rather than a `CameraState` parameter, so the shell keeps knowing nothing about
-     * USB — see `CameraToolbarItem`.
+     * A slot rather than a named control, so the shell keeps knowing nothing about the camera
+     * — see `CameraSheetButton`. Null on pages that put the control in a row of their own,
+     * which is what the library does with its search bar.
      */
-    cameraItem: (@Composable RowScope.() -> Unit)? = null,
+    topBarAction: (@Composable () -> Unit)? = null,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            if (showChrome && showSettingsButton) {
+            if (showChrome && topBarAction != null) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    FujiSettingsButton(onClick = onSettingsClick)
+                    topBarAction()
                 }
             }
         },
@@ -140,7 +132,6 @@ fun AppShell(
                         },
                         label = { Text(stringResource(R.string.nav_camera_photos)) },
                     )
-                    cameraItem?.invoke(this)
                     NavigationBarItem(
                         selected = isMoreSelected,
                         onClick = onMoreClick,
@@ -204,8 +195,6 @@ private fun AppShellPreview() {
             onReadClick = {},
             onMoreClick = {},
             onCreateClick = {},
-            onSettingsClick = {},
-            showSettingsButton = true,
         ) { padding ->
             dev.bondarenko.fujirecipes.ui.common.PlaceholderScreen(
                 titleRes = R.string.placeholder_more_title,

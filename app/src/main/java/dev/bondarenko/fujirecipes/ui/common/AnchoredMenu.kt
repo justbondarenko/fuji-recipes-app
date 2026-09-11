@@ -1,97 +1,80 @@
 package dev.bondarenko.fujirecipes.ui.common
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.DropdownMenuGroup
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenuPopup
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MenuAnchorPosition
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntRect
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupPositionProvider
-import androidx.compose.ui.window.PopupProperties
-
-/** The breathing room between the menu and the control that opened it. */
-private val MenuGap = 4.dp
+import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
- * A menu that stays attached to the control that opened it, even at the edge of the screen.
+ * M3's menu (`m3.material.io/components/menus`), opening above the control that owns it.
  *
- * `DropdownMenu` cannot: its position provider keeps popups at least 48dp inside the window,
- * so for an anchor that already sits in that band — a bottom bar, a floating toolbar, a split
- * button — every "above the anchor" placement is rejected and it falls back to pinning the
- * menu to the bottom of the window, which reads as a menu belonging to nothing. That fallback
- * also ignores `offset`, so there is nothing to nudge.
+ * Two things this adds to `DropdownMenuPopup`:
  *
- * This places the menu itself: flush above the anchor when there is room, below it otherwise,
- * aligned to the anchor's leading edge and clamped to the window either way. The content is
- * `DropdownMenuItem`s, so the items are still M3's.
+ * - The anchor position. Every caller is a control at the bottom of the screen — a split
+ *   button, a floating toolbar — where a menu dropping downwards has nowhere to go.
+ *   `MenuAnchorPosition.Above` still falls back to below when the top is the tighter side.
+ * - The grouping. Items arrive as one list of groups, each drawn in its own container with
+ *   M3's group spacing between them, so a caller never repeats the spacing itself
+ *   (`m3.material.io/components/menus/guidelines`).
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FujiAnchoredMenu(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
-    content: @Composable ColumnScope.() -> Unit,
+    groups: List<@Composable ColumnScope.() -> Unit>,
 ) {
-    if (!expanded) return
-
-    val gap = with(LocalDensity.current) { MenuGap.roundToPx() }
-    val positionProvider = remember(gap) { AnchoredMenuPositionProvider(gap) }
-
-    Popup(
-        popupPositionProvider = positionProvider,
+    DropdownMenuPopup(
+        expanded = expanded,
         onDismissRequest = onDismissRequest,
-        properties = PopupProperties(focusable = true),
+        popupPositionProvider = MenuDefaults.rememberDropdownMenuPopupPositionProvider(
+            dropdownMenuAnchorPosition = MenuAnchorPosition.Above,
+        ),
     ) {
-        Surface(
-            shape = MaterialTheme.shapes.extraSmall,
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            tonalElevation = 3.dp,
-            shadowElevation = 3.dp,
-        ) {
-            Column(
-                modifier = Modifier
-                    .width(IntrinsicSize.Max)
-                    .verticalScroll(rememberScrollState())
-                    .padding(vertical = 8.dp),
-                content = content,
+        // The popup is only the window and the animation; a group is what draws a menu
+        // container, so the items need one around them.
+        groups.forEachIndexed { index, group ->
+            if (index > 0) {
+                Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+            }
+            DropdownMenuGroup(
+                shapes = MenuDefaults.groupShapes(),
+                containerColor = MenuDefaults.groupVibrantContainerColor,
+                content = group,
             )
         }
     }
 }
 
-private class AnchoredMenuPositionProvider(private val gap: Int) : PopupPositionProvider {
-    override fun calculatePosition(
-        anchorBounds: IntRect,
-        windowSize: IntSize,
-        layoutDirection: LayoutDirection,
-        popupContentSize: IntSize,
-    ): IntOffset {
-        val start = if (layoutDirection == LayoutDirection.Ltr) {
-            anchorBounds.left
-        } else {
-            anchorBounds.right - popupContentSize.width
-        }
-        val x = start.coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
-
-        val above = anchorBounds.top - gap - popupContentSize.height
-        val y = if (above >= 0) {
-            above
-        } else {
-            (anchorBounds.bottom + gap)
-                .coerceAtMost((windowSize.height - popupContentSize.height).coerceAtLeast(0))
-        }
-        return IntOffset(x, y)
-    }
+/**
+ * One item of a [FujiAnchoredMenu].
+ *
+ * Its own composable because the vibrant group container is `tertiaryContainer`, and
+ * `DropdownMenuItem`'s default colours are written for a surface: left alone, the label and
+ * the icon would be `onSurface` on top of it.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun FujiMenuItem(text: String, icon: ImageVector, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(text) },
+        leadingIcon = { Icon(icon, contentDescription = null) },
+        colors = MenuDefaults.itemColors(
+            textColor = MaterialTheme.colorScheme.onTertiaryContainer,
+            leadingIconColor = MaterialTheme.colorScheme.onTertiaryContainer,
+            trailingIconColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        ),
+        onClick = onClick,
+    )
 }
