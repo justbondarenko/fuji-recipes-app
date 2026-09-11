@@ -31,7 +31,7 @@ data class PtpObjectInfo(
     val keywords: String,
 )
 
-/** Parses the standard ObjectInfo dataset. Fuji's settings-backup object uses another layout. */
+/** Parses the standard ObjectInfo dataset. Fuji's vendor objects use another layout. */
 fun parseObjectInfo(bytes: ByteArray): PtpObjectInfo {
     val cursor = Cursor(bytes, "The object info dataset")
     return PtpObjectInfo(

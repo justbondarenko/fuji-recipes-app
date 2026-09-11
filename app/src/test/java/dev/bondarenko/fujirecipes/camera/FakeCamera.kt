@@ -105,7 +105,7 @@ class FakeCamera(
     /** Test hook for behavior caused by a property write, such as a completed RAW render. */
     var afterPropertyWrite: ((property: Int, payload: ByteArray) -> Unit)? = null
 
-    // ─── Objects (the settings backup) ──────────────────────────────────────
+    // ─── Objects ────────────────────────────────────────────────────────────
 
     /** What `GetObjectInfo` answers, keyed by handle. An absent handle is refused. */
     val objectInfos: MutableMap<Int, ByteArray> = mutableMapOf()
@@ -340,8 +340,6 @@ class FakeCamera(
                 thumbnails[params.firstOrNull() ?: 0],
             )
 
-            Operation.SEND_OBJECT_INFO,
-            Operation.SEND_OBJECT,
             Operation.FUJI_SEND_OBJECT_INFO,
             Operation.FUJI_SEND_OBJECT,
             -> {
@@ -380,13 +378,13 @@ class FakeCamera(
         }
 
         when (pendingObjectOperation) {
-            Operation.SEND_OBJECT_INFO, Operation.FUJI_SEND_OBJECT_INFO -> {
+            Operation.FUJI_SEND_OBJECT_INFO -> {
                 sentObjectInfo = payload
                 pendingObjectOperation = null
                 return
             }
 
-            Operation.SEND_OBJECT, Operation.FUJI_SEND_OBJECT -> {
+            Operation.FUJI_SEND_OBJECT -> {
                 sentObject = payload
                 pendingObjectOperation = null
                 return
@@ -427,8 +425,6 @@ class FakeCamera(
     private companion object {
         val DATA_OUT_OPERATIONS = setOf(
             Operation.SET_DEVICE_PROP_VALUE,
-            Operation.SEND_OBJECT_INFO,
-            Operation.SEND_OBJECT,
             Operation.FUJI_SEND_OBJECT_INFO,
             Operation.FUJI_SEND_OBJECT,
         )

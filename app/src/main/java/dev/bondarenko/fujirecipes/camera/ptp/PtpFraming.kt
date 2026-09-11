@@ -58,12 +58,8 @@ object ContainerType {
  * `SetDevicePropValue`, and no vendor operation at all — every recipe read and write goes
  * through those two.
  *
- * **The object half** covers both ordinary card browsing and settings backup. Card browsing
- * uses the standard storage, handle, metadata, thumbnail and object operations. The camera's
- * USB mode is called *RAW CONV. / BACKUP RESTORE*, and the second half of that name is a
- * single object at handle 0: `GetObjectInfo` then `GetObject` reads the body's whole settings
- * blob, `SendObjectInfo` then `SendObject` writes one back. Transcribed from `petabyt/libfuji`
- * `lib/fuji_usb.c` (`fujiusb_download_backup`, `fujiusb_restore_backup`).
+ * **The object half** covers ordinary card browsing, through the standard storage, handle,
+ * metadata, thumbnail and object operations.
  *
  * RAW conversion adds `DeleteObject` and Fuji's vendor upload codes (`0x900C`/`0x900D`):
  * the source RAF is sent through the vendor operations and only the newly rendered result is
@@ -80,8 +76,6 @@ object Operation {
     const val GET_OBJECT = 0x1009
     const val GET_THUMB = 0x100a
     const val DELETE_OBJECT = 0x100b
-    const val SEND_OBJECT_INFO = 0x100c
-    const val SEND_OBJECT = 0x100d
     const val FUJI_SEND_OBJECT_INFO = 0x900c
     const val FUJI_SEND_OBJECT = 0x900d
     const val GET_DEVICE_PROP_DESC = 0x1014

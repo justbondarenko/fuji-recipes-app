@@ -1,9 +1,5 @@
 package dev.bondarenko.fujirecipes.ui.camera
 
-import android.content.Context
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.runtime.Composable
@@ -22,16 +18,10 @@ import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.camera.CameraState
 import dev.bondarenko.fujirecipes.camera.plan.SlotNameReading
-import dev.bondarenko.fujirecipes.camera.plan.backupFilename
-import dev.bondarenko.fujirecipes.camera.plan.backupMatch
-import dev.bondarenko.fujirecipes.camera.plan.backupSizeProblem
-import dev.bondarenko.fujirecipes.camera.plan.modelFromBackupFilename
 import dev.bondarenko.fujirecipes.camera.plan.renderCameraReport
 import dev.bondarenko.fujirecipes.camera.plan.slotStates
 import dev.bondarenko.fujirecipes.core.share.ShareFile
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -65,11 +55,6 @@ fun CameraRouteContent(contentPadding: PaddingValues) {
     var slotsError by remember(state) { mutableStateOf<String?>(null) }
     var refreshCounter by remember { mutableIntStateOf(0) }
     var selectedSlotForDetail by remember { mutableStateOf<Int?>(null) }
-
-    // The chosen file's bytes live outside `CameraToolsState` on purpose: the state is compared
-    // on every recomposition and a data class holding a 40 kB ByteArray would compare it by
-    // identity, which is both wasteful and a trap for anyone who later relies on equality.
-    var pendingBytes by remember(state) { mutableStateOf<ByteArray?>(null) }
 
     LaunchedEffect(state, refreshCounter) {
         val connected = state as? CameraState.Connected
@@ -105,54 +90,14 @@ fun CameraRouteContent(contentPadding: PaddingValues) {
     //
     // Held here rather than in a ViewModel for the same reason the rest of this screen is:
     // `CameraController` already outlives every screen. Resetting on `state` clears a stale
-    // "backed up 42 kB" the moment the cable is pulled, which would otherwise sit there
+    // "report ready" the moment the cable is pulled, which would otherwise sit there
     // describing a camera that is gone.
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var tools by remember(state) { mutableStateOf(CameraToolsState()) }
 
-    val connectedModel = (state as? CameraState.Connected)?.identity?.model.orEmpty()
-
     val reportProgressFormat = stringResource(R.string.camera_tools_report_progress)
     val reportDoneFormat = stringResource(R.string.camera_tools_report_done)
-    val backupProgress = stringResource(R.string.camera_tools_backup_progress)
-    val backupDoneFormat = stringResource(R.string.camera_tools_backup_done)
-    val restoreProgress = stringResource(R.string.camera_tools_restore_progress)
-    val restoreDone = stringResource(R.string.camera_tools_restore_done)
-    val unreadable = stringResource(R.string.camera_tools_file_unreadable)
-
-    val restorePicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-
-        scope.launch {
-            val chosen = withContext(Dispatchers.IO) { readChosenFile(context, uri) }
-
-            tools = when {
-                chosen == null -> tools.copy(message = unreadable, messageIsError = true)
-
-                else -> {
-                    val problem = backupSizeProblem(chosen.bytes.size)
-                    if (problem != null) {
-                        tools.copy(message = problem, messageIsError = true)
-                    } else {
-                        pendingBytes = chosen.bytes
-                        tools.copy(
-                            message = null,
-                            pendingRestore = PendingRestore(
-                                filename = chosen.name,
-                                sizeBytes = chosen.bytes.size,
-                                match = backupMatch(chosen.name, connectedModel),
-                                claimedModel = modelFromBackupFilename(chosen.name),
-                                connectedModel = connectedModel,
-                            ),
-                        )
-                    }
-                }
-            }
-        }
-    }
 
     CameraScreen(
         state = state,
@@ -198,53 +143,7 @@ fun CameraRouteContent(contentPadding: PaddingValues) {
                 }
             }
         },
-        onBackUp = {
-            scope.launch {
-                tools = CameraToolsState(running = CameraTask.BACK_UP, progress = backupProgress)
-                tools = runCameraTask {
-                    val bytes = controller.downloadSettingsBackup()
-
-                    ShareFile.share(
-                        context = context,
-                        filename = backupFilename(connectedModel, fileStamp()),
-                        content = bytes,
-                    )
-
-                    String.format(backupDoneFormat, formatSize(bytes.size))
-                }
-            }
-        },
-        onChooseRestoreFile = {
-            // Every MIME, because a `.bin` is served as whatever the provider feels like and a
-            // file the user cannot choose is a feature that does not work.
-            restorePicker.launch(arrayOf("*/*"))
-        },
     )
-
-    tools.pendingRestore?.let { pending ->
-        RestoreConfirmDialog(
-            pending = pending,
-            onDismiss = {
-                pendingBytes = null
-                tools = tools.copy(pendingRestore = null)
-            },
-            onConfirm = {
-                val bytes = pendingBytes
-                pendingBytes = null
-                tools = CameraToolsState(
-                    running = CameraTask.RESTORE,
-                    progress = restoreProgress,
-                )
-
-                scope.launch {
-                    tools = runCameraTask {
-                        controller.restoreSettingsBackup(requireNotNull(bytes))
-                        restoreDone
-                    }
-                }
-            },
-        )
-    }
 
     if (selectedSlotForDetail != null && state is CameraState.Connected) {
         SlotDetailBottomSheet(
@@ -262,17 +161,13 @@ private fun cameraController() =
 
 // ─── Camera-tool plumbing ───────────────────────────────────────────────────
 
-/** A file the user picked, with the name the provider shows for it. */
-private data class ChosenBackup(val name: String, val bytes: ByteArray)
-
 /**
  * Runs one camera tool and turns whatever happened into the next state.
  *
- * Every one of these ends the same way — cleared progress, one sentence, and a flag saying
- * whether that sentence is bad news — so the shape lives here once rather than in each of the
- * three call sites. A [BackupError] and a dropped cable both arrive as exceptions carrying a
- * message written for a person (P5), so the message is used as-is; anything with no message at
- * all falls back to naming its type, which is still better than an empty box.
+ * A camera tool ends with cleared progress, one sentence, and a flag saying whether that
+ * sentence is bad news. A dropped cable arrives as an exception carrying a message written for
+ * a person (P5), so the message is used as-is; anything with no message at all falls back to
+ * naming its type, which is still better than an empty box.
  */
 private suspend fun runCameraTask(block: suspend () -> String): CameraToolsState = try {
     CameraToolsState(message = block(), messageIsError = false)
@@ -284,29 +179,9 @@ private suspend fun runCameraTask(block: suspend () -> String): CameraToolsState
     )
 }
 
-/** Reads a picked document, or null if it could not be opened. */
-private fun readChosenFile(context: Context, uri: Uri): ChosenBackup? = runCatching {
-    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-        ?: return@runCatching null
-
-    ChosenBackup(name = displayName(context, uri), bytes = bytes)
-}.getOrNull()
-
-/** The name the provider shows for a document, falling back to the last path segment. */
-private fun displayName(context: Context, uri: Uri): String =
-    runCatching {
-        context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            val column = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-            if (column >= 0 && cursor.moveToFirst()) cursor.getString(column) else null
-        }
-    }.getOrNull() ?: uri.lastPathSegment.orEmpty().substringAfterLast('/')
-
 /** UTC, because a report read by someone else should not be in the reader's guess at a zone. */
 private fun timestamp(): String = DateTimeFormatter.ISO_INSTANT.format(Instant.now())
 
 /** Local time, because this one ends up in a filename the owner sorts by. */
 private fun fileStamp(): String =
     LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmm"))
-
-private fun formatSize(bytes: Int): String =
-    if (bytes < 1024) "$bytes bytes" else "${bytes / 1024} kB"

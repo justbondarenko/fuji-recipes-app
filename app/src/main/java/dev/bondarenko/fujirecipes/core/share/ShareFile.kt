@@ -34,8 +34,8 @@ object ShareFile {
     private const val TEXT_MIME = "text/plain"
 
     /**
-     * A settings backup is not any registered type, and calling it one would be worse than
-     * saying so: a `.bin` offered as `application/json` invites an app that will mangle it.
+     * For files that are not any registered type. Claiming one would be worse than saying so:
+     * a `.bin` offered as `application/json` invites an app that will mangle it.
      */
     private const val BINARY_MIME = "application/octet-stream"
 
@@ -43,7 +43,7 @@ object ShareFile {
      * Writes [content] as [filename] and opens the share sheet.
      *
      * The directory is emptied first. Exports are transient by definition, and a cache that
-     * accumulates every backup anyone ever took is a cache that gets cleared by the system at
+     * accumulates every file anyone ever shared is a cache that gets cleared by the system at
      * the worst moment and looks like data loss.
      *
      * @throws java.io.IOException if the file cannot be written — the caller reports it, so
@@ -68,7 +68,7 @@ object ShareFile {
         }
 
         // `createChooser` rather than the bare intent: it guarantees a chooser even when the
-        // user has set a default for this MIME type, which for a backup is the right
+        // user has set a default for this MIME type, which for an export is the right
         // behaviour — the destination is a decision each time.
         val chooser = Intent.createChooser(send, null).apply {
             // The chooser is started from a context that may not be an Activity.
