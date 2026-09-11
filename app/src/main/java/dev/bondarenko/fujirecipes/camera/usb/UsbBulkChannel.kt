@@ -153,11 +153,10 @@ class UsbBulkChannel private constructor(
      * device keeps waiting for more and the transfer hangs until the timeout — and the session
      * is then out of step for good.
      *
-     * Nothing in this app could reach the case until the settings backup: every other container
-     * is a handful of bytes plus a 12-byte header. A restore sends tens of kilobytes of
-     * whatever length the body's blob happens to be, so roughly one restore in
-     * `maxPacketSize` would have hung. That is exactly the kind of failure that looks like a
-     * flaky cable and is not.
+     * Only the large uploads can reach the case: every other container is a handful of bytes
+     * plus a 12-byte header. Sending a RAF for in-camera development is megabytes of whatever
+     * length the file happens to be, so roughly one upload in `maxPacketSize` would have hung.
+     * That is exactly the kind of failure that looks like a flaky cable and is not.
      */
     private fun terminateIfExactMultiple(size: Long) {
         val packet = endpointOut.maxPacketSize

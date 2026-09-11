@@ -82,8 +82,6 @@ fun CameraScreen(
     contentPadding: PaddingValues,
     tools: CameraToolsState = CameraToolsState(),
     onShareReport: () -> Unit = {},
-    onBackUp: () -> Unit = {},
-    onChooseRestoreFile: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (state is CameraState.Connected) {
@@ -97,8 +95,6 @@ fun CameraScreen(
             onDisconnect = onDisconnect,
             tools = tools,
             onShareReport = onShareReport,
-            onBackUp = onBackUp,
-            onChooseRestoreFile = onChooseRestoreFile,
             modifier = modifier
                 .fillMaxSize()
                 .padding(contentPadding),
@@ -130,8 +126,6 @@ fun CameraConnectedContent(
     onDisconnect: () -> Unit,
     tools: CameraToolsState = CameraToolsState(),
     onShareReport: () -> Unit = {},
-    onBackUp: () -> Unit = {},
-    onChooseRestoreFile: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val dark = isSystemInDarkTheme()
@@ -316,12 +310,10 @@ fun CameraConnectedContent(
         // ─── 4. What the body says about itself ─────────────────────────────
         CameraDetailsCard(state.details)
 
-        // ─── 5. Report and settings backup ──────────────────────────────────
+        // ─── 5. Report ──────────────────────────────────────────────────────
         CameraToolsCard(
             state = tools,
             onShareReport = onShareReport,
-            onBackUp = onBackUp,
-            onChooseRestoreFile = onChooseRestoreFile,
         )
 
         // Additional information notes

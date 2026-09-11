@@ -92,7 +92,7 @@ See the app in action: **[screenshots on GitHub](https://github.com/justbondaren
 - 🎞️ **In-Camera RAW Development**: Start from a recipe, choose a RAF from the phone, apply the recipe to the camera's native `0xD185` conversion profile, let the camera render the JPEG, preview it, and save it through Android's document picker. The app preserves camera-native profile fields it does not own.
 - 🔄 **Background Camera Downloads**: Batch downloads run in an Android connected-device foreground service and continue while the app is minimized or the phone is locked. An ongoing notification shows progress and offers cancellation; Android 16 can promote it to a Live Update. If the process is killed, the Photos screen reports the interrupted batch and lets the user keep completed files or remove the incomplete file.
 - 🔋 **Mode-Aware Camera Status**: The Camera screen reports the current connection mode, camera battery level, firmware and serial number, plus shutter count and lens when the body exposes them. Slot controls appear only in a mode that can reach them.
-- 🧰 **Camera Diagnostics and Settings Backup**: Share a detailed camera capability report, save the camera's settings backup, or restore one from a file. These tools make it possible to investigate untested bodies without pretending they are compatible.
+- 🧰 **Camera Diagnostics**: Share a detailed camera capability report. This makes it possible to investigate untested bodies without pretending they are compatible.
 - 📸 **Extract Recipe from Photos**: Pick straight-out-of-camera Fujifilm JPEGs (single or multiple in batch) to decode their embedded MakerNote EXIF metadata. The app extracts the exact film simulation, tone curves, and white balance settings, presents them in a swipeable card carousel, and lets you attach photos directly to matching recipes or save new ones.
 - 📲 **System Share Sheet Action**: Share any photo directly from Google Photos, Gallery, or Files via the "Extract recipe" share sheet action to inspect recipe settings on the fly.
 - 🔍 **Highlight Matching & Likely Recipes**: When analyzing photos, the app compares decoded parameters against your entire library, highlighting exact matches or surfacing likely recipe candidates with percentage similarity and specific differences.
@@ -112,12 +112,12 @@ See the app in action: **[screenshots on GitHub](https://github.com/justbondaren
 
 Camera communication is handled via PTP (Picture Transfer Protocol) over USB Host mode.
 
-The camera features in this branch were developed against and manually tested with a **Fujifilm X-T50**. Compatibility is feature-specific: standard PTP media operations may exist on other bodies, but custom slots, settings backups, camera properties, and RAW profile layouts are Fuji-specific and can differ by model or firmware.
+The camera features in this branch were developed against and manually tested with a **Fujifilm X-T50**. Compatibility is feature-specific: standard PTP media operations may exist on other bodies, but custom slots, camera properties, and RAW profile layouts are Fuji-specific and can differ by model or firmware.
 
 | Feature | Required camera mode | Verified support |
 |---|---|---|
 | Browse, analyze, and download JPEG/RAF files | `USB CARD READER` | X-T50 hardware |
-| Read/write C1–C7, reports, settings backup/restore | `USB RAW CONV. / BACKUP RESTORE` | X-T50 hardware |
+| Read/write C1–C7, reports | `USB RAW CONV. / BACKUP RESTORE` | X-T50 hardware |
 | In-camera RAW development (RAF from the phone) | `USB RAW CONV. / BACKUP RESTORE` | X-T50 hardware; an X100VI 625-byte profile adapter is present but not hardware-tested by the author |
 | Background downloads and Live Updates | `USB CARD READER` | Android foreground service; promoted Live Update requires Android 16 and system approval |
 
@@ -144,7 +144,7 @@ The app uses two camera connection modes because Fujifilm exposes card files and
 | Camera mode | Use it for |
 |---|---|
 | **`USB CARD READER`** | Browse the card, download JPEG/RAF files, or analyze camera JPEGs |
-| **`USB RAW CONV. / BACKUP RESTORE`** | Read/write C1–C7, inspect camera details, share a report, back up/restore settings, or render a RAF with a recipe |
+| **`USB RAW CONV. / BACKUP RESTORE`** | Read/write C1–C7, inspect camera details, share a report, or render a RAF with a recipe |
 
 On the camera, the setting is normally under **`MENU / OK` → `SET UP` (Wrench) → `CONNECTION SETTING` → `USB MODE`**. The app reports the detected mode without treating a useful Card Reader connection as an error. Screens hide controls that the current mode cannot support and explain which mode they need.
 
@@ -195,7 +195,6 @@ Connect in **`USB RAW CONV. / BACKUP RESTORE`** mode, then:
 - **Reading from the camera**: In the **Camera** tab or via **More → Backup & Restore → Import from camera**, read all custom slots from the body into your library.
 - **Inspecting the body**: The Camera tab shows the camera model, battery and connection mode, with any available firmware, serial, shutter-count, and lens details.
 - **Sharing a diagnostic report**: Use **Camera tools → Share report** to export supported operations, properties, mode, details, and slot readings for compatibility investigation.
-- **Backing up or restoring camera settings**: Use the Camera tools backup and restore actions. Keep the camera connected and do not interrupt a restore.
 
 ---
 
@@ -258,7 +257,7 @@ This project is built using fantastic open-source libraries, tools, and research
 ### Camera Protocol & Reverse-Engineering Research
 - [**filmkit** (`eggricesoy/filmkit`)](https://github.com/eggricesoy/filmkit) (MIT License) — Research on Fujifilm PTP property ranges, parameter encoding, and custom slot codes.
 - [**FujiHack Community** (`fujihack/fujihack`)](https://github.com/fujihack/fujihack) (GPL-3.0 License) — Reverse-engineering documentation, PTP/USB communication research, and MakerNote tag structures. Referenced as technical documentation for camera interoperability.
-- [**libfuji** (`petabyt/libfuji`)](https://github.com/petabyt/libfuji) — Reference implementation for Fujifilm USB modes, settings backup, object transfer, and in-camera RAW conversion sequencing.
+- [**libfuji** (`petabyt/libfuji`)](https://github.com/petabyt/libfuji) — Reference implementation for Fujifilm USB modes, object transfer, and in-camera RAW conversion sequencing.
 
 ---
 
