@@ -260,14 +260,16 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ### Build Notifications on Telegram
 
-The **Build** workflow posts every finished run — succeeded, failed or cancelled — to a Telegram chat, with the commit subject and an **Open run** button that goes straight to the run page. It is optional: with no secrets set the notification step says so in the log and the build carries on, so a fork needs no setup.
+The **Build** workflow posts every finished run — succeeded, failed or cancelled — to a Telegram chat, with the branch, the commit and an **Open run** button that goes straight to the run page. It is optional: with no secrets set the notification step says so in the log and the build carries on, so a fork needs no setup.
 
 ```
 🗄️ fuji-recipes-app
 ✅ Build succeeded
-Report every build to Telegram
 
-Run #83 by justbondarenko
+🪾 main
+💬 ba69768 Lead the Telegram message with the repository
+
+Run #84 by justbondarenko
 [ 🔗 Open run ]
 ```
 
