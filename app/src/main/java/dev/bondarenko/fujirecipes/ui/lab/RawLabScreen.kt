@@ -8,16 +8,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -30,8 +30,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -40,6 +38,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -52,6 +51,7 @@ import dev.bondarenko.fujirecipes.data.lab.RawLabPreview
 import dev.bondarenko.fujirecipes.ui.common.FujiCenteredLoading
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.theme.icons.BookmarkStacks
+import dev.bondarenko.fujirecipes.ui.theme.icons.Cable
 import dev.bondarenko.fujirecipes.ui.theme.icons.Delete
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.ImagesMode
@@ -65,8 +65,13 @@ import kotlinx.serialization.json.JsonElement
  * watching one change the other. Stateless: every decision arrives in [state] and every
  * intent leaves through a callback, so the interesting logic stays in `RawLabState` where a
  * test can reach it.
+ *
+ * No `TopAppBar` of its own. This is a bottom-bar destination, and the shell already draws a
+ * row above it for the camera button; a second bar underneath that one put this page's title
+ * and the camera control on the same line, crowded against each other. A plain header row
+ * inside the content is what the other top-level pages do.
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun RawLabScreen(
     state: RawLabUiState,
@@ -85,45 +90,20 @@ fun RawLabScreen(
 ) {
     val lab = state.lab
 
-    Column(modifier = modifier.fillMaxSize()) {
-        TopAppBar(
-            title = { Text(stringResource(R.string.lab_title)) },
-            actions = {
-                if (lab.hasRaf) {
-                    // Named and filled, not a bare glyph: starting from a recipe is the
-                    // second reason anyone opens this page, and a bookmark icon alone does
-                    // not say so.
-                    Button(
-                        onClick = onApplyRecipe,
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    ) {
-                        Icon(
-                            imageVector = FujiIcons.BookmarkStacks,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.lab_action_apply_recipe))
-                    }
-                    IconButton(onClick = onDiscard) {
-                        Icon(
-                            imageVector = FujiIcons.Delete,
-                            contentDescription = stringResource(R.string.lab_action_discard),
-                        )
-                    }
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-            ),
-        )
-
-        val bodyModifier = Modifier
+    Column(
+        modifier = modifier
             .fillMaxSize()
-            .padding(bottom = contentPadding.calculateBottomPadding())
+            .padding(contentPadding),
+    ) {
+        LabHeader(
+            showActions = lab.hasRaf,
+            onApplyRecipe = onApplyRecipe,
+            onDiscard = onDiscard,
+        )
 
         val importing = lab.importing
         val calibration = lab.calibration
+        val bodyModifier = Modifier.fillMaxSize()
 
         when {
             importing != null -> FujiCenteredLoading(
@@ -134,30 +114,25 @@ fun RawLabScreen(
                 modifier = bodyModifier,
             )
 
-            calibration != null -> {
-                FujiIconPanel(
-                    icon = FujiIcons.Warning,
-                    shape = MaterialShapes.Pill.toShape(),
-                    title = stringResource(
-                        R.string.raw_calibration_title,
-                        calibration.cameraModel,
-                    ),
-                    body = stringResource(R.string.raw_calibration_body, calibration.profile.size),
-                    actionLabel = stringResource(R.string.raw_action_share_profile),
-                    onAction = {
-                        onShareProfile(
-                            "${calibration.cameraModel.safeFilename()}-d185.bin",
-                            calibration.profile,
-                        )
-                    },
-                    modifier = bodyModifier,
-                    extra = {
-                        TextButton(onClick = onChooseAnotherRaf) {
-                            Text(stringResource(R.string.raw_action_choose_another))
-                        }
-                    },
-                )
-            }
+            calibration != null -> FujiIconPanel(
+                icon = FujiIcons.Warning,
+                shape = MaterialShapes.Pill.toShape(),
+                title = stringResource(R.string.raw_calibration_title, calibration.cameraModel),
+                body = stringResource(R.string.raw_calibration_body, calibration.profile.size),
+                actionLabel = stringResource(R.string.raw_action_share_profile),
+                onAction = {
+                    onShareProfile(
+                        "${calibration.cameraModel.safeFilename()}-d185.bin",
+                        calibration.profile,
+                    )
+                },
+                modifier = bodyModifier,
+                extra = {
+                    TextButton(onClick = onChooseAnotherRaf) {
+                        Text(stringResource(R.string.raw_action_choose_another))
+                    }
+                },
+            )
 
             !lab.hasRaf -> EmptyLab(onChooseRaf = onChooseRaf, modifier = bodyModifier)
 
@@ -171,6 +146,56 @@ fun RawLabScreen(
                 onChooseAnotherRaf = onChooseAnotherRaf,
                 modifier = bodyModifier,
             )
+        }
+    }
+}
+
+/** The page's name, and the two things that act on the whole session. */
+@Composable
+private fun LabHeader(
+    showActions: Boolean,
+    onApplyRecipe: () -> Unit,
+    onDiscard: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = stringResource(R.string.lab_title),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+        )
+
+        if (showActions) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                // Tonal rather than filled: the picture is what this page is for, and a
+                // primary-coloured button beside the title outshouted it.
+                FilledTonalButton(
+                    onClick = onApplyRecipe,
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                ) {
+                    Icon(
+                        imageVector = FujiIcons.BookmarkStacks,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.lab_action_apply_recipe))
+                }
+                IconButton(onClick = onDiscard) {
+                    Icon(
+                        imageVector = FujiIcons.Delete,
+                        contentDescription = stringResource(R.string.lab_action_discard),
+                    )
+                }
+            }
         }
     }
 }
@@ -212,12 +237,15 @@ private fun LoadedLab(
 ) {
     val lab = state.lab
     val fields = lab.renderedFields(state.supportedFieldIds)
+    val readiness = state.camera.readiness()
 
     Column(modifier = modifier) {
         PreviewPane(
             preview = lab.preview,
             isStale = lab.isPreviewStale,
             stage = lab.rendering,
+            readiness = readiness,
+            onConnect = onConnect,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(0.45f)
@@ -226,9 +254,9 @@ private fun LoadedLab(
 
         LabActions(
             state = state,
+            readiness = readiness,
             onRender = onRender,
             onAutoPreviewChange = onAutoPreviewChange,
-            onConnect = onConnect,
             onSave = onSave,
             onChooseAnotherRaf = onChooseAnotherRaf,
         )
@@ -246,22 +274,25 @@ private fun LoadedLab(
 }
 
 /**
- * The picture, and what is true about it right now.
+ * The picture, or — while there isn't one — what is standing between you and it.
  *
- * A stale preview is dimmed and badged rather than removed: it is still the most recent thing
- * the camera actually said, and blanking the pane on every edit would make the page flicker
- * between an answer and nothing.
+ * No camera means no render, so the space the picture will occupy is where the camera's state
+ * belongs; a warning wedged between the filename and the controls both crowded them and left
+ * this area empty. Once a picture exists it keeps the space even if the cable goes: it is
+ * still the most recent true answer, dimmed and badged rather than thrown away.
  */
 @Composable
 private fun PreviewPane(
     preview: RawLabPreview?,
     isStale: Boolean,
     stage: RawDevelopmentStage?,
+    readiness: CameraReadiness,
+    onConnect: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        if (preview != null) {
-            AsyncImage(
+        when {
+            preview != null -> AsyncImage(
                 model = preview.file,
                 contentDescription = stringResource(R.string.raw_result_description),
                 contentScale = ContentScale.Fit,
@@ -270,8 +301,12 @@ private fun PreviewPane(
                     .clip(RoundedCornerShape(20.dp))
                     .alpha(if (isStale || stage != null) 0.4f else 1f),
             )
-        } else {
-            Text(
+
+            stage != null -> Unit
+
+            !readiness.canRender -> CameraNotReady(readiness = readiness, onConnect = onConnect)
+
+            else -> Text(
                 text = stringResource(R.string.lab_no_preview),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -306,6 +341,44 @@ private fun PreviewPane(
     }
 }
 
+/**
+ * What the camera is doing, in the space the picture will take.
+ *
+ * Connect is offered but not demanded: plugging the cable in raises the attach intent and the
+ * app opens the session itself (`PRD.md` §8.2), so the button is there for the case where the
+ * app was already running and the body was not noticed — which the copy says plainly rather
+ * than instructing everyone to press it.
+ */
+@Composable
+private fun CameraNotReady(
+    readiness: CameraReadiness,
+    onConnect: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.padding(horizontal = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(
+            imageVector = FujiIcons.Cable,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(32.dp),
+        )
+        Text(
+            text = readiness.message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        if (readiness.offersConnect) {
+            FilledTonalButton(onClick = onConnect) {
+                Text(stringResource(R.string.camera_action_connect))
+            }
+        }
+    }
+}
+
 @Composable
 private fun LabBadge(text: String, modifier: Modifier = Modifier) {
     Text(
@@ -320,24 +393,23 @@ private fun LabBadge(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun LabActions(
     state: RawLabUiState,
+    readiness: CameraReadiness,
     onRender: (RawRenderQuality) -> Unit,
     onAutoPreviewChange: (Boolean) -> Unit,
-    onConnect: () -> Unit,
     onSave: () -> Unit,
     onChooseAnotherRaf: () -> Unit,
 ) {
     val lab = state.lab
-    val readiness = state.camera.readiness()
+    val canRender = lab.canRender && readiness.canRender
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -370,16 +442,6 @@ private fun LabActions(
             }
         }
 
-        Text(
-            text = readiness.message,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (readiness.canRender) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.error
-            },
-        )
-
         AnimatedVisibility(visible = lab.error != null) {
             Text(
                 text = lab.error.orEmpty(),
@@ -393,24 +455,17 @@ private fun LabActions(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (!readiness.canRender) {
-                FilledTonalButton(onClick = onConnect) {
-                    Text(stringResource(R.string.camera_action_connect))
-                }
-            } else {
-                Button(
-                    onClick = { onRender(RawRenderQuality.PREVIEW) },
-                    enabled = lab.canRender,
-                ) {
-                    Text(stringResource(R.string.lab_action_update_preview))
-                }
-                OutlinedButton(onClick = { onRender(RawRenderQuality.FULL) }, enabled = lab.canRender) {
-                    Text(stringResource(R.string.lab_action_render_full))
-                }
+            Button(onClick = { onRender(RawRenderQuality.PREVIEW) }, enabled = canRender) {
+                Text(stringResource(R.string.lab_action_update_preview))
             }
-
+            OutlinedButton(onClick = { onRender(RawRenderQuality.FULL) }, enabled = canRender) {
+                Text(stringResource(R.string.lab_action_render_full))
+            }
             if (lab.canSaveJpeg) {
-                TextButton(onClick = onSave) {
+                TextButton(
+                    onClick = onSave,
+                    contentPadding = ButtonDefaults.TextButtonContentPadding,
+                ) {
                     Text(stringResource(R.string.raw_action_save_jpeg))
                 }
             }
@@ -435,8 +490,15 @@ private fun LabActions(
     }
 }
 
-/** Whether the camera can be asked to render, and the one line that explains why not. */
-private data class CameraReadiness(val canRender: Boolean, val message: String)
+/**
+ * Whether the camera can be asked to render, what to say when it cannot, and whether pressing
+ * Connect could help — it cannot while a session is already opening.
+ */
+private data class CameraReadiness(
+    val canRender: Boolean,
+    val message: String,
+    val offersConnect: Boolean = false,
+)
 
 @Composable
 private fun CameraState.readiness(): CameraReadiness = when (this) {
@@ -458,11 +520,27 @@ private fun CameraState.readiness(): CameraReadiness = when (this) {
         message = stringResource(R.string.raw_camera_connecting_body),
     )
 
-    is CameraState.Error -> CameraReadiness(canRender = false, message = message)
+    CameraState.NoUsbHost -> CameraReadiness(
+        canRender = false,
+        message = stringResource(R.string.camera_state_no_usb_body),
+    )
+
+    // A slot write has the connection. Connect would not help; waiting will.
+    is CameraState.Writing -> CameraReadiness(
+        canRender = false,
+        message = stringResource(R.string.lab_camera_busy),
+    )
+
+    is CameraState.Error -> CameraReadiness(
+        canRender = false,
+        message = message,
+        offersConnect = true,
+    )
 
     else -> CameraReadiness(
         canRender = false,
-        message = stringResource(R.string.raw_camera_not_ready_body),
+        message = stringResource(R.string.lab_camera_waiting),
+        offersConnect = true,
     )
 }
 

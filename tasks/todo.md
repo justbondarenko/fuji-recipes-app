@@ -41,6 +41,13 @@ Plan: `specs/plans/raw-development-lab.md`.
 - [x] Recipe picker button: labelled and filled, not a bare glyph
 - [x] "Re-render automatically"; no "starting from the defaults" beside the filename
 - [x] Head exposure compensation under **Exposure**, not §4's "not written to the camera"
+- [x] Drop the screen's own `TopAppBar`: it drew under the shell's camera-button row, which is
+      why the header looked crowded. A header row inside the content, like Photos and Analyze,
+      and the full `contentPadding` applied
+- [x] Recipe button tonal, labelled **Recipes**
+- [x] Camera state moved into the preview area — no camera, no render, so that space was the
+      right place for it; the warning no longer sits between the filename and the controls
+- [x] Connect is offered, not instructed: the attach intent already opens the session
 
 ## Review
 

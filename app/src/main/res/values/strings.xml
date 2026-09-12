@@ -125,6 +125,8 @@
     <string name="lab_empty_title">Develop a RAW file</string>
     <string name="lab_empty_body">Choose a RAF from this phone. The camera renders it with its own processor, and you can change the settings and render again without sending the file twice.</string>
     <string name="lab_no_raf">No RAF chosen</string>
+    <string name="lab_camera_busy">The camera is busy writing to a custom slot. Rendering can start once that finishes.</string>
+    <string name="lab_camera_waiting">Connect the camera by USB in USB RAW CONV./BACKUP RESTORE mode. The app picks it up on its own — tap Connect if it does not.</string>
     <string name="lab_no_preview">Nothing rendered yet. Set the parameters, then update the preview.</string>
     <string name="lab_preview_stale">Settings changed</string>
     <string name="lab_preview_quality">Preview quality</string>
@@ -132,7 +134,7 @@
     <string name="lab_auto_preview">Re-render automatically</string>
     <string name="lab_action_update_preview">Update preview</string>
     <string name="lab_action_render_full">Render full</string>
-    <string name="lab_action_apply_recipe">Apply a recipe</string>
+    <string name="lab_action_apply_recipe">Recipes</string>
     <string name="lab_action_from_defaults">Start from the defaults</string>
     <string name="lab_action_discard">Discard this session</string>
     <string name="lab_group_exposure">Exposure</string>

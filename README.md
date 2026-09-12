@@ -191,7 +191,7 @@ RAW development lives in the **Lab** tab, third in the bottom bar. Open it direc
 
 1. Choose a RAF from the phone. That is the only thing the empty Lab asks for — everything else appears once there is a file to act on.
 2. Leave the documented defaults, or tap **Apply a recipe** to start from one in your library.
-3. With the camera in **`USB RAW CONV. / BACKUP RESTORE`** mode, tap **Update preview**. The app uploads the RAF and the patched native profile, waits for the camera processor, downloads the result, and cleans up the temporary camera object.
+3. Connect the camera in **`USB RAW CONV. / BACKUP RESTORE`** mode. Plugging it in is enough — the app opens the session itself, and the Lab shows a **Connect** button only for the case where it did not notice. Then tap **Update preview**. The app uploads the RAF and the patched native profile, waits for the camera processor, downloads the result, and cleans up the temporary camera object.
 4. Change any parameter and render again. **The RAF is uploaded once per session** — later renders only send a new profile, so trying a different film simulation costs a render rather than another multi-megabyte transfer.
 5. Switch on **Re-render automatically after each change** to skip the button. It fires 900 ms after the last edit, never mid-gesture, runs one render at a time, and switches itself off after two consecutive failures.
 6. Save the JPEG through Android's document picker, save the settings as a new recipe, or update the recipe you started from.
