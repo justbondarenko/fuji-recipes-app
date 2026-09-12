@@ -122,10 +122,20 @@ class RawLabViewModel(
                 .debounce(AUTO_PREVIEW_DELAY_MS)
                 .collect { maybeAutoRender() }
         }
+        // A camera arriving after the RAF is what lets the first picture render.
+        viewModelScope.launch {
+            controller.state
+                .map { it is CameraState.Connected }
+                .distinctUntilChanged()
+                .collect { connected -> if (connected) maybeAutoRender() }
+        }
     }
 
     private fun maybeAutoRender() {
-        if (workspace.current.shouldAutoRender()) render(RawRenderQuality.PREVIEW)
+        // No camera, no attempt: a render that cannot start would only count as a failure.
+        if (controller.state.value is CameraState.Connected && workspace.current.shouldAutoRender()) {
+            render(RawRenderQuality.PREVIEW)
+        }
     }
 
     fun connect() = controller.connect()
@@ -163,6 +173,7 @@ class RawLabViewModel(
             }
             cache.clearRenders()
             workspace.update { it.withRaf(imported, metadata.name) }
+            maybeAutoRender()
         }
     }
 
@@ -209,15 +220,13 @@ class RawLabViewModel(
         workspace.update { it.fromDefaults() }
     }
 
-    fun setAutoPreview(enabled: Boolean) {
-        workspace.update { it.withAutoPreview(enabled) }
-        if (enabled) maybeAutoRender()
-    }
-
     // ─── Rendering ──────────────────────────────────────────────────────────
 
-    /** What the automatic mode and the Update preview button both ask for. */
-    fun renderPreview() = render(RawRenderQuality.PREVIEW)
+    /** The retry after automatic rendering gave up: switch it back on and render now. */
+    fun retryPreview() {
+        workspace.update { it.withAutoPreview(true) }
+        render(RawRenderQuality.PREVIEW)
+    }
 
     /**
      * Asking for the file is what asks for the full render.

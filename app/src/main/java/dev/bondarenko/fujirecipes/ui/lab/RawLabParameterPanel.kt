@@ -11,13 +11,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.data.fields.EnumFieldDef
+import dev.bondarenko.fujirecipes.data.fields.EnumOption
 import dev.bondarenko.fujirecipes.data.fields.FieldGroup
 import dev.bondarenko.fujirecipes.data.fields.NumberField
 import dev.bondarenko.fujirecipes.data.fields.RecipeField
 import dev.bondarenko.fujirecipes.ui.common.SectionHeader
 import dev.bondarenko.fujirecipes.ui.editor.EnumButtonGroup
 import dev.bondarenko.fujirecipes.ui.editor.EnumDropdown
-import dev.bondarenko.fujirecipes.ui.editor.FilmSimulationPicker
+import dev.bondarenko.fujirecipes.ui.editor.EnumMenu
 import dev.bondarenko.fujirecipes.ui.editor.NumberStepper
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -101,23 +102,33 @@ private fun FieldControl(
     onSettingChange: (String, JsonElement?) -> Unit,
 ) {
     when (field) {
-        is EnumFieldDef -> when {
-            field.id == "filmSimulation" -> FilmSimulationPicker(
-                value = settings.stringOrNull(field.id),
-                onValueChange = { onSettingChange(field.id, JsonPrimitive(it)) },
-            )
-
-            field.options.size <= 4 -> EnumButtonGroup(
+        is EnumFieldDef -> when (field.id) {
+            "filmSimulation", "dynamicRange" -> EnumMenu(
                 field = field,
                 value = settings.stringOrNull(field.id),
                 onValueChange = { onSettingChange(field.id, JsonPrimitive(it)) },
             )
 
-            else -> EnumDropdown(
+            "whiteBalance" -> EnumMenu(
                 field = field,
                 value = settings.stringOrNull(field.id),
                 onValueChange = { onSettingChange(field.id, JsonPrimitive(it)) },
+                groups = field.options.whiteBalanceGroups(),
             )
+
+            else -> if (field.options.size <= 4) {
+                EnumButtonGroup(
+                    field = field,
+                    value = settings.stringOrNull(field.id),
+                    onValueChange = { onSettingChange(field.id, JsonPrimitive(it)) },
+                )
+            } else {
+                EnumDropdown(
+                    field = field,
+                    value = settings.stringOrNull(field.id),
+                    onValueChange = { onSettingChange(field.id, JsonPrimitive(it)) },
+                )
+            }
         }
 
         is NumberField -> NumberStepper(
@@ -125,6 +136,25 @@ private fun FieldControl(
             value = settings.numberOrNull(field.id),
             onValueChange = { onSettingChange(field.id, it?.let(::JsonPrimitive)) },
         )
+    }
+}
+
+/**
+ * White balance in its field-table order, cut wherever the family changes: the Auto, Fluorescent
+ * and Custom variants each together, and the options between them as their own groups.
+ */
+internal fun List<EnumOption>.whiteBalanceGroups(): List<List<EnumOption>> {
+    fun family(option: EnumOption) = when {
+        option.id.startsWith("auto") -> "auto"
+        option.id.startsWith("fluorescent") -> "fluorescent"
+        option.id.startsWith("custom") -> "custom"
+        else -> "other"
+    }
+    return fold(mutableListOf<MutableList<EnumOption>>()) { groups, option ->
+        val last = groups.lastOrNull()
+        if (last != null && family(last.last()) == family(option)) last += option
+        else groups += mutableListOf(option)
+        groups
     }
 }
 

@@ -58,7 +58,9 @@ class RawLabStateTest {
 
     @Test
     fun `automatic rendering waits for a change, a file and an idle camera`() {
-        val started = loaded().withAutoPreview(true).renderStarted()
+        assertTrue(loaded().shouldAutoRender(), "a freshly opened RAF renders its first picture")
+
+        val started = loaded().renderStarted()
         val idle = started.renderSucceeded(result(), started.settings)
 
         assertFalse(idle.shouldAutoRender(), "nothing has changed since the last render")

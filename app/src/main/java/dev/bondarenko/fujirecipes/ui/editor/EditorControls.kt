@@ -24,7 +24,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import dev.bondarenko.fujirecipes.ui.theme.icons.Add
@@ -40,7 +42,10 @@ import dev.bondarenko.fujirecipes.core.store.ImageStore
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuGroup
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenuPopup
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -81,6 +86,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.data.fields.EnumFieldDef
+import dev.bondarenko.fujirecipes.data.fields.EnumOption
 import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.data.fields.NumberField
 import dev.bondarenko.fujirecipes.data.fields.SensorGeneration
@@ -284,6 +290,80 @@ fun EnumDropdown(
                             expanded = false
                         },
                     )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * An enum field as an M3 Expressive menu (`m3.material.io/components/menus`): the options in
+ * [groups], each group its own rounded container, the current one marked selected.
+ *
+ * One group is a plain menu; several split related options apart (white balance's Auto and
+ * Fluorescent variants) without inventing labels for them.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun EnumMenu(
+    field: EnumFieldDef,
+    value: String?,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    groups: List<List<EnumOption>> = listOf(field.options),
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val current = value ?: field.defaultValue as? String
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = field.label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+
+        Box {
+            // 36dp, not the 48dp touch-target default: the same row height as the steppers,
+            // so the gap between two menu rows matches the gap between every other field.
+            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                TextButton(
+                    onClick = { expanded = true },
+                    modifier = Modifier.height(36.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                ) {
+                    Text(field.labelFor(current))
+                }
+            }
+
+            DropdownMenuPopup(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
+                groups.forEachIndexed { groupIndex, options ->
+                    DropdownMenuGroup(shapes = MenuDefaults.groupShape(groupIndex, groups.size)) {
+                        options.forEachIndexed { index, option ->
+                            DropdownMenuItem(
+                                selected = option.id == current,
+                                onClick = {
+                                    onValueChange(option.id)
+                                    expanded = false
+                                },
+                                text = { Text(option.label) },
+                                shapes = MenuDefaults.itemShape(index, options.size),
+                                selectedLeadingIcon = {
+                                    Icon(imageVector = FujiIcons.Check, contentDescription = null)
+                                },
+                            )
+                        }
+                    }
+                    if (groupIndex < groups.lastIndex) {
+                        Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+                    }
                 }
             }
         }

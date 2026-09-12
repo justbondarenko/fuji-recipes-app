@@ -75,7 +75,8 @@ data class RawLabState(
     val appliedRecipeName: String? = null,
     val preview: RawLabPreview? = null,
     val rendering: RawDevelopmentStage? = null,
-    val autoPreview: Boolean = false,
+    /** On by default and not user-facing for now; only repeated failures switch it off. */
+    val autoPreview: Boolean = true,
     /** Consecutive render failures; two in a row switch [autoPreview] off. */
     val consecutiveFailures: Int = 0,
     val error: String? = null,
@@ -145,7 +146,7 @@ data class RawLabState(
      * after [AUTO_PREVIEW_FAILURE_LIMIT] failures rather than hammering a camera that is
      * refusing.
      */
-    fun shouldAutoRender(): Boolean = autoPreview && canRender && isPreviewStale
+    fun shouldAutoRender(): Boolean = autoPreview && canRender && (preview == null || isPreviewStale)
 
     // ─── Transitions ────────────────────────────────────────────────────────
 

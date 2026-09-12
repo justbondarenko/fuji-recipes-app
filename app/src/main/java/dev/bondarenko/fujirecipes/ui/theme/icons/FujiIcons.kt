@@ -5169,6 +5169,216 @@ private var _fileSaveW300: ImageVector? = null
 private var _fileSaveW400: ImageVector? = null
 private var _fileSaveW500: ImageVector? = null
 
+public val FujiIcons.Download: ImageVector
+    get() = when (FujiIconConfig.weight) {
+        IconWeight.W300 -> _downloadW300 ?: ImageVector.Builder(
+          name = "download",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(11.68f, 15.28f)
+            quadTo(11.53f, 15.22f, 11.4f, 15.08f)
+            lineTo(8.39f, 12.07f)
+            quadToRelative(-0.2f, -0.2f, -0.2f, -0.48f)
+            reflectiveQuadTo(8.39f, 11.1f)
+            reflectiveQuadTo(8.88f, 10.89f)
+            reflectiveQuadTo(9.37f, 11.1f)
+            lineToRelative(1.94f, 1.93f)
+            verticalLineTo(5.4f)
+            quadToRelative(0f, -0.29f, 0.2f, -0.49f)
+            reflectiveQuadTo(12f, 4.7f)
+            reflectiveQuadToRelative(0.5f, 0.21f)
+            reflectiveQuadTo(12.7f, 5.4f)
+            verticalLineToRelative(7.63f)
+            lineTo(14.63f, 11.1f)
+            quadToRelative(0.2f, -0.2f, 0.49f, -0.2f)
+            reflectiveQuadToRelative(0.5f, 0.21f)
+            quadToRelative(0.2f, 0.21f, 0.2f, 0.49f)
+            reflectiveQuadToRelative(-0.2f, 0.48f)
+            lineTo(12.6f, 15.08f)
+            quadToRelative(-0.13f, 0.13f, -0.28f, 0.19f)
+            reflectiveQuadTo(12f, 15.34f)
+            reflectiveQuadTo(11.68f, 15.28f)
+            close()
+            moveTo(6.41f, 19.3f)
+            quadTo(5.7f, 19.3f, 5.2f, 18.8f)
+            reflectiveQuadTo(4.7f, 17.59f)
+            verticalLineTo(15.63f)
+            quadToRelative(0f, -0.29f, 0.21f, -0.5f)
+            reflectiveQuadTo(5.4f, 14.93f)
+            reflectiveQuadTo(5.9f, 15.13f)
+            reflectiveQuadToRelative(0.21f, 0.5f)
+            verticalLineToRelative(1.96f)
+            quadToRelative(0f, 0.12f, 0.1f, 0.21f)
+            reflectiveQuadToRelative(0.21f, 0.1f)
+            horizontalLineTo(17.59f)
+            quadToRelative(0.12f, 0f, 0.21f, -0.1f)
+            reflectiveQuadToRelative(0.1f, -0.21f)
+            verticalLineTo(15.63f)
+            quadToRelative(0f, -0.29f, 0.21f, -0.5f)
+            reflectiveQuadTo(18.6f, 14.93f)
+            reflectiveQuadToRelative(0.49f, 0.21f)
+            reflectiveQuadToRelative(0.21f, 0.5f)
+            verticalLineToRelative(1.96f)
+            quadToRelative(0f, 0.71f, -0.5f, 1.21f)
+            reflectiveQuadToRelative(-1.21f, 0.5f)
+            horizontalLineTo(6.41f)
+            close()
+          }
+        }
+        .build().also { _downloadW300 = it }
+        IconWeight.W400 -> _downloadW400 ?: ImageVector.Builder(
+          name = "download",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(11.63f, 15.51f)
+            quadTo(11.45f, 15.45f, 11.3f, 15.3f)
+            lineTo(7.7f, 11.7f)
+            quadTo(7.4f, 11.4f, 7.41f, 11f)
+            reflectiveQuadTo(7.7f, 10.3f)
+            quadTo(8f, 10f, 8.41f, 9.99f)
+            quadTo(8.83f, 9.98f, 9.13f, 10.27f)
+            lineTo(11f, 12.15f)
+            verticalLineTo(5f)
+            quadTo(11f, 4.57f, 11.29f, 4.29f)
+            reflectiveQuadTo(12f, 4f)
+            reflectiveQuadToRelative(0.71f, 0.29f)
+            reflectiveQuadTo(13f, 5f)
+            verticalLineToRelative(7.15f)
+            lineToRelative(1.88f, -1.88f)
+            quadToRelative(0.3f, -0.3f, 0.71f, -0.29f)
+            reflectiveQuadTo(16.3f, 10.3f)
+            quadToRelative(0.27f, 0.3f, 0.29f, 0.7f)
+            reflectiveQuadTo(16.3f, 11.7f)
+            lineToRelative(-3.6f, 3.6f)
+            quadToRelative(-0.15f, 0.15f, -0.33f, 0.21f)
+            reflectiveQuadTo(12f, 15.58f)
+            reflectiveQuadTo(11.63f, 15.51f)
+            close()
+            moveTo(6f, 20f)
+            quadTo(5.18f, 20f, 4.59f, 19.41f)
+            reflectiveQuadTo(4f, 18f)
+            verticalLineTo(16f)
+            quadTo(4f, 15.58f, 4.29f, 15.29f)
+            reflectiveQuadTo(5f, 15f)
+            reflectiveQuadToRelative(0.71f, 0.29f)
+            reflectiveQuadTo(6f, 16f)
+            verticalLineToRelative(2f)
+            horizontalLineTo(18f)
+            verticalLineTo(16f)
+            quadToRelative(0f, -0.43f, 0.29f, -0.71f)
+            reflectiveQuadTo(19f, 15f)
+            reflectiveQuadToRelative(0.71f, 0.29f)
+            reflectiveQuadTo(20f, 16f)
+            verticalLineToRelative(2f)
+            quadToRelative(0f, 0.82f, -0.59f, 1.41f)
+            reflectiveQuadTo(18f, 20f)
+            horizontalLineTo(6f)
+            close()
+          }
+        }
+        .build().also { _downloadW400 = it }
+        IconWeight.W500 -> _downloadW500 ?: ImageVector.Builder(
+          name = "download",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(11.57f, 15.37f)
+            quadTo(11.37f, 15.29f, 11.2f, 15.13f)
+            lineTo(7.51f, 11.44f)
+            quadTo(7.17f, 11.1f, 7.18f, 10.64f)
+            reflectiveQuadTo(7.51f, 9.85f)
+            quadTo(7.85f, 9.5f, 8.32f, 9.49f)
+            reflectiveQuadTo(9.13f, 9.83f)
+            lineToRelative(1.74f, 1.74f)
+            verticalLineTo(4.93f)
+            quadToRelative(0f, -0.48f, 0.33f, -0.81f)
+            reflectiveQuadTo(12f, 3.8f)
+            reflectiveQuadToRelative(0.81f, 0.33f)
+            reflectiveQuadToRelative(0.33f, 0.81f)
+            verticalLineToRelative(6.63f)
+            lineTo(14.88f, 9.83f)
+            quadToRelative(0.34f, -0.34f, 0.8f, -0.34f)
+            reflectiveQuadToRelative(0.81f, 0.35f)
+            quadToRelative(0.32f, 0.34f, 0.33f, 0.8f)
+            reflectiveQuadToRelative(-0.33f, 0.8f)
+            lineTo(12.8f, 15.13f)
+            quadToRelative(-0.17f, 0.17f, -0.37f, 0.25f)
+            reflectiveQuadTo(12f, 15.45f)
+            reflectiveQuadTo(11.57f, 15.37f)
+            close()
+            moveTo(6.07f, 20.2f)
+            quadToRelative(-0.94f, 0f, -1.61f, -0.67f)
+            reflectiveQuadTo(3.8f, 17.93f)
+            verticalLineTo(16.07f)
+            quadToRelative(0f, -0.48f, 0.33f, -0.81f)
+            reflectiveQuadTo(4.93f, 14.93f)
+            reflectiveQuadToRelative(0.81f, 0.33f)
+            reflectiveQuadToRelative(0.33f, 0.81f)
+            verticalLineToRelative(1.86f)
+            horizontalLineTo(17.93f)
+            verticalLineTo(16.07f)
+            quadToRelative(0f, -0.48f, 0.33f, -0.81f)
+            reflectiveQuadToRelative(0.81f, -0.33f)
+            reflectiveQuadToRelative(0.81f, 0.33f)
+            reflectiveQuadToRelative(0.33f, 0.81f)
+            verticalLineToRelative(1.86f)
+            quadToRelative(0f, 0.94f, -0.67f, 1.61f)
+            reflectiveQuadTo(17.93f, 20.2f)
+            horizontalLineTo(6.07f)
+            close()
+          }
+        }
+        .build().also { _downloadW500 = it }
+    }
+
+private var _downloadW300: ImageVector? = null
+private var _downloadW400: ImageVector? = null
+private var _downloadW500: ImageVector? = null
+
 public val FujiIcons.Grain: ImageVector
     get() = when (FujiIconConfig.weight) {
         IconWeight.W300 -> _grainW300 ?: ImageVector.Builder(

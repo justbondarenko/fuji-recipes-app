@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -28,7 +29,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.toShape
@@ -40,7 +40,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
@@ -66,7 +65,7 @@ import dev.bondarenko.fujirecipes.ui.camera.CameraSheetButtonHost
 import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowBack
 import dev.bondarenko.fujirecipes.ui.theme.icons.BookmarkStacks
 import dev.bondarenko.fujirecipes.ui.theme.icons.Cable
-import dev.bondarenko.fujirecipes.ui.theme.icons.FileSave
+import dev.bondarenko.fujirecipes.ui.theme.icons.Download
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.ImagesMode
 import dev.bondarenko.fujirecipes.ui.theme.icons.Warning
@@ -93,7 +92,6 @@ fun RawLabScreen(
     onApplyRecipe: () -> Unit,
     onSettingChange: (String, JsonElement?) -> Unit,
     onRenderPreview: () -> Unit,
-    onAutoPreviewChange: (Boolean) -> Unit,
     onConnect: () -> Unit,
     onSave: () -> Unit,
     onBack: () -> Unit,
@@ -159,7 +157,6 @@ fun RawLabScreen(
                 state = state,
                 onSettingChange = onSettingChange,
                 onRenderPreview = onRenderPreview,
-                onAutoPreviewChange = onAutoPreviewChange,
                 onConnect = onConnect,
                 onSave = onSave,
                 modifier = bodyModifier,
@@ -254,7 +251,6 @@ private fun LoadedLab(
     state: RawLabUiState,
     onSettingChange: (String, JsonElement?) -> Unit,
     onRenderPreview: () -> Unit,
-    onAutoPreviewChange: (Boolean) -> Unit,
     onConnect: () -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
@@ -283,7 +279,6 @@ private fun LoadedLab(
                 state = state,
                 readiness = readiness,
                 onRenderPreview = onRenderPreview,
-                onAutoPreviewChange = onAutoPreviewChange,
             )
 
             HorizontalDivider()
@@ -308,7 +303,7 @@ private fun LoadedLab(
                 .padding(16.dp),
         ) {
             Icon(
-                imageVector = FujiIcons.FileSave,
+                imageVector = FujiIcons.Download,
                 contentDescription = stringResource(R.string.lab_action_save_jpeg),
             )
         }
@@ -321,8 +316,9 @@ private fun LoadedLab(
  * No camera means no render, so the space the picture will occupy is where the camera's state
  * belongs; a warning wedged between the filename and the controls both crowded them and left
  * this area empty. Once a picture exists it keeps the space even if the cable goes: it is
- * still the most recent true answer, dimmed and badged rather than thrown away.
+ * still the most recent true answer, badged rather than thrown away.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun PreviewPane(
     preview: RawLabPreview?,
@@ -336,7 +332,6 @@ private fun PreviewPane(
         when {
             preview != null -> ZoomablePreview(
                 preview = preview,
-                dimmed = isStale || stage != null,
                 modifier = Modifier.fillMaxSize(),
             )
 
@@ -352,7 +347,16 @@ private fun PreviewPane(
             )
         }
 
-        if (stage != null) {
+        if (stage != null && preview != null) {
+            // A re-render leaves the picture alone: a small indicator in its corner rather than
+            // a veil over the thing you are judging.
+            ContainedLoadingIndicator(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp)
+                    .size(32.dp),
+            )
+        } else if (stage != null) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -393,7 +397,6 @@ private fun PreviewPane(
 @Composable
 private fun ZoomablePreview(
     preview: RawLabPreview,
-    dimmed: Boolean,
     modifier: Modifier = Modifier,
 ) {
     var scale by remember(preview.file.path) { mutableFloatStateOf(1f) }
@@ -447,8 +450,7 @@ private fun ZoomablePreview(
                     scaleY = scale,
                     translationX = offset.x,
                     translationY = offset.y,
-                )
-                .alpha(if (dimmed) 0.4f else 1f),
+                ),
         )
     }
 }
@@ -506,58 +508,35 @@ private fun LabBadge(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * One row: the automatic switch, and the button it replaces.
- *
- * They are the same decision seen from two sides — whether a render happens by itself or
- * because you asked — so they sit together. With the switch on, the button is gone; it comes
- * back the moment a render fails, because that is when asking again is the answer.
+ * Only there when something went wrong: renders happen by themselves after every change, so
+ * the retry and the error are all this row has to say.
  */
 @Composable
 private fun LabActions(
     state: RawLabUiState,
     readiness: CameraReadiness,
     onRenderPreview: () -> Unit,
-    onAutoPreviewChange: (Boolean) -> Unit,
 ) {
     val lab = state.lab
-    val canRender = lab.canRender && readiness.canRender
-    val showRenderButton = !lab.autoPreview || lab.error != null
+    val showRetry = !lab.autoPreview || lab.error != null
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
+    AnimatedVisibility(visible = showRetry) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Switch(
-                checked = lab.autoPreview,
-                onCheckedChange = onAutoPreviewChange,
-                enabled = readiness.canRender,
-            )
-            Text(
-                text = stringResource(R.string.lab_auto_preview),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-            )
-            if (showRenderButton) {
-                Button(onClick = onRenderPreview, enabled = canRender) {
-                    Text(stringResource(R.string.lab_action_update_preview))
-                }
-            }
-        }
-
-        AnimatedVisibility(visible = lab.error != null) {
             Text(
                 text = lab.error.orEmpty(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.weight(1f),
             )
+            Button(onClick = onRenderPreview, enabled = lab.canRender && readiness.canRender) {
+                Text(stringResource(R.string.lab_action_update_preview))
+            }
         }
     }
 }
