@@ -7,7 +7,7 @@ import dev.bondarenko.fujirecipes.core.AppContainer
 import dev.bondarenko.fujirecipes.core.result.LibraryError
 import dev.bondarenko.fujirecipes.core.result.LibraryResult
 import dev.bondarenko.fujirecipes.data.fields.FieldContext
-import dev.bondarenko.fujirecipes.data.fields.RecipeFields
+import dev.bondarenko.fujirecipes.data.fields.defaultRecipeSettings
 import dev.bondarenko.fujirecipes.data.fields.RecipeValidation
 import dev.bondarenko.fujirecipes.data.fields.SensorGeneration
 import dev.bondarenko.fujirecipes.data.model.Recipe
@@ -110,9 +110,9 @@ class RecipeEditorViewModel(
                 isNew = true,
                 name = prefillName.orEmpty(),
                 settings = if (decoded == null) {
-                    defaultSettings()
+                    defaultRecipeSettings()
                 } else {
-                    JsonObject(defaultSettings() + decoded)
+                    JsonObject(defaultRecipeSettings() + decoded)
                 },
             )
             return
@@ -140,17 +140,6 @@ class RecipeEditorViewModel(
             settings = recipe.settings,
             isDirty = duplicating,
         )
-    }
-
-    /** A new recipe starts at the documented defaults, not at zero. */
-    private fun defaultSettings(): JsonObject = buildJsonObject {
-        RecipeFields.all.forEach { field ->
-            when (val default = field.defaultValue) {
-                is String -> put(field.id, default)
-                is Number -> put(field.id, default)
-                else -> Unit
-            }
-        }
     }
 
     fun onNameChange(value: String) = edit { copy(name = value) }

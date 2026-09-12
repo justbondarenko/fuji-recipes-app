@@ -29,7 +29,7 @@ import dev.bondarenko.fujirecipes.ui.importing.FileImportRouteContent
 import dev.bondarenko.fujirecipes.ui.importing.ImportRouteContent
 import dev.bondarenko.fujirecipes.ui.photo.PhotoReaderRouteContent
 import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewRouteContent
-import dev.bondarenko.fujirecipes.ui.raw.RawDevelopmentRouteContent
+import dev.bondarenko.fujirecipes.ui.lab.RawLabRouteContent
 import dev.bondarenko.fujirecipes.ui.settings.MoreRouteContent
 import dev.bondarenko.fujirecipes.ui.settings.SettingsRouteContent
 import dev.bondarenko.fujirecipes.ui.theme.LocalReducedMotion
@@ -67,9 +67,14 @@ data class RecipeEditorRoute(
 @Serializable
 data class RecipeViewRoute(val id: String)
 
-/** Recipe + phone RAF -> JPEG rendered by the connected camera. */
+/**
+ * Bottom bar → Lab: a RAF, the parameters, and the camera's own renderer (FEAT-016).
+ *
+ * `recipeId` is how the library and the recipe view hand a starting point over; the bar item
+ * itself passes null, which leaves whatever the lab was already working on alone.
+ */
 @Serializable
-data class RawDevelopmentRoute(val recipeId: String)
+data class RawLabRoute(val recipeId: String? = null)
 
 /** Bottom bar → Read: decode a photo's MakerNote and match it (FEAT-009). */
 @Serializable
@@ -121,8 +126,9 @@ private fun NavDestination?.toolbarIndex(): Int = when {
     this == null -> -1
     hasRoute<LibraryRoute>() -> 0
     hasRoute<PhotoRoute>() -> 1
-    hasRoute<CameraPhotosRoute>() -> 2
-    hasRoute<MoreRoute>() -> 3
+    hasRoute<RawLabRoute>() -> 2
+    hasRoute<CameraPhotosRoute>() -> 3
+    hasRoute<MoreRoute>() -> 4
     else -> -1
 }
 
@@ -214,7 +220,7 @@ fun FujiNavHost(
                 onEditRecipe = { id -> navController.navigate(RecipeEditorRoute(id)) },
                 onCreateRecipe = { navController.navigate(RecipeEditorRoute(null)) },
                 onImportFromCamera = { navController.navigate(ImportRoute) },
-                onDevelopRaw = { id -> navController.navigate(RawDevelopmentRoute(id)) },
+                onDevelopRaw = { id -> navController.navigate(RawLabRoute(id)) },
                 onOpenSettings = { navController.navigate(SettingsRoute) },
                 onSelectionChange = onLibrarySelectionChange,
                 contentPadding = contentPadding,
@@ -227,16 +233,15 @@ fun FujiNavHost(
                 recipeId = route.id,
                 onBack = { navController.popBackStack() },
                 onEdit = { navController.navigate(RecipeEditorRoute(route.id)) },
-                onDevelopRaw = { navController.navigate(RawDevelopmentRoute(route.id)) },
+                onDevelopRaw = { navController.navigate(RawLabRoute(route.id)) },
                 onNavigateToRecipe = { targetId -> navController.navigate(RecipeViewRoute(targetId)) },
             )
         }
 
-        composable<RawDevelopmentRoute> { entry ->
-            val route = entry.toRoute<RawDevelopmentRoute>()
-            RawDevelopmentRouteContent(
+        composable<RawLabRoute> { entry ->
+            val route = entry.toRoute<RawLabRoute>()
+            RawLabRouteContent(
                 recipeId = route.recipeId,
-                onBack = { navController.popBackStack() },
                 contentPadding = contentPadding,
             )
         }

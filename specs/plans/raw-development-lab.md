@@ -1,6 +1,7 @@
 # RAW development lab — a full editing surface on the camera engine
 
-**Status:** Plan. Two hardware gates must be cleared before Phase 3 UI work is worth finishing.
+**Status:** Phases 1–4 built (see "As built" below). Phase 0's two hardware gates are still open, and
+Phase 5's on-device verification waits on them.
 **Proposed feature:** FEAT-016
 **Branch:** `claude/raw-develop-lab-view-5mdbs3`
 **Builds on:** `specs/plans/in-camera-raw-development.md` (FEAT-015), which is already implemented for the
@@ -90,24 +91,30 @@ uploads a RAF, captures the native `0xD185` blob and shares it without triggerin
 ## 3. Shape
 
 ```
-ui/lab/                          ← new
-  RawLabScreen.kt                preview pane + parameter sheet + action bar
-  RawLabViewModel.kt             one VM, reads/writes the holder below
-  RawLabState.kt                 PURE state + reducer, JVM-testable
-  RawLabParameterPanel.kt        the editing surface, reusing EditorControls
-  RecipePickerSheet.kt           "apply a recipe from the library"
+ui/lab/                        ← new
+  RawLabScreen.kt              preview pane + action bar, stateless
+  RawLabRoute.kt               VM wiring, document picker, recipe picker, save sheet
+  RawLabParameterPanel.kt      the editing surface, reusing EditorControls
+  RawLabViewModel.kt           the jobs: importing, rendering, saving
 
-core/store/RawLabSessionHolder.kt   ← new. Survives navigation and, partially, process death
-camera/usb/RawLabSession.kt         ← new. Load-once / render-many over an open PtpSession
-camera/raw/RawFieldSupport.kt       ← new. Which field ids this model's adapter can apply
+data/lab/                      ← new
+  RawLabState.kt               PURE state + transitions, JVM-testable
+  RawLabWorkspace.kt           one of those, held above the nav graph
+
+camera/usb/RawLabSession.kt    ← new. Load-once / render-many over an open PtpSession
+camera/raw/RawFieldSupport.kt  ← new. Which field ids this model's adapter can apply
+data/fields/SettingsDefaults.kt ← new. Ground zero, shared with the recipe editor
 ```
+
+The state lives in `data/lab/` rather than `core/store/`: it is a model rather than storage, and
+`AppContainer` can hold it without `core/` learning about a screen.
 
 Changed:
 
 | File | Change |
 |---|---|
-| `camera/usb/RawDevelopmentSession.kt` | Split: keep `developRaw` as the one-shot composition, extract `uploadRaf`, `applyProfile`, `triggerAndFetch` so the lab drives them separately |
-| `camera/CameraController.kt` | Add `loadRawForLab`, `renderLoadedRaw(settings, quality)`, `releaseRawLab`; track the loaded RAF and a session epoch, cleared by `closeSession` |
+| `camera/usb/RawDevelopmentSession.kt` | Split into `uploadRaf`, `applyRawSettings` and `convertAndFetch`. `developRaw` is **gone** rather than kept: `RawLabSession` composes the three, and a second composition nobody called would only drift |
+| `camera/CameraController.kt` | `renderRawInLab(raf, settings, output, quality)` and `captureRawDevelopmentProfile`, both over a `RawLabSession` that is created with the PTP session and dropped with it |
 | `camera/raw/RawDevelopmentProfile.kt` | Take a `JsonObject` of settings rather than a `Recipe`; derive both the patch and the supported-field set from one declared mapping table |
 | `data/fields/RecipeFields.kt` | Move `defaultSettings()` out of `RecipeEditorViewModel` (currently private) so the editor and the lab build ground zero from the same place |
 | `ui/nav/FujiNavHost.kt` | `RawLabRoute(recipeId: String? = null)`; delete `RawDevelopmentRoute`; renumber `toolbarIndex` |
@@ -124,13 +131,19 @@ checked the camera's photo list would be indefensible, so the live part of the l
 
 | Held | Survives navigation | Survives process death |
 |---|---|---|
-| Cached RAF file + name | yes | yes — the file is already in `RawDevelopmentCache` |
-| Working settings, applied recipe id, dirty flag | yes | yes — snapshotted as JSON beside the RAF |
-| Last preview / last full result file | yes | yes |
+| Cached RAF file + name | yes | no — `RawDevelopmentCache` empties itself at startup |
+| Working settings, applied recipe id, dirty flag | yes | no — see below |
+| Last preview / last full result file | yes | no |
 | Camera-side loaded-RAF state (epoch) | yes | **no** — the PTP session is gone; the RAF re-uploads on the next render |
 
 The holder never caches a camera object handle across a session, which is the rule FEAT-015 already
 set.
+
+**Process death starts the lab over, and that is the decision rather than an omission.**
+`RawDevelopmentCache` empties its directory on construction, so a relaunched app has no cached RAF
+left to restore a session against; a snapshot pointing at a file that is no longer there would be a
+worse answer than a clean start. Changing that means changing the cache's retention rules first,
+which is a larger decision than this feature should take on its own.
 
 ---
 
@@ -283,3 +296,29 @@ build, not a longer one.
 - Any phone-side rendering. The camera is the engine; an app-side approximation would be a second,
   disagreeing answer to what a recipe looks like.
 - Writing lab settings to a camera custom slot. Separate feature, separate encoding dialect.
+
+---
+
+## 10. As built
+
+Phases 1–4 are implemented on `claude/raw-develop-lab-view-5mdbs3`. What differs from the plan above,
+and why:
+
+| Planned | Built | Why |
+|---|---|---|
+| Keep `developRaw` as a one-shot composition | Removed it; `RawLabSession` is the only path | Two compositions of the same protocol drift, and only the tests would have called the second one. The existing session tests now drive the real path |
+| Session state in `core/store/` | `data/lab/RawLabWorkspace` | A workspace is a model, not storage, and this keeps `core/` from importing a screen's concerns |
+| Snapshot the session for process death | In-memory only | `RawDevelopmentCache` wipes itself at startup, so there is no RAF left to restore against (§3) |
+| Preview quality via the trigger | Preview asks for the camera's thumbnail first, then falls back to the full download | Gate B is unresolved, and the trigger values in this build came from hardware that treated `0` as full. The seam exists; the claim does not |
+
+The preview path has a floor: a thumbnail under 640 px on its long edge is refused and the full file
+is fetched instead, because a contact sheet cannot be judged as a recipe. When a render does come
+back as a thumbnail the picture is badged **Preview quality**, and the save sheet says so before
+writing it.
+
+Verified so far: 30 JVM tests, covering the load-once behaviour (one upload for N renders, re-upload
+after invalidation or a new RAF, a refused render keeping the load), the supported-field set matching
+what a patch actually applies, and the lab's own state rules — staleness, dirtiness, the automatic
+render conditions, and the two-failure cut-off.
+
+Not verified: anything on a camera. Phase 0 still gates Phase 5.

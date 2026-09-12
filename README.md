@@ -88,6 +88,7 @@ See the app in action: **[screenshot tour](screenshots/README.md)** — the reci
 - ⚡ **[Direct USB-C Camera Sync](screenshots/README.md#-camera-connection--custom-slots)**: Connect your camera to your phone via USB-C. The app launches automatically on connection, reads your current `C1`–`C7` custom slot states, and writes full recipe parameter sets directly to the camera body in seconds.
 - 📥 **[Import Directly from Camera](screenshots/README.md#-maintenance--tools)**: Read existing custom slot recipes off the camera body and save them straight into your offline phone library.
 - 📷 **[Browse and Download the Camera Card](screenshots/README.md#-camera-connection--custom-slots)**: The dedicated **Photos** tab lists JPEG and RAF files independently, with thumbnails, capture dates, file sizes, RAW/JPEG filters, multi-selection, and batch download to a folder chosen through Android's system picker. The camera card is read-only; the app does not delete, rename, or move its files.
+- 🧪 **RAW Development Lab**: The **Lab** tab is a full editing surface on the camera's own RAW processor. Start from the documented defaults or from a recipe in your library, change any parameter, and re-render — the RAF is uploaded once per session, so each further render costs a profile write rather than another transfer. Save the result as a JPEG, as a new recipe, or over the recipe you started from.
 - 🔎 **[Analyze JPEGs Straight from the Camera](screenshots/README.md#-analysing-photos)**: Open **Analyze**, choose photos from the connected camera, and run the existing Fujifilm EXIF extraction and recipe matching flow without first importing the files through another gallery app.
 - 🎞️ **[In-Camera RAW Development](screenshots/README.md#-developing-a-raw-in-the-camera)**: Start from a recipe, choose a RAF from the phone, apply the recipe to the camera's native `0xD185` conversion profile, let the camera render the JPEG, preview it, and save it through Android's document picker. The app preserves camera-native profile fields it does not own.
 - 🔄 **[Background Camera Downloads](screenshots/README.md#-camera-connection--custom-slots)**: Batch downloads run in an Android connected-device foreground service and continue while the app is minimized or the phone is locked. An ongoing notification shows progress and offers cancellation; Android 16 can promote it to a Live Update. If the process is killed, the Photos screen reports the interrupted batch and lets the user keep completed files or remove the incomplete file.
@@ -186,10 +187,16 @@ Only the selected JPEGs are copied into the app's temporary cache. From there, t
 
 > 📱 See it: [the recipe action menu](screenshots/README.md#-viewing-a-recipe) · [a rendered result](screenshots/README.md#-developing-a-raw-in-the-camera)
 
-1. Open a recipe and choose **Develop RAW** from its menu.
-2. Choose a RAF from the phone.
-3. With the camera in **`USB RAW CONV. / BACKUP RESTORE`** mode, review the recipe and RAF, then tap **Render JPEG**. The app uploads the RAF and patched native profile, waits for the camera processor, downloads the rendered JPEG, and cleans up the temporary camera object.
-4. Preview and save the JPEG through Android's document picker.
+RAW development lives in the **Lab** tab, third in the bottom bar. Open it directly, or reach it from a recipe's **Develop RAW** menu item, which seeds it with that recipe.
+
+1. Choose a RAF from the phone.
+2. Start from the documented defaults, or apply a recipe from your library.
+3. With the camera in **`USB RAW CONV. / BACKUP RESTORE`** mode, tap **Update preview**. The app uploads the RAF and the patched native profile, waits for the camera processor, downloads the result, and cleans up the temporary camera object.
+4. Change any parameter and render again. **The RAF is uploaded once per session** — later renders only send a new profile, so trying a different film simulation costs a render rather than another multi-megabyte transfer.
+5. Switch on **Re-render automatically after each change** to skip the button. It fires 900 ms after the last edit, never mid-gesture, runs one render at a time, and switches itself off after two consecutive failures.
+6. Save the JPEG through Android's document picker, save the settings as a new recipe, or update the recipe you started from.
+
+The parameter panel separates what the camera's RAW processor will act on from what is only stored in the recipe (D-range priority, the monochromatic colour pair, and the ISO recommendations). Nothing is hidden or disabled — the second group simply says it will not change the picture.
 
 The RAF is always uploaded from the phone: RAW Conversion mode accepts a RAF as a host upload, and the app does not ask the camera to develop a card handle in place. To develop something still on the card, download it first from the **Photos** tab in Card Reader mode.
 

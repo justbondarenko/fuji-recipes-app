@@ -1,21 +1,51 @@
-# Camera side sheet refactor
+# RAW development lab (FEAT-016)
 
-- [x] `FujiModalSideSheet` in `ui/common/SideSheet.kt` — scrim, end-anchored surface, slide in/out, back-dismiss
-- [x] Camera icon button with the nav item's badge logic (`ui/camera/CameraSheetButton.kt`), plus `LocalCameraSheetOpener`
-- [x] `CameraRouteContent` → `CameraSheetContent`, hosted in the sheet with a title/close header
-- [x] `AppShell`: drop the camera nav item, add a top-right action slot
-- [x] `MainActivity`: own the sheet state, provide the opener, place the button, drop `CameraRoute` navigation
-- [x] `FujiNavHost`: delete `CameraRoute` and fix the toolbar index used for transitions
-- [x] Library header becomes (cog) [search] (camera)
-- [x] Build + unit tests
+Plan: `specs/plans/raw-development-lab.md`.
+
+## Phase 1 — protocol split
+- [x] `uploadRaf` / `applyRawSettings` / `convertAndFetch` split out of `developRaw`, which is gone
+- [x] `RawLabSession`: load once, render many; invalidated only by a framing or timeout error
+- [x] `CameraController.renderRawInLab`, with the lab session tied to the PTP session
+- [x] `FakeCamera.uploadCount`, and tests for one-upload-many-renders
+
+## Phase 2 — settings-driven profile
+- [x] `patchRawDevelopmentProfile` takes a `JsonObject`; the `Recipe` form delegates
+- [x] One declared mapping table; `rawSupportedFieldIds` reads it
+- [x] `defaultRecipeSettings()` shared by the editor and the lab
+- [x] Test holding the supported set and the applied set together
+
+## Phase 3 — lab state and screen
+- [x] `RawLabState` — pure, with its transitions tested
+- [x] `RawLabWorkspace` above the nav graph, in `AppContainer`
+- [x] Preview pane with stale dimming, stage progress and quality badge
+- [x] Parameter panel in two bands, reusing `EditorControls`
+- [x] Recipe picker, save sheet, name dialog, update confirmation
+
+## Phase 4 — navigation
+- [x] `RawLabRoute(recipeId)`, `ui/raw/` deleted, `Develop RAW` repointed
+- [x] Bar item after Analyze; `toolbarIndex` renumbered
+- [x] `FujiIcons.Science` in all three weights
+
+## Phase 0 — hardware gates (open)
+- [ ] Gate A: five conversions from one upload on the X-T50
+- [ ] Gate B: trigger `0` vs `1`, and `GetThumb` on a conversion result
+- [ ] Record both as fixtures and fold the findings into the plan
+
+## Phase 5 — verification
+- [x] 30 JVM tests pass (compiled and run offline; CI runs the full suite)
+- [ ] On device: ten previews on one upload, monochrome recipe, detach mid-render, save paths
 
 ## Review
 
-- The camera is no longer a destination: `CameraRoute` is gone, the nav bar is Library / Read /
-  Photos / More, and `toolbarIndex` renumbered so transitions still slide the right way.
-- `FujiModalSideSheet` is hand-written — Material 3 for Compose ships no side sheet. Scrim +
-  end-anchored surface inside the app's own layout, so it animates both ways and covers the
-  navigation bar.
-- The opener reaches screens as `LocalCameraSheetOpener` rather than through four layers of
-  parameters; the sheet's state stays in `FujiApp`.
-- Not verified on a device — build and unit tests only.
+- **The lab replaces the one-shot screen rather than sitting beside it.** `ui/raw/` is deleted and
+  both `Develop RAW` entry points open the lab seeded with that recipe, so there is one RAW surface.
+- **"Live" is deliberately not continuous.** Every preview is a full PTP round trip, so the default
+  is an explicit button; the automatic mode debounces 900 ms, runs one render at a time, takes the
+  newest settings when a render finishes, and switches itself off after two failures.
+- **The upload is the thing worth protecting.** `RawLabSession` keeps the load through a refused
+  setting or a render timeout, and the workspace sits in `AppContainer` so a bottom-bar tap cannot
+  cost a 40 MB transfer.
+- **A control that does nothing is worse than one that is absent.** The panel's second band is drawn
+  from the same table the patch writes from, and a test fails if the two disagree.
+- Not verified on a device or a camera. The two hardware gates above decide whether the automatic
+  mode and the preview/full split survive as designed.

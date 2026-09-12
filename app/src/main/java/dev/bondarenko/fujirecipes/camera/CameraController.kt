@@ -45,9 +45,9 @@ import java.io.File
 import java.io.OutputStream
 import dev.bondarenko.fujirecipes.camera.usb.RawDevelopmentResult
 import dev.bondarenko.fujirecipes.camera.usb.RawDevelopmentStage
-import dev.bondarenko.fujirecipes.camera.usb.captureRawProfile
-import dev.bondarenko.fujirecipes.camera.usb.developRaw as runRawDevelopment
-import dev.bondarenko.fujirecipes.data.model.Recipe
+import dev.bondarenko.fujirecipes.camera.usb.RawLabSession
+import dev.bondarenko.fujirecipes.camera.usb.RawRenderQuality
+import kotlinx.serialization.json.JsonObject
 import dev.bondarenko.fujirecipes.camera.plan.CameraReport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -91,6 +91,15 @@ class CameraController(
     private val lock = Mutex()
 
     private var session: PtpSession? = null
+
+    /**
+     * What the camera is holding for the lab, for as long as this session lasts.
+     *
+     * Tied to the [PtpSession] rather than to the screen: a body that has a RAF loaded forgets
+     * it the moment the cable moves, so the object that remembers has to die with the session
+     * it belongs to.
+     */
+    private var labSession: RawLabSession? = null
 
     /** Whether a camera is on the bus at all, whatever the connection state. */
     val isCameraAttached: Boolean
@@ -173,6 +182,8 @@ class CameraController(
             val info = opened.open()
 
             session = opened
+            // A fresh body is holding no RAF, so the lab starts again from an empty camera.
+            labSession = RawLabSession()
             // Both reads swallow their own failures and answer "not reported", so a body that
             // will not discuss its USB mode or its battery still connects normally.
             _state.value = CameraState.Connected(
@@ -188,6 +199,7 @@ class CameraController(
             CameraTransferService.start(appContext)
         } catch (error: Exception) {
             session = null
+            labSession = null
             _state.value = error.toCameraError()
         }
     }
@@ -239,6 +251,7 @@ class CameraController(
     private fun closeSession(next: CameraState) {
         session?.let { runCatching { it.close() } }
         session = null
+        labSession = null
         _state.value = next
     }
 
@@ -445,20 +458,58 @@ class CameraController(
 
     // ─── In-camera RAW development ─────────────────────────────────────────
 
-    suspend fun developRaw(
+    /**
+     * Renders [settings] against [raf] on the camera, uploading the file only when needed.
+     *
+     * The lock is held for one render, not for the lab session: someone who leaves the lab open
+     * while checking the camera's photo list should not find the connection wedged. What
+     * survives between renders is [labSession]'s knowledge of which RAF the camera holds, and
+     * that is tied to the PTP session rather than to this call.
+     */
+    suspend fun renderRawInLab(
         raf: File,
-        recipe: Recipe,
+        settings: JsonObject,
         output: File,
+        quality: RawRenderQuality = RawRenderQuality.FULL,
         onStage: (RawDevelopmentStage) -> Unit = {},
     ): RawDevelopmentResult = lock.withLock {
         val open = rawDevelopmentSession()
+        val lab = labSession ?: RawLabSession().also { labSession = it }
+        underRawWakeLock {
+            withContext(Dispatchers.IO) {
+                lab.render(open, raf, settings, output, quality, onStage)
+            }
+        }
+    }
+
+    /**
+     * The camera's own `0xD185` block for [raf] — the fixture an uncalibrated body needs.
+     *
+     * Goes through the same [labSession], so capturing a profile and then rendering does not
+     * upload the file twice.
+     */
+    suspend fun captureRawDevelopmentProfile(
+        raf: File,
+        onStage: (RawDevelopmentStage) -> Unit = {},
+    ): ByteArray = lock.withLock {
+        val open = rawDevelopmentSession()
+        val lab = labSession ?: RawLabSession().also { labSession = it }
+        underRawWakeLock { withContext(Dispatchers.IO) { lab.profile(open, raf, onStage) } }
+    }
+
+    /**
+     * Runs camera work that must not be interrupted by the phone sleeping.
+     *
+     * A framing or timeout error means the session is no longer trustworthy, so it is closed
+     * here rather than left for the next caller to trip over — which also drops [labSession],
+     * and with it the belief that the camera is still holding a RAF.
+     */
+    private suspend fun <T> underRawWakeLock(block: suspend () -> T): T {
         val wakeLock = (appContext.getSystemService(Context.POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_TAG)
         try {
             wakeLock.acquire(WAKE_LOCK_TIMEOUT_MS)
-            withContext(Dispatchers.IO) {
-                runRawDevelopment(open, raf, recipe, output, onStage)
-            }
+            return block()
         } catch (error: Exception) {
             if (error is PtpFramingError || error is PtpTimeoutError) {
                 closeSession(error.toCameraError())
@@ -467,14 +518,6 @@ class CameraController(
         } finally {
             if (wakeLock.isHeld) wakeLock.release()
         }
-    }
-
-    suspend fun captureRawDevelopmentProfile(
-        raf: File,
-        onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
-    ): ByteArray = lock.withLock {
-        val open = rawDevelopmentSession()
-        withContext(Dispatchers.IO) { captureRawProfile(open, raf, onProgress) }
     }
 
     private fun rawDevelopmentSession(): PtpSession {

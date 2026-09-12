@@ -39,6 +39,7 @@ import dev.bondarenko.fujirecipes.ui.nav.ImportRoute
 import dev.bondarenko.fujirecipes.ui.nav.LibraryRoute
 import dev.bondarenko.fujirecipes.ui.nav.MoreRoute
 import dev.bondarenko.fujirecipes.ui.nav.PhotoRoute
+import dev.bondarenko.fujirecipes.ui.nav.RawLabRoute
 import dev.bondarenko.fujirecipes.ui.nav.RecipeEditorRoute
 import dev.bondarenko.fujirecipes.ui.nav.RecipeViewRoute
 import dev.bondarenko.fujirecipes.ui.nav.SettingsRoute
@@ -214,6 +215,7 @@ private fun FujiApp(
                     showChrome = showChrome,
                     isLibrarySelected = destination?.hasRoute<LibraryRoute>() == true,
                     isReadSelected = destination?.hasRoute<PhotoRoute>() == true,
+                    isLabSelected = destination?.hasRoute<RawLabRoute>() == true,
                     isCameraPhotosSelected = destination?.hasRoute<CameraPhotosRoute>() == true,
                     isMoreSelected = isMoreSelected,
                     onLibraryClick = {
@@ -223,6 +225,9 @@ private fun FujiApp(
                         }
                     },
                     onReadClick = { navController.navigate(PhotoRoute()) { launchSingleTop = true } },
+                    // No recipe id: the bar opens the lab as it was left, rather than
+                    // reseeding it with whatever recipe happened to open it last.
+                    onLabClick = { navController.navigate(RawLabRoute()) { launchSingleTop = true } },
                     onCameraPhotosClick = {
                         navController.navigate(CameraPhotosRoute) { launchSingleTop = true }
                     },

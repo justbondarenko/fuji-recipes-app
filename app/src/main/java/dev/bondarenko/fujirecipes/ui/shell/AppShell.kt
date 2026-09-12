@@ -36,6 +36,7 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.CameraRoll
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.ImageSearch
 import dev.bondarenko.fujirecipes.ui.theme.icons.MoreVert
+import dev.bondarenko.fujirecipes.ui.theme.icons.Science
 
 /**
  * The chrome every top-level screen sits inside.
@@ -51,10 +52,12 @@ fun AppShell(
     showChrome: Boolean,
     isLibrarySelected: Boolean,
     isReadSelected: Boolean,
+    isLabSelected: Boolean = false,
     isCameraPhotosSelected: Boolean = false,
     isMoreSelected: Boolean,
     onLibraryClick: () -> Unit,
     onReadClick: () -> Unit,
+    onLabClick: () -> Unit = {},
     onCameraPhotosClick: () -> Unit = {},
     onMoreClick: () -> Unit,
     /**
@@ -120,6 +123,17 @@ fun AppShell(
                             )
                         },
                         label = { Text(stringResource(R.string.nav_read)) },
+                    )
+                    NavigationBarItem(
+                        selected = isLabSelected,
+                        onClick = onLabClick,
+                        icon = {
+                            Icon(
+                                imageVector = FujiIcons.Science,
+                                contentDescription = null,
+                            )
+                        },
+                        label = { Text(stringResource(R.string.nav_lab)) },
                     )
                     NavigationBarItem(
                         selected = isCameraPhotosSelected,
