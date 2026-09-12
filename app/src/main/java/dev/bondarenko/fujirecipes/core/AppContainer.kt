@@ -10,6 +10,7 @@ import dev.bondarenko.fujirecipes.core.store.CameraMediaCache
 import dev.bondarenko.fujirecipes.core.store.CameraPhotoExporter
 import dev.bondarenko.fujirecipes.core.store.CameraTransferStore
 import dev.bondarenko.fujirecipes.core.store.RawDevelopmentCache
+import dev.bondarenko.fujirecipes.data.lab.RawLabWorkspace
 import dev.bondarenko.fujirecipes.core.store.LibraryStore
 import dev.bondarenko.fujirecipes.data.repo.LocalRecipeRepository
 import dev.bondarenko.fujirecipes.data.repo.RecipeRepository
@@ -88,6 +89,14 @@ class AppContainer(context: Context) {
     val cameraTransfers: CameraTransfers by lazy {
         CameraTransfers(cameraPhotoExporter, cameraTransferStore)
     }
+
+    /**
+     * What the lab is working on, above the nav graph.
+     *
+     * Beside [cameraController] and for the same reason: behind this state sits a RAF the
+     * camera has already been given, and a bottom-bar tap must not cost that upload.
+     */
+    val rawLabWorkspace: RawLabWorkspace by lazy { RawLabWorkspace() }
 
     val rawDevelopmentCache: RawDevelopmentCache by lazy {
         RawDevelopmentCache(File(applicationContext.cacheDir, RawDevelopmentCache.DIRECTORY_NAME))

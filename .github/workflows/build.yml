@@ -62,3 +62,98 @@ jobs:
           path: build/apk/*.apk
           retention-days: 14
           if-no-files-found: error
+
+  # Every finished build reaches Telegram — green and red alike, since "no message" is not
+  # a result you can tell apart from a runner that never started.
+  #
+  # Needs two repository secrets (Settings → Secrets and variables → Actions):
+  #   TELEGRAM_BOT_TOKEN  the token @BotFather gave the bot
+  #   TELEGRAM_CHAT_ID    the chat, group or channel to post in
+  # Without them the job says so in the run log and stops, so a fork of this repository
+  # builds normally rather than failing on a notifier it was never given credentials for.
+  notify:
+    name: Telegram
+    needs: debug-apk
+    # `always()`, or a failed build — the case worth hearing about — would skip this job.
+    if: always()
+    runs-on: ubuntu-latest
+    # The job reads nothing from GitHub; it only needs the two secrets below.
+    permissions: {}
+    # Telegram being unreachable must not turn a green build red. The job still shows as
+    # failed in the Actions list, so a notifier that has quietly stopped working is visible.
+    continue-on-error: true
+
+    steps:
+      - name: Send the result to Telegram
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RESULT: ${{ needs.debug-apk.result }}
+          BRANCH: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # Through the environment, never interpolated into the script: a commit message is
+          # whatever someone typed, and `${{ }}` inside `run:` would hand it to the shell.
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$BOT_TOKEN" ] || [ -z "$CHAT_ID" ]; then
+            echo "::notice title=Telegram::TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set, so no message was sent."
+            exit 0
+          fi
+
+          case "$RESULT" in
+            success)   headline="✅ Build succeeded" ;;
+            failure)   headline="❌ Build failed" ;;
+            cancelled) headline="🚫 Build cancelled" ;;
+            *)         headline="⚠️ Build $RESULT" ;;
+          esac
+
+          # First line only: a subject is what identifies the commit, and this repository's
+          # messages carry several paragraphs after it.
+          subject=$(printf '%s' "$COMMIT_MESSAGE" | head -n 1)
+          [ -n "$subject" ] || subject="(no commit message — run started by hand)"
+
+          # The repository and the verdict first, so a phone full of notifications says which
+          # project this is and whether to care before anything else. Owner stripped from the
+          # name: it is the same on every run.
+          text=$(printf '🗄️ %s\n%s\n\n🪾 %s\n💬 %s %s\n\nRun #%s by %s' \
+            "${REPO##*/}" \
+            "$headline" \
+            "$BRANCH" \
+            "${GITHUB_SHA::7}" "$subject" \
+            "$RUN_NUMBER" "$ACTOR")
+
+          # Plain text and a JSON body built by jq: no parse mode to escape, and a subject
+          # full of underscores or brackets cannot make Telegram reject the message.
+          #
+          # The run is an inline keyboard button rather than a URL in the text — one tap, and
+          # nothing for Telegram to turn into a link preview.
+          jq -n \
+            --arg chat_id "$CHAT_ID" \
+            --arg text "$text" \
+            --arg url "$RUN_URL" \
+            '{
+               chat_id: $chat_id,
+               text: $text,
+               disable_web_page_preview: true,
+               reply_markup: {
+                 inline_keyboard: [[{ text: "🔗 Open run", url: $url }]]
+               }
+             }' > payload.json
+
+          status=$(curl -sS --retry 2 --retry-all-errors -o response.json -w '%{http_code}' \
+            -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
+            -H 'Content-Type: application/json' \
+            --data @payload.json)
+
+          if [ "$status" != "200" ]; then
+            # The description only; the request URL carries the token and is never echoed.
+            echo "Telegram answered HTTP $status: $(jq -r '.description // "no description"' response.json)"
+            exit 1
+          fi
+
+          echo "Sent to Telegram."

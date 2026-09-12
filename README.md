@@ -33,6 +33,7 @@
   - [Prerequisites](#prerequisites)
   - [Clone & Build](#clone--build)
   - [Sideload to Device](#sideload-to-device)
+  - [Build Notifications on Telegram](#build-notifications-on-telegram)
 - [☕ Open Source Acknowledgements](#-open-source-acknowledgements)
 - [📜 Legal Disclaimer & Trademarks](#-legal-disclaimer--trademarks)
 
@@ -88,6 +89,7 @@ See the app in action: **[screenshot tour](screenshots/README.md)** — the reci
 - ⚡ **[Direct USB-C Camera Sync](screenshots/README.md#-camera-connection--custom-slots)**: Connect your camera to your phone via USB-C. The app launches automatically on connection, reads your current `C1`–`C7` custom slot states, and writes full recipe parameter sets directly to the camera body in seconds.
 - 📥 **[Import Directly from Camera](screenshots/README.md#-maintenance--tools)**: Read existing custom slot recipes off the camera body and save them straight into your offline phone library.
 - 📷 **[Browse and Download the Camera Card](screenshots/README.md#-camera-connection--custom-slots)**: The dedicated **Photos** tab lists JPEG and RAF files independently, with thumbnails, capture dates, file sizes, RAW/JPEG filters, multi-selection, and batch download to a folder chosen through Android's system picker. The camera card is read-only; the app does not delete, rename, or move its files.
+- 🧪 **RAW Development Lab**: The **Lab** tab is a full editing surface on the camera's own RAW processor. Start from the documented defaults or from a recipe in your library, change any parameter, and re-render — the RAF is uploaded once per session, so each further render costs a profile write rather than another transfer. Save the result as a JPEG, as a new recipe, or over the recipe you started from.
 - 🔎 **[Analyze JPEGs Straight from the Camera](screenshots/README.md#-analysing-photos)**: Open **Analyze**, choose photos from the connected camera, and run the existing Fujifilm EXIF extraction and recipe matching flow without first importing the files through another gallery app.
 - 🎞️ **[In-Camera RAW Development](screenshots/README.md#-developing-a-raw-in-the-camera)**: Start from a recipe, choose a RAF from the phone, apply the recipe to the camera's native `0xD185` conversion profile, let the camera render the JPEG, preview it, and save it through Android's document picker. The app preserves camera-native profile fields it does not own.
 - 🔄 **[Background Camera Downloads](screenshots/README.md#-camera-connection--custom-slots)**: Batch downloads run in an Android connected-device foreground service and continue while the app is minimized or the phone is locked. An ongoing notification shows progress and offers cancellation; Android 16 can promote it to a Live Update. If the process is killed, the Photos screen reports the interrupted batch and lets the user keep completed files or remove the incomplete file.
@@ -186,10 +188,17 @@ Only the selected JPEGs are copied into the app's temporary cache. From there, t
 
 > 📱 See it: [the recipe action menu](screenshots/README.md#-viewing-a-recipe) · [a rendered result](screenshots/README.md#-developing-a-raw-in-the-camera)
 
-1. Open a recipe and choose **Develop RAW** from its menu.
-2. Choose a RAF from the phone.
-3. With the camera in **`USB RAW CONV. / BACKUP RESTORE`** mode, review the recipe and RAF, then tap **Render JPEG**. The app uploads the RAF and patched native profile, waits for the camera processor, downloads the rendered JPEG, and cleans up the temporary camera object.
-4. Preview and save the JPEG through Android's document picker.
+RAW development lives in the **Lab** tab, third in the bottom bar. Open it directly, or reach it from a recipe's **Develop RAW** menu item, which seeds it with that recipe.
+
+1. Choose a RAF from the phone. That is the only thing the empty Lab asks for — everything else appears once there is a file to act on.
+2. Leave the documented defaults, or tap **Apply a recipe** to start from one in your library.
+3. Connect the camera in **`USB RAW CONV. / BACKUP RESTORE`** mode. Plugging it in is enough — the app opens the session itself, and the Lab shows a **Connect** button only for the case where it did not notice. Then tap **Update preview**. The app uploads the RAF and the patched native profile, waits for the camera processor, downloads the result, and cleans up the temporary camera object.
+4. Change any parameter and render again. **The RAF is uploaded once per session** — later renders only send a new profile, so trying a different film simulation costs a render rather than another multi-megabyte transfer.
+5. Switch on **Re-render automatically** to skip the button, which then disappears until a render fails. It fires 900 ms after the last edit, never mid-gesture, runs one render at a time, and switches itself off after two consecutive failures.
+6. Pinch to zoom the preview in place, drag to pan, double-tap to go back — grain and sharpness do not survive being fitted into a phone-sized pane.
+7. **Save** offers the JPEG, a new recipe, or an update to the recipe you started from. There is no separate full-resolution render: asking for the file is what asks for the render, and the document picker opens when it lands.
+
+The parameter panel shows only what the camera's RAW processor will act on, so every control on it changes the picture. D-range priority, the monochromatic colour pair and the ISO recommendations are not drawn here — they belong to the recipe form — and a recipe that carries them keeps them untouched through a save from the Lab.
 
 The RAF is always uploaded from the phone: RAW Conversion mode accepts a RAF as a host upload, and the app does not ask the camera to develop a card handle in place. To develop something still on the card, download it first from the **Photos** tab in Card Reader mode.
 
@@ -249,6 +258,30 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 > [!TIP]
 > **Wireless Debugging**:
 > Because the phone's USB-C port is occupied by the camera during hardware testing, use **Wireless ADB** (`adb pair` and `adb connect`) for live logcat inspection and debugging.
+
+### Build Notifications on Telegram
+
+The **Build** workflow posts every finished run — succeeded, failed or cancelled — to a Telegram chat, with the branch, the commit and an **Open run** button that goes straight to the run page. It is optional: with no secrets set the notification step says so in the log and the build carries on, so a fork needs no setup.
+
+```
+🗄️ fuji-recipes-app
+✅ Build succeeded
+
+🪾 main
+💬 ba69768 Lead the Telegram message with the repository
+
+Run #84 by justbondarenko
+[ 🔗 Open run ]
+```
+
+To switch it on, add two repository secrets under **Settings → Secrets and variables → Actions**:
+
+| Secret | Value |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` | The token [@BotFather](https://t.me/BotFather) gives you for a new bot (`/newbot`) |
+| `TELEGRAM_CHAT_ID` | The chat to post in — your own user id, a group id (negative), or a channel as `@channelname` |
+
+To find the chat id: send the bot a message (or add it to the group, or make it an admin of the channel), then open `https://api.telegram.org/bot<TOKEN>/getUpdates` and read `result[].message.chat.id`.
 
 ---
 

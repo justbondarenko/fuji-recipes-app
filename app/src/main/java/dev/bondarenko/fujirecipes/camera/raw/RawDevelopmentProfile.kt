@@ -2,6 +2,7 @@ package dev.bondarenko.fujirecipes.camera.raw
 
 import dev.bondarenko.fujirecipes.camera.CameraModels
 import dev.bondarenko.fujirecipes.data.model.Recipe
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonPrimitive
@@ -28,10 +29,10 @@ class UnsupportedRawProfile(message: String) : Exception(message)
 fun patchRawDevelopmentProfile(
     cameraModel: String,
     base: ByteArray,
-    recipe: Recipe,
+    settings: JsonObject,
 ): RawProfilePatch {
     return when (CameraModels.normaliseModel(cameraModel)) {
-        "X100VI" -> patchNative625(base, recipe)
+        "X100VI" -> patchNative625(base, settings)
         "XT50" -> {
             val identifier = nativeProfileIdentifier(base)
             if (base.size != 625 || parameterCount(base) != 29 || identifier != "FF189504") {
@@ -40,7 +41,7 @@ fun patchRawDevelopmentProfile(
                         "(${base.size} bytes, identifier ${identifier ?: "missing"}).",
                 )
             }
-            patchNative625(base, recipe)
+            patchNative625(base, settings)
         }
         else -> throw UnsupportedRawProfile(
             "RAW recipe mapping for $cameraModel has not been calibrated. Uploading and native " +
@@ -50,10 +51,17 @@ fun patchRawDevelopmentProfile(
     }
 }
 
-private fun patchNative625(base: ByteArray, recipe: Recipe): RawProfilePatch {
+/** The stored-recipe form. The lab renders unsaved settings through the overload above. */
+fun patchRawDevelopmentProfile(
+    cameraModel: String,
+    base: ByteArray,
+    recipe: Recipe,
+): RawProfilePatch = patchRawDevelopmentProfile(cameraModel, base, recipe.settings)
+
+private fun patchNative625(base: ByteArray, settings: JsonObject): RawProfilePatch {
     if (base.size != 625) {
         throw UnsupportedRawProfile(
-            "X100VI returned a ${base.size}-byte RAW profile; the verified layout is 625 bytes.",
+            "The camera returned a ${base.size}-byte RAW profile; the verified layout is 625 bytes.",
         )
     }
     val count = parameterCount(base)
@@ -66,56 +74,117 @@ private fun patchNative625(base: ByteArray, recipe: Recipe): RawProfilePatch {
     val applied = mutableListOf<String>()
     val preserved = mutableListOf<String>()
 
-    fun set(index: Int, field: String, value: Int?) {
+    val values = RawSettings(settings)
+    NATIVE_625_FIELDS.forEach { field ->
+        val value = field.encode(values)
         if (value == null) {
-            preserved += field
+            preserved += field.ids
         } else {
-            view.putInt(start + index * 4, value)
-            applied += field
+            view.putInt(start + field.index * 4, value)
+            applied += field.ids
         }
     }
 
-    val settings = recipe.settings
-    val filmId = settings.string("filmSimulation") ?: "provia"
-    val monochrome = filmId in MONOCHROME_FILM_SIMULATIONS
-    set(8, "filmSimulation", RAW_FILM_SIMULATION_CODES[filmId])
-    set(4, "exposureCompensation", ((settings.number("exposureCompensation") ?: 0.0) * 1000).roundToInt())
-    set(6, "dynamicRange", RAW_DYNAMIC_RANGE_CODES[settings.string("dynamicRange") ?: "dr-auto"])
+    preserved += RAW_UNRENDERED_FIELD_IDS
+    return RawProfilePatch(patched, applied.distinct(), preserved.distinct())
+}
 
-    val grain = settings.string("grainEffect") ?: "off"
-    val grainSize = settings.string("grainSize") ?: "small"
-    set(9, "grainEffect", RAW_GRAIN_CODES[grain to grainSize])
-    set(10, "colorChromeEffect", RAW_EFFECT_CODES[settings.string("colorChromeEffect") ?: "off"])
-    set(25, "colorChromeFxBlue", RAW_EFFECT_CODES[settings.string("colorChromeFxBlue") ?: "off"])
+/**
+ * The settings a RAW render reads, resolved through the documented defaults.
+ *
+ * A sparse recipe must render the same way every time, so a missing key falls back to the
+ * field's default rather than to whichever camera setting happened to be active — the rule
+ * `specs/plans/in-camera-raw-development.md` §3 sets for applying a stored recipe.
+ */
+private class RawSettings(private val settings: JsonObject) {
+    fun string(key: String): String? = (settings[key] as? JsonPrimitive)?.content
 
-    val whiteBalance = settings.string("whiteBalance") ?: "auto"
-    set(12, "whiteBalance", RAW_WHITE_BALANCE_CODES[whiteBalance])
-    set(13, "wbShiftRed", (settings.number("wbShiftRed") ?: 0.0).roundToInt())
-    set(14, "wbShiftBlue", (settings.number("wbShiftBlue") ?: 0.0).roundToInt())
-    set(
-        15,
-        "colorTemperature",
-        if (whiteBalance == "color-temp") {
-            (settings.number("colorTemperature") ?: 5500.0).roundToInt()
+    fun number(key: String): Double? = settings[key]?.jsonPrimitive?.doubleOrNull
+
+    /** A setting scaled by ten, which is how the profile carries the ±N tone controls. */
+    fun tenths(key: String): Int = ((number(key) ?: 0.0) * 10).roundToInt()
+
+    val filmSimulation: String get() = string("filmSimulation") ?: "provia"
+
+    val isMonochrome: Boolean get() = filmSimulation in MONOCHROME_FILM_SIMULATIONS
+
+    val whiteBalance: String get() = string("whiteBalance") ?: "auto"
+}
+
+/**
+ * One profile word, and the recipe fields that decide it.
+ *
+ * Declared rather than written out as statements so that "what this adapter applies" has a
+ * single answer: [rawSupportedFieldIds] reads the same table the patch writes from, and
+ * `RawFieldSupportTest` holds the two to it.
+ *
+ * `ids` is plural because a word can be decided by more than one field — grain's strength and
+ * size share one enum — and both of those are settings the user can change and expect to see.
+ */
+private class NativeProfileField(
+    val ids: List<String>,
+    val index: Int,
+    /** Null preserves the camera's own value for this word. */
+    val encode: (RawSettings) -> Int?,
+)
+
+private val NATIVE_625_FIELDS: List<NativeProfileField> = listOf(
+    NativeProfileField(listOf("exposureCompensation"), 4) {
+        ((it.number("exposureCompensation") ?: 0.0) * 1000).roundToInt()
+    },
+    NativeProfileField(listOf("dynamicRange"), 6) {
+        // `dr-auto` has no confirmed explicit encoding, so the camera's base survives it.
+        RAW_DYNAMIC_RANGE_CODES[it.string("dynamicRange") ?: "dr-auto"]
+    },
+    NativeProfileField(listOf("filmSimulation"), 8) { RAW_FILM_SIMULATION_CODES[it.filmSimulation] },
+    NativeProfileField(listOf("grainEffect", "grainSize"), 9) {
+        RAW_GRAIN_CODES[(it.string("grainEffect") ?: "off") to (it.string("grainSize") ?: "small")]
+    },
+    NativeProfileField(listOf("colorChromeEffect"), 10) {
+        RAW_EFFECT_CODES[it.string("colorChromeEffect") ?: "off"]
+    },
+    NativeProfileField(listOf("whiteBalance"), 12) { RAW_WHITE_BALANCE_CODES[it.whiteBalance] },
+    NativeProfileField(listOf("wbShiftRed"), 13) { (it.number("wbShiftRed") ?: 0.0).roundToInt() },
+    NativeProfileField(listOf("wbShiftBlue"), 14) { (it.number("wbShiftBlue") ?: 0.0).roundToInt() },
+    NativeProfileField(listOf("colorTemperature"), 15) {
+        // Only meaningful under the Kelvin white balance; any other mode keeps the base word.
+        if (it.whiteBalance == "color-temp") {
+            (it.number("colorTemperature") ?: 5500.0).roundToInt()
         } else {
             null
-        },
-    )
+        }
+    },
+    NativeProfileField(listOf("highlightTone"), 16) { it.tenths("highlightTone") },
+    NativeProfileField(listOf("shadowTone"), 17) { it.tenths("shadowTone") },
+    NativeProfileField(listOf("color"), 18) { if (it.isMonochrome) null else it.tenths("color") },
+    NativeProfileField(listOf("sharpness"), 19) { it.tenths("sharpness") },
+    NativeProfileField(listOf("highIsoNR"), 20) {
+        RAW_NOISE_REDUCTION_CODES[(it.number("highIsoNR") ?: 0.0).roundToInt()]
+    },
+    NativeProfileField(listOf("colorChromeFxBlue"), 25) {
+        RAW_EFFECT_CODES[it.string("colorChromeFxBlue") ?: "off"]
+    },
+    NativeProfileField(listOf("clarity"), 27) { it.tenths("clarity") },
+)
 
-    set(16, "highlightTone", ((settings.number("highlightTone") ?: 0.0) * 10).roundToInt())
-    set(17, "shadowTone", ((settings.number("shadowTone") ?: 0.0) * 10).roundToInt())
-    set(18, "color", if (monochrome) null else ((settings.number("color") ?: 0.0) * 10).roundToInt())
-    set(19, "sharpness", ((settings.number("sharpness") ?: 0.0) * 10).roundToInt())
-    set(20, "highIsoNR", RAW_NOISE_REDUCTION_CODES[(settings.number("highIsoNR") ?: 0.0).roundToInt()])
-    set(27, "clarity", ((settings.number("clarity") ?: 0.0) * 10).roundToInt())
+/** Every field the native 625-byte adapter can act on, whatever the recipe says. */
+internal val NATIVE_625_FIELD_IDS: Set<String> =
+    NATIVE_625_FIELDS.flatMap { it.ids }.toSet()
 
-    preserved += listOf("dRangePriority", "monochromaticColorWc", "monochromaticColorMg", "isoMin", "isoMax")
-    return RawProfilePatch(
-        patched,
-        applied.distinct(),
-        preserved.distinct(),
-    )
-}
+/**
+ * Stored, exported and displayed — never rendered.
+ *
+ * `dRangePriority` because the available mappings are uncertain, the monochromatic pair
+ * because the known layouts expose a different representation, and the ISO bounds because
+ * they are shooting advice rather than development controls.
+ */
+val RAW_UNRENDERED_FIELD_IDS: Set<String> = setOf(
+    "dRangePriority",
+    "monochromaticColorWc",
+    "monochromaticColorMg",
+    "isoMin",
+    "isoMax",
+)
 
 private fun parameterCount(base: ByteArray): Int =
     if (base.size < 2) 0
@@ -134,12 +203,6 @@ private fun nativeProfileIdentifier(base: ByteArray): String? {
         }
     }
 }
-
-private fun kotlinx.serialization.json.JsonObject.string(key: String): String? =
-    (get(key) as? JsonPrimitive)?.content
-
-private fun kotlinx.serialization.json.JsonObject.number(key: String): Double? =
-    get(key)?.jsonPrimitive?.doubleOrNull
 
 private val RAW_FILM_SIMULATION_CODES = mapOf(
     "provia" to 0x01,

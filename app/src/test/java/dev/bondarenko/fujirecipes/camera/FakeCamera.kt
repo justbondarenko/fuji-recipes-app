@@ -130,6 +130,10 @@ class FakeCamera(
     var sentObject: ByteArray? = null
         private set
 
+    /** How many RAFs have been uploaded — the lab's load-once behaviour is measured by this. */
+    var uploadCount: Int = 0
+        private set
+
     /** Splits every reply across this many bytes per read, to exercise reassembly. */
     var chunkSize: Int = Int.MAX_VALUE
 
@@ -386,6 +390,7 @@ class FakeCamera(
 
             Operation.FUJI_SEND_OBJECT -> {
                 sentObject = payload
+                uploadCount += 1
                 pendingObjectOperation = null
                 return
             }

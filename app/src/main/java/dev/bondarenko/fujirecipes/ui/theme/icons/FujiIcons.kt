@@ -13438,3 +13438,174 @@ public val FujiIcons.CodeXml: ImageVector
 private var _codeXmlW300: ImageVector? = null
 private var _codeXmlW400: ImageVector? = null
 private var _codeXmlW500: ImageVector? = null
+
+/** Material Symbols Rounded `science`. */
+public val FujiIcons.Science: ImageVector
+    get() = when (FujiIconConfig.weight) {
+        IconWeight.W300 -> _scienceW300 ?: ImageVector.Builder(
+          name = "science_w300",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(5f, 20.5f)
+            quadToRelative(-0.96f, 0f, -1.36f, -0.85f)
+            reflectiveQuadTo(3.83f, 18.06f)
+            lineTo(9.5f, 11.17f)
+            verticalLineTo(5f)
+            horizontalLineTo(8.31f)
+            quadTo(7.99f, 5f, 7.77f, 4.78f)
+            reflectiveQuadTo(7.56f, 4.25f)
+            reflectiveQuadTo(7.77f, 3.72f)
+            reflectiveQuadTo(8.31f, 3.5f)
+            horizontalLineToRelative(7.38f)
+            quadToRelative(0.32f, 0f, 0.53f, 0.22f)
+            reflectiveQuadToRelative(0.22f, 0.53f)
+            reflectiveQuadTo(16.23f, 4.78f)
+            reflectiveQuadTo(15.69f, 5f)
+            horizontalLineTo(14.5f)
+            verticalLineToRelative(6.17f)
+            lineToRelative(5.67f, 6.88f)
+            quadToRelative(0.6f, 0.73f, 0.19f, 1.59f)
+            reflectiveQuadTo(19f, 20.5f)
+            horizontalLineTo(5f)
+            close()
+            moveTo(5f, 19f)
+            horizontalLineTo(19f)
+            lineTo(13f, 11.7f)
+            verticalLineTo(5f)
+            horizontalLineTo(11f)
+            verticalLineToRelative(6.7f)
+            lineTo(5f, 19f)
+            close()
+            moveToRelative(7f, -7f)
+            close()
+          }
+        }
+        .build().also { _scienceW300 = it }
+        IconWeight.W400 -> _scienceW400 ?: ImageVector.Builder(
+          name = "science_w400",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(5f, 21f)
+            quadTo(3.73f, 21f, 3.19f, 19.86f)
+            reflectiveQuadTo(3.45f, 17.75f)
+            lineTo(9f, 11f)
+            verticalLineTo(5f)
+            horizontalLineTo(8f)
+            quadTo(7.58f, 5f, 7.29f, 4.71f)
+            reflectiveQuadTo(7f, 4f)
+            quadTo(7f, 3.57f, 7.29f, 3.29f)
+            reflectiveQuadTo(8f, 3f)
+            horizontalLineToRelative(8f)
+            quadToRelative(0.43f, 0f, 0.71f, 0.29f)
+            reflectiveQuadTo(17f, 4f)
+            quadToRelative(0f, 0.42f, -0.29f, 0.71f)
+            reflectiveQuadTo(16f, 5f)
+            horizontalLineTo(15f)
+            verticalLineToRelative(6f)
+            lineToRelative(5.55f, 6.75f)
+            quadToRelative(0.8f, 0.98f, 0.26f, 2.11f)
+            quadTo(20.28f, 21f, 19f, 21f)
+            horizontalLineTo(5f)
+            close()
+            moveTo(5f, 19f)
+            horizontalLineTo(19f)
+            lineTo(13f, 11.7f)
+            verticalLineTo(5f)
+            horizontalLineTo(11f)
+            verticalLineToRelative(6.7f)
+            lineTo(5f, 19f)
+            close()
+            moveToRelative(7f, -7f)
+            close()
+          }
+        }
+        .build().also { _scienceW400 = it }
+        IconWeight.W500 -> _scienceW500 ?: ImageVector.Builder(
+          name = "science_w500",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(5f, 21.2f)
+            quadToRelative(-1.4f, 0f, -1.99f, -1.25f)
+            reflectiveQuadTo(3.29f, 17.62f)
+            lineToRelative(5.5f, -6.7f)
+            verticalLineTo(5.14f)
+            horizontalLineTo(7.98f)
+            quadTo(7.5f, 5.14f, 7.17f, 4.81f)
+            reflectiveQuadTo(6.84f, 4f)
+            reflectiveQuadTo(7.17f, 3.19f)
+            reflectiveQuadTo(7.98f, 2.86f)
+            horizontalLineToRelative(8.04f)
+            quadToRelative(0.48f, 0f, 0.81f, 0.33f)
+            reflectiveQuadTo(17.16f, 4f)
+            reflectiveQuadTo(16.83f, 4.81f)
+            reflectiveQuadTo(16.02f, 5.14f)
+            horizontalLineTo(15.2f)
+            verticalLineToRelative(5.79f)
+            lineToRelative(5.5f, 6.7f)
+            quadToRelative(0.88f, 1.07f, 0.29f, 2.32f)
+            reflectiveQuadTo(19f, 21.2f)
+            horizontalLineTo(5f)
+            close()
+            moveTo(5.16f, 18.93f)
+            horizontalLineTo(18.84f)
+            lineToRelative(-5.92f, -7.2f)
+            verticalLineTo(5.14f)
+            horizontalLineTo(11.07f)
+            verticalLineToRelative(6.59f)
+            lineToRelative(-5.92f, 7.2f)
+            close()
+            moveTo(12f, 12.03f)
+            close()
+          }
+        }
+        .build().also { _scienceW500 = it }
+    }
+
+private var _scienceW300: ImageVector? = null
+private var _scienceW400: ImageVector? = null
+private var _scienceW500: ImageVector? = null

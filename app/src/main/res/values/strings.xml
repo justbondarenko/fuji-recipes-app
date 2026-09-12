@@ -5,6 +5,7 @@
     <!-- Navigation -->
     <string name="nav_library">Recipes</string>
     <string name="nav_cleanup">Cleanup</string>
+    <string name="nav_lab">Lab</string>
     <string name="nav_camera_photos">Photos</string>
     <string name="nav_more">More</string>
     <string name="nav_settings">Settings</string>
@@ -118,18 +119,40 @@
 
     <!-- In-camera RAW development -->
     <string name="raw_development_title">Develop RAW</string>
-    <string name="raw_choose_title">Choose a RAF</string>
-    <string name="raw_choose_body">The camera will render it using “%1$s”. Choose a RAF file from this phone.</string>
+
+    <!-- RAW development lab (FEAT-016) -->
+    <string name="lab_title">Lab</string>
+    <string name="lab_empty_title">Develop a RAW file</string>
+    <string name="lab_empty_body">Choose a RAF from this phone. The camera renders it with its own processor, and you can change the settings and render again without sending the file twice.</string>
+    <string name="lab_camera_busy">The camera is busy writing to a custom slot. Rendering can start once that finishes.</string>
+    <string name="lab_camera_waiting">Connect the camera by USB in USB RAW CONV./BACKUP RESTORE mode. The app picks it up on its own — tap Connect if it does not.</string>
+    <string name="lab_no_preview">Nothing rendered yet. Set the parameters, then update the preview.</string>
+    <string name="lab_preview_stale">Settings changed</string>
+    <string name="lab_preview_quality">Preview quality</string>
+    <string name="lab_recipe_edited">%1$s · edited</string>
+    <string name="lab_auto_preview">Re-render automatically</string>
+    <string name="lab_action_update_preview">Update preview</string>
+    <string name="lab_action_apply_recipe">Recipes</string>
+    <string name="lab_action_from_defaults">Start from the defaults</string>
+    <string name="lab_action_discard">Discard this session</string>
+    <string name="lab_group_exposure">Exposure</string>
+    <string name="lab_pick_recipe_title">Start from a recipe</string>
+    <string name="lab_pick_recipe_empty">Your library is empty, so there is nothing to start from yet.</string>
+    <string name="lab_save_title">Save</string>
+    <string name="lab_action_save">Save</string>
+    <string name="lab_action_save_jpeg">Save full-resolution JPEG</string>
+    <string name="lab_action_save_as_new">Save as a new recipe</string>
+    <string name="lab_action_update_recipe">Update</string>
+    <string name="lab_action_update_recipe_named">Update “%1$s”</string>
+    <string name="lab_save_as_new_title">Name this recipe</string>
+    <string name="lab_update_title">Update “%1$s”?</string>
+    <string name="lab_update_body">This overwrites the recipe\'s settings. Changed: %1$s</string>
     <string name="raw_action_choose">Choose from phone</string>
     <string name="raw_action_choose_another">Choose another RAF</string>
     <string name="raw_importing">Checking and copying the RAF…</string>
     <string name="raw_camera_ready">%1$s is connected</string>
-    <string name="raw_camera_ready_body">Keep the camera in USB RAW CONV./BACKUP RESTORE mode and do not unplug it until the JPEG appears.</string>
     <string name="raw_camera_connecting_body">Waiting for USB permission and the camera session.</string>
-    <string name="raw_camera_not_ready">Camera not ready</string>
-    <string name="raw_camera_not_ready_body">Set the camera to USB RAW CONV./BACKUP RESTORE, connect it by USB, then tap Connect.</string>
     <string name="raw_camera_wrong_mode_body">Change CONNECTION MODE to USB RAW CONV./BACKUP RESTORE, then disconnect and reconnect the camera.</string>
-    <string name="raw_action_render">Render JPEG</string>
     <string name="raw_stage_preparing">Preparing the camera…</string>
     <string name="raw_stage_uploading">Uploading RAF to the camera…</string>
     <string name="raw_stage_applying">Applying the recipe…</string>
@@ -139,15 +162,7 @@
     <string name="raw_calibration_title">%1$s needs calibration</string>
     <string name="raw_calibration_body">The camera connection and RAF upload worked. Its %1$d-byte native 0xD185 profile was captured, but this build will not guess how this model lays out recipe fields. Share the profile to add a verified adapter; no conversion was triggered.</string>
     <string name="raw_action_share_profile">Share profile</string>
-    <string name="raw_complete_title">JPEG rendered</string>
-    <string name="raw_complete_body">Applied %1$d verified recipe fields and preserved %2$d camera-native fields.</string>
-    <string name="raw_complete_body_dimensions">%1$d × %2$d px. Applied %3$d verified recipe fields and preserved %4$d camera-native fields.</string>
-    <string name="raw_action_save_jpeg">Save JPEG</string>
     <string name="raw_result_description">JPEG rendered by the camera</string>
-    <string name="raw_failed_title">RAW development stopped</string>
-    <string name="raw_action_try_again">Try again</string>
-    <string name="raw_saved">JPEG saved</string>
-    <string name="raw_save_failed">The JPEG could not be saved</string>
 
     <!-- Editor -->
     <string name="editor_new">New recipe</string>

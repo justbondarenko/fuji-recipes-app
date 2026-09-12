@@ -43,8 +43,23 @@ class RawDevelopmentCache(private val directory: File) {
         }
     }
 
-    fun outputFile(source: File): File =
-        File(directory, "${source.nameWithoutExtension}-developed.jpg")
+    /**
+     * Where render number [serial] of [source] goes.
+     *
+     * Numbered rather than overwritten: an image loader keys on the path, so a second render
+     * written over the first would keep showing the first. Older renders are removed as each
+     * new one lands, so the cache holds one picture and not a session's worth.
+     */
+    fun renderFile(source: File, serial: Int): File =
+        File(directory, "${source.nameWithoutExtension}-render-$serial.jpg")
+
+    /** Deletes every render except [keep] — called once the new one is safely on disk. */
+    fun clearRenders(keep: File? = null) {
+        directory.listFiles()
+            ?.filter { it.name.contains("-render-") && it.name.endsWith(".jpg") }
+            ?.filterNot { keep != null && it.absolutePath == keep.absolutePath }
+            ?.forEach { it.delete() }
+    }
 
     fun clear() {
         directory.listFiles()?.forEach { it.delete() }
