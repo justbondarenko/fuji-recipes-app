@@ -33,6 +33,7 @@
   - [Prerequisites](#prerequisites)
   - [Clone & Build](#clone--build)
   - [Sideload to Device](#sideload-to-device)
+  - [Build Notifications on Telegram](#build-notifications-on-telegram)
 - [☕ Open Source Acknowledgements](#-open-source-acknowledgements)
 - [📜 Legal Disclaimer & Trademarks](#-legal-disclaimer--trademarks)
 
@@ -256,6 +257,19 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 > [!TIP]
 > **Wireless Debugging**:
 > Because the phone's USB-C port is occupied by the camera during hardware testing, use **Wireless ADB** (`adb pair` and `adb connect`) for live logcat inspection and debugging.
+
+### Build Notifications on Telegram
+
+The **Build** workflow posts every finished run — passed, failed or cancelled — to a Telegram chat, with the branch, the commit subject and a link to the run. It is optional: with no secrets set the notification step says so in the log and the build carries on, so a fork needs no setup.
+
+To switch it on, add two repository secrets under **Settings → Secrets and variables → Actions**:
+
+| Secret | Value |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` | The token [@BotFather](https://t.me/BotFather) gives you for a new bot (`/newbot`) |
+| `TELEGRAM_CHAT_ID` | The chat to post in — your own user id, a group id (negative), or a channel as `@channelname` |
+
+To find the chat id: send the bot a message (or add it to the group, or make it an admin of the channel), then open `https://api.telegram.org/bot<TOKEN>/getUpdates` and read `result[].message.chat.id`.
 
 ---
 
