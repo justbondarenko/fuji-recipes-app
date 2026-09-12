@@ -82,6 +82,8 @@ data class RawLabState(
     val calibration: RawLabCalibration? = null,
     /** Makes each render's output file unique, so an image loader cannot show the last one. */
     val serial: Int = 0,
+    /** The settings behind the last JPEG written out, or null if none has been this session. */
+    val savedSettings: JsonObject? = null,
 ) {
     val hasRaf: Boolean get() = raf != null
 
@@ -103,7 +105,12 @@ data class RawLabState(
     val hasFullResolutionPreview: Boolean
         get() = preview?.isFullResolution == true && preview.file.isFile
 
-    val canUpdateAppliedRecipe: Boolean get() = appliedRecipeId != null && isDirty
+    /**
+     * Whether leaving would lose work: something was edited or rendered, and no JPEG of the
+     * current settings has been saved. A RAF merely opened loses nothing worth asking about.
+     */
+    val hasUnsavedChanges: Boolean
+        get() = hasRaf && (isDirty || preview != null) && settings != savedSettings
 
     /**
      * What the applicability predicates get to look at.
@@ -157,6 +164,7 @@ data class RawLabState(
         error = null,
         calibration = null,
         consecutiveFailures = 0,
+        savedSettings = null,
     )
 
     fun withoutRaf(): RawLabState =
@@ -172,8 +180,7 @@ data class RawLabState(
      * Starts from a library recipe.
      *
      * The recipe's settings become both the working copy and the baseline, so "changed" means
-     * changed from the recipe rather than from the defaults — which is what makes
-     * **Update recipe** offerable and honest.
+     * changed from the recipe rather than from the defaults.
      */
     fun applying(recipe: Recipe): RawLabState = copy(
         settings = recipe.settings,
@@ -192,12 +199,8 @@ data class RawLabState(
         error = null,
     )
 
-    /** Called after a save, so the thing just written becomes the new "unchanged". */
-    fun savedAs(recipe: Recipe): RawLabState = copy(
-        baseline = settings,
-        appliedRecipeId = recipe.id,
-        appliedRecipeName = recipe.name,
-    )
+    /** A JPEG rendered from [renderedSettings] has been written out. */
+    fun jpegSaved(renderedSettings: JsonObject): RawLabState = copy(savedSettings = renderedSettings)
 
     fun renderStarted(): RawLabState = copy(
         rendering = RawDevelopmentStage.Preparing,

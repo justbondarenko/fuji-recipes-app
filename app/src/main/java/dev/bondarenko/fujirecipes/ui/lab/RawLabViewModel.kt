@@ -16,7 +16,6 @@ import dev.bondarenko.fujirecipes.camera.raw.rawSupportedFieldIds
 import dev.bondarenko.fujirecipes.camera.usb.RawProfileCalibrationRequired
 import dev.bondarenko.fujirecipes.camera.usb.RawRenderQuality
 import dev.bondarenko.fujirecipes.core.AppContainer
-import dev.bondarenko.fujirecipes.core.result.LibraryResult
 import dev.bondarenko.fujirecipes.core.store.RawDevelopmentCache
 import dev.bondarenko.fujirecipes.data.lab.RawLabCalibration
 import dev.bondarenko.fujirecipes.data.lab.RawLabState
@@ -39,11 +38,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 
 /** The lab's state plus what only the ViewModel can know: the camera, and the library. */
 data class RawLabUiState(
@@ -315,7 +311,8 @@ class RawLabViewModel(
 
     /** Writes the rendered file to wherever the document picker pointed. */
     fun saveJpeg(destination: Uri) {
-        val source = workspace.current.preview?.file ?: return
+        val preview = workspace.current.preview ?: return
+        val source = preview.file
         viewModelScope.launch {
             transient.update { it.copy(isSaving = true, message = null) }
             val saved = runCatching {
@@ -325,6 +322,7 @@ class RawLabViewModel(
                     } ?: error("That location could not be written to.")
                 }
             }
+            if (saved.isSuccess) workspace.update { it.jpegSaved(preview.settings) }
             transient.update {
                 it.copy(
                     isSaving = false,
@@ -334,60 +332,6 @@ class RawLabViewModel(
                         saved.exceptionOrNull()?.message ?: "The JPEG could not be saved."
                     },
                 )
-            }
-        }
-    }
-
-    fun saveAsNewRecipe(name: String, onSaved: (Recipe) -> Unit = {}) {
-        val settings = workspace.current.settings
-        viewModelScope.launch {
-            transient.update { it.copy(isSaving = true, message = null) }
-            val body = buildJsonObject {
-                put("name", name.trim())
-                put("notes", "")
-                put("rating", 0)
-                put("tags", JsonArray(emptyList()))
-                put("settings", settings)
-            }
-            when (val result = repository.create(body)) {
-                is LibraryResult.Success -> {
-                    workspace.update { it.savedAs(result.value) }
-                    transient.update { it.copy(isSaving = false, message = "Recipe saved") }
-                    onSaved(result.value)
-                }
-                is LibraryResult.Failure -> transient.update {
-                    it.copy(
-                        isSaving = false,
-                        message = result.error.message ?: "The recipe could not be saved.",
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * Overwrites the applied recipe's settings.
-     *
-     * Only `settings` is sent: the name, notes, rating and tags belong to the recipe the user
-     * started from, and the lab never asked about them.
-     */
-    fun updateAppliedRecipe() {
-        val current = workspace.current
-        val id = current.appliedRecipeId ?: return
-        viewModelScope.launch {
-            transient.update { it.copy(isSaving = true, message = null) }
-            val body = buildJsonObject { put("settings", current.settings) }
-            when (val result = repository.update(id, body)) {
-                is LibraryResult.Success -> {
-                    workspace.update { it.savedAs(result.value) }
-                    transient.update { it.copy(isSaving = false, message = "Recipe updated") }
-                }
-                is LibraryResult.Failure -> transient.update {
-                    it.copy(
-                        isSaving = false,
-                        message = result.error.message ?: "The recipe could not be updated.",
-                    )
-                }
             }
         }
     }

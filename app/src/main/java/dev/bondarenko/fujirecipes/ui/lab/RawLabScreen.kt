@@ -10,17 +10,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -61,9 +62,10 @@ import dev.bondarenko.fujirecipes.camera.usb.RawDevelopmentStage
 import dev.bondarenko.fujirecipes.data.lab.RawLabPreview
 import dev.bondarenko.fujirecipes.ui.common.FujiCenteredLoading
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
+import dev.bondarenko.fujirecipes.ui.camera.CameraSheetButtonHost
+import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowBack
 import dev.bondarenko.fujirecipes.ui.theme.icons.BookmarkStacks
 import dev.bondarenko.fujirecipes.ui.theme.icons.Cable
-import dev.bondarenko.fujirecipes.ui.theme.icons.Delete
 import dev.bondarenko.fujirecipes.ui.theme.icons.FileSave
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.ImagesMode
@@ -78,10 +80,9 @@ import kotlinx.serialization.json.JsonElement
  * intent leaves through a callback, so the interesting logic stays in `RawLabState` where a
  * test can reach it.
  *
- * No `TopAppBar` of its own. This is a bottom-bar destination, and the shell already draws a
- * row above it for the camera button; a second bar underneath that one put this page's title
- * and the camera control on the same line, crowded against each other. A plain header row
- * inside the content is what the other top-level pages do.
+ * One header row carries the camera button too, so the shell draws no row of its own here.
+ * While a RAF is loaded the shell hides its navigation bar as well: the lab takes the screen,
+ * and back (the header's arrow or the system gesture) is how the session ends.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -95,7 +96,7 @@ fun RawLabScreen(
     onAutoPreviewChange: (Boolean) -> Unit,
     onConnect: () -> Unit,
     onSave: () -> Unit,
-    onDiscard: () -> Unit,
+    onBack: () -> Unit,
     onShareProfile: (String, ByteArray) -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
@@ -115,9 +116,8 @@ fun RawLabScreen(
                 if (lab.isDirty) stringResource(R.string.lab_recipe_edited, name) else name
             },
             showActions = lab.hasRaf,
+            onBack = onBack,
             onApplyRecipe = onApplyRecipe,
-            onSave = onSave,
-            onDiscard = onDiscard,
         )
 
         val importing = lab.importing
@@ -161,29 +161,38 @@ fun RawLabScreen(
                 onRenderPreview = onRenderPreview,
                 onAutoPreviewChange = onAutoPreviewChange,
                 onConnect = onConnect,
+                onSave = onSave,
                 modifier = bodyModifier,
             )
         }
     }
 }
 
-/** The file being developed, the recipe behind it, and what acts on the whole session. */
+/** The file being developed, the recipe behind it, the way out, and what acts on the session. */
 @Composable
 private fun LabHeader(
     title: String,
     subtitle: String?,
     showActions: Boolean,
+    onBack: () -> Unit,
     onApplyRecipe: () -> Unit,
-    onSave: () -> Unit,
-    onDiscard: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 8.dp, top = 12.dp, bottom = 2.dp),
+            .padding(start = if (showActions) 4.dp else 20.dp, end = 8.dp, top = 4.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        if (showActions) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = FujiIcons.ArrowBack,
+                    contentDescription = stringResource(R.string.action_back),
+                )
+            }
+        }
+
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
@@ -204,33 +213,15 @@ private fun LabHeader(
         }
 
         if (showActions) {
-            // Tonal rather than filled: the picture is what this page is for, and a
-            // primary-coloured button beside the title outshouted it.
-            FilledTonalButton(
-                onClick = onApplyRecipe,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-            ) {
+            // Round and tonal, matching the camera button beside it.
+            FilledTonalIconButton(onClick = onApplyRecipe, shape = CircleShape) {
                 Icon(
                     imageVector = FujiIcons.BookmarkStacks,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.lab_action_apply_recipe))
-            }
-            IconButton(onClick = onSave) {
-                Icon(
-                    imageVector = FujiIcons.FileSave,
-                    contentDescription = stringResource(R.string.lab_action_save),
-                )
-            }
-            IconButton(onClick = onDiscard) {
-                Icon(
-                    imageVector = FujiIcons.Delete,
-                    contentDescription = stringResource(R.string.lab_action_discard),
+                    contentDescription = stringResource(R.string.lab_action_apply_recipe),
                 )
             }
         }
+        CameraSheetButtonHost()
     }
 }
 
@@ -265,43 +256,62 @@ private fun LoadedLab(
     onRenderPreview: () -> Unit,
     onAutoPreviewChange: (Boolean) -> Unit,
     onConnect: () -> Unit,
+    onSave: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val lab = state.lab
     val fields = lab.renderedFields(state.supportedFieldIds)
     val readiness = state.camera.readiness()
 
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        PreviewPane(
-            preview = lab.preview,
-            isStale = lab.isPreviewStale,
-            stage = lab.rendering,
-            readiness = readiness,
-            onConnect = onConnect,
-            // 95% of the width, not a 16dp gutter each side: the picture is the point of the
-            // page, and on a phone those two gutters are the difference between judging a
-            // film simulation and squinting at it.
+    Box(modifier = modifier) {
+        Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+            PreviewPane(
+                preview = lab.preview,
+                isStale = lab.isPreviewStale,
+                stage = lab.rendering,
+                readiness = readiness,
+                onConnect = onConnect,
+                // 95% of the width, not a 16dp gutter each side: the picture is the point of the
+                // page, and on a phone those two gutters are the difference between judging a
+                // film simulation and squinting at it.
+                modifier = Modifier
+                    .fillMaxWidth(0.95f)
+                    .weight(0.45f),
+            )
+
+            LabActions(
+                state = state,
+                readiness = readiness,
+                onRenderPreview = onRenderPreview,
+                onAutoPreviewChange = onAutoPreviewChange,
+            )
+
+            HorizontalDivider()
+
+            RawLabParameterPanel(
+                settings = lab.settings,
+                fields = fields,
+                onSettingChange = onSettingChange,
+                modifier = Modifier.weight(0.55f),
+                // Room under the last field for the save button to float over nothing.
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 96.dp),
+            )
+        }
+
+        // Save does one thing: write the full-resolution JPEG, rendering it first if needed.
+        FloatingActionButton(
+            onClick = onSave,
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .weight(0.45f),
-        )
-
-        LabActions(
-            state = state,
-            readiness = readiness,
-            onRenderPreview = onRenderPreview,
-            onAutoPreviewChange = onAutoPreviewChange,
-        )
-
-        HorizontalDivider()
-
-        RawLabParameterPanel(
-            settings = lab.settings,
-            fields = fields,
-            onSettingChange = onSettingChange,
-            modifier = Modifier.weight(0.55f),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 32.dp),
-        )
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+        ) {
+            Icon(
+                imageVector = FujiIcons.FileSave,
+                contentDescription = stringResource(R.string.lab_action_save_jpeg),
+            )
+        }
     }
 }
 

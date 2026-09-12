@@ -31,21 +31,18 @@ class RawLabStateTest {
     }
 
     @Test
-    fun `editing after applying a recipe is dirty, and offers to update it`() {
+    fun `editing after applying a recipe is dirty`() {
         val state = RawLabState()
             .applying(recipe(buildJsonObject { put("filmSimulation", "velvia") }))
             .withSetting("clarity", JsonPrimitive(3))
 
         assertTrue(state.isDirty)
-        assertTrue(state.canUpdateAppliedRecipe)
     }
 
     @Test
-    fun `ground zero has no recipe to update`() {
-        val state = RawLabState().fromDefaults().withSetting("clarity", JsonPrimitive(3))
-
-        assertTrue(state.isDirty)
-        assertFalse(state.canUpdateAppliedRecipe)
+    fun `an opened RAF with nothing done to it has nothing to lose`() {
+        assertFalse(loaded().hasUnsavedChanges)
+        assertFalse(RawLabState().withSetting("clarity", JsonPrimitive(3)).hasUnsavedChanges)
     }
 
     @Test
@@ -169,14 +166,14 @@ class RawLabStateTest {
     }
 
     @Test
-    fun `saving makes the saved settings the new unchanged`() {
-        val state = RawLabState()
-            .applying(recipe(buildJsonObject { put("filmSimulation", "velvia") }))
-            .withSetting("clarity", JsonPrimitive(3))
-        val saved = state.savedAs(recipe(state.settings, name = "Velvia plus"))
+    fun `an edit is unsaved until a JPEG of it is saved, and again after the next edit`() {
+        val edited = loaded().withSetting("clarity", JsonPrimitive(3))
+        assertTrue(edited.hasUnsavedChanges)
 
-        assertFalse(saved.isDirty)
-        assertEquals("Velvia plus", saved.appliedRecipeName)
+        val saved = edited.jpegSaved(edited.settings)
+        assertFalse(saved.hasUnsavedChanges)
+
+        assertTrue(saved.withSetting("clarity", JsonPrimitive(4)).hasUnsavedChanges)
     }
 
     @Test

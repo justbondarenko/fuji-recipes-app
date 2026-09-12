@@ -16,7 +16,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.IntentCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -183,8 +185,12 @@ private fun FujiApp(
         val onCleanup = destination?.hasRoute<CleanupRoute>() == true
         // Settings is a subpage with its own bar and back arrow, like About.
         val onSettings = destination?.hasRoute<SettingsRoute>() == true
+        val onLab = destination?.hasRoute<RawLabRoute>() == true
+        // Developing a RAF takes the whole screen; the lab's own header carries the way back.
+        val labState by (LocalContext.current.applicationContext as FujiRecipesApp).container.rawLabWorkspace.state
+            .collectAsStateWithLifecycle()
         val showChrome = !onEditor && !onRecipeView && !onImport && !onFileImport &&
-            !onExport && !onCleanup && !onSettings
+            !onExport && !onCleanup && !onSettings && !(onLab && labState.hasRaf)
 
         // Not a route: the dialog and the sheet behind it are ways of *starting* the editor,
         // and giving either a destination of its own would put a half-made choice in the back
@@ -215,7 +221,7 @@ private fun FujiApp(
                     showChrome = showChrome,
                     isLibrarySelected = destination?.hasRoute<LibraryRoute>() == true,
                     isReadSelected = destination?.hasRoute<PhotoRoute>() == true,
-                    isLabSelected = destination?.hasRoute<RawLabRoute>() == true,
+                    isLabSelected = onLab,
                     isCameraPhotosSelected = destination?.hasRoute<CameraPhotosRoute>() == true,
                     isMoreSelected = isMoreSelected,
                     onLibraryClick = {
@@ -239,9 +245,9 @@ private fun FujiApp(
                     },
                     onCreateClick = { creating = true },
                     isSelecting = librarySelecting,
-                    // The library carries the button in its own search row, so the shell's corner
-                    // stays empty there rather than showing it twice.
-                    topBarAction = if (destination?.hasRoute<LibraryRoute>() == true) {
+                    // The library and the lab carry the button in their own header rows, so the
+                    // shell's corner stays empty there rather than showing it twice.
+                    topBarAction = if (destination?.hasRoute<LibraryRoute>() == true || onLab) {
                         null
                     } else {
                         { CameraSheetButtonHost() }
