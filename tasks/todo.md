@@ -48,6 +48,12 @@ Plan: `specs/plans/raw-development-lab.md`.
 - [x] Camera state moved into the preview area — no camera, no render, so that space was the
       right place for it; the warning no longer sits between the filename and the controls
 - [x] Connect is offered, not instructed: the attach intent already opens the session
+- [x] Preview 95% of the width, and zoomable in place (pinch, pan, double-tap)
+- [x] Filename becomes the header title; the recipe name its subtitle. The chip row is gone
+- [x] Save moves to the header; it renders full-resolution first when it has to, so the
+      Render full button and the preview-sized save are both gone
+- [x] The automatic switch and Update preview share a row; the button hides while the switch
+      is on and comes back on a failure
 
 ## Review
 

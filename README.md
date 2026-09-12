@@ -194,8 +194,9 @@ RAW development lives in the **Lab** tab, third in the bottom bar. Open it direc
 2. Leave the documented defaults, or tap **Apply a recipe** to start from one in your library.
 3. Connect the camera in **`USB RAW CONV. / BACKUP RESTORE`** mode. Plugging it in is enough — the app opens the session itself, and the Lab shows a **Connect** button only for the case where it did not notice. Then tap **Update preview**. The app uploads the RAF and the patched native profile, waits for the camera processor, downloads the result, and cleans up the temporary camera object.
 4. Change any parameter and render again. **The RAF is uploaded once per session** — later renders only send a new profile, so trying a different film simulation costs a render rather than another multi-megabyte transfer.
-5. Switch on **Re-render automatically after each change** to skip the button. It fires 900 ms after the last edit, never mid-gesture, runs one render at a time, and switches itself off after two consecutive failures.
-6. Save the JPEG through Android's document picker, save the settings as a new recipe, or update the recipe you started from.
+5. Switch on **Re-render automatically** to skip the button, which then disappears until a render fails. It fires 900 ms after the last edit, never mid-gesture, runs one render at a time, and switches itself off after two consecutive failures.
+6. Pinch to zoom the preview in place, drag to pan, double-tap to go back — grain and sharpness do not survive being fitted into a phone-sized pane.
+7. **Save** offers the JPEG, a new recipe, or an update to the recipe you started from. There is no separate full-resolution render: asking for the file is what asks for the render, and the document picker opens when it lands.
 
 The parameter panel shows only what the camera's RAW processor will act on, so every control on it changes the picture. D-range priority, the monochromatic colour pair and the ISO recommendations are not drawn here — they belong to the recipe form — and a recipe that carries them keeps them untouched through a save from the Lab.
 

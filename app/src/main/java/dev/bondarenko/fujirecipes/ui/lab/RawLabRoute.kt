@@ -90,7 +90,7 @@ fun RawLabRouteContent(
         onChooseAnotherRaf = viewModel::chooseAnotherRaf,
         onApplyRecipe = { showRecipePicker = true },
         onSettingChange = viewModel::onSettingChange,
-        onRender = { quality -> viewModel.render(quality) },
+        onRenderPreview = viewModel::renderPreview,
         onAutoPreviewChange = viewModel::setAutoPreview,
         onConnect = viewModel::connect,
         onSave = { showSaveMenu = true },
@@ -99,14 +99,23 @@ fun RawLabRouteContent(
         contentPadding = contentPadding,
     )
 
+    // The document picker opens on the ticket rather than on the tap: Save may have to render
+    // a full-resolution frame first, and there is nothing to write until that lands.
+    LaunchedEffect(state.saveTicket) {
+        if (state.saveTicket != null) {
+            val name = state.lab.rafName.substringBeforeLast('.').ifEmpty { "developed" }
+            saveJpeg.launch("$name.jpg")
+            viewModel.clearSaveTicket()
+        }
+    }
+
     if (showSaveMenu) {
         SaveSheet(
             state = state,
             onDismiss = { showSaveMenu = false },
             onSaveJpeg = {
                 showSaveMenu = false
-                val name = state.lab.rafName.substringBeforeLast('.').ifEmpty { "developed" }
-                saveJpeg.launch("$name.jpg")
+                viewModel.requestJpegSave()
             },
             onSaveAsNew = {
                 showSaveMenu = false
@@ -181,10 +190,10 @@ private fun changedFieldSummary(state: RawLabUiState): String {
 }
 
 /**
- * Where a render can go: a file, a new recipe, or over the recipe it started from.
+ * Where the work can go: a file, a new recipe, or over the recipe it started from.
  *
- * A sheet rather than a menu because the third option needs a sentence, not a word — and
- * because a preview-quality file has to say so before it is written under a JPEG's name.
+ * A sheet rather than a menu because the options need naming rather than iconography, and
+ * because saving the JPEG may start a render — which the label says.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -209,17 +218,12 @@ private fun SaveSheet(
                 modifier = Modifier.padding(bottom = 8.dp),
             )
 
-            val preview = state.lab.preview
-            if (preview != null) {
-                SheetRow(
-                    label = if (preview.isFullResolution) {
-                        stringResource(R.string.raw_action_save_jpeg)
-                    } else {
-                        stringResource(R.string.lab_action_save_preview_jpeg)
-                    },
-                    onClick = onSaveJpeg,
-                )
-            }
+            // Always offered, whatever is on screen: a preview-sized frame is not worth
+            // saving, so this renders a full-resolution one first when it has to.
+            SheetRow(
+                label = stringResource(R.string.lab_action_save_jpeg),
+                onClick = onSaveJpeg,
+            )
 
             SheetRow(
                 label = stringResource(R.string.lab_action_save_as_new),

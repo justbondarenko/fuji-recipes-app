@@ -7,6 +7,7 @@ import dev.bondarenko.fujirecipes.camera.usb.RawDevelopmentResult
 import dev.bondarenko.fujirecipes.camera.usb.RawRenderQuality
 import dev.bondarenko.fujirecipes.data.model.Recipe
 import java.io.File
+import kotlin.io.path.createTempDirectory
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -123,6 +124,31 @@ class RawLabStateTest {
     }
 
     @Test
+    fun `only a full-resolution render is the finished file`() {
+        // Saving is what asks for a full render, so a preview-sized frame must never present
+        // itself as the JPEG worth keeping.
+        val started = loaded().renderStarted()
+
+        // A real file on disk: the property asks whether there is something to write, not
+        // only what the camera called it.
+        val jpeg = createTempDirectory("raw-lab-save").toFile().resolve("render.jpg")
+        jpeg.writeBytes(byteArrayOf(1, 2, 3))
+
+        val full = started.renderSucceeded(result(jpeg), started.settings)
+        assertTrue(full.hasFullResolutionPreview)
+
+        val thumbnail = started.renderSucceeded(
+            result(jpeg).copy(quality = RawRenderQuality.PREVIEW, fromThumbnail = true),
+            started.settings,
+        )
+        assertFalse(thumbnail.hasFullResolutionPreview)
+
+        // And a file the cache has since cleared is not one to offer either.
+        jpeg.delete()
+        assertFalse(full.hasFullResolutionPreview)
+    }
+
+    @Test
     fun `settings the lab never draws still survive an edit`() {
         // Not shown is not dropped: a field the panel omits has to come back out of a save.
         val state = RawLabState()
@@ -169,8 +195,8 @@ class RawLabStateTest {
     private fun loaded(): RawLabState =
         RawLabState().withRaf(File("/tmp/source.raf"), "source.raf")
 
-    private fun result(): RawDevelopmentResult = RawDevelopmentResult(
-        jpeg = File("/tmp/render.jpg"),
+    private fun result(jpeg: File = File("/tmp/render.jpg")): RawDevelopmentResult = RawDevelopmentResult(
+        jpeg = jpeg,
         patch = RawProfilePatch(ByteArray(0), emptyList(), emptyList()),
         outputHandle = 1,
         width = 6_000,

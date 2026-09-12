@@ -2,6 +2,9 @@ package dev.bondarenko.fujirecipes.ui.lab
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,9 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
@@ -26,33 +27,44 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.camera.CameraState
 import dev.bondarenko.fujirecipes.camera.plan.UsbMode
 import dev.bondarenko.fujirecipes.camera.usb.RawDevelopmentStage
-import dev.bondarenko.fujirecipes.camera.usb.RawRenderQuality
 import dev.bondarenko.fujirecipes.data.lab.RawLabPreview
 import dev.bondarenko.fujirecipes.ui.common.FujiCenteredLoading
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.theme.icons.BookmarkStacks
 import dev.bondarenko.fujirecipes.ui.theme.icons.Cable
 import dev.bondarenko.fujirecipes.ui.theme.icons.Delete
+import dev.bondarenko.fujirecipes.ui.theme.icons.FileSave
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.ImagesMode
 import dev.bondarenko.fujirecipes.ui.theme.icons.Warning
@@ -79,7 +91,7 @@ fun RawLabScreen(
     onChooseAnotherRaf: () -> Unit,
     onApplyRecipe: () -> Unit,
     onSettingChange: (String, JsonElement?) -> Unit,
-    onRender: (RawRenderQuality) -> Unit,
+    onRenderPreview: () -> Unit,
     onAutoPreviewChange: (Boolean) -> Unit,
     onConnect: () -> Unit,
     onSave: () -> Unit,
@@ -96,8 +108,15 @@ fun RawLabScreen(
             .padding(contentPadding),
     ) {
         LabHeader(
+            // The filename *is* the title once there is one: the page is about that file, and
+            // a separate chip for it cost a row of a screen that needs the height.
+            title = lab.rafName.ifEmpty { stringResource(R.string.lab_title) },
+            subtitle = lab.appliedRecipeName?.let { name ->
+                if (lab.isDirty) stringResource(R.string.lab_recipe_edited, name) else name
+            },
             showActions = lab.hasRaf,
             onApplyRecipe = onApplyRecipe,
+            onSave = onSave,
             onDiscard = onDiscard,
         )
 
@@ -139,62 +158,77 @@ fun RawLabScreen(
             else -> LoadedLab(
                 state = state,
                 onSettingChange = onSettingChange,
-                onRender = onRender,
+                onRenderPreview = onRenderPreview,
                 onAutoPreviewChange = onAutoPreviewChange,
                 onConnect = onConnect,
-                onSave = onSave,
-                onChooseAnotherRaf = onChooseAnotherRaf,
                 modifier = bodyModifier,
             )
         }
     }
 }
 
-/** The page's name, and the two things that act on the whole session. */
+/** The file being developed, the recipe behind it, and what acts on the whole session. */
 @Composable
 private fun LabHeader(
+    title: String,
+    subtitle: String?,
     showActions: Boolean,
     onApplyRecipe: () -> Unit,
+    onSave: () -> Unit,
     onDiscard: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 4.dp),
+            .padding(start = 20.dp, end = 8.dp, top = 12.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            text = stringResource(R.string.lab_title),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
 
         if (showActions) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            // Tonal rather than filled: the picture is what this page is for, and a
+            // primary-coloured button beside the title outshouted it.
+            FilledTonalButton(
+                onClick = onApplyRecipe,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             ) {
-                // Tonal rather than filled: the picture is what this page is for, and a
-                // primary-coloured button beside the title outshouted it.
-                FilledTonalButton(
-                    onClick = onApplyRecipe,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                ) {
-                    Icon(
-                        imageVector = FujiIcons.BookmarkStacks,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.lab_action_apply_recipe))
-                }
-                IconButton(onClick = onDiscard) {
-                    Icon(
-                        imageVector = FujiIcons.Delete,
-                        contentDescription = stringResource(R.string.lab_action_discard),
-                    )
-                }
+                Icon(
+                    imageVector = FujiIcons.BookmarkStacks,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(stringResource(R.string.lab_action_apply_recipe))
+            }
+            IconButton(onClick = onSave) {
+                Icon(
+                    imageVector = FujiIcons.FileSave,
+                    contentDescription = stringResource(R.string.lab_action_save),
+                )
+            }
+            IconButton(onClick = onDiscard) {
+                Icon(
+                    imageVector = FujiIcons.Delete,
+                    contentDescription = stringResource(R.string.lab_action_discard),
+                )
             }
         }
     }
@@ -228,37 +262,35 @@ private fun EmptyLab(
 private fun LoadedLab(
     state: RawLabUiState,
     onSettingChange: (String, JsonElement?) -> Unit,
-    onRender: (RawRenderQuality) -> Unit,
+    onRenderPreview: () -> Unit,
     onAutoPreviewChange: (Boolean) -> Unit,
     onConnect: () -> Unit,
-    onSave: () -> Unit,
-    onChooseAnotherRaf: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val lab = state.lab
     val fields = lab.renderedFields(state.supportedFieldIds)
     val readiness = state.camera.readiness()
 
-    Column(modifier = modifier) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         PreviewPane(
             preview = lab.preview,
             isStale = lab.isPreviewStale,
             stage = lab.rendering,
             readiness = readiness,
             onConnect = onConnect,
+            // 95% of the width, not a 16dp gutter each side: the picture is the point of the
+            // page, and on a phone those two gutters are the difference between judging a
+            // film simulation and squinting at it.
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(0.45f)
-                .padding(horizontal = 16.dp),
+                .fillMaxWidth(0.95f)
+                .weight(0.45f),
         )
 
         LabActions(
             state = state,
             readiness = readiness,
-            onRender = onRender,
+            onRenderPreview = onRenderPreview,
             onAutoPreviewChange = onAutoPreviewChange,
-            onSave = onSave,
-            onChooseAnotherRaf = onChooseAnotherRaf,
         )
 
         HorizontalDivider()
@@ -292,14 +324,10 @@ private fun PreviewPane(
 ) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         when {
-            preview != null -> AsyncImage(
-                model = preview.file,
-                contentDescription = stringResource(R.string.raw_result_description),
-                contentScale = ContentScale.Fit,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(20.dp))
-                    .alpha(if (isStale || stage != null) 0.4f else 1f),
+            preview != null -> ZoomablePreview(
+                preview = preview,
+                dimmed = isStale || stage != null,
+                modifier = Modifier.fillMaxSize(),
             )
 
             stage != null -> Unit
@@ -338,6 +366,80 @@ private fun PreviewPane(
         } else if (preview != null && !preview.isFullResolution) {
             LabBadge(stringResource(R.string.lab_preview_quality), Modifier.align(Alignment.TopEnd))
         }
+    }
+}
+
+/**
+ * Pinch to zoom, drag to pan, double-tap to go back.
+ *
+ * Grain and sharpness are the reasons to render at all and neither survives being fitted into
+ * a phone-sized pane, so the picture has to open up in place. It zooms inside its own bounds
+ * rather than into a separate viewer: the parameters stay under your thumb, which is the point
+ * of putting them on the same screen.
+ *
+ * Zoom resets when a new render lands — that picture is a different answer, and inheriting the
+ * last one's corner would hide what changed.
+ */
+@Composable
+private fun ZoomablePreview(
+    preview: RawLabPreview,
+    dimmed: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    var scale by remember(preview.file.path) { mutableFloatStateOf(1f) }
+    var offset by remember(preview.file.path) { mutableStateOf(Offset.Zero) }
+    var size by remember { mutableStateOf(IntSize.Zero) }
+
+    /** Keeps the picture from being dragged off its own pane. */
+    fun clamp(candidate: Offset, at: Float): Offset {
+        val maxX = (size.width * (at - 1f) / 2f).coerceAtLeast(0f)
+        val maxY = (size.height * (at - 1f) / 2f).coerceAtLeast(0f)
+        return Offset(candidate.x.coerceIn(-maxX, maxX), candidate.y.coerceIn(-maxY, maxY))
+    }
+
+    val transform = rememberTransformableState { zoomChange, panChange, _ ->
+        val next = (scale * zoomChange).coerceIn(MinZoom, MaxZoom)
+        scale = next
+        offset = if (next <= 1f) Offset.Zero else clamp(offset + panChange, next)
+    }
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .clipToBounds()
+            .onSizeChanged { size = it }
+            .transformable(transform)
+            .pointerInput(preview.file.path) {
+                detectTapGestures(
+                    onDoubleTap = { tap ->
+                        if (scale > 1f) {
+                            scale = 1f
+                            offset = Offset.Zero
+                        } else {
+                            scale = DoubleTapZoom
+                            // Zoom towards the point that was tapped rather than the middle.
+                            val centre = Offset(size.width / 2f, size.height / 2f)
+                            offset = clamp((centre - tap) * (DoubleTapZoom - 1f), DoubleTapZoom)
+                        }
+                    },
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        AsyncImage(
+            model = preview.file,
+            contentDescription = stringResource(R.string.raw_result_description),
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    scaleX = scale,
+                    scaleY = scale,
+                    translationX = offset.x,
+                    translationY = offset.y,
+                )
+                .alpha(if (dimmed) 0.4f else 1f),
+        )
     }
 }
 
@@ -393,84 +495,30 @@ private fun LabBadge(text: String, modifier: Modifier = Modifier) {
     )
 }
 
+/**
+ * One row: the automatic switch, and the button it replaces.
+ *
+ * They are the same decision seen from two sides — whether a render happens by itself or
+ * because you asked — so they sit together. With the switch on, the button is gone; it comes
+ * back the moment a render fails, because that is when asking again is the answer.
+ */
 @Composable
 private fun LabActions(
     state: RawLabUiState,
     readiness: CameraReadiness,
-    onRender: (RawRenderQuality) -> Unit,
+    onRenderPreview: () -> Unit,
     onAutoPreviewChange: (Boolean) -> Unit,
-    onSave: () -> Unit,
-    onChooseAnotherRaf: () -> Unit,
 ) {
     val lab = state.lab
     val canRender = lab.canRender && readiness.canRender
+    val showRenderButton = !lab.autoPreview || lab.error != null
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            AssistChip(
-                onClick = onChooseAnotherRaf,
-                label = {
-                    Text(
-                        text = lab.rafName.ifEmpty { stringResource(R.string.lab_no_raf) },
-                        maxLines = 1,
-                    )
-                },
-            )
-            // Only when a recipe is behind these settings. "Starting from the defaults" beside
-            // the filename said nothing the absence of a recipe name did not already say.
-            lab.appliedRecipeName?.let { name ->
-                Text(
-                    text = if (lab.isDirty) {
-                        stringResource(R.string.lab_recipe_edited, name)
-                    } else {
-                        name
-                    },
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-
-        AnimatedVisibility(visible = lab.error != null) {
-            Text(
-                text = lab.error.orEmpty(),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-            )
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Button(onClick = { onRender(RawRenderQuality.PREVIEW) }, enabled = canRender) {
-                Text(stringResource(R.string.lab_action_update_preview))
-            }
-            OutlinedButton(onClick = { onRender(RawRenderQuality.FULL) }, enabled = canRender) {
-                Text(stringResource(R.string.lab_action_render_full))
-            }
-            if (lab.canSaveJpeg) {
-                TextButton(
-                    onClick = onSave,
-                    contentPadding = ButtonDefaults.TextButtonContentPadding,
-                ) {
-                    Text(stringResource(R.string.raw_action_save_jpeg))
-                }
-            }
-        }
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -485,6 +533,20 @@ private fun LabActions(
                 text = stringResource(R.string.lab_auto_preview),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            if (showRenderButton) {
+                Button(onClick = onRenderPreview, enabled = canRender) {
+                    Text(stringResource(R.string.lab_action_update_preview))
+                }
+            }
+        }
+
+        AnimatedVisibility(visible = lab.error != null) {
+            Text(
+                text = lab.error.orEmpty(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
             )
         }
     }
@@ -563,6 +625,11 @@ private fun RawDevelopmentStage.progress(): Float? = when (this) {
 
     else -> null
 }
+
+/** Below 1 the picture would sit inside its own pane; above 6 it is one grain cluster. */
+private const val MinZoom = 1f
+private const val MaxZoom = 6f
+private const val DoubleTapZoom = 2.5f
 
 internal fun String.safeFilename(): String =
     replace(Regex("[^A-Za-z0-9_-]"), "-").trim('-').ifEmpty { "camera" }

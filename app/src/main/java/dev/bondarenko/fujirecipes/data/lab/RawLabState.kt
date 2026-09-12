@@ -95,11 +95,13 @@ data class RawLabState(
     val canRender: Boolean get() = hasRaf && !isRendering && importing == null
 
     /**
-     * Any rendered file can be saved; [RawLabPreview.isFullResolution] decides whether the
-     * screen says so plainly first, because saving a thumbnail believing it to be the JPEG
-     * would be the worse failure.
+     * Whether the picture on screen is the one worth writing to a file.
+     *
+     * Saving is what asks for a full render, so a preview-sized frame is never offered as the
+     * finished JPEG: when this is false, Save renders one first.
      */
-    val canSaveJpeg: Boolean get() = preview?.file?.isFile == true
+    val hasFullResolutionPreview: Boolean
+        get() = preview?.isFullResolution == true && preview.file.isFile
 
     val canUpdateAppliedRecipe: Boolean get() = appliedRecipeId != null && isDirty
 

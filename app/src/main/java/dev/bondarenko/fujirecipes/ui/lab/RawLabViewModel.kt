@@ -55,6 +55,12 @@ data class RawLabUiState(
     val supportedFieldIds: Set<String> = DEFAULT_RAW_SUPPORTED_FIELD_IDS,
     val isSaving: Boolean = false,
     val message: String? = null,
+    /**
+     * Bumped when a full-resolution file is ready to be written somewhere.
+     *
+     * A ticket rather than a flag, so asking to save twice opens the document picker twice.
+     */
+    val saveTicket: Int? = null,
 )
 
 /**
@@ -89,10 +95,14 @@ class RawLabViewModel(
             supportedFieldIds = camera.supportedFieldIds(),
             isSaving = extra.isSaving,
             message = extra.message,
+            saveTicket = extra.saveTicket,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RawLabUiState())
 
     private var renderJob: Job? = null
+
+    /** Set while a full render is running only because someone asked to save the result. */
+    private var saveWhenRendered = false
 
     init {
         viewModelScope.launch { repository.load() }
@@ -161,6 +171,7 @@ class RawLabViewModel(
     }
 
     fun chooseAnotherRaf() {
+        saveWhenRendered = false
         renderJob?.cancel()
         cache.clear()
         workspace.update { it.withoutRaf() }
@@ -168,6 +179,7 @@ class RawLabViewModel(
 
     /** Everything goes: the RAF, the settings, the picture. */
     fun discard() {
+        saveWhenRendered = false
         renderJob?.cancel()
         cache.clear()
         workspace.reset()
@@ -208,10 +220,48 @@ class RawLabViewModel(
 
     // ─── Rendering ──────────────────────────────────────────────────────────
 
+    /** What the automatic mode and the Update preview button both ask for. */
+    fun renderPreview() = render(RawRenderQuality.PREVIEW)
+
+    /**
+     * Asking for the file is what asks for the full render.
+     *
+     * There is no separate Render full button: a full-resolution render exists to be saved,
+     * so Save renders one when the picture on screen is not already full size, and the
+     * document picker opens when it lands. A render that fails or is cancelled cancels the
+     * save with it rather than handing over a preview under a full file's name.
+     */
+    fun requestJpegSave() {
+        val current = workspace.current
+        if (current.hasFullResolutionPreview) {
+            issueSaveTicket()
+            return
+        }
+        if (!current.canRender) {
+            transient.update {
+                it.copy(message = "Connect the camera to render a full-resolution JPEG.")
+            }
+            return
+        }
+        saveWhenRendered = true
+        render(RawRenderQuality.FULL)
+    }
+
+    private fun issueSaveTicket() {
+        transient.update { it.copy(saveTicket = (it.saveTicket ?: 0) + 1) }
+    }
+
+    fun clearSaveTicket() {
+        transient.update { it.copy(saveTicket = null) }
+    }
+
     fun render(quality: RawRenderQuality) {
         val current = workspace.current
         val raf = current.raf ?: return
-        if (!current.canRender) return
+        if (!current.canRender) {
+            saveWhenRendered = false
+            return
+        }
 
         renderJob = viewModelScope.launch {
             workspace.update { it.renderStarted() }
@@ -225,11 +275,19 @@ class RawLabViewModel(
                 }
                 cache.clearRenders(keep = result.jpeg)
                 workspace.update { it.renderSucceeded(result, rendered) }
+                if (saveWhenRendered) {
+                    saveWhenRendered = false
+                    if (result.quality == RawRenderQuality.FULL && !result.fromThumbnail) {
+                        issueSaveTicket()
+                    }
+                }
             } catch (error: CancellationException) {
                 output.delete()
+                saveWhenRendered = false
                 throw error
             } catch (error: RawProfileCalibrationRequired) {
                 output.delete()
+                saveWhenRendered = false
                 workspace.update {
                     it.calibrationRequired(
                         RawLabCalibration(
@@ -242,6 +300,7 @@ class RawLabViewModel(
                 }
             } catch (error: Exception) {
                 output.delete()
+                saveWhenRendered = false
                 workspace.update {
                     it.renderFailed(
                         error.message ?: "The camera stopped before it returned a JPEG.",
@@ -342,6 +401,7 @@ class RawLabViewModel(
     private data class TransientState(
         val isSaving: Boolean = false,
         val message: String? = null,
+        val saveTicket: Int? = null,
     )
 
     private fun CameraState.supportedFieldIds(): Set<String> =
