@@ -90,7 +90,6 @@ jobs:
           CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           RESULT: ${{ needs.debug-apk.result }}
           REPO: ${{ github.repository }}
-          BRANCH: ${{ github.ref_name }}
           ACTOR: ${{ github.actor }}
           RUN_NUMBER: ${{ github.run_number }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -106,7 +105,7 @@ jobs:
           fi
 
           case "$RESULT" in
-            success)   headline="✅ Build passed" ;;
+            success)   headline="✅ Build succeeded" ;;
             failure)   headline="❌ Build failed" ;;
             cancelled) headline="🚫 Build cancelled" ;;
             *)         headline="⚠️ Build $RESULT" ;;
@@ -117,17 +116,31 @@ jobs:
           subject=$(printf '%s' "$COMMIT_MESSAGE" | head -n 1)
           [ -n "$subject" ] || subject="(no commit message — run started by hand)"
 
-          text=$(printf '%s — %s\n\n%s\n%s %s\n\nRun #%s by %s\n%s' \
-            "$headline" "$BRANCH" \
+          # The repository first, so a phone full of notifications says which project this is
+          # before anything else. Owner stripped: it is the same for every run.
+          text=$(printf '🗄️ %s\n%s\n%s\n\nRun #%s by %s' \
+            "${REPO##*/}" \
+            "$headline" \
             "$subject" \
-            "$REPO" "${GITHUB_SHA::7}" \
-            "$RUN_NUMBER" "$ACTOR" \
-            "$RUN_URL")
+            "$RUN_NUMBER" "$ACTOR")
 
           # Plain text and a JSON body built by jq: no parse mode to escape, and a subject
           # full of underscores or brackets cannot make Telegram reject the message.
-          jq -n --arg chat_id "$CHAT_ID" --arg text "$text" \
-            '{chat_id: $chat_id, text: $text, disable_web_page_preview: true}' > payload.json
+          #
+          # The run is an inline keyboard button rather than a URL in the text — one tap, and
+          # nothing for Telegram to turn into a link preview.
+          jq -n \
+            --arg chat_id "$CHAT_ID" \
+            --arg text "$text" \
+            --arg url "$RUN_URL" \
+            '{
+               chat_id: $chat_id,
+               text: $text,
+               disable_web_page_preview: true,
+               reply_markup: {
+                 inline_keyboard: [[{ text: "🔗 Open run", url: $url }]]
+               }
+             }' > payload.json
 
           status=$(curl -sS --retry 2 --retry-all-errors -o response.json -w '%{http_code}' \
             -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
