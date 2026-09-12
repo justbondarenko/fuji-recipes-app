@@ -112,22 +112,34 @@ class RawLabStateTest {
     }
 
     @Test
-    fun `fields split into what the camera renders and what is only stored`() {
-        val fields = RawLabState().fromDefaults().fields(DEFAULT_RAW_SUPPORTED_FIELD_IDS)
+    fun `only the fields the camera renders are offered`() {
+        val fields = RawLabState().fromDefaults().renderedFields(DEFAULT_RAW_SUPPORTED_FIELD_IDS)
 
-        assertTrue(fields.rendered.any { it.id == "filmSimulation" })
-        assertTrue(fields.rendered.any { it.id == "exposureCompensation" })
-        assertTrue(fields.storedOnly.all { it.id in RAW_UNRENDERED_FIELD_IDS })
-        assertTrue(fields.storedOnly.any { it.id == "dRangePriority" })
+        assertTrue(fields.any { it.id == "filmSimulation" })
+        // Advisory in the recipe form, but the RAW profile carries it at native index 4.
+        assertTrue(fields.any { it.id == "exposureCompensation" })
+        // Nothing the camera will not act on: no ISO advice, no D-range priority.
+        assertTrue(fields.none { it.id in RAW_UNRENDERED_FIELD_IDS })
+    }
+
+    @Test
+    fun `settings the lab never draws still survive an edit`() {
+        // Not shown is not dropped: a field the panel omits has to come back out of a save.
+        val state = RawLabState()
+            .applying(recipe(buildJsonObject { put("isoMax", 6400) }))
+            .withSetting("clarity", JsonPrimitive(2))
+
+        assertEquals(JsonPrimitive(6400), state.settings["isoMax"])
     }
 
     @Test
     fun `a monochrome simulation removes the colour control entirely`() {
         val state = RawLabState().fromDefaults()
             .withSetting("filmSimulation", JsonPrimitive("acros"))
-        val fields = state.fields(DEFAULT_RAW_SUPPORTED_FIELD_IDS)
 
-        assertFalse((fields.rendered + fields.storedOnly).any { it.id == "color" })
+        assertFalse(
+            state.renderedFields(DEFAULT_RAW_SUPPORTED_FIELD_IDS).any { it.id == "color" },
+        )
     }
 
     @Test

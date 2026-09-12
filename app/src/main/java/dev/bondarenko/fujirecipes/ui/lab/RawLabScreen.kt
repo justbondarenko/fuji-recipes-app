@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -70,7 +73,6 @@ fun RawLabScreen(
     onChooseRaf: () -> Unit,
     onChooseAnotherRaf: () -> Unit,
     onApplyRecipe: () -> Unit,
-    onStartFromDefaults: () -> Unit,
     onSettingChange: (String, JsonElement?) -> Unit,
     onRender: (RawRenderQuality) -> Unit,
     onAutoPreviewChange: (Boolean) -> Unit,
@@ -88,11 +90,20 @@ fun RawLabScreen(
             title = { Text(stringResource(R.string.lab_title)) },
             actions = {
                 if (lab.hasRaf) {
-                    IconButton(onClick = onApplyRecipe) {
+                    // Named and filled, not a bare glyph: starting from a recipe is the
+                    // second reason anyone opens this page, and a bookmark icon alone does
+                    // not say so.
+                    Button(
+                        onClick = onApplyRecipe,
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    ) {
                         Icon(
                             imageVector = FujiIcons.BookmarkStacks,
-                            contentDescription = stringResource(R.string.lab_action_apply_recipe),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
                         )
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.lab_action_apply_recipe))
                     }
                     IconButton(onClick = onDiscard) {
                         Icon(
@@ -148,13 +159,7 @@ fun RawLabScreen(
                 )
             }
 
-            !lab.hasRaf -> EmptyLab(
-                onChooseRaf = onChooseRaf,
-                onApplyRecipe = onApplyRecipe,
-                onStartFromDefaults = onStartFromDefaults,
-                appliedRecipeName = lab.appliedRecipeName,
-                modifier = bodyModifier,
-            )
+            !lab.hasRaf -> EmptyLab(onChooseRaf = onChooseRaf, modifier = bodyModifier)
 
             else -> LoadedLab(
                 state = state,
@@ -170,13 +175,17 @@ fun RawLabScreen(
     }
 }
 
+/**
+ * Before anything else, a file.
+ *
+ * One call to action and no second one: a recipe cannot be applied to nothing, and offering
+ * that choice here only asks a question whose answer does not matter yet. The recipe button
+ * appears with the picture, once there is something for it to act on.
+ */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun EmptyLab(
     onChooseRaf: () -> Unit,
-    onApplyRecipe: () -> Unit,
-    onStartFromDefaults: () -> Unit,
-    appliedRecipeName: String?,
     modifier: Modifier = Modifier,
 ) {
     FujiIconPanel(
@@ -187,24 +196,6 @@ private fun EmptyLab(
         actionLabel = stringResource(R.string.raw_action_choose),
         onAction = onChooseRaf,
         modifier = modifier,
-        extra = {
-            Text(
-                text = appliedRecipeName
-                    ?.let { stringResource(R.string.lab_starting_from_recipe, it) }
-                    ?: stringResource(R.string.lab_starting_from_defaults),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = onApplyRecipe) {
-                    Text(stringResource(R.string.lab_action_apply_recipe))
-                }
-                TextButton(onClick = onStartFromDefaults) {
-                    Text(stringResource(R.string.lab_action_from_defaults))
-                }
-            }
-        },
     )
 }
 
@@ -220,7 +211,7 @@ private fun LoadedLab(
     modifier: Modifier = Modifier,
 ) {
     val lab = state.lab
-    val fields = lab.fields(state.supportedFieldIds)
+    val fields = lab.renderedFields(state.supportedFieldIds)
 
     Column(modifier = modifier) {
         PreviewPane(
@@ -246,8 +237,7 @@ private fun LoadedLab(
 
         RawLabParameterPanel(
             settings = lab.settings,
-            renderedFields = fields.rendered,
-            storedOnlyFields = fields.storedOnly,
+            fields = fields,
             onSettingChange = onSettingChange,
             modifier = Modifier.weight(0.55f),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 32.dp),
@@ -363,21 +353,21 @@ private fun LabActions(
                     )
                 },
             )
-            Text(
-                text = lab.appliedRecipeName
-                    ?.let {
-                        if (lab.isDirty) {
-                            stringResource(R.string.lab_recipe_edited, it)
-                        } else {
-                            it
-                        }
-                    }
-                    ?: stringResource(R.string.lab_starting_from_defaults),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                modifier = Modifier.weight(1f),
-            )
+            // Only when a recipe is behind these settings. "Starting from the defaults" beside
+            // the filename said nothing the absence of a recipe name did not already say.
+            lab.appliedRecipeName?.let { name ->
+                Text(
+                    text = if (lab.isDirty) {
+                        stringResource(R.string.lab_recipe_edited, name)
+                    } else {
+                        name
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
 
         Text(

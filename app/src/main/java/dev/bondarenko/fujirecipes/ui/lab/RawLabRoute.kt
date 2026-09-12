@@ -89,7 +89,6 @@ fun RawLabRouteContent(
         onChooseRaf = { chooseRaf.launch(arrayOf("*/*")) },
         onChooseAnotherRaf = viewModel::chooseAnotherRaf,
         onApplyRecipe = { showRecipePicker = true },
-        onStartFromDefaults = viewModel::startFromDefaults,
         onSettingChange = viewModel::onSettingChange,
         onRender = { quality -> viewModel.render(quality) },
         onAutoPreviewChange = viewModel::setAutoPreview,

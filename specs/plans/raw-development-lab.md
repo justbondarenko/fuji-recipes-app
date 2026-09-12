@@ -158,16 +158,20 @@ fun rawSupportedFieldIds(cameraModel: String): Set<String>
 derived from the **same** table `patchRawDevelopmentProfile` patches from, so the two cannot drift —
 a JVM test asserts that a fully-populated recipe's `appliedFields` equals the supported set exactly.
 
-The panel renders three bands, all using the existing `NumberStepper`, `EnumDropdown`,
-`EnumButtonGroup` and `FilmSimulationPicker` from `ui/editor/EditorControls.kt`:
+The panel renders **only the supported set**, in `FieldGroup` order, using the existing
+`NumberStepper`, `EnumDropdown`, `EnumButtonGroup` and `FilmSimulationPicker` from
+`ui/editor/EditorControls.kt`.
 
-1. **Applied by the camera** — the supported set, in `FieldGroup` order. Edits here change the next
-   render.
-2. **Saved, not rendered** — `dRangePriority`, `monochromaticColorWc/Mg`, `isoMin`, `isoMax` and any
-   advisory field. Editable, because they belong in a saved recipe, and badged so nobody waits for
-   the preview to change.
-3. **Unknown keys** — anything a newer web client wrote. Never shown as controls, never dropped;
-   carried through save exactly as `RecipeEditorViewModel` already does.
+Everything else is absent rather than disabled or badged: `dRangePriority`,
+`monochromaticColorWc/Mg`, `isoMin` and `isoMax` belong to the recipe form, and a control that
+cannot change the picture is noise on a page built for watching the picture change. They are not
+dropped — like the unknown keys a newer web client may have written, they are carried from load to
+save untouched, exactly as `RecipeEditorViewModel` already does.
+
+One heading is renamed on the way through: §4 calls the shooting group "Recommendations — not
+written to the camera", which is true of a custom slot and false of a RAW render — exposure
+compensation is a word the profile carries, at verified native index 4. In the lab that group is
+headed **Exposure**, and it is the only field of it the lab draws.
 
 Applicability still comes from `FieldContext`: a monochrome film simulation removes `color` from the
 panel rather than disabling it, same rule as the editor.
@@ -310,6 +314,8 @@ and why:
 | Session state in `core/store/` | `data/lab/RawLabWorkspace` | A workspace is a model, not storage, and this keeps `core/` from importing a screen's concerns |
 | Snapshot the session for process death | In-memory only | `RawDevelopmentCache` wipes itself at startup, so there is no RAF left to restore against (§3) |
 | Preview quality via the trigger | Preview asks for the camera's thumbnail first, then falls back to the full download | Gate B is unresolved, and the trigger values in this build came from hardware that treated `0` as full. The seam exists; the claim does not |
+| A second band for fields the camera ignores | Not drawn at all | Review feedback, and it is right: on this page a control that cannot change the picture is noise. The values still survive a save |
+| Empty lab offers a RAF, a recipe and the defaults | Empty lab offers a RAF, and nothing else | A recipe cannot be applied to nothing; the other choices appear with the picture |
 
 The preview path has a floor: a thumbnail under 640 px on its long edge is refused and the full file
 is fetched instead, because a contact sheet cannot be judged as a recipe. When a render does come

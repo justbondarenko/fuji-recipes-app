@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -28,19 +26,18 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * The lab's editing surface, in two bands.
+ * The lab's editing surface.
  *
  * The same controls as the recipe form — a field that behaves differently in two places is a
- * field nobody trusts — but ordered by a different question: not "what is this recipe" but
- * "what will the camera do with it". Anything the connected body's RAW engine cannot act on is
- * still editable, because it belongs in a saved recipe, and is grouped under a heading that
- * says so rather than being disabled or hidden.
+ * field nobody trusts — but a shorter list: only what the camera's RAW engine will act on. A
+ * control that cannot change the picture has no business on a page whose whole purpose is
+ * watching the picture change, so the recipe's other fields are left to the recipe form and
+ * carried through a save untouched.
  */
 @Composable
 fun RawLabParameterPanel(
     settings: JsonObject,
-    renderedFields: List<RecipeField>,
-    storedOnlyFields: List<RecipeField>,
+    fields: List<RecipeField>,
     onSettingChange: (String, JsonElement?) -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(0.dp),
@@ -51,39 +48,32 @@ fun RawLabParameterPanel(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         FieldGroup.entries
-            .filter { group -> renderedFields.any { it.group == group } }
+            .filter { group -> fields.any { it.group == group } }
             .forEach { group ->
-                item(key = "rendered-${group.id}") {
+                item(key = group.id) {
                     FieldSection(
-                        title = group.label,
-                        fields = renderedFields.filter { it.group == group },
+                        title = group.labHeading(),
+                        fields = fields.filter { it.group == group },
                         settings = settings,
                         onSettingChange = onSettingChange,
                     )
                 }
             }
-
-        if (storedOnlyFields.isNotEmpty()) {
-            item(key = "stored-only") {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SectionHeader(stringResource(R.string.lab_band_stored_only))
-                    Text(
-                        text = stringResource(R.string.lab_band_stored_only_body),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        storedOnlyFields.forEach { field ->
-                            FieldControl(field, settings, onSettingChange)
-                        }
-                    }
-                }
-            }
-        }
     }
+}
+
+/**
+ * The group's name, as the lab should say it.
+ *
+ * §4 calls the shooting group "Recommendations — not written to the camera", which is true of
+ * a **custom slot** and false here: exposure compensation is one of the words the RAW profile
+ * carries, verified at native index 4. The only field of that group the lab draws is that one,
+ * so it gets a heading that does not contradict the picture in front of you.
+ */
+@Composable
+private fun FieldGroup.labHeading(): String = when (this) {
+    FieldGroup.SHOOTING -> stringResource(R.string.lab_group_exposure)
+    else -> label
 }
 
 @Composable

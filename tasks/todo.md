@@ -18,7 +18,7 @@ Plan: `specs/plans/raw-development-lab.md`.
 - [x] `RawLabState` — pure, with its transitions tested
 - [x] `RawLabWorkspace` above the nav graph, in `AppContainer`
 - [x] Preview pane with stale dimming, stage progress and quality badge
-- [x] Parameter panel in two bands, reusing `EditorControls`
+- [x] Parameter panel, reusing `EditorControls`
 - [x] Recipe picker, save sheet, name dialog, update confirmation
 
 ## Phase 4 — navigation
@@ -35,6 +35,13 @@ Plan: `specs/plans/raw-development-lab.md`.
 - [x] 30 JVM tests pass (compiled and run offline; CI runs the full suite)
 - [ ] On device: ten previews on one upload, monochrome recipe, detach mid-render, save paths
 
+## Review follow-ups
+- [x] Draw only the fields the camera renders; drop the "saved, not rendered" band
+- [x] Empty lab asks for a RAF and nothing else
+- [x] Recipe picker button: labelled and filled, not a bare glyph
+- [x] "Re-render automatically"; no "starting from the defaults" beside the filename
+- [x] Head exposure compensation under **Exposure**, not §4's "not written to the camera"
+
 ## Review
 
 - **The lab replaces the one-shot screen rather than sitting beside it.** `ui/raw/` is deleted and
@@ -45,7 +52,8 @@ Plan: `specs/plans/raw-development-lab.md`.
 - **The upload is the thing worth protecting.** `RawLabSession` keeps the load through a refused
   setting or a render timeout, and the workspace sits in `AppContainer` so a bottom-bar tap cannot
   cost a 40 MB transfer.
-- **A control that does nothing is worse than one that is absent.** The panel's second band is drawn
-  from the same table the patch writes from, and a test fails if the two disagree.
+- **A control that does nothing is worse than one that is absent** — so it is absent. The panel is
+  drawn from the same table the patch writes from, a test fails if the two disagree, and fields the
+  lab never shows still survive a save untouched.
 - Not verified on a device or a camera. The two hardware gates above decide whether the automatic
   mode and the preview/full split survive as designed.

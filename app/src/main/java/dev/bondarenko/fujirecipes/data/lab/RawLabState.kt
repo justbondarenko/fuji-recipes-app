@@ -117,12 +117,16 @@ data class RawLabState(
             whiteBalanceId = settings.text("whiteBalance") ?: "auto",
         )
 
-    /** The fields to offer, split by whether the camera's RAW engine will act on them. */
-    fun fields(supportedIds: Set<String>): RawLabFields {
-        val applicable = RecipeFields.applicable(fieldContext)
-        val (rendered, stored) = applicable.partition { it.id in supportedIds }
-        return RawLabFields(rendered = rendered, storedOnly = stored)
-    }
+    /**
+     * The fields to offer: the ones this camera's RAW engine will actually act on.
+     *
+     * Nothing else is drawn. The lab is a place to watch a setting change a picture, and a
+     * control that cannot change the picture is noise there — the ISO recommendations, D-range
+     * priority and the monochromatic pair belong to the recipe form and the custom slots, not
+     * here. They are still carried untouched through a save: not shown is not dropped.
+     */
+    fun renderedFields(supportedIds: Set<String>): List<RecipeField> =
+        RecipeFields.applicable(fieldContext).filter { it.id in supportedIds }
 
     /**
      * Whether an automatic render should start now.
@@ -250,13 +254,5 @@ data class RawLabState(
         const val AUTO_PREVIEW_FAILURE_LIMIT = 2
     }
 }
-
-/** The parameter panel's two bands. */
-data class RawLabFields(
-    /** Changing one of these changes the next render. */
-    val rendered: List<RecipeField>,
-    /** Saved into a recipe, but the camera's RAW engine will not act on it. */
-    val storedOnly: List<RecipeField>,
-)
 
 private fun JsonObject.text(key: String): String? = (this[key] as? JsonPrimitive)?.content

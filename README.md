@@ -189,14 +189,14 @@ Only the selected JPEGs are copied into the app's temporary cache. From there, t
 
 RAW development lives in the **Lab** tab, third in the bottom bar. Open it directly, or reach it from a recipe's **Develop RAW** menu item, which seeds it with that recipe.
 
-1. Choose a RAF from the phone.
-2. Start from the documented defaults, or apply a recipe from your library.
+1. Choose a RAF from the phone. That is the only thing the empty Lab asks for — everything else appears once there is a file to act on.
+2. Leave the documented defaults, or tap **Apply a recipe** to start from one in your library.
 3. With the camera in **`USB RAW CONV. / BACKUP RESTORE`** mode, tap **Update preview**. The app uploads the RAF and the patched native profile, waits for the camera processor, downloads the result, and cleans up the temporary camera object.
 4. Change any parameter and render again. **The RAF is uploaded once per session** — later renders only send a new profile, so trying a different film simulation costs a render rather than another multi-megabyte transfer.
 5. Switch on **Re-render automatically after each change** to skip the button. It fires 900 ms after the last edit, never mid-gesture, runs one render at a time, and switches itself off after two consecutive failures.
 6. Save the JPEG through Android's document picker, save the settings as a new recipe, or update the recipe you started from.
 
-The parameter panel separates what the camera's RAW processor will act on from what is only stored in the recipe (D-range priority, the monochromatic colour pair, and the ISO recommendations). Nothing is hidden or disabled — the second group simply says it will not change the picture.
+The parameter panel shows only what the camera's RAW processor will act on, so every control on it changes the picture. D-range priority, the monochromatic colour pair and the ISO recommendations are not drawn here — they belong to the recipe form — and a recipe that carries them keeps them untouched through a save from the Lab.
 
 The RAF is always uploaded from the phone: RAW Conversion mode accepts a RAF as a host upload, and the app does not ask the camera to develop a card handle in place. To develop something still on the card, download it first from the **Photos** tab in Card Reader mode.
 
