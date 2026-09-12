@@ -128,6 +128,7 @@
     <string name="lab_camera_waiting">Connect the camera by USB in USB RAW CONV./BACKUP RESTORE mode. The app picks it up on its own — tap Connect if it does not.</string>
     <string name="lab_no_preview">Nothing rendered yet. The preview updates on its own as the settings change.</string>
     <string name="lab_preview_stale">Settings changed</string>
+    <string name="lab_rendering_full">Rendering</string>
     <string name="lab_preview_quality">Preview quality</string>
     <string name="lab_recipe_edited">%1$s · edited</string>
     <string name="lab_action_update_preview">Update preview</string>

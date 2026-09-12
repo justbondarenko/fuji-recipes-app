@@ -57,6 +57,8 @@ data class RawLabUiState(
      * A ticket rather than a flag, so asking to save twice opens the document picker twice.
      */
     val saveTicket: Int? = null,
+    /** The render running now is the full-resolution one Save asked for. */
+    val isRenderingForSave: Boolean = false,
 )
 
 /**
@@ -92,13 +94,16 @@ class RawLabViewModel(
             isSaving = extra.isSaving,
             message = extra.message,
             saveTicket = extra.saveTicket,
+            isRenderingForSave = extra.saveWhenRendered,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RawLabUiState())
 
     private var renderJob: Job? = null
 
     /** Set while a full render is running only because someone asked to save the result. */
-    private var saveWhenRendered = false
+    private var saveWhenRendered: Boolean
+        get() = transient.value.saveWhenRendered
+        set(value) = transient.update { it.copy(saveWhenRendered = value) }
 
     init {
         viewModelScope.launch { repository.load() }
@@ -355,6 +360,7 @@ class RawLabViewModel(
         val isSaving: Boolean = false,
         val message: String? = null,
         val saveTicket: Int? = null,
+        val saveWhenRendered: Boolean = false,
     )
 
     private fun CameraState.supportedFieldIds(): Set<String> =

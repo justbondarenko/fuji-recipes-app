@@ -7,9 +7,11 @@ import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,6 +26,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -43,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -259,38 +263,73 @@ private fun LoadedLab(
     val fields = lab.renderedFields(state.supportedFieldIds)
     val readiness = state.camera.readiness()
 
-    Box(modifier = modifier) {
-        Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+    // Wider than tall — landscape, or a wide window — puts the picture beside its parameters
+    // instead of above them: 60% of the width for the photo, 40% for the controls.
+    BoxWithConstraints(modifier = modifier) {
+        val preview: @Composable (Modifier) -> Unit = { paneModifier ->
             PreviewPane(
                 preview = lab.preview,
                 isStale = lab.isPreviewStale,
                 stage = lab.rendering,
+                renderingForSave = state.isRenderingForSave,
                 readiness = readiness,
                 onConnect = onConnect,
-                // 95% of the width, not a 16dp gutter each side: the picture is the point of the
-                // page, and on a phone those two gutters are the difference between judging a
-                // film simulation and squinting at it.
-                modifier = Modifier
-                    .fillMaxWidth(0.95f)
-                    .weight(0.45f),
+                modifier = paneModifier,
             )
-
-            LabActions(
-                state = state,
-                readiness = readiness,
-                onRenderPreview = onRenderPreview,
-            )
-
-            HorizontalDivider()
-
+        }
+        val parameters: @Composable (Modifier) -> Unit = { panelModifier ->
             RawLabParameterPanel(
                 settings = lab.settings,
                 fields = fields,
                 onSettingChange = onSettingChange,
-                modifier = Modifier.weight(0.55f),
+                modifier = panelModifier,
                 // Room under the last field for the save button to float over nothing.
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 96.dp),
             )
+        }
+
+        if (maxWidth > maxHeight) {
+            Row(modifier = Modifier.fillMaxSize()) {
+                preview(
+                    Modifier
+                        .weight(0.6f)
+                        .fillMaxHeight()
+                        .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+                )
+                VerticalDivider()
+                Column(modifier = Modifier.weight(0.4f).fillMaxHeight()) {
+                    LabActions(
+                        state = state,
+                        readiness = readiness,
+                        onRenderPreview = onRenderPreview,
+                    )
+                    parameters(Modifier.weight(1f))
+                }
+            }
+        } else {
+            Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                // 95% of the width, not a 16dp gutter each side: the picture is the point of the
+                // page, and on a phone those two gutters are the difference between judging a
+                // film simulation and squinting at it.
+                // The bottom gap used to come from the auto-render row; with that row usually
+                // hidden, the picture would otherwise sit right on the divider.
+                preview(
+                    Modifier
+                        .fillMaxWidth(0.95f)
+                        .weight(0.45f)
+                        .padding(bottom = 12.dp),
+                )
+
+                LabActions(
+                    state = state,
+                    readiness = readiness,
+                    onRenderPreview = onRenderPreview,
+                )
+
+                HorizontalDivider()
+
+                parameters(Modifier.weight(0.55f))
+            }
         }
 
         // Save does one thing: write the full-resolution JPEG, rendering it first if needed.
@@ -324,6 +363,7 @@ private fun PreviewPane(
     preview: RawLabPreview?,
     isStale: Boolean,
     stage: RawDevelopmentStage?,
+    renderingForSave: Boolean,
     readiness: CameraReadiness,
     onConnect: () -> Unit,
     modifier: Modifier = Modifier,
@@ -347,7 +387,25 @@ private fun PreviewPane(
             )
         }
 
-        if (stage != null && preview != null) {
+        if (stage != null && renderingForSave) {
+            // A full-resolution render for Save is long and ends in the file picker, so it gets
+            // the whole pane rather than the re-render's corner indicator.
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f)),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+            ) {
+                ContainedLoadingIndicator()
+                Text(
+                    text = stringResource(R.string.lab_rendering_full),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White,
+                )
+            }
+        } else if (stage != null && preview != null) {
             // A re-render leaves the picture alone: a small indicator in its corner rather than
             // a veil over the thing you are judging.
             ContainedLoadingIndicator(
