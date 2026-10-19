@@ -17,7 +17,8 @@ have less space than a regular phone. All dimensions below are density-independe
 The navigation destinations, callbacks, and content remain in the same composition
 location when the rail replaces the bottom bar. No separate navigation controller,
 route, or data workflow is introduced. The loaded Lab continues to hide navigation.
-Forms and lists keep their current scrolling, selection, and swipe interactions.
+Forms and lists keep their scrolling and selection behavior. Recipe row actions
+use a long-press menu on every screen size rather than horizontal swipe gestures.
 
 ## Library list/detail navigation
 
@@ -31,6 +32,17 @@ The centered navigation rail stays visible. The open recipe is highlighted in th
 list; selecting another recipe changes the right pane without rebuilding the list
 or losing its scroll/search state. Filters, sorting, and counts wrap in narrow panes.
 The create FAB hides while a recipe is open to avoid covering its actions.
+
+Below 360dp of toolbar width, settings and camera controls occupy a separate row
+above a full-width search field. The search field and placeholder are single-line,
+so a narrow pane or large font cannot turn the field into a tall pill. The field
+keeps its composition position while the pane animates between widths.
+
+On all screen sizes, long-press a recipe for Edit, Write to camera, Select, and
+Delete. The popup uses vertical items rather than a fixed-width row of actions.
+Write is disabled with a connection explanation when the camera cannot accept it.
+Delete still requires confirmation. Select enters the existing batch selection
+mode; taps and long presses can then add recipes to that selection.
 
 Back and the detail's Close action close the pane. Editing and saving a recipe
 returns to the selected pane. Comparison can select another recipe in that pane.
@@ -67,8 +79,13 @@ and JVM tests do not verify their appearance.
 - At 840 × 900dp: rail navigation and centered list/form bodies; open the Lab
   with a RAF and check its side-by-side preview and controls.
 - With at least 720dp left after the rail: tap a recipe and watch the list narrow
-  while the right pane is revealed. Scroll/search the list, switch recipes, use
+  while the right pane is revealed. Confirm the narrow search remains one line
+  with the settings/camera buttons above it. Scroll/search the list, switch recipes, use
   comparison, then close the detail and check that the list expands in place.
+- On phone and foldable, long-press a row: verify Edit, Write to camera, Select,
+  and Delete fit. Verify disconnected Write has an explanation, Delete asks for
+  confirmation, and Select retains batch rating/delete. Horizontal drags must not
+  reveal actions.
 - Edit a recipe from the pane and save; confirm that the pane shows the saved
   recipe. Delete it from the editor and confirm a normal return to the library.
 - Fold with a recipe open, then unfold: retain the same recipe and list state.

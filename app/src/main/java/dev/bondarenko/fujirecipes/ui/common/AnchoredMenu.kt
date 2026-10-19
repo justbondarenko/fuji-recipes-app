@@ -1,5 +1,6 @@
 package dev.bondarenko.fujirecipes.ui.common
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -21,9 +22,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
  *
  * Two things this adds to `DropdownMenuPopup`:
  *
- * - The anchor position. Every caller is a control at the bottom of the screen — a split
- *   button, a floating toolbar — where a menu dropping downwards has nowhere to go.
- *   `MenuAnchorPosition.Above` still falls back to below when the top is the tighter side.
+ * - The anchor position favors space above split buttons and floating toolbars. Recipe-row
+ *   context menus use the same positioning: `MenuAnchorPosition.Above` falls back to below
+ *   when the top is the tighter side.
  * - The grouping. Items arrive as one list of groups, each drawn in its own container with
  *   M3's group spacing between them, so a caller never repeats the spacing itself
  *   (`m3.material.io/components/menus/guidelines`).
@@ -66,9 +67,22 @@ fun FujiAnchoredMenu(
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun FujiMenuItem(text: String, icon: ImageVector, onClick: () -> Unit) {
+fun FujiMenuItem(
+    text: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    supportingText: String? = null,
+) {
     DropdownMenuItem(
-        text = { Text(text) },
+        text = {
+            Column {
+                Text(text)
+                if (supportingText != null) {
+                    Text(supportingText, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
         leadingIcon = { Icon(icon, contentDescription = null) },
         colors = MenuDefaults.itemColors(
             textColor = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -76,5 +90,6 @@ fun FujiMenuItem(text: String, icon: ImageVector, onClick: () -> Unit) {
             trailingIconColor = MaterialTheme.colorScheme.onTertiaryContainer,
         ),
         onClick = onClick,
+        enabled = enabled,
     )
 }
