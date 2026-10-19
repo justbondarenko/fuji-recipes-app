@@ -189,6 +189,8 @@ private fun FujiApp(
         // Developing a RAF takes the whole screen; the lab's own header carries the way back.
         val labState by (LocalContext.current.applicationContext as FujiRecipesApp).container.rawLabWorkspace.state
             .collectAsStateWithLifecycle()
+        var libraryDetailOpen by remember { mutableStateOf(false) }
+        val onLibrary = destination?.hasRoute<LibraryRoute>() == true
         val showChrome = !onEditor && !onRecipeView && !onImport && !onFileImport &&
             !onExport && !onCleanup && !onSettings && !(onLab && labState.hasRaf)
 
@@ -219,6 +221,7 @@ private fun FujiApp(
             Box(modifier = Modifier.fillMaxSize()) {
                 AppShell(
                     showChrome = showChrome,
+                    hideBottomNavigation = onLibrary && libraryDetailOpen,
                     isLibrarySelected = destination?.hasRoute<LibraryRoute>() == true,
                     isReadSelected = destination?.hasRoute<PhotoRoute>() == true,
                     isLabSelected = onLab,
@@ -244,7 +247,7 @@ private fun FujiApp(
                         }
                     },
                     onCreateClick = { creating = true },
-                    isSelecting = librarySelecting,
+                    isSelecting = librarySelecting || (onLibrary && libraryDetailOpen),
                     // The library and the lab carry the button in their own header rows, so the
                     // shell's corner stays empty there rather than showing it twice.
                     topBarAction = if (destination?.hasRoute<LibraryRoute>() == true || onLab) {
@@ -257,6 +260,7 @@ private fun FujiApp(
                         navController = navController,
                         contentPadding = contentPadding,
                         onLibrarySelectionChange = { librarySelecting = it },
+                        onLibraryDetailChange = { libraryDetailOpen = it },
                     )
                 }
 

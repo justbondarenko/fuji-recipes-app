@@ -88,6 +88,8 @@ fun AppShell(
      * which is what the library does with its search bar.
      */
     topBarAction: (@Composable () -> Unit)? = null,
+    /** Compact detail panes own Back; a rail can stay visible without reducing their height. */
+    hideBottomNavigation: Boolean = false,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -134,7 +136,7 @@ fun AppShell(
                     }
                 },
                 bottomBar = {
-                    if (showChrome && !useRail) {
+                    if (showChrome && !useRail && !hideBottomNavigation) {
                         NavigationBar {
                             destinations.forEachIndexed { index, (label, icon, selected) ->
                                 NavigationBarItem(

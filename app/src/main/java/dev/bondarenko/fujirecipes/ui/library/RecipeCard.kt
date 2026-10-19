@@ -24,6 +24,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
@@ -76,6 +78,8 @@ fun RecipeCard(
     onLongClick: (() -> Unit)? = null,
     /** Selection mode: the row is picked, and says so by its container rather than a badge. */
     selected: Boolean = false,
+    /** The recipe open beside the list, independent of batch selection. */
+    active: Boolean = false,
 ) {
     ListItem(
         onClick = onClick,
@@ -84,6 +88,8 @@ fun RecipeCard(
         colors = ListItemDefaults.segmentedColors(
             containerColor = if (selected) {
                 MaterialTheme.colorScheme.secondaryContainer
+            } else if (active) {
+                MaterialTheme.colorScheme.primaryContainer
             } else {
                 cardColor()
             },
@@ -94,7 +100,7 @@ fun RecipeCard(
             horizontal = RowHorizontalPadding,
             vertical = RowVerticalPadding,
         ),
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().semantics { if (active) this.selected = true },
         leadingContent = if (selected) {
             {
                 Icon(

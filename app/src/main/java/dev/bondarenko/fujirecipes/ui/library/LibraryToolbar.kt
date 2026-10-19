@@ -104,7 +104,7 @@ import kotlin.math.roundToInt
  * The badge counts **axes**, not values: three tags and a rating is "2", because that is
  * how many things you would have to clear.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun LibraryToolbar(
     state: LibraryUiState,
@@ -174,9 +174,10 @@ fun LibraryToolbar(
             cameraButton()
         }
 
-        Row(
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            itemVerticalAlignment = Alignment.CenterVertically,
         ) {
             FiltersButton(
                 activeCount = state.filters.activeCount,
@@ -189,8 +190,6 @@ fun LibraryToolbar(
                 onSortDirectionChange = onSortDirectionChange,
                 onToggleSortDirection = onToggleSortDirection,
             )
-
-            Spacer(Modifier.weight(1f))
 
             // The library's size, which the search app bar replaced a headline row for.
             if (state.hasLoaded && state.totalCount > 0) {

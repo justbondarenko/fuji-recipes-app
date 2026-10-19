@@ -9,6 +9,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.IntOffset
 import androidx.navigation.NavBackStackEntry
@@ -22,7 +24,8 @@ import dev.bondarenko.fujirecipes.ui.about.AboutRouteContent
 import dev.bondarenko.fujirecipes.ui.about.DisclaimerRouteContent
 import dev.bondarenko.fujirecipes.ui.cameraphotos.CameraPhotosRouteContent
 import dev.bondarenko.fujirecipes.ui.cleanup.CleanupRouteContent
-import dev.bondarenko.fujirecipes.ui.library.LibraryRouteContent
+import dev.bondarenko.fujirecipes.ui.library.LibraryWorkspace
+import dev.bondarenko.fujirecipes.ui.library.LIBRARY_SELECTED_RECIPE_KEY
 import dev.bondarenko.fujirecipes.ui.editor.RecipeEditorRouteContent
 import dev.bondarenko.fujirecipes.ui.exporting.ExportRouteContent
 import dev.bondarenko.fujirecipes.ui.importing.FileImportRouteContent
@@ -61,6 +64,7 @@ data class RecipeEditorRoute(
     val duplicateOf: String? = null,
     val prefill: String? = null,
     val prefillName: String? = null,
+    val returnToLibraryPane: Boolean = false,
 )
 
 /** Read-only. Reached by tapping a card; its Edit action leads to [RecipeEditorRoute]. */
@@ -165,6 +169,7 @@ fun FujiNavHost(
     contentPadding: PaddingValues,
     /** The library entered or left selection mode; the shell hides its FAB while it is on. */
     onLibrarySelectionChange: (Boolean) -> Unit = {},
+    onLibraryDetailChange: (Boolean) -> Unit = {},
 ) {
     // Hoisted: the transition lambdas below are not composable, so they cannot read either of
     // these themselves.
@@ -214,15 +219,23 @@ fun FujiNavHost(
         popEnterTransition = { enter(forward = false) },
         popExitTransition = { exit(forward = false) },
     ) {
-        composable<LibraryRoute> {
-            LibraryRouteContent(
-                onOpenRecipe = { id -> navController.navigate(RecipeViewRoute(id)) },
-                onEditRecipe = { id -> navController.navigate(RecipeEditorRoute(id)) },
+        composable<LibraryRoute> { entry ->
+            val selectedRecipeId by entry.savedStateHandle
+                .getStateFlow<String?>(LIBRARY_SELECTED_RECIPE_KEY, null).collectAsStateWithLifecycle()
+            LibraryWorkspace(
+                selectedRecipeId = selectedRecipeId,
+                onSelectRecipe = { entry.savedStateHandle[LIBRARY_SELECTED_RECIPE_KEY] = it },
+                onOpenRecipeFullScreen = { id -> navController.navigate(RecipeViewRoute(id)) },
+                onEditRecipe = { id, fromPane ->
+                    if (fromPane) entry.savedStateHandle[LIBRARY_SELECTED_RECIPE_KEY] = id
+                    navController.navigate(RecipeEditorRoute(id, returnToLibraryPane = fromPane))
+                },
                 onCreateRecipe = { navController.navigate(RecipeEditorRoute(null)) },
                 onImportFromCamera = { navController.navigate(ImportRoute) },
                 onDevelopRaw = { id -> navController.navigate(RawLabRoute(id)) },
                 onOpenSettings = { navController.navigate(SettingsRoute) },
                 onSelectionChange = onLibrarySelectionChange,
+                onDetailOpenChange = onLibraryDetailChange,
                 contentPadding = contentPadding,
             )
         }
@@ -257,8 +270,14 @@ fun FujiNavHost(
                 onSaved = { id ->
                     // Back to the recipe just saved, replacing the form so back does not
                     // return to an editor for work that is already committed.
-                    navController.navigate(RecipeViewRoute(id)) {
-                        popUpTo(LibraryRoute)
+                    if (route.returnToLibraryPane) {
+                        navController.getBackStackEntry<LibraryRoute>()
+                            .savedStateHandle[LIBRARY_SELECTED_RECIPE_KEY] = id
+                        navController.popBackStack<LibraryRoute>(inclusive = false)
+                    } else {
+                        navController.navigate(RecipeViewRoute(id)) {
+                            popUpTo(LibraryRoute)
+                        }
                     }
                 },
                 onDeleted = {
@@ -267,7 +286,9 @@ fun FujiNavHost(
                     }
                 },
                 onDuplicate = { id ->
-                    navController.navigate(RecipeEditorRoute(id = null, duplicateOf = id))
+                    navController.navigate(RecipeEditorRoute(
+                        id = null, duplicateOf = id, returnToLibraryPane = route.returnToLibraryPane,
+                    ))
                 },
             )
         }
