@@ -8,7 +8,7 @@ have less space than a regular phone. All dimensions below are density-independe
 
 | Area | Compact window | Wider window |
 | --- | --- | --- |
-| Main navigation | Existing bottom bar | Navigation rail at 600dp width and 480dp height |
+| Main navigation | Existing bottom bar | Vertically centered navigation rail items at 600dp width and 480dp height |
 | Library, recipe details, recipe editor, camera photo list | Existing single column | Centered body, at most 720dp wide |
 | Other page content | Available width | Centered, at most 1200dp wide |
 | Loaded RAW Lab | Existing stacked preview and controls | Existing 60/40 split at 720dp width, also retained for landscape windows |
