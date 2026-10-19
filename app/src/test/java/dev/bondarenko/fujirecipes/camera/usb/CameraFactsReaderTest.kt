@@ -1,6 +1,7 @@
 package dev.bondarenko.fujirecipes.camera.usb
 
 import dev.bondarenko.fujirecipes.camera.FakeCamera
+import dev.bondarenko.fujirecipes.camera.TimedCameraChannel
 import dev.bondarenko.fujirecipes.camera.plan.ASSUMED_BATTERY_MAX
 import dev.bondarenko.fujirecipes.camera.plan.BATTERY_LEVEL_PROPERTY
 import dev.bondarenko.fujirecipes.camera.plan.STANDARD_BATTERY_PROPERTY
@@ -12,6 +13,10 @@ import dev.bondarenko.fujirecipes.camera.ptp.DataType
 import dev.bondarenko.fujirecipes.camera.ptp.Operation
 import dev.bondarenko.fujirecipes.camera.ptp.PtpSession
 import dev.bondarenko.fujirecipes.camera.ptp.PtpTransport
+import dev.bondarenko.fujirecipes.camera.ptp.PtpTimeoutError
+import dev.bondarenko.fujirecipes.camera.ptp.PtpFramingError
+import dev.bondarenko.fujirecipes.camera.ptp.ContainerType
+import dev.bondarenko.fujirecipes.camera.ptp.packContainer
 import dev.bondarenko.fujirecipes.camera.ptp.ResponseCode
 import dev.bondarenko.fujirecipes.camera.ptp.packPtpString
 import dev.bondarenko.fujirecipes.camera.ptp.packU16
@@ -19,6 +24,7 @@ import dev.bondarenko.fujirecipes.camera.ptp.packU32
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -198,6 +204,54 @@ class CameraFactsReaderTest {
         assertNull(details.battery)
         assertEquals("1.20", details.firmware)
         assertEquals(UsbMode.UNREPORTED, readUsbMode(session))
+    }
+
+    @Test
+    fun `a mode description timeout aborts setup instead of falling through to another command`() {
+        val channel = TimedCameraChannel(FakeCamera())
+        val session = PtpSession(PtpTransport(channel)).also { it.open() }
+        channel.responseDelayMs = { 6_000 }
+        val before = channel.commands.size
+
+        val error = assertFailsWith<PtpTimeoutError> { readUsbMode(session, session.deviceInfo) }
+
+        assertEquals(USB_MODE_PROPERTY, error.property)
+        assertEquals(Operation.GET_DEVICE_PROP_DESC, error.operation)
+        assertEquals(before + 1, channel.commands.size)
+    }
+
+    @Test
+    fun `a fallback value timeout is propagated rather than reported as unknown USB mode`() {
+        val channel = TimedCameraChannel(FakeCamera())
+        val session = PtpSession(PtpTransport(channel)).also { it.open() }
+        channel.responseDelayMs = { if (it.code == Operation.GET_DEVICE_PROP_VALUE) 6_000 else 0 }
+
+        val error = assertFailsWith<PtpTimeoutError> { readUsbMode(session) }
+
+        assertEquals(Operation.GET_DEVICE_PROP_VALUE, error.operation)
+        assertEquals(USB_MODE_PROPERTY, error.property)
+    }
+
+    @Test
+    fun `a battery timeout stops optional reads instead of leaving every feature a broken connection`() {
+        val channel = TimedCameraChannel(FakeCamera())
+        val session = PtpSession(PtpTransport(channel)).also { it.open() }
+        channel.responseDelayMs = { 6_000 }
+        val before = channel.commands.size
+
+        val error = assertFailsWith<PtpTimeoutError> { readCameraDetails(session, session.deviceInfo) }
+
+        assertEquals(STANDARD_BATTERY_PROPERTY, error.property)
+        assertEquals(before + 1, channel.commands.size)
+    }
+
+    @Test
+    fun `a stale reply during optional reads is not hidden as absent camera information`() {
+        val camera = FakeCamera()
+        val session = connected(camera)
+        camera.staleReplyBeforeNextRead = packContainer(ContainerType.RESPONSE, ResponseCode.OK, 1)
+
+        assertFailsWith<PtpFramingError> { readCameraDetails(session, session.deviceInfo) }
     }
 
     // ─── Battery ────────────────────────────────────────────────────────────

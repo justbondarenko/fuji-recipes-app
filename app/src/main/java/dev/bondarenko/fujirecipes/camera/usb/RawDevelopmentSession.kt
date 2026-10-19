@@ -3,8 +3,10 @@ package dev.bondarenko.fujirecipes.camera.usb
 import dev.bondarenko.fujirecipes.camera.CameraModels
 import dev.bondarenko.fujirecipes.camera.ptp.Operation
 import dev.bondarenko.fujirecipes.camera.ptp.PtpError
+import dev.bondarenko.fujirecipes.camera.ptp.PtpFramingError
 import dev.bondarenko.fujirecipes.camera.ptp.PtpObject
 import dev.bondarenko.fujirecipes.camera.ptp.PtpSession
+import dev.bondarenko.fujirecipes.camera.ptp.PtpTimeoutError
 import dev.bondarenko.fujirecipes.camera.ptp.ResponseCode
 import dev.bondarenko.fujirecipes.camera.ptp.packU16
 import dev.bondarenko.fujirecipes.camera.raw.RAW_CONVERSION_TRIGGER_PROPERTY
@@ -133,6 +135,7 @@ fun convertAndFetch(
     onStage(RawDevelopmentStage.Processing)
 
     val outputHandle = waitForOneNewHandle(session, before, renderTimeoutMs)
+    var transportHealthy = true
     try {
         output.parentFile?.mkdirs()
 
@@ -175,11 +178,16 @@ fun convertAndFetch(
             fromThumbnail = thumbnail != null,
         )
     } catch (error: Exception) {
+        transportHealthy = error !is PtpTimeoutError && error !is PtpFramingError
         output.delete()
         throw error
     } finally {
-        onStage(RawDevelopmentStage.CleaningUp)
-        runCatching { session.deleteObject(outputHandle) }
+        // A timed-out data phase is still on the wire. Do not append DeleteObject to it.
+        if (transportHealthy) {
+            onStage(RawDevelopmentStage.CleaningUp)
+            runCatching { session.deleteObject(outputHandle) }
+                .onFailure { if (it is PtpTimeoutError || it is PtpFramingError) throw it }
+        }
     }
 }
 
@@ -245,8 +253,12 @@ private fun waitForOneNewHandle(
 ): Int {
     val deadline = System.nanoTime() + timeoutMs * 1_000_000
     while (System.nanoTime() < deadline) {
+        val remainingMs = ((deadline - System.nanoTime()) / 1_000_000).coerceAtLeast(1)
         val handles = try {
-            session.getObjectHandles(PtpObject.ALL_STORAGES)
+            // A single busy USB read must not outlast the overall conversion deadline.
+            session.withResponseTimeout(minOf(remainingMs, RAW_RESPONSE_TIMEOUT_MS.toLong()).toInt()) {
+                session.getObjectHandles(PtpObject.ALL_STORAGES)
+            }
         } catch (error: PtpError) {
             if (error.code == ResponseCode.DEVICE_BUSY) {
                 Thread.sleep(100)

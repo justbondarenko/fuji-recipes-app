@@ -176,16 +176,17 @@ class CameraController(
     }
 
     private fun openSession(device: UsbDevice) {
+        var opening: PtpSession? = null
         try {
             val channel = UsbBulkChannel.open(usbManager, device)
             val opened = PtpSession(PtpTransport(channel))
+            opening = opened
             val info = opened.open()
 
             session = opened
             // A fresh body is holding no RAF, so the lab starts again from an empty camera.
             labSession = RawLabSession()
-            // Both reads swallow their own failures and answer "not reported", so a body that
-            // will not discuss its USB mode or its battery still connects normally.
+            // Optional-property refusals are harmless; a transport failure must abort setup.
             _state.value = CameraState.Connected(
                 identity = CameraModels.identify(info.model),
                 usbMode = readUsbMode(opened, info),
@@ -198,6 +199,7 @@ class CameraController(
             // notification behind pointing at a camera nobody is talking to.
             CameraTransferService.start(appContext)
         } catch (error: Exception) {
+            opening?.takeIf { it.isOpen }?.abort()
             session = null
             labSession = null
             _state.value = error.toCameraError()
@@ -248,11 +250,23 @@ class CameraController(
         }
     }
 
-    private fun closeSession(next: CameraState) {
-        session?.let { runCatching { it.close() } }
+    private fun closeSession(next: CameraState, abort: Boolean = false) {
+        session?.let { runCatching { if (abort) it.abort() else it.close() } }
         session = null
         labSession = null
         _state.value = next
+    }
+
+    /** A failed USB transaction invalidates the connection for every camera feature. */
+    private suspend inline fun <T> withConnection(block: () -> T): T = lock.withLock {
+        try {
+            block()
+        } catch (error: Exception) {
+            if (error is PtpTimeoutError || error is PtpFramingError) {
+                closeSession(error.toCameraError(), abort = true)
+            }
+            throw error
+        }
     }
 
     // ─── Broadcasts ─────────────────────────────────────────────────────────
@@ -335,7 +349,7 @@ class CameraController(
      * pipe itself throws, and the sheet says the camera did not answer rather than showing
      * seven slots it never asked about.
      */
-    suspend fun readSlots(): List<SlotNameReading> = lock.withLock {
+    suspend fun readSlots(): List<SlotNameReading> = withConnection {
         val open = session ?: return emptyList()
 
         return withContext(Dispatchers.IO) { readSlotNames(open) }
@@ -353,7 +367,7 @@ class CameraController(
      */
     suspend fun readSlotRecipes(
         onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
-    ): List<SlotRecipe> = lock.withLock {
+    ): List<SlotRecipe> = withConnection {
         val open = session ?: return emptyList()
 
         return withContext(Dispatchers.IO) { readSlotRecipes(open, onProgress) }
@@ -362,7 +376,7 @@ class CameraController(
     /**
      * Reads a single slot as a recipe.
      */
-    suspend fun readSlotRecipe(slot: Int): SlotRecipe? = lock.withLock {
+    suspend fun readSlotRecipe(slot: Int): SlotRecipe? = withConnection {
         val open = session ?: return null
 
         return withContext(Dispatchers.IO) { readSlotRecipe(open, slot) }
@@ -372,14 +386,14 @@ class CameraController(
 
     suspend fun listCameraPhotos(
         onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
-    ): List<CameraMediaObject> = lock.withLock {
+    ): List<CameraMediaObject> = withConnection {
         val open = mediaSession()
         withContext(Dispatchers.IO) { listCameraJpegs(open, onProgress) }
     }
 
     suspend fun listCameraFiles(
         onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
-    ): List<CameraMediaObject> = lock.withLock {
+    ): List<CameraMediaObject> = withConnection {
         val open = mediaSession()
         withContext(Dispatchers.IO) { listCameraFiles(open, onProgress) }
     }
@@ -389,7 +403,7 @@ class CameraController(
         output: OutputStream,
         onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
         isCancelled: () -> Boolean = { false },
-    ): Long = lock.withLock {
+    ): Long = withConnection {
         val open = mediaSession()
         withContext(Dispatchers.IO) {
             downloadCameraJpeg(
@@ -407,7 +421,7 @@ class CameraController(
         output: OutputStream,
         onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
         isCancelled: () -> Boolean = { false },
-    ): Long = lock.withLock {
+    ): Long = withConnection {
         val open = mediaSession()
         withContext(Dispatchers.IO) {
             downloadCameraRaf(
@@ -420,7 +434,7 @@ class CameraController(
         }
     }
 
-    suspend fun readCameraPhotoThumbnail(handle: Int): ByteArray? = lock.withLock {
+    suspend fun readCameraPhotoThumbnail(handle: Int): ByteArray? = withConnection {
         val open = mediaSession()
         withContext(Dispatchers.IO) { readCameraThumbnail(open, handle) }
     }
@@ -429,7 +443,7 @@ class CameraController(
         media: CameraMediaObject,
         cache: CameraMediaCache,
         onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
-    ): File = lock.withLock {
+    ): File = withConnection {
         val open = mediaSession()
         withContext(Dispatchers.IO) { cache.download(open, media, onProgress) }
     }
@@ -472,7 +486,7 @@ class CameraController(
         output: File,
         quality: RawRenderQuality = RawRenderQuality.FULL,
         onStage: (RawDevelopmentStage) -> Unit = {},
-    ): RawDevelopmentResult = lock.withLock {
+    ): RawDevelopmentResult = withConnection {
         val open = rawDevelopmentSession()
         val lab = labSession ?: RawLabSession().also { labSession = it }
         underRawWakeLock {
@@ -491,7 +505,7 @@ class CameraController(
     suspend fun captureRawDevelopmentProfile(
         raf: File,
         onStage: (RawDevelopmentStage) -> Unit = {},
-    ): ByteArray = lock.withLock {
+    ): ByteArray = withConnection {
         val open = rawDevelopmentSession()
         val lab = labSession ?: RawLabSession().also { labSession = it }
         underRawWakeLock { withContext(Dispatchers.IO) { lab.profile(open, raf, onStage) } }
@@ -500,9 +514,8 @@ class CameraController(
     /**
      * Runs camera work that must not be interrupted by the phone sleeping.
      *
-     * A framing or timeout error means the session is no longer trustworthy, so it is closed
-     * here rather than left for the next caller to trip over — which also drops [labSession],
-     * and with it the belief that the camera is still holding a RAF.
+     * Transport failures propagate to [withConnection], which aborts the shared session and
+     * drops [labSession] after the wake lock has been released.
      */
     private suspend fun <T> underRawWakeLock(block: suspend () -> T): T {
         val wakeLock = (appContext.getSystemService(Context.POWER_SERVICE) as PowerManager)
@@ -510,11 +523,6 @@ class CameraController(
         try {
             wakeLock.acquire(WAKE_LOCK_TIMEOUT_MS)
             return block()
-        } catch (error: Exception) {
-            if (error is PtpFramingError || error is PtpTimeoutError) {
-                closeSession(error.toCameraError())
-            }
-            throw error
         } finally {
             if (wakeLock.isHeld) wakeLock.release()
         }
@@ -554,7 +562,7 @@ class CameraController(
     suspend fun write(
         plan: WritePlan,
         isCancelled: () -> Boolean = { false },
-    ): WriteResult = lock.withLock {
+    ): WriteResult = withConnection {
         val open = session
         val connected = _state.value as? CameraState.Connected
 
@@ -597,10 +605,13 @@ class CameraController(
             _state.value = connected
             WriteResult.Success(outcome)
         } catch (error: WriteInterrupted) {
-            // A disconnect has already been handled by the detach receiver, which left an
-            // Error state saying so. Anything else returns to connected: the camera is still
-            // there, and the sheet reports what happened.
-            if (error.reason != InterruptReason.DISCONNECTED) _state.value = connected
+            // A failed write may detect the broken pipe before Android's detach broadcast.
+            // Cancellation and PTP refusals leave the connection usable.
+            if (error.reason == InterruptReason.DISCONNECTED) {
+                closeSession(CameraState.Error(error.message.orEmpty()), abort = true)
+            } else {
+                _state.value = connected
+            }
 
             WriteResult.Failure(
                 message = error.message.orEmpty(),
@@ -608,7 +619,11 @@ class CameraController(
                 outcome = error.outcome,
             )
         } catch (error: Exception) {
-            _state.value = connected
+            if (error is PtpTimeoutError || error is PtpFramingError) {
+                closeSession(error.toCameraError(), abort = true)
+            } else {
+                _state.value = connected
+            }
             WriteResult.Failure(error.toCameraError().message)
         } finally {
             if (wakeLock.isHeld) wakeLock.release()
@@ -628,7 +643,7 @@ class CameraController(
         appVersion: String,
         capturedAt: String,
         onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
-    ): CameraReport = lock.withLock {
+    ): CameraReport = withConnection {
         val open = session ?: throw IllegalStateException(
             "The camera is not connected, so there is nothing to report on.",
         )

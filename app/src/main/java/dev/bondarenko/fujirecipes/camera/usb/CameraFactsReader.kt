@@ -14,6 +14,7 @@ import dev.bondarenko.fujirecipes.camera.plan.plausibleShutterCount
 import dev.bondarenko.fujirecipes.camera.plan.usbModeFor
 import dev.bondarenko.fujirecipes.camera.plan.usbModeFrom
 import dev.bondarenko.fujirecipes.camera.ptp.DeviceInfo
+import dev.bondarenko.fujirecipes.camera.ptp.PtpError
 import dev.bondarenko.fujirecipes.camera.ptp.PtpSession
 import dev.bondarenko.fujirecipes.camera.ptp.unpackPtpString
 import dev.bondarenko.fujirecipes.camera.ptp.unpackU16
@@ -25,10 +26,9 @@ import dev.bondarenko.fujirecipes.camera.ptp.unpackU32
  * Both readers run once, at connect, straight after `GetDeviceInfo`. Four round trips on a link
  * where reading one slot is dozens, so the cost is not worth optimising; what *is* worth being
  * careful about is that **neither of these may break a connection that would otherwise work.**
- * Every failure below is swallowed and reported as "not answered", including the ones that are
- * not refusals — a timeout here means the pipe is already gone and the very next operation will
- * say so properly, and failing the connect on a diagnostic read would turn a working camera
- * into an unusable one for the sake of a battery percentage.
+ * Optional-property refusals are reported as "not answered". A timeout or broken reply must
+ * propagate: continuing after it would publish a connected state for an unusable session and
+ * make every camera feature inherit the same failure.
  *
  * **`GetDevicePropDesc` first, `GetDevicePropValue` second.** The description carries the data
  * type *and* the current value in one dataset, so a body that answers it needs no guess about
@@ -104,7 +104,7 @@ private fun readBattery(session: PtpSession): BatteryLevel? =
         ?: readBatteryFrom(session, BATTERY_LEVEL_PROPERTY)
 
 private fun readBatteryFrom(session: PtpSession, code: Int): BatteryLevel? {
-    val described = runCatching { session.describeProperty(code) }.getOrNull()
+    val described = optionalFact { session.describeProperty(code) }
     if (described != null) {
         val value = described.currentValue as? Long ?: return null
         return plausibleBatteryLevel(value, described.range?.max)
@@ -126,8 +126,8 @@ private fun readBatteryFrom(session: PtpSession, code: Int): BatteryLevel? {
  * null rather than falling through to a raw read that would decode the same bytes worse.
  */
 private fun readNumber(session: PtpSession, code: Int): Long? {
-    val described = runCatching { session.describeProperty(code) }
-    if (described.isSuccess) return described.getOrNull()?.currentValue as? Long
+    val described = optionalFact { session.describeProperty(code) }
+    if (described != null) return described.currentValue as? Long
 
     return rawValue(session, code)?.let(::numberFromBytes)
 }
@@ -149,12 +149,18 @@ internal fun numberFromBytes(bytes: ByteArray): Long? = when (bytes.size) {
 
 /** One property as a PTP string, or null if the body would not say. */
 private fun readText(session: PtpSession, code: Int): String? {
-    val described = runCatching { session.describeProperty(code) }
-    if (described.isSuccess) return described.getOrNull()?.currentValue as? String
+    val described = optionalFact { session.describeProperty(code) }
+    if (described != null) return described.currentValue as? String
 
     val bytes = rawValue(session, code) ?: return null
     return runCatching { unpackPtpString(bytes) }.getOrNull()
 }
 
 private fun rawValue(session: PtpSession, code: Int): ByteArray? =
-    runCatching { session.readPropertyBytes(code) }.getOrNull()
+    optionalFact { session.readPropertyBytes(code) }
+
+private inline fun <T> optionalFact(block: () -> T): T? = try {
+    block()
+} catch (_: PtpError) {
+    null
+}

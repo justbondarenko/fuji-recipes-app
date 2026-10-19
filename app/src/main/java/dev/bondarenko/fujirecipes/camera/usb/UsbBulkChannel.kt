@@ -167,7 +167,9 @@ class UsbBulkChannel private constructor(
         connection.bulkTransfer(endpointOut, ByteArray(0), 0, 0, timeoutMs)
     }
 
-    override fun read(maxBytes: Int): ByteArray {
+    override fun read(maxBytes: Int): ByteArray = read(maxBytes, timeoutMs)
+
+    override fun read(maxBytes: Int, timeoutMs: Int): ByteArray {
         val buffer = ByteArray(maxBytes)
         val moved = connection.bulkTransfer(endpointIn, buffer, 0, maxBytes, timeoutMs)
 

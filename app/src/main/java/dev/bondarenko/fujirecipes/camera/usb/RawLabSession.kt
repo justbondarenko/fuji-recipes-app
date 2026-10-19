@@ -71,7 +71,7 @@ class RawLabSession {
         raf: File,
         onStage: (RawDevelopmentStage) -> Unit,
         block: () -> T,
-    ): T {
+    ): T = session.withResponseTimeout(RAW_RESPONSE_TIMEOUT_MS) {
         val key = keyFor(raf)
         if (loadedKey != key) {
             loadedKey = null
@@ -81,7 +81,7 @@ class RawLabSession {
             }
             loadedKey = key
         }
-        return try {
+        try {
             block()
         } catch (error: Exception) {
             if (error is PtpFramingError || error is PtpTimeoutError) invalidate()
@@ -92,3 +92,6 @@ class RawLabSession {
     private fun keyFor(raf: File): String =
         "${raf.absolutePath}:${raf.length()}:${raf.lastModified()}"
 }
+
+/** Decoding a RAF and rendering may legitimately take longer than ordinary property reads. */
+internal const val RAW_RESPONSE_TIMEOUT_MS = 30_000

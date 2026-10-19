@@ -1,8 +1,11 @@
 package dev.bondarenko.fujirecipes.camera.usb
 
 import dev.bondarenko.fujirecipes.camera.FakeCamera
+import dev.bondarenko.fujirecipes.camera.TimedCameraChannel
+import dev.bondarenko.fujirecipes.camera.ptp.Operation
 import dev.bondarenko.fujirecipes.camera.ptp.PtpSession
 import dev.bondarenko.fujirecipes.camera.ptp.PtpTransport
+import dev.bondarenko.fujirecipes.camera.ptp.PtpTimeoutError
 import dev.bondarenko.fujirecipes.camera.ptp.ResponseCode
 import dev.bondarenko.fujirecipes.camera.raw.RAW_CONVERSION_TRIGGER_PROPERTY
 import dev.bondarenko.fujirecipes.camera.raw.RAW_PROFILE_PROPERTY
@@ -113,6 +116,98 @@ class RawLabSessionTest {
 
         assertTrue(lab.isLoaded)
         assertEquals(1, camera.uploadCount)
+    }
+
+    @Test
+    fun `first preview tolerates eight second camera replies throughout RAW work`() {
+        val channel = TimedCameraChannel(renderingCamera())
+        val session = PtpSession(PtpTransport(channel)).also { it.open() }
+        channel.responseDelayMs = { 8_000 }
+        val directory = createTempDirectory("raw-lab-slow").toFile()
+        val lab = RawLabSession()
+
+        val result = lab.render(session, directory.raf(), JsonObject(emptyMap()), directory.resolve("preview.jpg"))
+
+        assertTrue(result.jpeg.isFile)
+        assertTrue(lab.isLoaded)
+        assertEquals(1, channel.camera.uploadCount)
+        // A normal operation after Lab retains the shorter wait.
+        val error = assertFailsWith<PtpTimeoutError> { session.readPropertyBytes(RAW_PROFILE_PROPERTY) }
+        assertEquals(5_000, error.timeoutMs)
+    }
+
+    @Test
+    fun `an upload that never answers fails within the RAW wait and is not retried`() {
+        val channel = TimedCameraChannel(renderingCamera())
+        val session = PtpSession(PtpTransport(channel)).also { it.open() }
+        channel.responseDelayMs = { if (it.code == Operation.FUJI_SEND_OBJECT) 31_000 else 0 }
+        val directory = createTempDirectory("raw-lab-stalled").toFile()
+        val lab = RawLabSession()
+
+        val error = assertFailsWith<PtpTimeoutError> {
+            lab.render(session, directory.raf(), JsonObject(emptyMap()), directory.resolve("preview.jpg"))
+        }
+
+        assertEquals(RAW_RESPONSE_TIMEOUT_MS, error.timeoutMs)
+        assertEquals(Operation.FUJI_SEND_OBJECT, error.operation)
+        assertFalse(lab.isLoaded)
+        assertEquals(1, channel.camera.uploadCount)
+        assertEquals(Operation.FUJI_SEND_OBJECT, channel.commands.last().code)
+    }
+
+    @Test
+    fun `a failed JPEG download discards partial output without sending cleanup on a broken pipe`() {
+        val channel = TimedCameraChannel(renderingCamera())
+        val session = PtpSession(PtpTransport(channel)).also { it.open() }
+        channel.responseDelayMs = { if (it.code == Operation.GET_OBJECT) 31_000 else 0 }
+        val directory = createTempDirectory("raw-lab-download").toFile()
+        val output = directory.resolve("preview.jpg")
+        val lab = RawLabSession()
+
+        val error = assertFailsWith<PtpTimeoutError> {
+            lab.render(session, directory.raf(), JsonObject(emptyMap()), output)
+        }
+
+        assertEquals(Operation.GET_OBJECT, error.operation)
+        assertFalse(output.exists())
+        assertFalse(lab.isLoaded)
+        assertEquals(Operation.GET_OBJECT, channel.commands.last().code)
+    }
+
+    @Test
+    fun `a cleanup transport failure invalidates the loaded RAF instead of reporting success`() {
+        val channel = TimedCameraChannel(renderingCamera())
+        val session = PtpSession(PtpTransport(channel)).also { it.open() }
+        channel.responseDelayMs = { if (it.code == Operation.DELETE_OBJECT) 31_000 else 0 }
+        val directory = createTempDirectory("raw-lab-cleanup").toFile()
+        val lab = RawLabSession()
+
+        val error = assertFailsWith<PtpTimeoutError> {
+            lab.render(session, directory.raf(), JsonObject(emptyMap()), directory.resolve("preview.jpg"))
+        }
+
+        assertEquals(Operation.DELETE_OBJECT, error.operation)
+        assertFalse(lab.isLoaded)
+    }
+
+    @Test
+    fun `busy polling uses the remaining conversion deadline rather than a fresh thirty seconds`() {
+        val channel = TimedCameraChannel(renderingCamera())
+        val session = PtpSession(PtpTransport(channel)).also { it.open() }
+        channel.responseDelayMs = { command ->
+            val triggered = channel.camera.writes.any { it.property == RAW_CONVERSION_TRIGGER_PROPERTY }
+            if (command.code == Operation.GET_OBJECT_HANDLES && triggered) 2_000 else 0
+        }
+        val directory = createTempDirectory("raw-lab-deadline").toFile()
+        val lab = RawLabSession()
+
+        val error = assertFailsWith<PtpTimeoutError> {
+            lab.render(session, directory.raf(), JsonObject(emptyMap()), directory.resolve("preview.jpg"), renderTimeoutMs = 1_000)
+        }
+
+        assertEquals(Operation.GET_OBJECT_HANDLES, error.operation)
+        assertTrue(error.timeoutMs in 1..1_000)
+        assertFalse(lab.isLoaded)
     }
 
     private fun openSession(camera: FakeCamera): PtpSession =
