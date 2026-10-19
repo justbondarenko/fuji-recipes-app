@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -104,6 +105,7 @@ fun AppShell(
         Row(Modifier.fillMaxSize()) {
             if (showChrome && useRail) {
                 NavigationRail(modifier = Modifier.fillMaxHeight()) {
+                    Spacer(Modifier.weight(1f))
                     destinations.forEachIndexed { index, (label, icon, selected) ->
                         NavigationRailItem(
                             selected = selected,
@@ -112,6 +114,7 @@ fun AppShell(
                             label = { Text(stringResource(label)) },
                         )
                     }
+                    Spacer(Modifier.weight(1f))
                 }
             }
             Scaffold(
