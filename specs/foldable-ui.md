@@ -8,7 +8,7 @@ have less space than a regular phone. All dimensions below are density-independe
 
 | Area | Compact window | Wider window |
 | --- | --- | --- |
-| Main navigation | Existing bottom bar | Vertically centered navigation rail items at 600dp width and 480dp height |
+| Main navigation | Existing bottom bar | Vertically centered navigation rail items and a camera footer at 600dp width and height |
 | Library | Recipe opens full screen | List and selected recipe share the window when at least 720dp remains after navigation |
 | Standalone recipe details, recipe editor, camera photo list | Existing single column | Centered body, at most 720dp wide |
 | Other page content | Available width | Centered, at most 1200dp wide |
@@ -33,10 +33,18 @@ list; selecting another recipe changes the right pane without rebuilding the lis
 or losing its scroll/search state. Filters, sorting, and counts wrap in narrow panes.
 The create FAB hides while a recipe is open to avoid covering its actions.
 
-Below 360dp of toolbar width, settings and camera controls occupy a separate row
-above a full-width search field. The search field and placeholder are single-line,
-so a narrow pane or large font cannot turn the field into a tall pill. The field
-keeps its composition position while the pane animates between widths.
+View settings stays immediately beside Filters on all layouts. The pair is one
+flow item, so wrapping cannot separate them. Search keeps its own stable row and
+remains single-line for both the query and placeholder while the pane resizes.
+
+When the navigation rail is visible, its bottom action opens the camera connection
+sheet and displays the existing connection badge. Page headers omit their camera
+trigger, leaving search the full pane width. The navigation group stays centered
+against the full rail independently of the footer. A minimum height of 600dp keeps
+the footer clear of the five centered destinations. Shorter windows use bottom
+navigation and restore the page's camera trigger; on phones the library camera
+button is beside search. A loaded Lab keeps its own header trigger because its
+full-screen workspace hides the rail.
 
 On all screen sizes, long-press a recipe for Edit, Write to camera, Select, and
 Delete. The popup uses vertical items rather than a fixed-width row of actions.
@@ -74,13 +82,13 @@ and JVM tests do not verify their appearance.
 
 - At 320dp and 393dp width: bottom navigation, unchanged single-column layout,
   reachable create/save actions, no clipped toolbar controls.
-- At 599dp and 600dp width with at least 480dp height: bottom navigation changes
+- At 599dp and 600dp width with at least 600dp height: bottom navigation changes
   to a rail, all five destinations navigate and show the correct selection.
 - At 840 × 900dp: rail navigation and centered list/form bodies; open the Lab
   with a RAF and check its side-by-side preview and controls.
 - With at least 720dp left after the rail: tap a recipe and watch the list narrow
   while the right pane is revealed. Confirm the narrow search remains one line
-  with the settings/camera buttons above it. Scroll/search the list, switch recipes, use
+  with view settings beside Filters and the camera button at the rail bottom. Scroll/search the list, switch recipes, use
   comparison, then close the detail and check that the list expands in place.
 - On phone and foldable, long-press a row: verify Edit, Write to camera, Select,
   and Delete fit. Verify disconnected Write has an explanation, Delete asks for
@@ -91,6 +99,10 @@ and JVM tests do not verify their appearance.
 - Fold with a recipe open, then unfold: retain the same recipe and list state.
   Back in either layout closes the recipe. On a compact phone, opening a recipe
   still uses the original full-screen route.
+- Tap the camera footer from Library, Analyze, Lab, Photos, and More: open the
+  same connection sheet once, retain the connection badge, and keep destinations
+  centered. Fold to a phone-width window and check the camera trigger returns to
+  the page header.
 - At 720 × 360dp: retain bottom navigation, and retain the Lab's landscape layout.
 - Resize or fold/unfold while searching, scrolling, editing, and viewing a recipe:
   verify the destination and editor contents survive, and Back still works.

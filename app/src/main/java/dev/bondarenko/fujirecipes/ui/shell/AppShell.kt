@@ -11,9 +11,9 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,6 +30,9 @@ import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -45,11 +48,14 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.ImageSearch
 import dev.bondarenko.fujirecipes.ui.theme.icons.MoreVert
 import dev.bondarenko.fujirecipes.ui.theme.icons.Science
 
+/** Pages can omit their camera trigger when the shell provides it in the navigation rail. */
+val LocalRailActionProvided = compositionLocalOf { false }
+
 /**
  * The chrome every top-level screen sits inside.
  *
  * Implements standard Material 3 navigation:
- * - Bottom navigation on narrow windows; a rail on windows at least 600dp wide and 480dp tall.
+ * - Bottom navigation on narrow windows; a rail on wider windows with room for its controls.
  * - An [ExtendedFloatingActionButton] CTA in the bottom-right corner of the content.
  *
  * Creating a recipe opens a choice dialog (pasted text vs. manual creation) via [onCreateClick].
@@ -88,14 +94,17 @@ fun AppShell(
      * which is what the library does with its search bar.
      */
     topBarAction: (@Composable () -> Unit)? = null,
+    /** A persistent action below the centered destinations, inside the rail's safe area. */
+    railBottomAction: (@Composable () -> Unit)? = null,
     /** Compact detail panes own Back; a rail can stay visible without reducing their height. */
     hideBottomNavigation: Boolean = false,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         // Use the current window, so folding and multi-window resizing select the same layouts.
-        // A short landscape phone keeps the bottom bar: five rail items need vertical room.
-        val useRail = maxWidth >= 600.dp && maxHeight >= 480.dp
+        // The footer needs clearance below the centered group, including system insets.
+        val railMinHeight = if (railBottomAction != null) 600.dp else 480.dp
+        val useRail = maxWidth >= 600.dp && maxHeight >= railMinHeight
         val destinations = listOf(
             Triple(R.string.nav_library, FujiIcons.BookmarkStacks, isLibrarySelected),
             Triple(R.string.nav_read, FujiIcons.ImageSearch, isReadSelected),
@@ -107,23 +116,35 @@ fun AppShell(
         Row(Modifier.fillMaxSize()) {
             if (showChrome && useRail) {
                 NavigationRail(modifier = Modifier.fillMaxHeight()) {
-                    Spacer(Modifier.weight(1f))
-                    destinations.forEachIndexed { index, (label, icon, selected) ->
-                        NavigationRailItem(
-                            selected = selected,
-                            onClick = actions[index],
-                            icon = { Icon(icon, contentDescription = null) },
-                            label = { Text(stringResource(label)) },
-                        )
+                    Box(Modifier.fillMaxHeight()) {
+                        // Center against the whole rail, independently of the footer's height.
+                        Column(
+                            modifier = Modifier.align(Alignment.Center),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            destinations.forEachIndexed { index, (label, icon, selected) ->
+                                NavigationRailItem(
+                                    selected = selected,
+                                    onClick = actions[index],
+                                    icon = { Icon(icon, contentDescription = null) },
+                                    label = { Text(stringResource(label)) },
+                                )
+                            }
+                        }
+                        if (railBottomAction != null) {
+                            Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp)) {
+                                railBottomAction()
+                            }
+                        }
                     }
-                    Spacer(Modifier.weight(1f))
                 }
             }
             Scaffold(
                 modifier = Modifier.weight(1f).fillMaxHeight(),
                 containerColor = MaterialTheme.colorScheme.surface,
                 topBar = {
-                    if (showChrome && topBarAction != null) {
+                    if (showChrome && topBarAction != null && (!useRail || railBottomAction == null)) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -181,7 +202,9 @@ fun AppShell(
                 floatingActionButtonPosition = FabPosition.End,
             ) { innerPadding ->
                 Box(Modifier.fillMaxSize().readableWidth(1200.dp)) {
-                    content(innerPadding)
+                    CompositionLocalProvider(LocalRailActionProvided provides (showChrome && useRail && railBottomAction != null)) {
+                        content(innerPadding)
+                    }
                 }
             }
         }

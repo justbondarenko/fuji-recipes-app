@@ -71,6 +71,7 @@ import dev.bondarenko.fujirecipes.ui.common.FujiMenuItem
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
+import dev.bondarenko.fujirecipes.ui.shell.LocalRailActionProvided
 
 /**
  * The list — FEAT-001 T-19, T-20, T-22.
@@ -97,7 +98,7 @@ fun LibraryScreen(
     onImportFromCamera: () -> Unit,
     onDevelopRaw: (String) -> Unit = {},
     onOpenSettings: () -> Unit = {},
-    /** The camera side sheet's button, which the library shows in its search row. */
+    /** The camera side sheet's button on layouts without a navigation rail. */
     cameraButton: @Composable () -> Unit = {},
     onRateRecipes: (Set<String>, Int) -> Unit = { _, _ -> },
     onSelectionChange: (Boolean) -> Unit = {},
@@ -559,7 +560,7 @@ fun LibraryRouteContent(
         onImportFromCamera = onImportFromCamera,
         onDevelopRaw = onDevelopRaw,
         onOpenSettings = onOpenSettings,
-        cameraButton = { CameraSheetButtonHost() },
+        cameraButton = { if (!LocalRailActionProvided.current) CameraSheetButtonHost() },
         onRateRecipes = viewModel::onRateRecipes,
         onSelectionChange = onSelectionChange,
         contentPadding = contentPadding,

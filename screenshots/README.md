@@ -12,7 +12,7 @@ A walkthrough of the app, screen by screen. Everything below happens on the phon
 
 | <img src="01-library-recipe-list.jpg" width="320"> | <img src="02-library-display-settings.jpg" width="320"> |
 |:--:|:--:|
-| **Recipe list** — your whole library on one screen. Search by name or tag, filter, and sort (here by rating). Recipes with sample photos attached show a thumbnail. The round button on the left of the search row opens Settings; the camera button on the right shows the current USB connection state (green dot = camera connected). Long-pressing a recipe opens its actions menu; choose **Select** for batch delete or batch rating. | **Display settings** — control how much each recipe shows. Switch the detail screen between **Grid** and **List** layout, and toggle what the library rows display: photo preview, tags, film simulation and rating. Useful for keeping a 30+ recipe library readable. |
+| **Recipe list** — your whole library on one screen. Search by name or tag, filter, and sort (here by rating). Recipes with sample photos attached show a thumbnail. View settings is beside Filters. The camera button shows the current USB connection state (green dot = camera connected); it sits at the bottom of the sidebar on wider screens and beside search on phones. Long-pressing a recipe opens its actions menu; choose **Select** for batch delete or batch rating. | **Display settings** — control how much each recipe shows. Switch the detail screen between **Grid** and **List** layout, and toggle what the library rows display: photo preview, tags, film simulation and rating. Useful for keeping a 30+ recipe library readable. |
 
 ## 🔍 Viewing a recipe
 
