@@ -66,6 +66,7 @@ import dev.bondarenko.fujirecipes.data.lab.RawLabPreview
 import dev.bondarenko.fujirecipes.ui.common.FujiCenteredLoading
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.camera.CameraSheetButtonHost
+import dev.bondarenko.fujirecipes.ui.shell.LocalRailActionProvided
 import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowBack
 import dev.bondarenko.fujirecipes.ui.theme.icons.BookmarkStacks
 import dev.bondarenko.fujirecipes.ui.theme.icons.Cable
@@ -222,7 +223,7 @@ private fun LabHeader(
                 )
             }
         }
-        CameraSheetButtonHost()
+        if (!LocalRailActionProvided.current) CameraSheetButtonHost()
     }
 }
 

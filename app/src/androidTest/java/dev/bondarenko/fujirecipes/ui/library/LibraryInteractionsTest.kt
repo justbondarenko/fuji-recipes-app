@@ -64,7 +64,13 @@ class LibraryInteractionsTest {
         val field = compose.onNode(hasSetTextAction())
         val before = field.fetchSemanticsNode().boundsInRoot
         val camera = compose.onNodeWithContentDescription("Test camera").fetchSemanticsNode().boundsInRoot
-        assertTrue(camera.bottom <= before.top)
+        assertTrue(camera.left >= before.right)
+        val settings = compose.onNodeWithContentDescription(label(R.string.nav_settings))
+            .fetchSemanticsNode().boundsInRoot
+        val filters = compose.onNodeWithText(label(R.string.filters)).fetchSemanticsNode().boundsInRoot
+        assertTrue(settings.top >= before.bottom)
+        assertEquals(filters.center.y, settings.center.y, 1f)
+        assertTrue(settings.left >= filters.right)
         val placeholderLayout = mutableListOf<TextLayoutResult>()
         compose.onNodeWithText(label(R.string.search_placeholder), useUnmergedTree = true)
             .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(placeholderLayout) }

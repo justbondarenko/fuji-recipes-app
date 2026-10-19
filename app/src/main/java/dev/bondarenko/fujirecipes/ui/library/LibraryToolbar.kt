@@ -10,7 +10,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -130,60 +129,44 @@ fun LibraryToolbar(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // A narrow list pane cannot share its search width with two icon buttons.
-        // Keep the field in this same Row in both layouts so resizing preserves its focus.
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val compact = maxWidth < 360.dp
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (compact) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        FujiSettingsButton(onClick = onOpenSettings)
-                        Spacer(Modifier.weight(1f))
-                        cameraButton()
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (!compact) FujiSettingsButton(onClick = onOpenSettings)
-                    OutlinedTextField(
-                        value = state.search,
-                        onValueChange = onSearchChange,
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                        shape = CircleShape,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                        ),
-                        placeholder = {
-                            Text(
-                                stringResource(R.string.search_placeholder),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        },
-                        leadingIcon = { Icon(FujiIcons.Search, contentDescription = null) },
-                        trailingIcon = if (state.search.isNotEmpty()) {
-                            {
-                                IconButton(onClick = { onSearchChange("") }) {
-                                    Icon(
-                                        FujiIcons.Clear,
-                                        contentDescription = stringResource(R.string.action_clear_search),
-                                    )
-                                }
-                            }
-                        } else null,
+        // Only the compact phone layout shares this row with the camera button.
+        // Settings always stays beside Filters, and the rail owns the wide-layout camera.
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedTextField(
+                value = state.search,
+                onValueChange = onSearchChange,
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+                shape = CircleShape,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                ),
+                placeholder = {
+                    Text(
+                        stringResource(R.string.search_placeholder),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                    if (!compact) cameraButton()
-                }
-            }
+                },
+                leadingIcon = { Icon(FujiIcons.Search, contentDescription = null) },
+                trailingIcon = if (state.search.isNotEmpty()) {
+                    {
+                        IconButton(onClick = { onSearchChange("") }) {
+                            Icon(
+                                FujiIcons.Clear,
+                                contentDescription = stringResource(R.string.action_clear_search),
+                            )
+                        }
+                    }
+                } else null,
+            )
+            cameraButton()
         }
 
         FlowRow(
@@ -191,10 +174,14 @@ fun LibraryToolbar(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             itemVerticalAlignment = Alignment.CenterVertically,
         ) {
-            FiltersButton(
-                activeCount = state.filters.activeCount,
-                onClick = { filtersOpen = true },
-            )
+            // Keep these as one flow item, so view settings cannot wrap away from Filters.
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                FiltersButton(
+                    activeCount = state.filters.activeCount,
+                    onClick = { filtersOpen = true },
+                )
+                FujiSettingsButton(onClick = onOpenSettings)
+            }
             SortControls(
                 sort = state.sort,
                 sortDirection = state.sortDirection,

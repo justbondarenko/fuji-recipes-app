@@ -248,8 +248,9 @@ private fun FujiApp(
                     },
                     onCreateClick = { creating = true },
                     isSelecting = librarySelecting || (onLibrary && libraryDetailOpen),
-                    // The library and the lab carry the button in their own header rows, so the
-                    // shell's corner stays empty there rather than showing it twice.
+                    railBottomAction = { CameraSheetButtonHost() },
+                    // Compact library/Lab pages carry their own camera trigger. The shell
+                    // moves this shared action into the rail on wider windows.
                     topBarAction = if (destination?.hasRoute<LibraryRoute>() == true || onLab) {
                         null
                     } else {
