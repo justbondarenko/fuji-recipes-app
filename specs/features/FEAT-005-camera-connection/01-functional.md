@@ -46,7 +46,13 @@ an X100VI in March 2026. This feature transcribes that work rather than repeatin
    hard-coded endpoint numbers break on the second camera anyone tries.*
 3. `claimInterface(force = true)`. If it still fails, the message names the likely cause.
 4. Command / data / response phases with transaction ids, per ISO 15740. Reads are chunked
-   until the container's declared length is satisfied. 5 s timeout per transfer.
+   until the container's declared length is satisfied. 5 s timeout per ordinary transfer;
+   Lab scopes RAW response reads to 30 s, with conversion polling bounded by its deadline.
+   Timeouts identify the failed operation and property where applicable. A timeout or framing
+   failure aborts the USB session across all camera features, including slot reads, photo
+   browsing, downloads, reports and writes. No cleanup command is sent on that broken session.
+   Connection setup tolerates optional-property refusals, but never swallows transport failures
+   and reports an unusable session as connected. Retrying requires a fresh connection.
 5. Container framing, value codecs and PTP strings are **pure Kotlin with no `android.*`
    import** (`coding-standards.md` P4), so the whole of it is testable with byte arrays.
 

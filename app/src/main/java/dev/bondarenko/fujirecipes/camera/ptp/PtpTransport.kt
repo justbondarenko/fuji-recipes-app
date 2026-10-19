@@ -37,6 +37,9 @@ interface BulkChannel {
     /** Reads up to [maxBytes]; an empty array means the device sent nothing. */
     fun read(maxBytes: Int): ByteArray
 
+    /** A longer response wait for work such as decoding an uploaded RAF. */
+    fun read(maxBytes: Int, timeoutMs: Int): ByteArray = read(maxBytes)
+
     /** Releases whatever was claimed. Never throws — it runs on failing paths. */
     fun close()
 
@@ -78,9 +81,18 @@ data class StreamedCommandResult(
  * to render the same: a timeout means check the cable and that the body is awake; a framing
  * error means the pipe is out of step and the session needs resetting.
  */
-class PtpTimeoutError(val timeoutMs: Int) : Exception(
+class PtpTimeoutError(
+    val timeoutMs: Int,
+    val operation: Int? = null,
+    val property: Int? = null,
+    cause: Throwable? = null,
+) : Exception(
     "The camera did not answer within ${timeoutMs}ms. Check the cable and that the camera " +
-        "is still awake.",
+        "is still awake, then reconnect before trying again." + if (operation != null) {
+            " (Operation 0x${operation.toString(16)}" +
+                (property?.let { ", property 0x${it.toString(16)}" } ?: "") + ")"
+        } else "",
+    cause,
 )
 
 /**
@@ -104,8 +116,36 @@ const val MAX_CONTAINER_BYTES = 8L * 1024 * 1024
 class PtpTransport(private val channel: BulkChannel) {
 
     private var transaction = 0
+    private var responseTimeoutMs: Int? = null
 
     val productName: String get() = channel.productName
+
+    /** Scoped to serialised camera work; ordinary USB reads keep their original timeout. */
+    fun <T> withResponseTimeout(timeoutMs: Int, block: () -> T): T {
+        require(timeoutMs > 0) { "A USB response timeout must be positive." }
+        val previous = responseTimeoutMs
+        responseTimeoutMs = timeoutMs
+        return try {
+            block()
+        } finally {
+            responseTimeoutMs = previous
+        }
+    }
+
+    private fun read(maxBytes: Int): ByteArray = responseTimeoutMs?.let {
+        channel.read(maxBytes, it)
+    } ?: channel.read(maxBytes)
+
+    private inline fun <T> withTimeoutContext(operation: Int, params: List<Int>, block: () -> T): T =
+        try {
+            block()
+        } catch (error: PtpTimeoutError) {
+            val property = if (operation == Operation.GET_DEVICE_PROP_DESC ||
+                operation == Operation.GET_DEVICE_PROP_VALUE ||
+                operation == Operation.SET_DEVICE_PROP_VALUE
+            ) params.firstOrNull() else null
+            throw PtpTimeoutError(error.timeoutMs, operation, property, error)
+        }
 
     /**
      * Transaction ids start at 1 and never repeat within a session.
@@ -124,22 +164,23 @@ class PtpTransport(private val channel: BulkChannel) {
      * A command with no outgoing payload: the camera may answer with a data container and
      * then a response, or with a response alone.
      */
-    fun command(operation: Int, params: List<Int> = emptyList()): CommandResult {
-        val transactionId = nextTransaction()
+    fun command(operation: Int, params: List<Int> = emptyList()): CommandResult =
+        withTimeoutContext(operation, params) {
+            val transactionId = nextTransaction()
 
-        send(packContainer(ContainerType.COMMAND, operation, transactionId, params))
+            send(packContainer(ContainerType.COMMAND, operation, transactionId, params))
 
-        var container = receive(transactionId)
-        var data = ByteArray(0)
+            var container = receive(transactionId)
+            var data = ByteArray(0)
 
-        if (container.type == ContainerType.DATA) {
-            data = container.data
-            container = receive(transactionId)
+            if (container.type == ContainerType.DATA) {
+                data = container.data
+                container = receive(transactionId)
+            }
+
+            requireResponse(container)
+            CommandResult(container.code, container.params, data)
         }
-
-        requireResponse(container)
-        return CommandResult(container.code, container.params, data)
-    }
 
     /**
      * A command whose data phase is written directly to [output].
@@ -159,7 +200,7 @@ class PtpTransport(private val channel: BulkChannel) {
         maxDataBytes: Long,
         onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
         isCancelled: () -> Boolean = { false },
-    ): StreamedCommandResult {
+    ): StreamedCommandResult = withTimeoutContext(operation, params) {
         require(maxDataBytes >= 0) { "maxDataBytes must not be negative" }
 
         val transactionId = nextTransaction()
@@ -181,7 +222,7 @@ class PtpTransport(private val channel: BulkChannel) {
             val responseBytes = ByteArrayOutputStream(declared.toInt())
             responseBytes.write(first)
             while (responseBytes.size().toLong() < declared) {
-                val next = channel.read((declared - responseBytes.size()).toInt())
+                val next = read((declared - responseBytes.size()).toInt())
                 if (next.isEmpty()) {
                     throw PtpFramingError(
                         "The camera stopped after ${responseBytes.size()} of $declared bytes.",
@@ -194,7 +235,7 @@ class PtpTransport(private val channel: BulkChannel) {
             }
             val response = unpackContainer(responseBytes.toByteArray())
             validateReply(response, transactionId)
-            return StreamedCommandResult(response.code, response.params, 0)
+            return@withTimeoutContext StreamedCommandResult(response.code, response.params, 0)
         }
         if (header.type != ContainerType.DATA || header.code != operation) {
             throw PtpFramingError(
@@ -231,7 +272,7 @@ class PtpTransport(private val channel: BulkChannel) {
         writePayload(first.copyOfRange(CONTAINER_HEADER_SIZE, first.size))
         while (read < total) {
             if (!cancelled && isCancelled()) cancelled = true
-            val next = channel.read(minOf(READ_CHUNK_BYTES.toLong(), total - read).toInt())
+            val next = read(minOf(READ_CHUNK_BYTES.toLong(), total - read).toInt())
             if (next.isEmpty()) {
                 throw PtpFramingError("The camera stopped after $read of $total payload bytes.")
             }
@@ -240,23 +281,24 @@ class PtpTransport(private val channel: BulkChannel) {
 
         val response = receive(transactionId)
         requireResponse(response)
-        return StreamedCommandResult(response.code, response.params, written, cancelled)
+        StreamedCommandResult(response.code, response.params, written, cancelled)
     }
 
     /**
      * A command that sends a payload — `SetDevicePropValue`, and nothing else in this app.
      * Command container, then data container, then the response.
      */
-    fun commandWithData(operation: Int, params: List<Int>, data: ByteArray): CommandResult {
-        val transactionId = nextTransaction()
+    fun commandWithData(operation: Int, params: List<Int>, data: ByteArray): CommandResult =
+        withTimeoutContext(operation, params) {
+            val transactionId = nextTransaction()
 
-        send(packContainer(ContainerType.COMMAND, operation, transactionId, params))
-        send(packContainer(ContainerType.DATA, operation, transactionId, data = data))
+            send(packContainer(ContainerType.COMMAND, operation, transactionId, params))
+            send(packContainer(ContainerType.DATA, operation, transactionId, data = data))
 
-        val container = receive(transactionId)
-        requireResponse(container)
-        return CommandResult(container.code, container.params, ByteArray(0))
-    }
+            val container = receive(transactionId)
+            requireResponse(container)
+            CommandResult(container.code, container.params, ByteArray(0))
+        }
 
     /** A data-out command whose payload is too large to materialise as one byte array. */
     fun commandWithDataFrom(
@@ -265,7 +307,7 @@ class PtpTransport(private val channel: BulkChannel) {
         input: InputStream,
         length: Long,
         onProgress: (written: Long, total: Long) -> Unit = { _, _ -> },
-    ): CommandResult {
+    ): CommandResult = withTimeoutContext(operation, params) {
         val transactionId = nextTransaction()
         send(packContainer(ContainerType.COMMAND, operation, transactionId, params))
         channel.writeStream(
@@ -277,7 +319,7 @@ class PtpTransport(private val channel: BulkChannel) {
 
         val container = receive(transactionId)
         requireResponse(container)
-        return CommandResult(container.code, container.params, ByteArray(0))
+        CommandResult(container.code, container.params, ByteArray(0))
     }
 
     fun close() = channel.close()
@@ -322,7 +364,7 @@ class PtpTransport(private val channel: BulkChannel) {
         val bytes = ByteArrayOutputStream(declared.toInt())
         bytes.write(first)
         while (bytes.size().toLong() < declared) {
-            val more = channel.read(READ_CHUNK_BYTES)
+            val more = read(READ_CHUNK_BYTES)
             if (more.isEmpty()) {
                 throw PtpFramingError(
                     "The camera stopped after ${bytes.size()} of $declared bytes.",
@@ -340,7 +382,7 @@ class PtpTransport(private val channel: BulkChannel) {
     private fun readAtLeast(count: Int): ByteArray {
         val bytes = ByteArrayOutputStream(count)
         while (bytes.size() < count) {
-            val next = channel.read(READ_CHUNK_BYTES)
+            val next = read(READ_CHUNK_BYTES)
             if (next.isEmpty()) {
                 throw PtpFramingError(
                     "The camera stopped after ${bytes.size()} bytes; $count were needed.",

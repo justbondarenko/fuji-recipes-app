@@ -217,7 +217,7 @@ Every failure keeps the working settings. That is the point of the holder.
 | Failure | Response |
 |---|---|
 | Preview render fails, session healthy | Inline error above the panel, keep the stale preview, keep the loaded RAF |
-| Framing/timeout error | Session closed by `CameraController`; loaded-RAF epoch invalidated so the next render re-uploads |
+| Framing/timeout error | USB released without sending cleanup or CloseSession commands over the broken transport; loaded-RAF epoch invalidated so reconnecting starts with a fresh upload |
 | Cable detached mid-render | Same, plus the connect prompt; nothing is re-attempted automatically |
 | Camera busy (`DEVICE_BUSY`) | Existing bounded backoff; surfaced as "the camera is still working" rather than a failure |
 | Several new handles appear | Fail closed, delete nothing — FEAT-015's rule, unchanged |
@@ -225,6 +225,14 @@ Every failure keeps the working settings. That is the point of the holder.
 | Auto preview repeatedly failing | Auto preview switches itself off after two consecutive failures and says so |
 
 Wake lock is held per render, not for the lab session.
+
+Lab scopes USB response waits to 30 seconds, including the acknowledgement after RAF upload,
+profile access, conversion and JPEG retrieval. Ordinary camera operations retain their original
+5-second wait. The conversion poll uses its remaining overall deadline, so each poll cannot
+restart a full 30-second wait. Timeouts identify the failed PTP operation and, for profile/trigger
+access, its property code. Transport failures during cleanup are surfaced and invalidate the
+session. Slow-reply tests cover an 8-second response, a stalled upload, download/cleanup failure,
+deadline bounds and restoring ordinary waits; physical-camera confirmation remains necessary.
 
 ---
 

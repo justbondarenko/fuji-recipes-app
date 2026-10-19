@@ -36,6 +36,9 @@ class PtpSession(
     val productName: String
         get() = deviceInfo?.model?.trim().orEmpty().ifEmpty { transport.productName }
 
+    fun <T> withResponseTimeout(timeoutMs: Int, block: () -> T): T =
+        transport.withResponseTimeout(timeoutMs, block)
+
     /**
      * Opens a session and reads the device info.
      *
@@ -77,6 +80,12 @@ class PtpSession(
             // part that matters to the next connection.
         }
 
+        isOpen = false
+        transport.close()
+    }
+
+    /** Release a broken transport without sending another command into an unfinished reply. */
+    fun abort() {
         isOpen = false
         transport.close()
     }
