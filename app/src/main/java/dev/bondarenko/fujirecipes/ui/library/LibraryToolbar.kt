@@ -40,8 +40,8 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.Sort
 import dev.bondarenko.fujirecipes.ui.theme.icons.SortByAlpha
 import dev.bondarenko.fujirecipes.ui.theme.icons.StarRate
 import dev.bondarenko.fujirecipes.ui.theme.icons.Tune
-import androidx.compose.material3.Badge
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.Badge
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -86,25 +86,7 @@ import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
 import kotlin.math.roundToInt
 
-/**
- * The toolbar — FEAT-001 T-20, rebuilt compact.
- *
- * **Two rows, not five.** The first version rendered sort, rating, simulations and tags as
- * four permanent chip rows, which cost about a third of the screen to controls that are
- * mostly idle — on the one screen whose job is showing as many recipes as possible.
- *
- * What replaces it is the web client's own shape (`LibraryToolbar.vue`):
- *
- * | Row | Always visible | Why |
- * |---|---|---|
- * | Search | yes | The fastest route to a known recipe, and the thing most reached for |
- * | Filters button + sort menu | yes, one line | The badge says how many axes are set without opening anything |
- * | "Showing n of m · Clear all" | only when narrowed | A restored filter must be visible, or the library looks like it lost things |
- * | The filter controls themselves | on demand, in a sheet | They are set rarely and read never |
- *
- * The badge counts **axes**, not values: three tags and a rating is "2", because that is
- * how many things you would have to clear.
- */
+/** Search above the sort/count group and view settings; Filters belongs to the list FAB. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun LibraryToolbar(
@@ -113,7 +95,6 @@ fun LibraryToolbar(
     onSortChange: (SortId) -> Unit,
     onSortDirectionChange: (SortDirection) -> Unit,
     onToggleSortDirection: () -> Unit,
-    onFiltersChange: (LibraryFilters) -> Unit,
     onClearSearchAndFilters: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
@@ -123,14 +104,12 @@ fun LibraryToolbar(
      */
     cameraButton: @Composable () -> Unit = {},
 ) {
-    var filtersOpen by rememberSaveable { mutableStateOf(false) }
-
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         // Only the compact phone layout shares this row with the camera button.
-        // Settings always stays beside Filters, and the rail owns the wide-layout camera.
+        // View settings stays in the controls row, and the rail owns the wide-layout camera.
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -169,41 +148,32 @@ fun LibraryToolbar(
             cameraButton()
         }
 
-        FlowRow(
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            itemVerticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.Top,
         ) {
-            // Keep these as one flow item, so view settings cannot wrap away from Filters.
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                FiltersButton(
-                    activeCount = state.filters.activeCount,
-                    onClick = { filtersOpen = true },
+            FlowRow(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                SortControls(
+                    sort = state.sort,
+                    sortDirection = state.sortDirection,
+                    onSortChange = onSortChange,
+                    onSortDirectionChange = onSortDirectionChange,
+                    onToggleSortDirection = onToggleSortDirection,
                 )
-                FujiSettingsButton(onClick = onOpenSettings)
+                if (state.hasLoaded && state.totalCount > 0) {
+                    Text(
+                        text = pluralStringResource(R.plurals.count_total, state.totalCount, state.totalCount),
+                        style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = TabularFigures),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-            SortControls(
-                sort = state.sort,
-                sortDirection = state.sortDirection,
-                onSortChange = onSortChange,
-                onSortDirectionChange = onSortDirectionChange,
-                onToggleSortDirection = onToggleSortDirection,
-            )
-
-            // The library's size, which the search app bar replaced a headline row for.
-            if (state.hasLoaded && state.totalCount > 0) {
-                Text(
-                    text = pluralStringResource(
-                        R.plurals.count_total,
-                        state.totalCount,
-                        state.totalCount,
-                    ),
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontFeatureSettings = TabularFigures,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            FujiSettingsButton(onClick = onOpenSettings)
         }
 
         // Only when there is something to explain. A restored filter that is invisible is
@@ -216,46 +186,26 @@ fun LibraryToolbar(
             )
         }
     }
-
-    if (filtersOpen) {
-        ModalBottomSheet(
-            onDismissRequest = { filtersOpen = false },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ) {
-            FiltersSheet(
-                state = state,
-                onFiltersChange = onFiltersChange,
-                modifier = Modifier.padding(horizontal = 20.dp),
-            )
-        }
-    }
 }
 
+/** Lives outside the lazy toolbar so the floating button works at every scroll position. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FiltersButton(activeCount: Int, onClick: () -> Unit) {
-    TextButton(
-        onClick = onClick,
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+fun LibraryFiltersSheet(
+    state: LibraryUiState,
+    onFiltersChange: (LibraryFilters) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Icon(
-                imageVector = FujiIcons.Tune,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
-            Text(stringResource(R.string.filters))
-            if (activeCount > 0) {
-                Badge(
-                    containerColor = MaterialTheme.colorScheme.tertiary,
-                    contentColor = MaterialTheme.colorScheme.onTertiary,
-                    modifier = Modifier.padding(start = 2.dp),
-                ) { Text(activeCount.toString()) }
-            }
-        }
+        FiltersSheet(
+            state = state,
+            onFiltersChange = onFiltersChange,
+            modifier = Modifier.padding(horizontal = 20.dp),
+        )
     }
 }
 
@@ -826,7 +776,6 @@ private fun LibraryToolbarPreview() {
                 onSortChange = {},
                 onSortDirectionChange = {},
                 onToggleSortDirection = {},
-                onFiltersChange = {},
                 onClearSearchAndFilters = {},
                 onOpenSettings = {},
             )

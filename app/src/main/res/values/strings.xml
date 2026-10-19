@@ -13,6 +13,10 @@
 
     <!-- Library -->
     <string name="search_placeholder">Search names and tags</string>
+    <plurals name="filters_fab_description">
+        <item quantity="one">Filters, %1$d active filter</item>
+        <item quantity="other">Filters, %1$d active filters</item>
+    </plurals>
     <string name="sort_by">Sort by</string>
     <string name="sort_order">Order</string>
     <string name="sort_name">Name</string>

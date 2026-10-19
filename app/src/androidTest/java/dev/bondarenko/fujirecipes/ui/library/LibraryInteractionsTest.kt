@@ -10,6 +10,9 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
@@ -51,7 +54,7 @@ class LibraryInteractionsTest {
                         state = LibraryUiState(search = query.value, hasLoaded = true, totalCount = 30),
                         onSearchChange = { query.value = it },
                         onSortChange = {}, onSortDirectionChange = {}, onToggleSortDirection = {},
-                        onFiltersChange = {}, onClearSearchAndFilters = {}, onOpenSettings = {},
+                        onClearSearchAndFilters = {}, onOpenSettings = {},
                         cameraButton = {
                             IconButton(onClick = {}) {
                                 Icon(FujiIcons.PhotoCamera, contentDescription = "Test camera")
@@ -67,16 +70,26 @@ class LibraryInteractionsTest {
         assertTrue(camera.left >= before.right)
         val settings = compose.onNodeWithContentDescription(label(R.string.nav_settings))
             .fetchSemanticsNode().boundsInRoot
-        val filters = compose.onNodeWithText(label(R.string.filters)).fetchSemanticsNode().boundsInRoot
         assertTrue(settings.top >= before.bottom)
-        assertEquals(filters.center.y, settings.center.y, 1f)
-        assertTrue(settings.left >= filters.right)
+        val count = compose.onNodeWithText(InstrumentationRegistry.getInstrumentation().targetContext.resources
+            .getQuantityString(R.plurals.count_total, 30, 30)).fetchSemanticsNode().boundsInRoot
+        assertTrue(settings.left >= count.right)
         val placeholderLayout = mutableListOf<TextLayoutResult>()
         compose.onNodeWithText(label(R.string.search_placeholder), useUnmergedTree = true)
             .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(placeholderLayout) }
         assertEquals(1, placeholderLayout.single().lineCount)
         field.performTextInput("A very long recipe name with several searchable tags")
         assertEquals(before.height, field.fetchSemanticsNode().boundsInRoot.height, 1f)
+    }
+
+    @Test
+    fun floatingFiltersOpensSheetAfterHeaderScrollsAway() {
+        val recipes = (0..29).map { recipe.copy(id = "recipe-$it", name = "Recipe $it") }
+        renderLibrary(393, recipes)
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("Recipe 29"))
+        compose.onNodeWithText(label(R.string.search_placeholder)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(label(R.string.filters)).assertIsDisplayed().performClick()
+        compose.onNodeWithText(label(R.string.filters)).assertIsDisplayed()
     }
 
     @Test
@@ -99,6 +112,7 @@ class LibraryInteractionsTest {
         compose.onNodeWithText(label(R.string.action_select)).performClick()
         compose.onNodeWithContentDescription(label(R.string.action_clear_selection)).assertIsDisplayed()
         compose.onNodeWithText(label(R.string.action_edit)).assertDoesNotExist()
+        compose.onNodeWithContentDescription(label(R.string.filters)).assertDoesNotExist()
         compose.runOnIdle { assertNull(openedId) }
     }
 
@@ -113,12 +127,12 @@ class LibraryInteractionsTest {
         compose.runOnIdle { assertEquals(recipe.id, deletedId) }
     }
 
-    private fun renderLibrary(width: Int) {
+    private fun renderLibrary(width: Int, recipes: List<RecipeCardModel> = listOf(recipe)) {
         compose.setContent {
             FujiTheme {
                 DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(width.dp, 700.dp))) {
                     LibraryScreen(
-                        state = LibraryUiState(visible = listOf(recipe), totalCount = 1, hasLoaded = true),
+                        state = LibraryUiState(visible = recipes, totalCount = recipes.size, hasLoaded = true),
                         onSearchChange = {}, onSortChange = {}, onFiltersChange = {},
                         onClearSearchAndFilters = {}, onRetry = {},
                         onOpenRecipe = { openedId = it }, onEditRecipe = { editedId = it },
