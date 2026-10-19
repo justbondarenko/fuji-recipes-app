@@ -113,6 +113,7 @@ fun LibraryScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
     canWriteToCamera: Boolean = false,
+    activeRecipeId: String? = null,
 ) {
     // Which row is slid open, owned here rather than by each row.
     var openRowId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -268,6 +269,7 @@ fun LibraryScreen(
                                     showFilmSimulation = state.showFilmSimulation,
                                     showRating = state.showRating,
                                     selected = recipe.id in selectedIds,
+                                    active = recipe.id == activeRecipeId,
                                     onLongClick = { selectedIds = selectedIds + recipe.id },
                                     onClick = {
                                         if (selecting) {
@@ -554,6 +556,7 @@ fun LibraryRouteContent(
     onOpenSettings: () -> Unit,
     onSelectionChange: (Boolean) -> Unit,
     contentPadding: PaddingValues,
+    activeRecipeId: String? = null,
 ) {
     val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
     val viewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.factory(container))
@@ -582,6 +585,7 @@ fun LibraryRouteContent(
         onSelectionChange = onSelectionChange,
         contentPadding = contentPadding,
         canWriteToCamera = camera.canWrite,
+        activeRecipeId = activeRecipeId,
     )
 }
 

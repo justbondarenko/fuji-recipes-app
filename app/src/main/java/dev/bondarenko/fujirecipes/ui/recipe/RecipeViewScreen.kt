@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
@@ -30,6 +31,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.vector.ImageVector
+import dev.bondarenko.fujirecipes.ui.theme.icons.Clear
 import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowBack
 import dev.bondarenko.fujirecipes.ui.theme.icons.CameraRoll
 import dev.bondarenko.fujirecipes.ui.theme.icons.Colors
@@ -143,23 +145,29 @@ fun RecipeViewScreen(
     onCompareRecipe: () -> Unit = {},
     onDevelopRaw: () -> Unit = {},
     modifier: Modifier = Modifier,
+    embedded: Boolean = false,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         TopAppBar(
+            windowInsets = if (embedded) {
+                WindowInsets(0, 0, 0, 0)
+            } else {
+                TopAppBarDefaults.windowInsets
+            },
             title = {
                 // Plain text, not a target: the navigation icon beside it is the back
                 // affordance, and a bare clickable Text has no ripple, no minimum touch size
                 // and no button semantics for TalkBack.
                 Text(
-                    text = stringResource(R.string.action_back_to_list),
+                    text = stringResource(if (embedded) R.string.action_close else R.string.action_back_to_list),
                     style = MaterialTheme.typography.titleMedium,
                 )
             },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(
-                        imageVector = FujiIcons.ArrowBack,
-                        contentDescription = stringResource(R.string.action_back),
+                        imageVector = if (embedded) FujiIcons.Clear else FujiIcons.ArrowBack,
+                        contentDescription = stringResource(if (embedded) R.string.action_close else R.string.action_back),
                     )
                 }
             },
@@ -952,6 +960,8 @@ fun RecipeViewRouteContent(
     onEdit: () -> Unit,
     onDevelopRaw: () -> Unit,
     onNavigateToRecipe: (String) -> Unit = {},
+    modifier: Modifier = Modifier,
+    embedded: Boolean = false,
 ) {
     val context = LocalContext.current
     val container = (context.applicationContext as FujiRecipesApp).container
@@ -964,6 +974,8 @@ fun RecipeViewRouteContent(
     var compareOpen by remember { mutableStateOf(false) }
 
     RecipeViewScreen(
+        modifier = modifier,
+        embedded = embedded,
         state = state,
         onBack = onBack,
         onEdit = onEdit,

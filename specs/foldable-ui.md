@@ -4,12 +4,13 @@ Use the current app window's space rather than a device model or orientation.
 An unfolded phone can be taller than wide, and a foldable in split-screen may
 have less space than a regular phone. All dimensions below are density-independent.
 
-## First pass
+## Current layouts
 
 | Area | Compact window | Wider window |
 | --- | --- | --- |
 | Main navigation | Existing bottom bar | Vertically centered navigation rail items at 600dp width and 480dp height |
-| Library, recipe details, recipe editor, camera photo list | Existing single column | Centered body, at most 720dp wide |
+| Library | Recipe opens full screen | List and selected recipe share the window when at least 720dp remains after navigation |
+| Standalone recipe details, recipe editor, camera photo list | Existing single column | Centered body, at most 720dp wide |
 | Other page content | Available width | Centered, at most 1200dp wide |
 | Loaded RAW Lab | Existing stacked preview and controls | Existing 60/40 split at 720dp width, also retained for landscape windows |
 
@@ -18,18 +19,39 @@ location when the rail replaces the bottom bar. No separate navigation controlle
 route, or data workflow is introduced. The loaded Lab continues to hide navigation.
 Forms and lists keep their current scrolling, selection, and swipe interactions.
 
+## Library list/detail navigation
+
+The library starts at its normal width. Selecting a recipe animates the list down
+to 40% of the content width (between 300dp and 360dp), while revealing the recipe
+at the same moving boundary. The detail is measured at its final width throughout
+the 400ms transition, so its controls do not compress during the reveal. Closing
+the recipe reverses this animation. Reduced-motion mode skips the transition.
+
+The centered navigation rail stays visible. The open recipe is highlighted in the
+list; selecting another recipe changes the right pane without rebuilding the list
+or losing its scroll/search state. Filters, sorting, and counts wrap in narrow panes.
+The create FAB hides while a recipe is open to avoid covering its actions.
+
+Back and the detail's Close action close the pane. Editing and saving a recipe
+returns to the selected pane. Comparison can select another recipe in that pane.
+The selected id lives on the library's saved back-stack entry, so it survives
+recreation and a trip into the editor. Each detail model is cleared on replacement.
+
+Folding into a compact window keeps the selected recipe full screen and retains
+the list's composition for unfolding. The list is not placed or accessible while
+hidden. The compact detail hides bottom navigation; a rail in a medium-width
+window stays visible. A recipe opened initially on a compact phone continues to
+use the existing standalone navigation route.
+
 ## Further layout ideas
 
-- Library: a list/detail view on sufficiently wide windows, with the selected
-  recipe beside the list. Preserve the selected recipe when returning to a
-  compact window and make Back behavior explicit before implementing this.
 - Recipe view: reference photos beside settings when both panes can retain a
   useful minimum width.
 - RAW Lab: use Android WindowManager folding features to place the photo above
   a horizontal tabletop fold and controls below it. For a separating vertical
   hinge, size the two panes to the physical display regions instead of 60/40.
 
-This first pass does not detect folding posture or avoid a physical hinge.
+These layouts do not detect folding posture or avoid a physical hinge.
 Window-width adaptation is intended for continuous unfolded displays and ordinary
 resizable windows; separating hinges and tabletop placement need the posture work above.
 
@@ -44,6 +66,14 @@ and JVM tests do not verify their appearance.
   to a rail, all five destinations navigate and show the correct selection.
 - At 840 × 900dp: rail navigation and centered list/form bodies; open the Lab
   with a RAF and check its side-by-side preview and controls.
+- With at least 720dp left after the rail: tap a recipe and watch the list narrow
+  while the right pane is revealed. Scroll/search the list, switch recipes, use
+  comparison, then close the detail and check that the list expands in place.
+- Edit a recipe from the pane and save; confirm that the pane shows the saved
+  recipe. Delete it from the editor and confirm a normal return to the library.
+- Fold with a recipe open, then unfold: retain the same recipe and list state.
+  Back in either layout closes the recipe. On a compact phone, opening a recipe
+  still uses the original full-screen route.
 - At 720 × 360dp: retain bottom navigation, and retain the Lab's landscape layout.
 - Resize or fold/unfold while searching, scrolling, editing, and viewing a recipe:
   verify the destination and editor contents survive, and Back still works.
