@@ -30,12 +30,22 @@ the recipe reverses this animation. Reduced-motion mode skips the transition.
 
 The centered navigation rail stays visible. The open recipe is highlighted in the
 list; selecting another recipe changes the right pane without rebuilding the list
-or losing its scroll/search state. Filters, sorting, and counts wrap in narrow panes.
+or losing its scroll/search state. Sorting and counts wrap safely in narrow panes.
 The create FAB hides while a recipe is open to avoid covering its actions.
 
-View settings stays immediately beside Filters on all layouts. The pair is one
-flow item, so wrapping cannot separate them. Search keeps its own stable row and
-remains single-line for both the query and placeholder while the pane resizes.
+Search keeps its own stable row and remains single-line for both the query and
+placeholder while the pane resizes. The controls below it put sort and recipe count
+on the left, with view settings fixed at the right edge.
+
+Filters is a circular floating action button at the bottom-right of the recipe
+list on phones and wider windows. It belongs to the list pane, so opening a recipe
+keeps it in that pane. When New recipe is visible, Filters sits above it; once a
+recipe is open, it moves down to the bottom corner. This clearance animates with
+the pane transition and respects reduced motion. The badge reports active filter
+axes. The filter sheet is hosted outside the lazy header, allowing the button to
+work after the header has scrolled away. List bottom padding leaves the final
+items reachable above the floating controls. Selection mode replaces Filters
+with the existing batch toolbar.
 
 When the navigation rail is visible, its bottom action opens the camera connection
 sheet and displays the existing connection badge. Page headers omit their camera
@@ -88,8 +98,11 @@ and JVM tests do not verify their appearance.
   with a RAF and check its side-by-side preview and controls.
 - With at least 720dp left after the rail: tap a recipe and watch the list narrow
   while the right pane is revealed. Confirm the narrow search remains one line
-  with view settings beside Filters and the camera button at the rail bottom. Scroll/search the list, switch recipes, use
+  with view settings at the right of sort/count and the camera button at the rail bottom. Scroll/search the list, switch recipes, use
   comparison, then close the detail and check that the list expands in place.
+- On phone and foldable, check the bottom-right Filters FAB, its active-count
+  badge, and clearance above New recipe. Scroll the header off-screen, then open
+  Filters and verify the same sheet still works.
 - On phone and foldable, long-press a row: verify Edit, Write to camera, Select,
   and Delete fit. Verify disconnected Write has an explanation, Delete asks for
   confirmation, and Select retains batch rating/delete. Horizontal drags must not

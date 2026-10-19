@@ -1,5 +1,8 @@
 package dev.bondarenko.fujirecipes.ui.library
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.runtime.DisposableEffect
@@ -70,6 +73,7 @@ import dev.bondarenko.fujirecipes.ui.common.FujiAnchoredMenu
 import dev.bondarenko.fujirecipes.ui.common.FujiMenuItem
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
+import dev.bondarenko.fujirecipes.ui.theme.LocalReducedMotion
 import dev.bondarenko.fujirecipes.ui.theme.TabularFigures
 import dev.bondarenko.fujirecipes.ui.shell.LocalRailActionProvided
 
@@ -118,8 +122,17 @@ fun LibraryScreen(
     var selectedIds by remember { mutableStateOf(emptySet<String>()) }
     var deleteSelectionPending by remember { mutableStateOf(false) }
     val selecting = selectedIds.isNotEmpty()
+    val showFiltersFab = state.hasLoaded && !state.isEmptyLibrary && !state.isBlockingError && !selecting
+    // The shell's New recipe FAB shares this corner until the detail pane is open.
+    val reducedMotion = LocalReducedMotion.current
+    val filtersBottomOffset by animateDpAsState(
+        targetValue = if (activeRecipeId == null) 88.dp else 16.dp,
+        animationSpec = tween(if (reducedMotion) 0 else 400, easing = FastOutSlowInEasing),
+        label = "Filters FAB clearance",
+    )
 
     var ratingPickerOpen by remember { mutableStateOf(false) }
+    var filtersOpen by rememberSaveable { mutableStateOf(false) }
 
     // The gesture everyone tries first to get out of selection mode.
     BackHandler(enabled = selecting) { selectedIds = emptySet() }
@@ -132,16 +145,17 @@ fun LibraryScreen(
 
     // No pull-to-refresh: there is nowhere to refresh *from*. The library is a file on this
     // phone, and the flow that feeds this screen already republishes on every change.
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize().readableWidth()) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize().readableWidth(),
+            modifier = Modifier.fillMaxSize(),
             // The shell's inset already reserves the floating bar's height, so the list
             // scrolls under it and the last card can still clear it.
             contentPadding = PaddingValues(
                 start = 16.dp,
                 end = 16.dp,
                 top = 12.dp + contentPadding.calculateTopPadding(),
-                bottom = 12.dp + contentPadding.calculateBottomPadding(),
+                bottom = (if (showFiltersFab) filtersBottomOffset + 80.dp else if (selecting) 96.dp else 12.dp) +
+                    contentPadding.calculateBottomPadding(),
             ),
             // 💡 GAP BETWEEN ROWS — kept small so the segmented corners still read as one
             //    block; past about 8dp they stop looking joined.
@@ -212,7 +226,6 @@ fun LibraryScreen(
                                 onSortChange = onSortChange,
                                 onSortDirectionChange = onSortDirectionChange,
                                 onToggleSortDirection = onToggleSortDirection,
-                                onFiltersChange = onFiltersChange,
                                 onClearSearchAndFilters = onClearSearchAndFilters,
                                 onOpenSettings = onOpenSettings,
                                 cameraButton = cameraButton,
@@ -347,6 +360,19 @@ fun LibraryScreen(
             }
         }
 
+        if (showFiltersFab) {
+            LibraryFiltersFab(
+                activeCount = state.filters.activeCount,
+                onClick = { filtersOpen = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = 16.dp,
+                        bottom = filtersBottomOffset + contentPadding.calculateBottomPadding(),
+                    ),
+            )
+        }
+
         if (selecting) {
             LibrarySelectionToolbar(
                 ratingPickerOpen = ratingPickerOpen,
@@ -365,6 +391,14 @@ fun LibraryScreen(
                     .padding(bottom = contentPadding.calculateBottomPadding()),
             )
         }
+    }
+
+    if (filtersOpen) {
+        LibraryFiltersSheet(
+            state = state,
+            onFiltersChange = onFiltersChange,
+            onDismiss = { filtersOpen = false },
+        )
     }
 
     writeRecipeId?.let { recipeId ->
