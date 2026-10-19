@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 enum class CameraFileFilter { ALL, JPEG, RAW }
 
@@ -148,6 +149,24 @@ class CameraPhotosViewModel(
         if (_state.value.download != null) return
         _state.update { state ->
             state.copy(selectedHandles = state.selectedHandles + state.filteredFiles.map { it.handle })
+        }
+    }
+
+    /** Toggle only this day's files in the current filter, preserving every other selection. */
+    fun toggleDay(date: LocalDate?) {
+        if (transferRunning) return
+        _state.update { state ->
+            if (state.isLoading || state.download != null) return@update state
+            val handles = state.filteredFiles
+                .filter { cameraCaptureDay(it.info.captureDate) == date }
+                .map { it.handle }
+                .toSet()
+            val selected = if (handles.all { it in state.selectedHandles }) {
+                state.selectedHandles - handles
+            } else {
+                state.selectedHandles + handles
+            }
+            state.copy(selectedHandles = selected)
         }
     }
 

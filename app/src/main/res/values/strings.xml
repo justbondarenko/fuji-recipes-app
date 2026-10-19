@@ -237,6 +237,8 @@
     <string name="camera_photos_select_all">Select all</string>
     <string name="camera_photos_clear">Clear</string>
     <string name="camera_photos_selected_count">%1$d selected</string>
+    <string name="camera_photos_unknown_day">Unknown date</string>
+    <string name="camera_photos_day_selected">%1$d of %2$d selected</string>
     <string name="camera_photos_download">Download (%1$d)</string>
     <string name="camera_photos_filter_empty">No files match this filter.</string>
     <string name="camera_photos_downloading">File %1$d of %2$d: %3$s · %4$s of %5$s</string>

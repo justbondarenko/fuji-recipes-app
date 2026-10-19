@@ -166,8 +166,8 @@ Changing USB mode may make the camera disconnect and reconnect. Where appropriat
 > 📱 See it: [browsing and downloading the card](screenshots/README.md#-camera-connection--custom-slots)
 
 1. Set the camera to **`USB CARD READER`** and connect it.
-2. Open the **Photos** tab. The app scans JPEG and RAF objects on the card and shows progress for large cards.
-3. Filter by **All**, **JPEG**, or **RAW**, select any files, then tap **Download**.
+2. Open the **Photos** tab. The circular wavy indicator fills as files are read and shows the read/total count.
+3. Filter by **All**, **JPEG**, or **RAW**. Photos are grouped by capture date, newest first. Select individual files or tap a date header to select the entire day's matching files, then tap **Download**. Tapping a fully selected day clears that day's matching files; selections on other days and under other filters are kept. Files without a valid capture date appear under **Unknown date**.
 4. Choose a destination folder with Android's folder picker. The app writes each camera file independently and leaves the card unchanged.
 
 The foreground service keeps a large batch running while the app is minimized or the screen is locked. Keep the camera connected and powered until it completes. Cancellation is available both in the Photos screen and its notification.
