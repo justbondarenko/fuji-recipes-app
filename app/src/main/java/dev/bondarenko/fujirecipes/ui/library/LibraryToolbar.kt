@@ -7,10 +7,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -53,7 +53,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RangeSlider
-import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -73,6 +74,7 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -128,50 +130,60 @@ fun LibraryToolbar(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        /**
-         * The **search app bar** (`m3.material.io/components/app-bars`): the search field is
-         * the bar, rather than a text field sitting under a title.
-         */
-        // The one page that already owns the top of the screen: the view options and the
-        // camera ride in the search row rather than in a bar of their own above it —
-        // (cog) [search] (camera).
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            FujiSettingsButton(onClick = onOpenSettings)
-
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
-            ) {
-                SearchBarDefaults.InputField(
-                    query = state.search,
-                    onQueryChange = onSearchChange,
-                    onSearch = {},
-                    expanded = false,
-                    onExpandedChange = {},
+        // A narrow list pane cannot share its search width with two icon buttons.
+        // Keep the field in this same Row in both layouts so resizing preserves its focus.
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val compact = maxWidth < 360.dp
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (compact) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        FujiSettingsButton(onClick = onOpenSettings)
+                        Spacer(Modifier.weight(1f))
+                        cameraButton()
+                    }
+                }
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text(stringResource(R.string.search_placeholder)) },
-                    leadingIcon = { Icon(FujiIcons.Search, contentDescription = null) },
-                    trailingIcon = {
-                        if (state.search.isNotEmpty()) {
-                            IconButton(onClick = { onSearchChange("") }) {
-                                Icon(
-                                    FujiIcons.Clear,
-                                    contentDescription = stringResource(R.string.action_clear_search),
-                                )
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (!compact) FujiSettingsButton(onClick = onOpenSettings)
+                    OutlinedTextField(
+                        value = state.search,
+                        onValueChange = onSearchChange,
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        shape = CircleShape,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        ),
+                        placeholder = {
+                            Text(
+                                stringResource(R.string.search_placeholder),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
+                        leadingIcon = { Icon(FujiIcons.Search, contentDescription = null) },
+                        trailingIcon = if (state.search.isNotEmpty()) {
+                            {
+                                IconButton(onClick = { onSearchChange("") }) {
+                                    Icon(
+                                        FujiIcons.Clear,
+                                        contentDescription = stringResource(R.string.action_clear_search),
+                                    )
+                                }
                             }
-                        }
-                    },
-                )
+                        } else null,
+                    )
+                    if (!compact) cameraButton()
+                }
             }
-
-            cameraButton()
         }
 
         FlowRow(

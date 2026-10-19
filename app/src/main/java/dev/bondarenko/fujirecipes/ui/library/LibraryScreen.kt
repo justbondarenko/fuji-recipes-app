@@ -9,7 +9,6 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.StarBorder
 import dev.bondarenko.fujirecipes.ui.theme.icons.StarRate
 import androidx.activity.compose.BackHandler
 import androidx.compose.material3.IconButton
-import androidx.compose.ui.res.pluralStringResource
 import dev.bondarenko.fujirecipes.ui.theme.icons.Close
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,8 +30,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import dev.bondarenko.fujirecipes.ui.theme.icons.Check
 import dev.bondarenko.fujirecipes.ui.theme.icons.BookmarkStacks
 import dev.bondarenko.fujirecipes.ui.theme.icons.Delete
 import dev.bondarenko.fujirecipes.ui.theme.icons.Edit
@@ -42,23 +41,15 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.PhotoCamera
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.toShape
-import androidx.compose.material3.TooltipAnchorPosition
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -115,9 +106,9 @@ fun LibraryScreen(
     canWriteToCamera: Boolean = false,
     activeRecipeId: String? = null,
 ) {
-    // Which row is slid open, owned here rather than by each row.
-    var openRowId by rememberSaveable { mutableStateOf<String?>(null) }
-    // Which recipe is pending confirmation for deletion from swipe action
+    // Only one context menu can be open, regardless of the window or pane width.
+    var menuRecipeId by rememberSaveable { mutableStateOf<String?>(null) }
+    // Which recipe is pending confirmation for deletion from its context menu
     var recipePendingDelete by remember { mutableStateOf<RecipeCardModel?>(null) }
     // Which recipe is currently open in the Write to Camera sheet
     var writeRecipeId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -134,7 +125,9 @@ fun LibraryScreen(
 
     LaunchedEffect(selecting) { onSelectionChange(selecting) }
     DisposableEffect(Unit) { onDispose { onSelectionChange(false) } }
-    val coroutineScope = rememberCoroutineScope()
+    LaunchedEffect(state.visible, selecting) {
+        if (selecting || state.visible.none { it.id == menuRecipeId }) menuRecipeId = null
+    }
 
     // No pull-to-refresh: there is nowhere to refresh *from*. The library is a file on this
     // phone, and the flow that feeds this screen already republishes on every change.
@@ -257,7 +250,7 @@ fun LibraryScreen(
                         }
                     } else {
                         itemsIndexed(state.visible, key = { _, recipe -> recipe.id }) { index, recipe ->
-                            val card: @Composable () -> Unit = {
+                            Box(Modifier.fillMaxWidth()) {
                                 RecipeCard(
                                     recipe = recipe,
                                     shapes = ListItemDefaults.segmentedShapes(
@@ -270,7 +263,13 @@ fun LibraryScreen(
                                     showRating = state.showRating,
                                     selected = recipe.id in selectedIds,
                                     active = recipe.id == activeRecipeId,
-                                    onLongClick = { selectedIds = selectedIds + recipe.id },
+                                    onLongClick = {
+                                        if (selecting) {
+                                            selectedIds = selectedIds + recipe.id
+                                        } else {
+                                            menuRecipeId = recipe.id
+                                        }
+                                    },
                                     onClick = {
                                         if (selecting) {
                                             selectedIds = if (recipe.id in selectedIds) {
@@ -283,71 +282,52 @@ fun LibraryScreen(
                                         }
                                     },
                                 )
-                            }
-
-                            // Swiping a row open while picking rows would put a single-recipe
-                            // delete next to a selection's delete. One at a time.
-                            if (selecting) {
-                                card()
-                                return@itemsIndexed
-                            }
-
-                            SwipeActionsRow(
-                                isOpen = openRowId == recipe.id,
-                                // One at a time: two rows open at once is how a delete gets
-                                // pressed on the wrong recipe.
-                                onOpenChange = { open ->
-                                    openRowId = if (open) recipe.id else null
-                                },
-                                actions = {
-                                    // Right to left as specified: delete is furthest from the
-                                    // edge, edit nearest it.
-                                    SwipeAction(
-                                        icon = rememberVectorPainter(FujiIcons.Delete),
-                                        label = stringResource(R.string.action_delete),
-                                        onClick = { recipePendingDelete = recipe },
-                                        position = ButtonGroupPosition.Start,
-                                        container = MaterialTheme.colorScheme.errorContainer,
-                                        content = MaterialTheme.colorScheme.onErrorContainer,
-                                    )
-                                    val writeTooltipState = rememberTooltipState(isPersistent = true)
-                                    TooltipBox(
-                                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                                        tooltip = {
-                                            PlainTooltip {
-                                                Text(stringResource(R.string.camera_not_connected_tooltip))
-                                            }
-                                        },
-                                        state = writeTooltipState,
-                                    ) {
-                                        SwipeAction(
-                                            icon = rememberVectorPainter(FujiIcons.PhotoCamera),
-                                            label = stringResource(R.string.action_write),
-                                            onClick = {
-                                                if (canWriteToCamera) {
-                                                    openRowId = null
+                                FujiAnchoredMenu(
+                                    expanded = menuRecipeId == recipe.id && !selecting,
+                                    onDismissRequest = { menuRecipeId = null },
+                                    groups = listOf(
+                                        {
+                                            FujiMenuItem(
+                                                text = stringResource(R.string.action_edit),
+                                                icon = FujiIcons.Edit,
+                                                onClick = {
+                                                    menuRecipeId = null
+                                                    onEditRecipe(recipe.id)
+                                                },
+                                            )
+                                            FujiMenuItem(
+                                                text = stringResource(R.string.action_write_to_camera),
+                                                icon = FujiIcons.PhotoCamera,
+                                                enabled = canWriteToCamera,
+                                                supportingText = if (canWriteToCamera) null else {
+                                                    stringResource(R.string.camera_not_connected_tooltip)
+                                                },
+                                                onClick = {
+                                                    menuRecipeId = null
                                                     writeRecipeId = recipe.id
-                                                } else {
-                                                    coroutineScope.launch {
-                                                        writeTooltipState.show()
-                                                    }
-                                                }
-                                            },
-                                            position = ButtonGroupPosition.Middle,
-                                            enabled = true,
-                                            container = if (canWriteToCamera) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
-                                            content = if (canWriteToCamera) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
-                                        )
-                                    }
-                                    SwipeAction(
-                                        icon = rememberVectorPainter(FujiIcons.Edit),
-                                        label = stringResource(R.string.action_edit),
-                                        onClick = { onEditRecipe(recipe.id) },
-                                        position = ButtonGroupPosition.End,
-                                    )
-                                },
-                            ) {
-                                card()
+                                                },
+                                            )
+                                            FujiMenuItem(
+                                                text = stringResource(R.string.action_select),
+                                                icon = FujiIcons.Check,
+                                                onClick = {
+                                                    menuRecipeId = null
+                                                    selectedIds = setOf(recipe.id)
+                                                },
+                                            )
+                                        },
+                                        {
+                                            FujiMenuItem(
+                                                text = stringResource(R.string.action_delete),
+                                                icon = FujiIcons.Delete,
+                                                onClick = {
+                                                    menuRecipeId = null
+                                                    recipePendingDelete = recipe
+                                                },
+                                            )
+                                        },
+                                    ),
+                                )
                             }
                         }
 
@@ -432,7 +412,6 @@ fun LibraryScreen(
                     onClick = {
                         val id = recipe.id
                         recipePendingDelete = null
-                        openRowId = null
                         onDeleteRecipe(id)
                     },
                     colors = ButtonDefaults.textButtonColors(
