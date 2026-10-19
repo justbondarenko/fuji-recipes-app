@@ -263,8 +263,8 @@ private fun LoadedLab(
     val fields = lab.renderedFields(state.supportedFieldIds)
     val readiness = state.camera.readiness()
 
-    // Wider than tall — landscape, or a wide window — puts the picture beside its parameters
-    // instead of above them: 60% of the width for the photo, 40% for the controls.
+    // Unfolded windows have room for two panes even when taller than wide. Keep the
+    // existing landscape phone layout too; narrow portrait windows still stack the panes.
     BoxWithConstraints(modifier = modifier) {
         val preview: @Composable (Modifier) -> Unit = { paneModifier ->
             PreviewPane(
@@ -288,7 +288,7 @@ private fun LoadedLab(
             )
         }
 
-        if (maxWidth > maxHeight) {
+        if (maxWidth >= 720.dp || maxWidth > maxHeight) {
             Row(modifier = Modifier.fillMaxSize()) {
                 preview(
                     Modifier

@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import dev.bondarenko.fujirecipes.ui.common.readableWidth
 import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.camera.CameraState
@@ -121,7 +122,7 @@ fun CameraPhotosScreen(
 
     val actionsEnabled = state.download == null
     Box(modifier = modifier.fillMaxSize().padding(contentPadding)) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().readableWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
