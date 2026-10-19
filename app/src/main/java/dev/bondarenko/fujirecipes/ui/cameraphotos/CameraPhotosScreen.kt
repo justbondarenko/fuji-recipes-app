@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.selection.triStateToggleable
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularWavyProgressIndicator
@@ -38,16 +39,20 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.TriStateCheckbox
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.content.ContextCompat
@@ -70,6 +75,7 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.LinkedCamera
 import dev.bondarenko.fujirecipes.ui.theme.icons.Refresh
 import java.util.Locale
+import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -82,6 +88,7 @@ fun CameraPhotosScreen(
     onRefresh: () -> Unit,
     onFilter: (CameraFileFilter) -> Unit,
     onToggleFile: (Int) -> Unit,
+    onToggleDay: (LocalDate?) -> Unit,
     onSelectAll: () -> Unit,
     onClearSelection: () -> Unit,
     onLoadThumbnail: (Int) -> Unit,
@@ -121,6 +128,7 @@ fun CameraPhotosScreen(
     }
 
     val actionsEnabled = state.download == null
+    val days = remember(state.files, state.filter) { groupCameraFilesByDay(state.filteredFiles) }
     Box(modifier = modifier.fillMaxSize().padding(contentPadding)) {
         Column(modifier = Modifier.fillMaxSize().readableWidth()) {
         Row(
@@ -247,19 +255,30 @@ fun CameraPhotosScreen(
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                itemsIndexed(state.filteredFiles, key = { _, file -> file.handle }) { index, file ->
-                    LaunchedEffect(file.handle, state.thumbnails[file.handle]) {
-                        if (state.thumbnails[file.handle] == null) onLoadThumbnail(file.handle)
+                days.forEach { day ->
+                    item(key = "day-${day.date}", contentType = "day") {
+                        CameraPhotoDayHeader(
+                            date = day.date,
+                            selectedCount = day.files.count { it.handle in state.selectedHandles },
+                            totalCount = day.files.size,
+                            enabled = actionsEnabled,
+                            onToggle = { onToggleDay(day.date) },
+                        )
                     }
-                    CameraFileRow(
-                        file = file,
-                        thumbnail = state.thumbnails[file.handle],
-                        selected = file.handle in state.selectedHandles,
-                        enabled = actionsEnabled,
-                        index = index,
-                        count = state.filteredFiles.size,
-                        onToggle = { onToggleFile(file.handle) },
-                    )
+                    itemsIndexed(day.files, key = { _, file -> file.handle }, contentType = { _, _ -> "photo" }) { index, file ->
+                        LaunchedEffect(file.handle, state.thumbnails[file.handle]) {
+                            if (state.thumbnails[file.handle] == null) onLoadThumbnail(file.handle)
+                        }
+                        CameraFileRow(
+                            file = file,
+                            thumbnail = state.thumbnails[file.handle],
+                            selected = file.handle in state.selectedHandles,
+                            enabled = actionsEnabled,
+                            index = index,
+                            count = day.files.size,
+                            onToggle = { onToggleFile(file.handle) },
+                        )
+                    }
                 }
             }
         }
@@ -321,6 +340,42 @@ fun CameraPhotosScreen(
                 modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
             )
         }
+    }
+}
+
+@Composable
+internal fun CameraPhotoDayHeader(
+    date: LocalDate?,
+    selectedCount: Int,
+    totalCount: Int,
+    enabled: Boolean,
+    onToggle: () -> Unit,
+) {
+    val selection = when (selectedCount) {
+        0 -> ToggleableState.Off
+        totalCount -> ToggleableState.On
+        else -> ToggleableState.Indeterminate
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .padding(top = 12.dp, bottom = 6.dp)
+            .triStateToggleable(selection, enabled = enabled, role = Role.Checkbox, onClick = onToggle)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = date?.let { formatCameraCaptureDay(it) }
+                    ?: stringResource(R.string.camera_photos_unknown_day),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text(
+                text = stringResource(R.string.camera_photos_day_selected, selectedCount, totalCount),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        TriStateCheckbox(state = selection, onClick = null, enabled = enabled)
     }
 }
 
@@ -420,7 +475,7 @@ private fun CameraFileRow(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun CameraPhotosLoadingState(
+internal fun CameraPhotosLoadingState(
     current: Int,
     total: Int,
     modifier: Modifier = Modifier,
@@ -430,7 +485,12 @@ private fun CameraPhotosLoadingState(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            CircularWavyProgressIndicator()
+            val animatedProgress by animateFloatAsState(
+                targetValue = if (total > 0) (current.toFloat() / total).coerceIn(0f, 1f) else 0f,
+                animationSpec = ProgressIndicatorDefaults.ProgressAnimationSpec,
+                label = "camera card reading progress",
+            )
+            CircularWavyProgressIndicator(progress = { animatedProgress })
             Text(
                 text = if (total > 0) {
                     stringResource(R.string.camera_photos_scanning_progress, current, total)
@@ -611,6 +671,7 @@ fun CameraPhotosRouteContent(contentPadding: PaddingValues) {
         onRefresh = viewModel::refresh,
         onFilter = viewModel::setFilter,
         onToggleFile = viewModel::toggleFile,
+        onToggleDay = viewModel::toggleDay,
         onSelectAll = viewModel::selectAllVisible,
         onClearSelection = viewModel::clearSelection,
         onLoadThumbnail = viewModel::loadThumbnail,

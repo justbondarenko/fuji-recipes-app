@@ -7,12 +7,14 @@ import dev.bondarenko.fujirecipes.camera.usb.CameraMediaObject
 import dev.bondarenko.fujirecipes.core.store.CameraExportProgress
 import dev.bondarenko.fujirecipes.core.store.CameraTransferRecord
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Before
@@ -21,6 +23,7 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import java.time.LocalDate
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CameraPhotosViewModelTest {
@@ -67,6 +70,99 @@ class CameraPhotosViewModelTest {
         vm.clearSelection()
         assertEquals(emptySet(), vm.state.value.selectedHandles)
     }
+
+    @Test
+    fun `reading exposes real progress before the file list is ready`() = runTest(dispatcher) {
+        val finish = CompletableDeferred<Unit>()
+        val vm = CameraPhotosViewModel(
+            listFiles = { progress ->
+                progress(3, 10)
+                finish.await()
+                listOf(jpeg)
+            },
+            fetchThumbnail = { null },
+            transferState = MutableStateFlow(null),
+            startTransfer = { _, _ -> }, cancelTransfer = {}, acknowledgeTransfer = {},
+        )
+        vm.refresh()
+        runCurrent()
+        assertTrue(vm.state.value.isLoading)
+        assertEquals(3, vm.state.value.scanCurrent)
+        assertEquals(10, vm.state.value.scanTotal)
+        assertEquals(emptyList(), vm.state.value.files)
+        finish.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(false, vm.state.value.isLoading)
+        assertEquals(listOf(jpeg), vm.state.value.files)
+    }
+
+    @Test
+    fun `groups dates newest first with undated files last and stable file order`() {
+        val earlier = onDate(raw, "20260908T120000")
+        val unknown = onDate(jpeg.copy(handle = 3), "")
+        val sameDay = onDate(jpeg.copy(handle = 4), "20260909T003000+1400")
+        val invalid = onDate(raw.copy(handle = 5), "20260230T120000")
+        val groups = groupCameraFilesByDay(listOf(unknown, jpeg, earlier, sameDay, invalid))
+        assertEquals(listOf(LocalDate.of(2026, 9, 9), LocalDate.of(2026, 9, 8), null), groups.map { it.date })
+        assertEquals(listOf(listOf(jpeg, sameDay), listOf(earlier), listOf(unknown, invalid)), groups.map { it.files })
+    }
+
+    @Test
+    fun `day selection completes a partial day and toggles it without touching other days`() = runTest(dispatcher) {
+        val earlier = onDate(jpeg.copy(handle = 3), "20260908T120000")
+        val vm = viewModel(files = listOf(jpeg, raw, earlier))
+        vm.refresh()
+        advanceUntilIdle()
+        vm.toggleFile(jpeg.handle)
+        vm.toggleFile(earlier.handle)
+        vm.toggleDay(LocalDate.of(2026, 9, 9))
+        assertEquals(setOf(1, 2, 3), vm.state.value.selectedHandles)
+        vm.toggleDay(LocalDate.of(2026, 9, 9))
+        assertEquals(setOf(3), vm.state.value.selectedHandles)
+    }
+
+    @Test
+    fun `day toggle respects format filter and preserves hidden selections`() = runTest(dispatcher) {
+        val vm = viewModel(files = listOf(jpeg, raw))
+        vm.refresh()
+        advanceUntilIdle()
+        vm.toggleFile(raw.handle)
+        vm.setFilter(CameraFileFilter.JPEG)
+        vm.toggleDay(LocalDate.of(2026, 9, 9))
+        assertEquals(setOf(1, 2), vm.state.value.selectedHandles)
+        vm.toggleDay(LocalDate.of(2026, 9, 9))
+        assertEquals(setOf(2), vm.state.value.selectedHandles)
+        vm.toggleDay(LocalDate.of(2000, 1, 1))
+        assertEquals(setOf(2), vm.state.value.selectedHandles)
+    }
+
+    @Test
+    fun `unknown date can be selected as a group`() = runTest(dispatcher) {
+        val vm = viewModel(files = listOf(jpeg, onDate(raw, "")))
+        vm.refresh()
+        advanceUntilIdle()
+        vm.toggleDay(null)
+        assertEquals(setOf(raw.handle), vm.state.value.selectedHandles)
+        vm.toggleDay(null)
+        assertEquals(emptySet(), vm.state.value.selectedHandles)
+    }
+
+    @Test
+    fun `day selection is frozen as soon as a download starts`() = runTest(dispatcher) {
+        val transfers = MutableStateFlow<CameraTransferState?>(null)
+        val vm = viewModel(files = listOf(jpeg, raw), transferState = transfers)
+        vm.refresh()
+        advanceUntilIdle()
+        vm.toggleFile(jpeg.handle)
+        transfers.value = CameraTransferState.Running(CameraExportProgress(1, 1, jpeg.info.filename, 0, 10))
+        vm.toggleDay(LocalDate.of(2026, 9, 9)) // Before the UI's collector sees the transfer.
+        assertEquals(setOf(jpeg.handle), vm.state.value.selectedHandles)
+        advanceUntilIdle()
+        vm.toggleDay(LocalDate.of(2026, 9, 9))
+        assertEquals(setOf(jpeg.handle), vm.state.value.selectedHandles)
+    }
+
+    private fun onDate(file: CameraMediaObject, date: String) = file.copy(info = file.info.copy(captureDate = date))
 
     /**
      * The batch is handed over, not run here. A download that lived in `viewModelScope` would
