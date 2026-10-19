@@ -5,6 +5,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.SplitButtonDefaults
 import androidx.compose.material3.SplitButtonLayout
 import androidx.compose.ui.graphics.graphicsLayer
+import dev.bondarenko.fujirecipes.ui.common.readableWidth
 import dev.bondarenko.fujirecipes.ui.theme.icons.KeyboardArrowDown
 import android.widget.Toast
 import androidx.annotation.DrawableRes
@@ -450,7 +451,7 @@ private fun RecipeBentoBody(
 
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().readableWidth(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {

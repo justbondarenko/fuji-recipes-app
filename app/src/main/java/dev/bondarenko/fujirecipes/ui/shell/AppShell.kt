@@ -9,26 +9,32 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import dev.bondarenko.fujirecipes.R
+import dev.bondarenko.fujirecipes.ui.common.readableWidth
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.icons.Add
 import dev.bondarenko.fujirecipes.ui.theme.icons.BookmarkStacks
@@ -42,8 +48,8 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.Science
  * The chrome every top-level screen sits inside.
  *
  * Implements standard Material 3 navigation:
- * - A docked [NavigationBar] at the bottom of the screen with labeled destinations.
- * - An [ExtendedFloatingActionButton] CTA positioned directly above the docked bar on the right.
+ * - Bottom navigation on narrow windows; a rail on windows at least 600dp wide and 480dp tall.
+ * - An [ExtendedFloatingActionButton] CTA in the bottom-right corner of the content.
  *
  * Creating a recipe opens a choice dialog (pasted text vs. manual creation) via [onCreateClick].
  */
@@ -83,118 +89,102 @@ fun AppShell(
     topBarAction: (@Composable () -> Unit)? = null,
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.surface,
-        topBar = {
-            if (showChrome && topBarAction != null) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    topBarAction()
-                }
-            }
-        },
-        bottomBar = {
-            if (showChrome) {
-                NavigationBar {
-                    NavigationBarItem(
-                        selected = isLibrarySelected,
-                        onClick = onLibraryClick,
-                        icon = {
-                            Icon(
-                                imageVector = FujiIcons.BookmarkStacks,
-                                contentDescription = null,
-                            )
-                        },
-                        label = { Text(stringResource(R.string.nav_library)) },
-                    )
-                    NavigationBarItem(
-                        selected = isReadSelected,
-                        onClick = onReadClick,
-                        icon = {
-                            Icon(
-                                imageVector = FujiIcons.ImageSearch,
-                                contentDescription = null,
-                            )
-                        },
-                        label = { Text(stringResource(R.string.nav_read)) },
-                    )
-                    NavigationBarItem(
-                        selected = isLabSelected,
-                        onClick = onLabClick,
-                        icon = {
-                            Icon(
-                                imageVector = FujiIcons.Science,
-                                contentDescription = null,
-                            )
-                        },
-                        label = { Text(stringResource(R.string.nav_lab)) },
-                    )
-                    NavigationBarItem(
-                        selected = isCameraPhotosSelected,
-                        onClick = onCameraPhotosClick,
-                        icon = {
-                            Icon(
-                                imageVector = FujiIcons.CameraRoll,
-                                contentDescription = null,
-                            )
-                        },
-                        label = { Text(stringResource(R.string.nav_camera_photos)) },
-                    )
-                    NavigationBarItem(
-                        selected = isMoreSelected,
-                        onClick = onMoreClick,
-                        icon = {
-                            Icon(
-                                imageVector = FujiIcons.MoreVert,
-                                contentDescription = null,
-                            )
-                        },
-                        label = { Text(stringResource(R.string.nav_more)) },
-                    )
-                }
-            }
-        },
-        floatingActionButton = {
-            AnimatedVisibility(
-                visible = showChrome && isLibrarySelected && !isSelecting,
-                enter = slideInHorizontally(
-                    initialOffsetX = { fullWidth -> fullWidth * 2 },
-                    animationSpec = spring(
-                        stiffness = Spring.StiffnessMediumLow,
-                        dampingRatio = Spring.DampingRatioLowBouncy,
-                    ),
-                ) + fadeIn(animationSpec = tween(durationMillis = 150)),
-                exit = slideOutHorizontally(
-                    targetOffsetX = { fullWidth -> fullWidth * 2 },
-                    animationSpec = spring(
-                        stiffness = Spring.StiffnessMediumLow,
-                    ),
-                ) + fadeOut(animationSpec = tween(durationMillis = 150)),
-            ) {
-                ExtendedFloatingActionButton(
-                    onClick = onCreateClick,
-                    icon = {
-                        Icon(
-                            imageVector = FujiIcons.Add,
-                            contentDescription = null,
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        // Use the current window, so folding and multi-window resizing select the same layouts.
+        // A short landscape phone keeps the bottom bar: five rail items need vertical room.
+        val useRail = maxWidth >= 600.dp && maxHeight >= 480.dp
+        val destinations = listOf(
+            Triple(R.string.nav_library, FujiIcons.BookmarkStacks, isLibrarySelected),
+            Triple(R.string.nav_read, FujiIcons.ImageSearch, isReadSelected),
+            Triple(R.string.nav_lab, FujiIcons.Science, isLabSelected),
+            Triple(R.string.nav_camera_photos, FujiIcons.CameraRoll, isCameraPhotosSelected),
+            Triple(R.string.nav_more, FujiIcons.MoreVert, isMoreSelected),
+        )
+        val actions = listOf(onLibraryClick, onReadClick, onLabClick, onCameraPhotosClick, onMoreClick)
+        Row(Modifier.fillMaxSize()) {
+            if (showChrome && useRail) {
+                NavigationRail(modifier = Modifier.fillMaxHeight()) {
+                    destinations.forEachIndexed { index, (label, icon, selected) ->
+                        NavigationRailItem(
+                            selected = selected,
+                            onClick = actions[index],
+                            icon = { Icon(icon, contentDescription = null) },
+                            label = { Text(stringResource(label)) },
                         )
-                    },
-                    text = { Text(stringResource(R.string.nav_create)) },
-                )
+                    }
+                }
             }
-        },
-        floatingActionButtonPosition = FabPosition.End,
-    ) { innerPadding ->
-        content(innerPadding)
+            Scaffold(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                containerColor = MaterialTheme.colorScheme.surface,
+                topBar = {
+                    if (showChrome && topBarAction != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .statusBarsPadding()
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.End,
+                        ) {
+                            topBarAction()
+                        }
+                    }
+                },
+                bottomBar = {
+                    if (showChrome && !useRail) {
+                        NavigationBar {
+                            destinations.forEachIndexed { index, (label, icon, selected) ->
+                                NavigationBarItem(
+                                    selected = selected,
+                                    onClick = actions[index],
+                                    icon = { Icon(icon, contentDescription = null) },
+                                    label = { Text(stringResource(label)) },
+                                )
+                            }
+                        }
+                    }
+                },
+                floatingActionButton = {
+                    AnimatedVisibility(
+                        visible = showChrome && isLibrarySelected && !isSelecting,
+                        enter = slideInHorizontally(
+                            initialOffsetX = { fullWidth -> fullWidth * 2 },
+                            animationSpec = spring(
+                                stiffness = Spring.StiffnessMediumLow,
+                                dampingRatio = Spring.DampingRatioLowBouncy,
+                            ),
+                        ) + fadeIn(animationSpec = tween(durationMillis = 150)),
+                        exit = slideOutHorizontally(
+                            targetOffsetX = { fullWidth -> fullWidth * 2 },
+                            animationSpec = spring(
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                        ) + fadeOut(animationSpec = tween(durationMillis = 150)),
+                    ) {
+                        ExtendedFloatingActionButton(
+                            onClick = onCreateClick,
+                            icon = {
+                                Icon(
+                                    imageVector = FujiIcons.Add,
+                                    contentDescription = null,
+                                )
+                            },
+                            text = { Text(stringResource(R.string.nav_create)) },
+                        )
+                    }
+                },
+                floatingActionButtonPosition = FabPosition.End,
+            ) { innerPadding ->
+                Box(Modifier.fillMaxSize().readableWidth(1200.dp)) {
+                    content(innerPadding)
+                }
+            }
+        }
     }
 }
 
+@Preview(name = "Shell — unfolded", showBackground = true, widthDp = 840, heightDp = 900)
+@Preview(name = "Shell — cover", showBackground = true, widthDp = 320, heightDp = 700)
 @Preview(name = "Shell — light", showBackground = true, heightDp = 400)
 @Preview(name = "Shell — dark", showBackground = true, uiMode = 0x20, heightDp = 400)
 @Composable

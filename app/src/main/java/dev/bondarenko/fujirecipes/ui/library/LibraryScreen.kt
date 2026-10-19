@@ -4,6 +4,7 @@ import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import dev.bondarenko.fujirecipes.ui.common.readableWidth
 import dev.bondarenko.fujirecipes.ui.theme.icons.StarBorder
 import dev.bondarenko.fujirecipes.ui.theme.icons.StarRate
 import androidx.activity.compose.BackHandler
@@ -138,7 +139,7 @@ fun LibraryScreen(
     // phone, and the flow that feeds this screen already republishes on every change.
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().readableWidth(),
             // The shell's inset already reserves the floating bar's height, so the list
             // scrolls under it and the last card can still clear it.
             contentPadding = PaddingValues(

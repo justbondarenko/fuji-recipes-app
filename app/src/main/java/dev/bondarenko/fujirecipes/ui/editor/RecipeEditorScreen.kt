@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import dev.bondarenko.fujirecipes.ui.common.readableWidth
 import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowBack
 import dev.bondarenko.fujirecipes.ui.theme.icons.Check
 import dev.bondarenko.fujirecipes.ui.theme.icons.ContentCopy
@@ -161,7 +162,8 @@ fun RecipeEditorScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                .readableWidth(),
         ) {
             when {
                 state.isLoading -> Unit
