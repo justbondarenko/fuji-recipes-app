@@ -6,6 +6,8 @@ import dev.bondarenko.fujirecipes.camera.ptp.Operation
 import dev.bondarenko.fujirecipes.camera.ptp.PtpSession
 import dev.bondarenko.fujirecipes.camera.ptp.PtpTransport
 import dev.bondarenko.fujirecipes.camera.ptp.PtpTimeoutError
+import dev.bondarenko.fujirecipes.camera.ptp.PtpIoError
+import dev.bondarenko.fujirecipes.camera.ptp.UsbTransferDirection
 import dev.bondarenko.fujirecipes.camera.ptp.ResponseCode
 import dev.bondarenko.fujirecipes.camera.raw.RAW_CONVERSION_TRIGGER_PROPERTY
 import dev.bondarenko.fujirecipes.camera.raw.RAW_PROFILE_PROPERTY
@@ -208,6 +210,26 @@ class RawLabSessionTest {
         assertEquals(Operation.GET_OBJECT_HANDLES, error.operation)
         assertTrue(error.timeoutMs in 1..1_000)
         assertFalse(lab.isLoaded)
+    }
+
+    @Test
+    fun `a host I-O failure invalidates the RAF and skips cleanup just like other broken transfers`() {
+        val channel = TimedCameraChannel(renderingCamera())
+        val session = PtpSession(PtpTransport(channel)).also { it.open() }
+        channel.readFailure = {
+            if (it.code == Operation.GET_OBJECT) PtpIoError(UsbTransferDirection.READ, 0x81, 65_536, 30_000, 1)
+            else null
+        }
+        val directory = createTempDirectory("raw-lab-host-error").toFile()
+        val output = directory.resolve("preview.jpg")
+        val lab = RawLabSession()
+
+        assertFailsWith<PtpIoError> {
+            lab.render(session, directory.raf(), JsonObject(emptyMap()), output)
+        }
+        assertFalse(lab.isLoaded)
+        assertFalse(output.exists())
+        assertEquals(Operation.GET_OBJECT, channel.commands.last().code)
     }
 
     private fun openSession(camera: FakeCamera): PtpSession =

@@ -220,7 +220,7 @@ class PtpError(
 )
 
 /** A malformed container, or one that answers a different request. */
-class PtpFramingError(message: String) : Exception(message)
+class PtpFramingError(message: String) : PtpTransportError(message)
 
 data class PtpContainer(
     val type: Int,

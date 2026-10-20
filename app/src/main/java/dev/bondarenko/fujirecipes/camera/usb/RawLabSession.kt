@@ -1,8 +1,7 @@
 package dev.bondarenko.fujirecipes.camera.usb
 
-import dev.bondarenko.fujirecipes.camera.ptp.PtpFramingError
 import dev.bondarenko.fujirecipes.camera.ptp.PtpSession
-import dev.bondarenko.fujirecipes.camera.ptp.PtpTimeoutError
+import dev.bondarenko.fujirecipes.camera.ptp.PtpTransportError
 import java.io.File
 import kotlinx.serialization.json.JsonObject
 
@@ -84,7 +83,7 @@ class RawLabSession {
         try {
             block()
         } catch (error: Exception) {
-            if (error is PtpFramingError || error is PtpTimeoutError) invalidate()
+            if (error is PtpTransportError) invalidate()
             throw error
         }
     }

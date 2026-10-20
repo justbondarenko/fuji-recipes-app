@@ -9,7 +9,8 @@ import android.hardware.usb.UsbManager
 import dev.bondarenko.fujirecipes.camera.ptp.BulkChannel
 import dev.bondarenko.fujirecipes.camera.ptp.DEFAULT_TIMEOUT_MS
 import dev.bondarenko.fujirecipes.camera.ptp.PtpFramingError
-import dev.bondarenko.fujirecipes.camera.ptp.PtpTimeoutError
+import dev.bondarenko.fujirecipes.camera.ptp.PtpIoError
+import dev.bondarenko.fujirecipes.camera.ptp.UsbTransferDirection
 import java.io.InputStream
 
 /**
@@ -90,6 +91,7 @@ class UsbBulkChannel private constructor(
     private fun writeRaw(bytes: ByteArray, count: Int) {
         var sent = 0
         while (sent < count) {
+            val startedAt = System.nanoTime()
             val moved = connection.bulkTransfer(
                 endpointOut,
                 bytes,
@@ -97,10 +99,13 @@ class UsbBulkChannel private constructor(
                 count - sent,
                 timeoutMs,
             )
-            // Android reports a timeout and a transport error identically, as a negative
-            // return. The timeout is by far the likelier of the two with a camera on the
-            // other end, and it is the one with a remedy the user can act on.
-            if (moved < 0) throw PtpTimeoutError(timeoutMs)
+            if (moved < 0) throw PtpIoError(
+                direction = UsbTransferDirection.WRITE,
+                endpointAddress = endpointOut.address,
+                requestedBytes = count - sent,
+                timeoutMs = timeoutMs,
+                elapsedMs = (System.nanoTime() - startedAt) / 1_000_000,
+            )
             if (moved == 0) throw PtpFramingError("The USB write moved no bytes.")
             sent += moved
         }
@@ -171,9 +176,16 @@ class UsbBulkChannel private constructor(
 
     override fun read(maxBytes: Int, timeoutMs: Int): ByteArray {
         val buffer = ByteArray(maxBytes)
+        val startedAt = System.nanoTime()
         val moved = connection.bulkTransfer(endpointIn, buffer, 0, maxBytes, timeoutMs)
 
-        if (moved < 0) throw PtpTimeoutError(timeoutMs)
+        if (moved < 0) throw PtpIoError(
+            direction = UsbTransferDirection.READ,
+            endpointAddress = endpointIn.address,
+            requestedBytes = maxBytes,
+            timeoutMs = timeoutMs,
+            elapsedMs = (System.nanoTime() - startedAt) / 1_000_000,
+        )
         return buffer.copyOf(moved)
     }
 
@@ -251,23 +263,48 @@ class UsbBulkChannel private constructor(
             candidates: List<UsbInterface>,
             timeoutMs: Int,
         ): UsbBulkChannel {
-            candidates.forEach { candidate ->
-                // `force = true`: on some devices the platform's own MTP handler has the
-                // interface, and taking it from that is exactly what is wanted here.
-                if (connection.claimInterface(candidate, true)) {
-                    val (input, output) = bulkPair(candidate)!!
-                    return UsbBulkChannel(
-                        connection = connection,
-                        claimed = candidate,
-                        endpointIn = input,
-                        endpointOut = output,
-                        productName = nameFor(device),
-                        timeoutMs = timeoutMs,
-                    )
-                }
+            var activationFailed = false
+            val candidate = try {
+                claimAndActivateUsbInterface(
+                    candidates = candidates,
+                    // The platform's MTP handler may already hold the interface.
+                    claim = { connection.claimInterface(it, true) },
+                    activate = { selected ->
+                        val hasAlternates = (0 until device.interfaceCount)
+                            .map(device::getInterface)
+                            .any { it.id == selected.id && it.alternateSetting != 0 }
+                        // Claiming does not select an alternate setting. For a default-only
+                        // interface SET_INTERFACE is optional and may legitimately stall.
+                        val active = !hasAlternates || connection.setInterface(selected)
+                        if (!active) activationFailed = true
+                        active
+                    },
+                    release = { connection.releaseInterface(it) },
+                )
+            } catch (error: Exception) {
+                connection.close()
+                throw error
+            }
+            if (candidate != null) {
+                val (input, output) = bulkPair(candidate)!!
+                return UsbBulkChannel(
+                    connection = connection,
+                    claimed = candidate,
+                    endpointIn = input,
+                    endpointOut = output,
+                    productName = nameFor(device),
+                    timeoutMs = timeoutMs,
+                )
             }
 
             connection.close()
+            if (activationFailed) {
+                throw UsbConnectError(
+                    ConnectFailure.OTHER,
+                    "The phone could not activate the camera's USB interface. " +
+                        "Disconnect and reconnect the camera, then try again.",
+                )
+            }
             throw UsbConnectError(
                 ConnectFailure.DEVICE_BUSY,
                 "The camera could not be claimed. Another app is probably holding it — a " +

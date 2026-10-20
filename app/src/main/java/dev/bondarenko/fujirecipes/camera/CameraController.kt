@@ -16,7 +16,7 @@ import dev.bondarenko.fujirecipes.camera.plan.WritePlan
 import dev.bondarenko.fujirecipes.camera.ptp.PtpError
 import dev.bondarenko.fujirecipes.camera.ptp.PtpFramingError
 import dev.bondarenko.fujirecipes.camera.ptp.PtpSession
-import dev.bondarenko.fujirecipes.camera.ptp.PtpTimeoutError
+import dev.bondarenko.fujirecipes.camera.ptp.PtpTransportError
 import dev.bondarenko.fujirecipes.camera.ptp.PtpTransport
 import dev.bondarenko.fujirecipes.camera.usb.FUJI_VENDOR_ID
 import dev.bondarenko.fujirecipes.camera.usb.InterruptReason
@@ -262,7 +262,7 @@ class CameraController(
         try {
             block()
         } catch (error: Exception) {
-            if (error is PtpTimeoutError || error is PtpFramingError) {
+            if (error is PtpTransportError) {
                 closeSession(error.toCameraError(), abort = true)
             }
             throw error
@@ -619,7 +619,7 @@ class CameraController(
                 outcome = error.outcome,
             )
         } catch (error: Exception) {
-            if (error is PtpTimeoutError || error is PtpFramingError) {
+            if (error is PtpTransportError) {
                 closeSession(error.toCameraError(), abort = true)
             } else {
                 _state.value = connected
@@ -693,11 +693,11 @@ internal fun Throwable.toCameraError(): CameraState.Error = when (this) {
 
     is PtpError -> CameraState.Error(message.orEmpty(), ptpCode = code)
 
-    is PtpTimeoutError -> CameraState.Error(message.orEmpty())
-
     is PtpFramingError -> CameraState.Error(
         "The camera answered something this app could not read: ${message.orEmpty()}",
     )
+
+    is PtpTransportError -> CameraState.Error(message.orEmpty())
 
     else -> CameraState.Error(
         "The camera connection failed: ${message ?: this::class.simpleName}",

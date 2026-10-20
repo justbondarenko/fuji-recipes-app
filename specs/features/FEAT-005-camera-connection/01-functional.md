@@ -45,10 +45,15 @@ an X100VI in March 2026. This feature transcribes that work rather than repeatin
    interface 0 blindly fails on a body whose OS photo service already holds it, and
    hard-coded endpoint numbers break on the second camera anyone tries.*
 3. `claimInterface(force = true)`. If it still fails, the message names the likely cause.
+   When the interface has alternate settings, explicitly select the claimed setting with
+   `setInterface` before using its endpoints; release and try the next candidate if activation
+   fails. Default-only interfaces need no `SET_INTERFACE` request, which they may legally stall.
 4. Command / data / response phases with transaction ids, per ISO 15740. Reads are chunked
    until the container's declared length is satisfied. 5 s timeout per ordinary transfer;
    Lab scopes RAW response reads to 30 s, with conversion polling bounded by its deadline.
-   Timeouts identify the failed operation and property where applicable. A timeout or framing
+   Android's negative `bulkTransfer` return is an I/O failure, not proof of a timeout. Report
+   the measured elapsed time, configured wait, read/write direction, endpoint and requested
+   byte count, together with the operation/property context. A timeout, I/O or framing
    failure aborts the USB session across all camera features, including slot reads, photo
    browsing, downloads, reports and writes. No cleanup command is sent on that broken session.
    Connection setup tolerates optional-property refusals, but never swallows transport failures

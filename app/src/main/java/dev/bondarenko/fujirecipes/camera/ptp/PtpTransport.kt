@@ -86,12 +86,9 @@ class PtpTimeoutError(
     val operation: Int? = null,
     val property: Int? = null,
     cause: Throwable? = null,
-) : Exception(
+) : PtpTransportError(
     "The camera did not answer within ${timeoutMs}ms. Check the cable and that the camera " +
-        "is still awake, then reconnect before trying again." + if (operation != null) {
-            " (Operation 0x${operation.toString(16)}" +
-                (property?.let { ", property 0x${it.toString(16)}" } ?: "") + ")"
-        } else "",
+        "is still awake, then reconnect before trying again." + ptpOperationContext(operation, property),
     cause,
 )
 
@@ -139,12 +136,16 @@ class PtpTransport(private val channel: BulkChannel) {
     private inline fun <T> withTimeoutContext(operation: Int, params: List<Int>, block: () -> T): T =
         try {
             block()
-        } catch (error: PtpTimeoutError) {
+        } catch (error: PtpTransportError) {
             val property = if (operation == Operation.GET_DEVICE_PROP_DESC ||
                 operation == Operation.GET_DEVICE_PROP_VALUE ||
                 operation == Operation.SET_DEVICE_PROP_VALUE
             ) params.firstOrNull() else null
-            throw PtpTimeoutError(error.timeoutMs, operation, property, error)
+            throw when (error) {
+                is PtpTimeoutError -> PtpTimeoutError(error.timeoutMs, operation, property, error)
+                is PtpIoError -> error.withOperation(operation, property)
+                is PtpFramingError -> error
+            }
         }
 
     /**

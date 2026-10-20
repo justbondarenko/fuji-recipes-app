@@ -14,6 +14,8 @@ import dev.bondarenko.fujirecipes.camera.ptp.Operation
 import dev.bondarenko.fujirecipes.camera.ptp.PtpSession
 import dev.bondarenko.fujirecipes.camera.ptp.PtpTransport
 import dev.bondarenko.fujirecipes.camera.ptp.PtpTimeoutError
+import dev.bondarenko.fujirecipes.camera.ptp.PtpIoError
+import dev.bondarenko.fujirecipes.camera.ptp.UsbTransferDirection
 import dev.bondarenko.fujirecipes.camera.ptp.PtpFramingError
 import dev.bondarenko.fujirecipes.camera.ptp.ContainerType
 import dev.bondarenko.fujirecipes.camera.ptp.packContainer
@@ -252,6 +254,17 @@ class CameraFactsReaderTest {
         camera.staleReplyBeforeNextRead = packContainer(ContainerType.RESPONSE, ResponseCode.OK, 1)
 
         assertFailsWith<PtpFramingError> { readCameraDetails(session, session.deviceInfo) }
+    }
+
+    @Test
+    fun `immediate host transfer failures stop setup and are not hidden as optional facts`() {
+        val channel = TimedCameraChannel(FakeCamera())
+        val session = PtpSession(PtpTransport(channel)).also { it.open() }
+        channel.readFailure = { PtpIoError(UsbTransferDirection.READ, 0x81, 65_536, 5_000, 0) }
+        val before = channel.commands.size
+
+        assertFailsWith<PtpIoError> { readCameraDetails(session, session.deviceInfo) }
+        assertEquals(before + 1, channel.commands.size)
     }
 
     // ─── Battery ────────────────────────────────────────────────────────────
