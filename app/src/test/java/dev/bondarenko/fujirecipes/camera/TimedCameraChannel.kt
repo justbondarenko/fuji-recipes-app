@@ -12,6 +12,7 @@ class TimedCameraChannel(val camera: FakeCamera) : BulkChannel by camera {
     val commands = mutableListOf<PtpContainer>()
     val readTimeouts = mutableListOf<Int>()
     var responseDelayMs: (PtpContainer) -> Int = { 0 }
+    var readFailure: (PtpContainer) -> Exception? = { null }
 
     override fun write(bytes: ByteArray) {
         val container = unpackContainer(bytes)
@@ -23,6 +24,7 @@ class TimedCameraChannel(val camera: FakeCamera) : BulkChannel by camera {
 
     override fun read(maxBytes: Int, timeoutMs: Int): ByteArray {
         readTimeouts += timeoutMs
+        readFailure(commands.last())?.let { throw it }
         if (responseDelayMs(commands.last()) > timeoutMs) throw PtpTimeoutError(timeoutMs)
         return camera.read(maxBytes)
     }

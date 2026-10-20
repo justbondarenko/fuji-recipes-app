@@ -84,4 +84,63 @@ class PtpResponseTimeoutTest {
         assertTrue(channel.camera.closed)
         assertEquals(sent, channel.commands.size)
     }
+
+    @Test
+    fun `an immediate USB error retains its actual wait and property instead of becoming a timeout`() {
+        val channel = TimedCameraChannel(FakeCamera())
+        val session = PtpSession(PtpTransport(channel)).also { it.open() }
+        channel.readFailure = { PtpIoError(UsbTransferDirection.READ, 0x81, 65_536, 5_000, 2) }
+
+        val error = assertFailsWith<PtpIoError> { session.readPropertyBytes(0xd185) }
+
+        assertEquals(2, error.elapsedMs)
+        assertEquals(5_000, error.timeoutMs)
+        assertEquals(UsbTransferDirection.READ, error.direction)
+        assertEquals(0x81, error.endpointAddress)
+        assertEquals(Operation.GET_DEVICE_PROP_VALUE, error.operation)
+        assertEquals(0xd185, error.property)
+        assertTrue(error.message.orEmpty().contains("after 2 ms"))
+        assertFalse(error.message.orEmpty().contains("did not answer within"))
+    }
+
+    @Test
+    fun `I-O failure context is preserved for writes streaming uploads and downloads`() {
+        val operations = listOf(Operation.SET_DEVICE_PROP_VALUE, Operation.FUJI_SEND_OBJECT, Operation.GET_OBJECT)
+        operations.forEach { operation ->
+            val channel = TimedCameraChannel(FakeCamera())
+            val session = PtpSession(PtpTransport(channel)).also { it.open() }
+            channel.readFailure = { PtpIoError(UsbTransferDirection.READ, 0x81, 65_536, 5_000, 0) }
+            val error = assertFailsWith<PtpIoError> {
+                when (operation) {
+                    Operation.SET_DEVICE_PROP_VALUE -> session.setPropertyBytes(0xd183, packU16(0))
+                    Operation.FUJI_SEND_OBJECT -> session.sendFujiRawObject(ByteArrayInputStream(byteArrayOf(1)), 1)
+                    else -> session.getObject(1, ByteArrayOutputStream(), maxBytes = 100)
+                }
+            }
+            assertEquals(operation, error.operation)
+            assertEquals(0, error.elapsedMs)
+            assertEquals(0xd183.takeIf { operation == Operation.SET_DEVICE_PROP_VALUE }, error.property)
+        }
+    }
+
+    @Test
+    fun `an initial USB write failure releases the connection and identifies OpenSession`() {
+        val camera = FakeCamera()
+        var writes = 0
+        val channel = object : BulkChannel by camera {
+            override fun write(bytes: ByteArray) {
+                writes++
+                throw PtpIoError(UsbTransferDirection.WRITE, 0x02, bytes.size, 5_000, 1)
+            }
+        }
+        val session = PtpSession(PtpTransport(channel))
+
+        val error = assertFailsWith<PtpIoError> { session.open() }
+
+        assertEquals(Operation.OPEN_SESSION, error.operation)
+        assertEquals(UsbTransferDirection.WRITE, error.direction)
+        assertEquals(1, writes)
+        assertTrue(camera.closed)
+        assertFalse(session.isOpen)
+    }
 }

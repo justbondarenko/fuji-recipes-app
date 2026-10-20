@@ -3,10 +3,9 @@ package dev.bondarenko.fujirecipes.camera.usb
 import dev.bondarenko.fujirecipes.camera.CameraModels
 import dev.bondarenko.fujirecipes.camera.ptp.Operation
 import dev.bondarenko.fujirecipes.camera.ptp.PtpError
-import dev.bondarenko.fujirecipes.camera.ptp.PtpFramingError
 import dev.bondarenko.fujirecipes.camera.ptp.PtpObject
 import dev.bondarenko.fujirecipes.camera.ptp.PtpSession
-import dev.bondarenko.fujirecipes.camera.ptp.PtpTimeoutError
+import dev.bondarenko.fujirecipes.camera.ptp.PtpTransportError
 import dev.bondarenko.fujirecipes.camera.ptp.ResponseCode
 import dev.bondarenko.fujirecipes.camera.ptp.packU16
 import dev.bondarenko.fujirecipes.camera.raw.RAW_CONVERSION_TRIGGER_PROPERTY
@@ -178,7 +177,7 @@ fun convertAndFetch(
             fromThumbnail = thumbnail != null,
         )
     } catch (error: Exception) {
-        transportHealthy = error !is PtpTimeoutError && error !is PtpFramingError
+        transportHealthy = error !is PtpTransportError
         output.delete()
         throw error
     } finally {
@@ -186,7 +185,7 @@ fun convertAndFetch(
         if (transportHealthy) {
             onStage(RawDevelopmentStage.CleaningUp)
             runCatching { session.deleteObject(outputHandle) }
-                .onFailure { if (it is PtpTimeoutError || it is PtpFramingError) throw it }
+                .onFailure { if (it is PtpTransportError) throw it }
         }
     }
 }

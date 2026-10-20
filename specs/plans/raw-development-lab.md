@@ -217,7 +217,7 @@ Every failure keeps the working settings. That is the point of the holder.
 | Failure | Response |
 |---|---|
 | Preview render fails, session healthy | Inline error above the panel, keep the stale preview, keep the loaded RAF |
-| Framing/timeout error | USB released without sending cleanup or CloseSession commands over the broken transport; loaded-RAF epoch invalidated so reconnecting starts with a fresh upload |
+| Framing/timeout/I-O error | USB released without sending cleanup or CloseSession commands over the broken transport; loaded-RAF epoch invalidated so reconnecting starts with a fresh upload |
 | Cable detached mid-render | Same, plus the connect prompt; nothing is re-attempted automatically |
 | Camera busy (`DEVICE_BUSY`) | Existing bounded backoff; surfaced as "the camera is still working" rather than a failure |
 | Several new handles appear | Fail closed, delete nothing — FEAT-015's rule, unchanged |
