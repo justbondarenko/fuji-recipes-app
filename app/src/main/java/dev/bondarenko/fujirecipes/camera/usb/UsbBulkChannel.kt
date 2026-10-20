@@ -52,6 +52,10 @@ const val STILL_IMAGE_CLASS = UsbConstants.USB_CLASS_STILL_IMAGE
 const val STILL_IMAGE_SUBCLASS = 0x01
 const val STILL_IMAGE_PROTOCOL = 0x01
 
+// The Fold rejects large native requests: 511-packet RAF writes and 64 KiB reads
+// during card scans. 16 KiB also aligns with USB bulk packet sizes.
+private const val USB_TRANSFER_BYTES = 16 * 1024
+
 /**
  * Why a connection attempt did not produce a camera.
  *
@@ -91,18 +95,19 @@ class UsbBulkChannel private constructor(
     private fun writeRaw(bytes: ByteArray, count: Int) {
         var sent = 0
         while (sent < count) {
+            val requested = minOf(count - sent, USB_TRANSFER_BYTES)
             val startedAt = System.nanoTime()
             val moved = connection.bulkTransfer(
                 endpointOut,
                 bytes,
                 sent,
-                count - sent,
+                requested,
                 timeoutMs,
             )
             if (moved < 0) throw PtpIoError(
                 direction = UsbTransferDirection.WRITE,
                 endpointAddress = endpointOut.address,
-                requestedBytes = count - sent,
+                requestedBytes = requested,
                 timeoutMs = timeoutMs,
                 elapsedMs = (System.nanoTime() - startedAt) / 1_000_000,
             )
@@ -175,14 +180,15 @@ class UsbBulkChannel private constructor(
     override fun read(maxBytes: Int): ByteArray = read(maxBytes, timeoutMs)
 
     override fun read(maxBytes: Int, timeoutMs: Int): ByteArray {
-        val buffer = ByteArray(maxBytes)
+        val requested = minOf(maxBytes, USB_TRANSFER_BYTES)
+        val buffer = ByteArray(requested)
         val startedAt = System.nanoTime()
-        val moved = connection.bulkTransfer(endpointIn, buffer, 0, maxBytes, timeoutMs)
+        val moved = connection.bulkTransfer(endpointIn, buffer, 0, requested, timeoutMs)
 
         if (moved < 0) throw PtpIoError(
             direction = UsbTransferDirection.READ,
             endpointAddress = endpointIn.address,
-            requestedBytes = maxBytes,
+            requestedBytes = requested,
             timeoutMs = timeoutMs,
             elapsedMs = (System.nanoTime() - startedAt) / 1_000_000,
         )
