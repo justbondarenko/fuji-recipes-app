@@ -21,6 +21,9 @@ simulation color profile remains the default starting point.
 - [x] Fine dial movements accumulate before rounding to parameter steps.
 - [x] Full-resolution JPEG export through the document picker.
 - [x] Discard confirmation and stable progress/comparison layouts.
+- [x] Requested Light, Color, Details, Curves, Effects, and Optics group/option order and icons.
+- [x] Independent paired sliders; parameter selector above one dial for Grain and Vignette.
+- [x] Persistent bottom-right preview Crop button, with no Framing category.
 
 ## First batch — authorized
 
@@ -30,7 +33,7 @@ and reset to a neutral adjustment without replacing the recorded color profile.
 
 - [x] **2. White balance:** relative temperature and green/magenta tint, with As Shot reset.
 - [x] **4. Contrast:** increase or soften overall tonal separation.
-- [x] **5. Whites and blacks:** adjust bright and dark endpoints independently.
+- [x] **5. Whites and blacks:** independent endpoint sliders grouped under Highlights and Shadows respectively.
 - [x] **6. Saturation:** adjust overall color intensity, including desaturation.
 - [x] **7. Vibrance:** preferentially adjust muted colors.
 - [x] **11. Sharpening:** amount, radius, and threshold to avoid sharpening small noise.
@@ -42,8 +45,8 @@ and reset to a neutral adjustment without replacing the recorded color profile.
 - [x] **14. Clarity:** medium-scale local contrast, positive or negative.
 - [x] **15. Texture:** fine detail enhancement or softening.
 - [x] **16. Dehaze:** haze reduction or added atmospheric haze.
-- [x] **17. Framing:** draggable crop, locked aspect presets (including portrait),
-  clockwise rotation, and ±15° straighten with automatic corner trimming.
+- [x] **17. Framing:** direct-entry crop workspace, locked aspect presets (including portrait),
+  left/right 90° buttons, and a ±15° Straighten dial below the photo, with Apply/Cancel.
 - [x] **18. Vignette:** darken/brighten amount, midpoint, roundness, and feathering,
   centered on the framed output.
 
@@ -275,3 +278,70 @@ all control effects, Reset to the corrected baseline, crop/mask drawing and
 overlays, exact saved-session restoration, full-resolution JPEG export, and
 rejected replacement preserving the active image. Both device workflow tests
 pass together; the on-open and corrected tile/export checks pass separately.
+
+
+Tone control grouping: Highlights opens two independent sliders, Highlights and
+Whites; Shadows opens Shadows and Blacks. All four retain their existing values,
+processing, session storage, and individual double-tap resets. Selecting a group
+or double-tapping its option does not change parameters. The group indicator
+reflects edits to either slider. Exposure and Contrast remain separate options.
+
+Verified on 2026-10-25: all 733 JVM tests and seven SM-F976B UI tests pass.
+The paired-slider check covers compact and wide layouts, independent changes,
+name double-tap resets, unchanged saved values on group selection, and persistent
+Save access. The updated debug APK is installed on the phone.
+
+
+The preview corner Crop button opens the framing workspace directly. The
+header has separate Rotate left 90° and Rotate right 90° actions. Straighten
+remains an independent dial below the photo in compact and wide layouts; its
+label supports double-tap reset. Crop handles, aspect presets, framing Reset,
+Apply, and Cancel remain available. A denser grid helps judge straightening.
+Rotation carries the current crop and aspect lock into the new orientation,
+and replacing an asynchronously rendered preview preserves crop edits.
+
+Framing edits are staged separately from saved/global adjustments. Previews
+use the existing conflated sensor-preview worker; Apply commits the selected
+crop, rotation, and angle together. Cancel restores the previous RAW preview
+and saved settings, including if the editor opened during a pending preview.
+
+Verified on 2026-10-25: all 733 JVM tests and eight SM-F976B UI tests pass.
+Framing checks cover direct entry, 90° turns in both directions, crop retention
+across preview replacement, locked 3:2 → 2:3 rotation, Straighten below the
+photo in compact/wide layouts, staged Cancel/Apply, and disabled crop/aspect input
+while the new preview is pending. The real X-T50 RAF workflow confirms staged
+rotation/straightening previews, unchanged saved edits until Apply, and a
+byte-identical return to the pre-framing preview on Cancel.
+
+
+RAW Editor control organization (2026-10-25): Light (Exposure, Contrast,
+Shadows, Highlights), Color (As shot, Temperature, Tint, Saturation, Vibrance),
+Details (Sharpening, Noise Reduction, Preserve Detail), Curves, Effects (Grain,
+Clarity, Texture, Dehaze, Vignette), and Optics (Distortion, Perspective,
+Defringe, Color alignment). Masks remains available after Optics.
+
+Two-parameter options show two independent dials: Shadows/Blacks,
+Highlights/Whites, Sharpening/Radius, Color/Luminance noise reduction,
+Vertical/Horizontal perspective, Green/Purple defringe, and Red/Cyan plus
+Blue/Yellow alignment. Grain selects Amount, Size, or Roughness above one dial;
+Vignette selects Amount, Midpoints, Roundness, or Feather. The selector uses
+Unfold more, and each parameter name retains its own double-tap reset, including
+inactive size/detail settings. Selecting a parameter never changes its value.
+All option icons use the requested Google Material Symbols Rounded definitions
+and support the existing global 300/400/500 icon weights.
+
+Framing is no longer a category. Screenshot frame 2 is an always-visible Crop
+button at the preview's bottom-right, including during camera-JPEG comparison.
+Apply and Cancel preserve the selected editor category. Older saved sharpening
+Threshold values remain intact in processing/session data; the requested
+Sharpening option exposes only Sharpening and Radius.
+
+
+Verified on 2026-10-25: all 733 JVM checks and nine SM-F976B UI checks pass.
+The UI suite asserts exact group/option order, independent values and resets,
+all Grain/Vignette selector choices, paired sliders without selectors, compact
+and wide layouts, camera-JPEG comparison, 100% zoom, curves/masks, and staged
+framing from the persistent preview button. The updated debug APK is installed; the selector and preview Crop button were
+also visually checked with the real DSCF3979.RAF open on the phone.
+Lint remains blocked only by the pre-existing LocalContextGetResourceValueCall
+error at SlotDetailSheet.kt:332.

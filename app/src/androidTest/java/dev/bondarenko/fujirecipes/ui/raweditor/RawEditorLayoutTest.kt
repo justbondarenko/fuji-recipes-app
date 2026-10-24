@@ -19,6 +19,8 @@ import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -31,6 +33,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -46,6 +49,193 @@ import org.junit.Test
 @OptIn(ExperimentalTestApi::class)
 class RawEditorLayoutTest {
     @get:Rule val compose = createComposeRule()
+
+    private fun selectGroupedControl(label: String): Int? {
+        val group = when (label) {
+            "Shadows", "Blacks" -> "Shadows"
+            "Highlights", "Whites" -> "Highlights"
+            "Sharpening", "Radius" -> "Sharpening"
+            "Color", "Luminance" -> "Noise Reduction"
+            "Amount", "Size", "Roughness" -> "Grain"
+            "Vignette", "Midpoints", "Roundness", "Feather" -> "Vignette"
+            "Vertical", "Horizontal" -> "Perspective"
+            "Green", "Purple" -> "Defringe"
+            "Red/Cyan", "Blue/Yellow" -> "Color alignment"
+            else -> return null
+        }
+        compose.onNodeWithContentDescription("$group controls").performScrollTo().performClick()
+        if (group == "Grain" || group == "Vignette") {
+            compose.onNodeWithTag("raw-editor-parameter-selector", useUnmergedTree = true).performClick()
+            compose.onNodeWithText(if (label == "Vignette") "Amount" else label).performClick()
+        } else compose.onNodeWithTag("raw-editor-parameter-selector", useUnmergedTree = true).assertDoesNotExist()
+        return when (label) {
+            "Shadows" -> R.string.raw_editor_shadows
+            "Blacks" -> R.string.raw_editor_blacks
+            "Highlights" -> R.string.raw_editor_highlights
+            "Whites" -> R.string.raw_editor_whites
+            "Sharpening" -> R.string.raw_editor_sharpening
+            "Radius" -> R.string.raw_editor_radius
+            "Color" -> R.string.raw_editor_color_noise
+            "Luminance" -> R.string.raw_editor_luminance_noise
+            "Amount" -> R.string.raw_editor_grain_amount
+            "Size" -> R.string.raw_editor_grain_size
+            "Roughness" -> R.string.raw_editor_grain_roughness
+            "Vignette" -> R.string.raw_editor_vignette
+            "Midpoints" -> R.string.raw_editor_vignette_midpoint
+            "Roundness" -> R.string.raw_editor_vignette_roundness
+            "Feather" -> R.string.raw_editor_vignette_feather
+            "Vertical" -> R.string.raw_editor_perspective_vertical
+            "Horizontal" -> R.string.raw_editor_perspective_horizontal
+            "Green" -> R.string.raw_editor_defringe_green
+            "Purple" -> R.string.raw_editor_defringe_purple
+            "Red/Cyan" -> R.string.raw_editor_chromatic_red
+            else -> R.string.raw_editor_chromatic_blue
+        }
+    }
+
+    @Test
+    fun groupsAndOptionsFollowRequestedOrderWithCropAlwaysInPreview() {
+        val bitmap = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888)
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(393.dp, 800.dp))) {
+                FujiTheme { RawEditorScreen(RawEditorState(preview = bitmap), {}, {}, {}, {}) }
+            }
+        }
+        val groups = listOf("Light", "Color", "Details", "Curves", "Effects", "Optics", "Masks")
+        val tabs = compose.onNodeWithTag("raw-editor-groups").fetchSemanticsNode()
+        fun tabLabels(node: androidx.compose.ui.semantics.SemanticsNode): List<String> =
+            node.config.getOrElse(SemanticsProperties.Text) { emptyList() }.map { it.text } + node.children.flatMap(::tabLabels)
+        assertEquals(groups, tabLabels(tabs))
+        val expectedOptions = mapOf(
+            "Light" to listOf("Exposure", "Contrast", "Shadows controls", "Highlights controls"),
+            "Color" to listOf("As shot", "Temperature", "Tint", "Saturation", "Vibrance"),
+            "Details" to listOf("Sharpening controls", "Noise Reduction controls", "Preserve Detail"),
+            "Effects" to listOf("Grain controls", "Clarity", "Texture", "Dehaze", "Vignette controls"),
+            "Optics" to listOf("Distortion", "Perspective controls", "Defringe controls", "Color alignment controls"),
+        )
+        groups.forEach { group ->
+            compose.onNodeWithText(group).performScrollTo().performClick()
+            compose.onNodeWithTag("raw-editor-crop").assertIsDisplayed()
+            expectedOptions[group]?.let { expected ->
+                fun descriptions(node: androidx.compose.ui.semantics.SemanticsNode): List<String> =
+                    node.config.getOrElse(SemanticsProperties.ContentDescription) { emptyList() } + node.children.flatMap(::descriptions)
+                assertEquals(expected, descriptions(compose.onNodeWithTag("raw-editor-options").fetchSemanticsNode()))
+            }
+        }
+        compose.onNodeWithText("Framing").assertDoesNotExist()
+    }
+
+    @Test
+    fun framingStartsDirectlyWithButtonsAndStagesChangesUntilApply() {
+        val landscape = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888)
+        val portrait = Bitmap.createBitmap(80, 120, Bitmap.Config.ARGB_8888)
+        val original = RawAdjustments(exposure = .6f, tint = .2f, crop = RawCrop(.15f,.1f,.85f,.9f))
+        var state by mutableStateOf(RawEditorState(name = "sample.RAF", preview = landscape, adjustments = original))
+        var wide by mutableStateOf(false)
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(if (wide) 840.dp else 393.dp, if (wide) 500.dp else 800.dp))) {
+                FujiTheme {
+                    RawEditorScreen(state, {}, {}, { state = state.copy(adjustments = it) }, {},
+                        onCrop = { state = state.copy(cropPreview = landscape, cropAdjustments = state.adjustments, cropImageAspect = 1.5f) },
+                        onCropAdjust = { state = state.copy(cropAdjustments = it,
+                            cropPreview = if (it.quarterTurns % 2 == 0) landscape else portrait,
+                            cropImageAspect = if (it.quarterTurns % 2 == 0) 1.5f else 2f/3) },
+                        onDismissCrop = { state = state.copy(cropPreview = null, cropAdjustments = null) },
+                    )
+                }
+            }
+        }
+        for (expanded in listOf(false, true)) {
+            compose.runOnIdle { wide = expanded; state = state.copy(adjustments = original) }
+            compose.onNodeWithTag("raw-editor-crop").assertIsDisplayed().performClick()
+            compose.onNodeWithTag("raw-crop-preview").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Rotation").assertDoesNotExist()
+            compose.onNodeWithText("Crop and aspect ratio").assertDoesNotExist()
+            val photo = compose.onNodeWithTag("raw-crop-preview").fetchSemanticsNode().boundsInRoot
+            val slider = compose.onNodeWithContentDescription("Straighten").fetchSemanticsNode().boundsInRoot
+            assertTrue("Straighten stays below the photo in both layouts", slider.top >= photo.bottom)
+            compose.onNodeWithTag("raw-crop-preview").performTouchInput { down(center); moveBy(Offset(80f,0f),200); up() }
+            compose.onNodeWithContentDescription("Rotate right 90°").performClick()
+            compose.runOnIdle {
+                assertEquals(1, state.cropAdjustments!!.quarterTurns)
+                assertEquals(original, state.adjustments)
+                assertTrue("Rotating keeps the dragged crop", kotlin.math.abs(state.cropAdjustments!!.crop.top - original.rotated(1).crop.top) > .001f)
+            }
+            compose.onNodeWithContentDescription("Rotate left 90°").performClick()
+            compose.runOnIdle { assertEquals(0, state.cropAdjustments!!.quarterTurns) }
+            compose.onNodeWithContentDescription("Straighten").performSemanticsAction(SemanticsActions.SetProgress) { it(6.4f) }
+            compose.runOnIdle { assertEquals(6.4f,state.cropAdjustments!!.straighten); assertEquals(original,state.adjustments) }
+            compose.onNodeWithText("Cancel").performClick()
+            compose.runOnIdle { assertEquals(original,state.adjustments); assertEquals(null,state.cropPreview) }
+            compose.onNodeWithTag("raw-editor-crop").assertIsDisplayed().performClick()
+            compose.onNodeWithText("3:2").performScrollTo().performClick()
+            compose.onNodeWithContentDescription("Rotate right 90°").performClick()
+            compose.onNodeWithText("2:3").assertIsSelected()
+            compose.runOnIdle { state = state.copy(cropRendering = true) }
+            compose.onNodeWithText("1:1").assertIsNotEnabled()
+            compose.onNodeWithText("Apply crop").assertIsNotEnabled()
+            compose.runOnIdle { state = state.copy(cropRendering = false) }
+            compose.onNodeWithContentDescription("Straighten").performSemanticsAction(SemanticsActions.SetProgress) { it(-4.5f) }
+            compose.onNodeWithText("1:1").performScrollTo().performClick()
+            compose.onNodeWithText("Apply crop").performClick()
+            compose.runOnIdle {
+                assertEquals(1,state.adjustments.quarterTurns)
+                assertEquals(-4.5f,state.adjustments.straighten)
+                assertEquals(original.exposure,state.adjustments.exposure)
+                assertEquals(original.tint,state.adjustments.tint)
+                assertEquals(1f,state.adjustments.crop.width/state.adjustments.crop.height*2f/3,.0001f)
+                assertEquals(null,state.cropPreview)
+            }
+            compose.onNodeWithText("Save").assertIsDisplayed()
+        }
+    }
+
+    @Test
+    fun groupedToneSlidersKeepEveryParameterIndependent() {
+        val bitmap = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888)
+        val original = RawAdjustments(exposure = .6f, highlights = -.3f, whites = .4f, shadows = .5f, blacks = -.2f)
+        var state by mutableStateOf(RawEditorState(name = "sample.RAF", preview = bitmap, adjustments = original))
+        var wide by mutableStateOf(false)
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(if (wide) 840.dp else 393.dp, 800.dp))) {
+                FujiTheme { RawEditorScreen(state, {}, {}, { state = state.copy(adjustments = it) }, {},
+                    onCrop = { state = state.copy(cropPreview = bitmap, cropAdjustments = state.adjustments, cropImageAspect = 1.5f) },
+                    onCropAdjust = { state = state.copy(cropAdjustments = it) },
+                    onDismissCrop = { state = state.copy(cropPreview = null, cropAdjustments = null) },
+                ) }
+            }
+        }
+        fun set(label: String, value: Float) = compose.onNodeWithContentDescription(label)
+            .performSemanticsAction(SemanticsActions.SetProgress) { it(value) }
+        for (expanded in listOf(false, true)) {
+            compose.runOnIdle { wide = expanded; state = state.copy(adjustments = original) }
+            compose.onNodeWithContentDescription("Highlights controls").performClick()
+            compose.onNodeWithContentDescription("Highlights").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Whites").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Shadows").assertDoesNotExist()
+            compose.runOnIdle { assertEquals(original, state.adjustments) }
+            set("Highlights", -.6f)
+            compose.runOnIdle { assertEquals(original.copy(highlights = -.6f), state.adjustments) }
+            set("Whites", .2f)
+            compose.runOnIdle { assertEquals(original.copy(highlights = -.6f, whites = .2f), state.adjustments) }
+            compose.onNodeWithTag("raw-editor-parameter-${R.string.raw_editor_highlights}", useUnmergedTree = true)
+                .performTouchInput { doubleClick() }
+            compose.runOnIdle { assertEquals(original.copy(highlights = 0f, whites = .2f), state.adjustments) }
+            compose.onNodeWithContentDescription("Highlights controls").performTouchInput { doubleClick() }
+            compose.runOnIdle { assertEquals(original.copy(highlights = 0f, whites = .2f), state.adjustments) }
+            compose.onNodeWithContentDescription("Shadows controls").performClick()
+            compose.onNodeWithContentDescription("Shadows").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Blacks").assertIsDisplayed()
+            compose.onNodeWithContentDescription("Whites").assertDoesNotExist()
+            set("Shadows", .3f)
+            set("Blacks", -.6f)
+            compose.runOnIdle { assertEquals(original.copy(highlights = 0f, whites = .2f, shadows = .3f, blacks = -.6f), state.adjustments) }
+            compose.onNodeWithTag("raw-editor-parameter-${R.string.raw_editor_blacks}", useUnmergedTree = true)
+                .performTouchInput { doubleClick() }
+            compose.runOnIdle { assertEquals(original.copy(highlights = 0f, whites = .2f, shadows = .3f, blacks = 0f), state.adjustments) }
+            compose.onNodeWithText("Save").assertIsDisplayed()
+        }
+    }
 
     @Test
     fun zoomUsesSensorPixelsAndKeepsControlsAndComparisonStable() {
@@ -121,7 +311,11 @@ class RawEditorLayoutTest {
         var wide by mutableStateOf(false)
         compose.setContent {
             DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(if (wide) 840.dp else 393.dp, 800.dp))) {
-                FujiTheme { RawEditorScreen(state, {}, {}, { state = state.copy(adjustments = it) }, {}) }
+                FujiTheme { RawEditorScreen(state, {}, {}, { state = state.copy(adjustments = it) }, {},
+                    onCrop = { state = state.copy(cropPreview = bitmap, cropAdjustments = state.adjustments, cropImageAspect = 1.5f) },
+                    onCropAdjust = { state = state.copy(cropAdjustments = it) },
+                    onDismissCrop = { state = state.copy(cropPreview = null, cropAdjustments = null) },
+                ) }
             }
         }
         fun bounds(text: String): Rect = compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot
@@ -170,8 +364,10 @@ class RawEditorLayoutTest {
         checkStable()
         compose.runOnIdle { wide = false }
         fun set(label: String, value: Float) {
-            compose.onNodeWithContentDescription(label).performScrollTo()
-                .performSemanticsAction(SemanticsActions.SetProgress) { it(value) }
+            val grouped = selectGroupedControl(label) != null
+            val control = compose.onNodeWithContentDescription(if (label == "Vignette") "Amount" else label)
+            if (!grouped && label != "Straighten") control.performScrollTo()
+            control.performSemanticsAction(SemanticsActions.SetProgress) { it(value) }
             compose.onNodeWithText("Save").assertIsDisplayed()
         }
         compose.onNodeWithText("Color").performClick()
@@ -181,20 +377,19 @@ class RawEditorLayoutTest {
             assertEquals(.4f, state.adjustments.temperature)
             assertEquals(-.3f, state.adjustments.tint)
         }
-        compose.onNodeWithText("As Shot white balance").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("As shot").performScrollTo().performClick()
         compose.runOnIdle {
             assertEquals(0f, state.adjustments.temperature)
             assertEquals(0f, state.adjustments.tint)
         }
         set("Saturation", -.5f)
         set("Vibrance", .5f)
-        compose.onNodeWithText("Detail").performClick()
+        compose.onNodeWithText("Details").performClick()
         set("Sharpening", .6f)
         set("Radius", 1.8f)
-        set("Threshold", .2f)
-        set("Color noise reduction", .6f)
-        set("Luminance noise reduction", .5f)
-        set("Preserve detail", .7f)
+        set("Color", .6f)
+        set("Luminance", .5f)
+        set("Preserve Detail", .7f)
         compose.onNodeWithText("Light").performClick()
         set("Contrast", .3f)
         set("Whites", .2f)
@@ -210,12 +405,13 @@ class RawEditorLayoutTest {
         set("Texture", -.3f)
         set("Dehaze", .2f)
         set("Vignette", -.5f)
-        set("Midpoint", .6f)
+        set("Midpoints", .6f)
         set("Roundness", -.4f)
         set("Feather", .7f)
-        compose.onNodeWithText("Framing").performScrollTo().performClick()
-        set("Rotation", 1f)
+        compose.onNodeWithTag("raw-editor-crop").assertIsDisplayed().performClick()
+        compose.onNodeWithContentDescription("Rotate right 90°").performClick()
         set("Straighten", -4.5f)
+        compose.onNodeWithText("Apply crop").performClick()
         compose.runOnIdle {
             assertEquals(.4f, state.adjustments.clarity)
             assertEquals(-.3f, state.adjustments.texture)
@@ -226,12 +422,12 @@ class RawEditorLayoutTest {
         }
         compose.onNodeWithText("Optics").performScrollTo().performClick()
         set("Distortion", -.4f)
-        set("Vertical perspective", .3f)
-        set("Horizontal perspective", -.2f)
-        set("Red/cyan alignment", .5f)
-        set("Blue/yellow alignment", -.5f)
-        set("Purple defringe", .6f)
-        set("Green defringe", .7f)
+        set("Vertical", .3f)
+        set("Horizontal", -.2f)
+        set("Red/Cyan", .5f)
+        set("Blue/Yellow", -.5f)
+        set("Purple", .6f)
+        set("Green", .7f)
         compose.runOnIdle {
             assertEquals(-.4f, state.adjustments.distortion)
             assertEquals(.3f, state.adjustments.perspectiveVertical)
@@ -269,7 +465,11 @@ class RawEditorLayoutTest {
         var state by mutableStateOf(RawEditorState(name = "sample.RAF", preview = bitmap, cameraImage = bitmap, adjustments = expected))
         compose.setContent {
             DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(393.dp, 800.dp))) {
-                FujiTheme { RawEditorScreen(state, {}, {}, { state = state.copy(adjustments = it) }, {}) }
+                FujiTheme { RawEditorScreen(state, {}, {}, { state = state.copy(adjustments = it) }, {},
+                    onCrop = { state = state.copy(cropPreview = bitmap, cropAdjustments = state.adjustments, cropImageAspect = 1.5f) },
+                    onCropAdjust = { state = state.copy(cropAdjustments = it) },
+                    onDismissCrop = { state = state.copy(cropPreview = null, cropAdjustments = null) },
+                ) }
             }
         }
         compose.onNodeWithText("Exposure").performTouchInput { click() }
@@ -280,7 +480,10 @@ class RawEditorLayoutTest {
         compose.runOnIdle { assertEquals(expected, state.adjustments); state = state.copy(busy = false) }
 
         fun reset(label: String, after: RawAdjustments) {
-            compose.onNodeWithText(label).performScrollTo().performTouchInput { doubleClick() }
+            val parameter = selectGroupedControl(label)
+            if (parameter != null) {
+                compose.onNodeWithTag("raw-editor-parameter-$parameter", useUnmergedTree = true).performTouchInput { doubleClick() }
+            } else compose.onNodeWithText(label).performScrollTo().performTouchInput { doubleClick() }
             expected = after
             compose.runOnIdle { assertEquals("Reset $label must preserve every other value", expected, state.adjustments) }
         }
@@ -295,37 +498,38 @@ class RawEditorLayoutTest {
         reset("Tint", expected.copy(tint = 0f))
         reset("Saturation", expected.copy(saturation = 0f))
         reset("Vibrance", expected.copy(vibrance = 0f))
-        compose.onNodeWithText("Detail").performClick()
+        compose.onNodeWithText("Details").performClick()
         reset("Sharpening", expected.copy(sharpening = 0f))
         reset("Radius", expected.copy(sharpenRadius = 1f))
-        reset("Threshold", expected.copy(sharpenThreshold = 0f))
-        reset("Color noise reduction", expected.copy(colorNoise = 0f))
-        reset("Luminance noise reduction", expected.copy(luminanceNoise = 0f))
-        reset("Preserve detail", expected.copy(noiseDetail = .5f))
+        reset("Color", expected.copy(colorNoise = 0f))
+        reset("Luminance", expected.copy(luminanceNoise = 0f))
+        reset("Preserve Detail", expected.copy(noiseDetail = .5f))
         compose.onNodeWithText("Effects").performScrollTo().performClick()
         reset("Clarity", expected.copy(clarity = 0f))
         reset("Texture", expected.copy(texture = 0f))
         reset("Dehaze", expected.copy(dehaze = 0f))
         reset("Vignette", expected.copy(vignette = 0f))
-        reset("Midpoint", expected.copy(vignetteMidpoint = .5f))
+        reset("Midpoints", expected.copy(vignetteMidpoint = .5f))
         reset("Roundness", expected.copy(vignetteRoundness = 0f))
         reset("Feather", expected.copy(vignetteFeather = .5f))
         compose.onNodeWithText("Optics").performScrollTo().performClick()
         reset("Distortion", expected.copy(distortion = 0f))
-        reset("Vertical perspective", expected.copy(perspectiveVertical = 0f))
-        reset("Horizontal perspective", expected.copy(perspectiveHorizontal = 0f))
-        reset("Red/cyan alignment", expected.copy(chromaticRed = 0f))
-        reset("Blue/yellow alignment", expected.copy(chromaticBlue = 0f))
-        reset("Purple defringe", expected.copy(defringePurple = 0f))
-        reset("Green defringe", expected.copy(defringeGreen = 0f))
-        compose.onNodeWithText("Framing").performScrollTo().performClick()
-        reset("Rotation", expected.copy(quarterTurns = 0))
-        reset("Straighten", expected.copy(straighten = 0f))
-        compose.runOnIdle { assertEquals(RawAdjustments(), state.adjustments) }
+        reset("Vertical", expected.copy(perspectiveVertical = 0f))
+        reset("Horizontal", expected.copy(perspectiveHorizontal = 0f))
+        reset("Red/Cyan", expected.copy(chromaticRed = 0f))
+        reset("Blue/Yellow", expected.copy(chromaticBlue = 0f))
+        reset("Purple", expected.copy(defringePurple = 0f))
+        reset("Green", expected.copy(defringeGreen = 0f))
+        compose.onNodeWithTag("raw-editor-crop").assertIsDisplayed().performClick()
+        repeat(2) { compose.onNodeWithContentDescription("Rotate left 90°").performClick() }
+        compose.onNodeWithContentDescription("Straighten").performCustomAccessibilityActionWithLabel("Reset Straighten")
+        compose.onNodeWithText("Apply crop").performClick()
+        expected = expected.copy(quarterTurns = 0, straighten = 0f)
+        compose.runOnIdle { assertEquals(RawAdjustments(sharpenThreshold = .2f), state.adjustments) }
         compose.onNodeWithText("Light").performScrollTo().performClick()
         compose.runOnIdle { state = state.copy(adjustments = state.adjustments.copy(exposure = 1f)) }
         compose.onNodeWithText("Exposure").performCustomAccessibilityActionWithLabel("Reset Exposure")
-        compose.runOnIdle { assertEquals(RawAdjustments(), state.adjustments) }
+        compose.runOnIdle { assertEquals(RawAdjustments(sharpenThreshold = .2f), state.adjustments) }
     }
 
     @Test
@@ -343,14 +547,19 @@ class RawEditorLayoutTest {
             }
         }
         fun set(label: String, value: Float) {
-            compose.onNodeWithContentDescription(label).performScrollTo().performSemanticsAction(SemanticsActions.SetProgress) { it(value) }
+            val control = compose.onNodeWithContentDescription(label)
+            if (label in listOf("Amount", "Size", "Roughness")) selectGroupedControl(label) else control.performScrollTo()
+            control.performSemanticsAction(SemanticsActions.SetProgress) { it(value) }
+        }
+        fun reset(label: String) {
+            val parameter = selectGroupedControl(label)!!
+            compose.onNodeWithTag("raw-editor-parameter-$parameter", useUnmergedTree = true).performTouchInput { doubleClick() }
         }
         compose.onNodeWithText("Effects").performScrollTo().performClick()
-        set("Grain",.6f); set("Grain size",6f); set("Roughness",.8f)
-        compose.onNodeWithText("Grain").performScrollTo().performTouchInput { doubleClick() }
+        set("Amount",.6f); set("Size",6f); set("Roughness",.8f)
+        reset("Amount")
         compose.runOnIdle { assertEquals(0f,state.adjustments.grainAmount); assertEquals(6f,state.adjustments.grainSize) }
-        compose.onNodeWithText("Grain size").performScrollTo().performTouchInput { doubleClick() }
-        compose.onNodeWithText("Roughness").performScrollTo().performTouchInput { doubleClick() }
+        reset("Size"); reset("Roughness")
         compose.runOnIdle { assertEquals(RawAdjustments(),state.adjustments) }
         compose.onNodeWithText("Curves").performScrollTo().performClick()
         compose.onNodeWithTag("raw-tone-curve").assertIsDisplayed()
@@ -411,8 +620,9 @@ class RawEditorLayoutTest {
         val bitmap = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888)
         var result: RawCrop? = null
         var dismissed = false
+        var edits by mutableStateOf(RawAdjustments(crop = RawCrop(.2f,.2f,.8f,.8f)))
         compose.setContent {
-            FujiTheme { RawCropDialog(bitmap, RawCrop(.2f,.2f,.8f,.8f), { dismissed = true }, { result = it }, imageAspect = 2f) }
+            FujiTheme { RawCropDialog(bitmap, edits, { dismissed = true }, { result = it.crop }, onAdjust = { edits = it }, imageAspect = 2f) }
         }
         compose.onNodeWithTag("raw-crop-preview").performTouchInput {
             down(center); moveBy(Offset(30f, 0f), 200); up()

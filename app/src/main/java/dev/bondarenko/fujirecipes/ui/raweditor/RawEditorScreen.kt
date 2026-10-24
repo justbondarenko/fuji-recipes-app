@@ -35,6 +35,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,6 +53,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -94,23 +97,30 @@ import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowBack
 import dev.bondarenko.fujirecipes.ui.theme.icons.Colors
 import dev.bondarenko.fujirecipes.ui.theme.icons.Contrast
-import dev.bondarenko.fujirecipes.ui.theme.icons.Deblur
 import dev.bondarenko.fujirecipes.ui.theme.icons.Details
 import dev.bondarenko.fujirecipes.ui.theme.icons.Diamond
-import dev.bondarenko.fujirecipes.ui.theme.icons.DiscoverTune
 import dev.bondarenko.fujirecipes.ui.theme.icons.Exposure
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.Grain
 import dev.bondarenko.fujirecipes.ui.theme.icons.Palette
-import dev.bondarenko.fujirecipes.ui.theme.icons.Refresh
 import dev.bondarenko.fujirecipes.ui.theme.icons.ResetWrench
 import dev.bondarenko.fujirecipes.ui.theme.icons.Save
-import dev.bondarenko.fujirecipes.ui.theme.icons.StarShine
 import dev.bondarenko.fujirecipes.ui.theme.icons.Tonality
 import dev.bondarenko.fujirecipes.ui.theme.icons.Tonality2
-import dev.bondarenko.fujirecipes.ui.theme.icons.TransitionDissolve
 import dev.bondarenko.fujirecipes.ui.theme.icons.Tune
-import dev.bondarenko.fujirecipes.ui.theme.icons.WbAuto
+import dev.bondarenko.fujirecipes.ui.theme.icons.Thermometer
+import dev.bondarenko.fujirecipes.ui.theme.icons.WaterDrop
+import dev.bondarenko.fujirecipes.ui.theme.icons.BlurOff
+import dev.bondarenko.fujirecipes.ui.theme.icons.DiamondShine
+import dev.bondarenko.fujirecipes.ui.theme.icons.Texture
+import dev.bondarenko.fujirecipes.ui.theme.icons.Dehaze
+import dev.bondarenko.fujirecipes.ui.theme.icons.Vignette2
+import dev.bondarenko.fujirecipes.ui.theme.icons.Vrpano
+import dev.bondarenko.fujirecipes.ui.theme.icons.TiltArrowUp
+import dev.bondarenko.fujirecipes.ui.theme.icons.FilterBAndW
+import dev.bondarenko.fujirecipes.ui.theme.icons.FormatColorFill
+import dev.bondarenko.fujirecipes.ui.theme.icons.UnfoldMore
+import dev.bondarenko.fujirecipes.ui.theme.icons.PhotoCamera
 import kotlin.math.round
 
 @Composable
@@ -159,6 +169,7 @@ fun RawEditorRouteContent(
         onSelectMask = model::selectMask,
         onDrawMask = model::drawMask,
         onCrop = model::prepareCrop,
+        onCropAdjust = model::adjustCrop,
         onDismissCrop = model::dismissCrop,
         onViewport = model::detailViewport,
         contentPadding = contentPadding,
@@ -190,6 +201,7 @@ fun RawEditorScreen(
     onSelectMask: (Int) -> Unit = {},
     onDrawMask: (List<MaskPoint>, Float, Boolean) -> Unit = { _, _, _ -> },
     onCrop: () -> Unit = {},
+    onCropAdjust: (RawAdjustments) -> Unit = {},
     onDismissCrop: () -> Unit = {},
     onViewport: (RawViewport?) -> Unit = {},
     contentPadding: PaddingValues = PaddingValues(0.dp),
@@ -201,10 +213,13 @@ fun RawEditorScreen(
     if (state.maskEditorOpen && state.preview != null) RawMaskDialog(state, onAdjust, onSelectMask, onDrawMask, { onMasks(false) })
     val uriHandler = LocalUriHandler.current
     state.cropPreview?.let { bitmap ->
-        RawCropDialog(bitmap, state.adjustments.crop, onDismissCrop, onApply = { crop ->
-            onAdjust(state.adjustments.copy(crop = crop))
-            onDismissCrop()
-        }, imageAspect = state.cropImageAspect ?: bitmap.width.toFloat() / bitmap.height)
+        RawCropDialog(bitmap, state.cropAdjustments ?: state.adjustments,
+            onDismiss = onDismissCrop,
+            onApply = { edits -> onDismissCrop(); onAdjust(edits) },
+            onAdjust = onCropAdjust,
+            imageAspect = state.cropImageAspect ?: bitmap.width.toFloat() / bitmap.height,
+            rendering = state.cropRendering, error = state.error,
+        )
     }
     if (showInfo) AlertDialog(
         onDismissRequest = { showInfo = false },
@@ -301,7 +316,7 @@ fun RawEditorScreen(
                 BoxWithConstraints(Modifier.weight(1f)) {
                     val wide = maxWidth >= 700.dp
                     val preview: @Composable (Modifier) -> Unit = { modifier ->
-                        RawEditorPreview(state, panel == 5, showCamera, { showCamera = it }, onViewport, modifier)
+                        RawEditorPreview(state, panel == 5, showCamera, { showCamera = it }, onViewport, modifier, onCrop)
                     }
                     val controls: @Composable (Modifier) -> Unit = { modifier ->
                         val edits = state.adjustments
@@ -309,55 +324,91 @@ fun RawEditorScreen(
                         val params = when (panel) {
                             0 -> listOf(
                                 RawParam(R.string.raw_editor_exposure, FujiIcons.Exposure, edits.exposure, -3f..3f, editable, 1f, 1, " EV") { onAdjust(edits.copy(exposure = it)) },
-                                RawParam(R.string.raw_editor_shadows, FujiIcons.Tonality, edits.shadows, -1f..1f, editable) { onAdjust(edits.copy(shadows = it)) },
-                                RawParam(R.string.raw_editor_highlights, FujiIcons.StarShine, edits.highlights, -1f..1f, editable) { onAdjust(edits.copy(highlights = it)) },
                                 RawParam(R.string.raw_editor_contrast, FujiIcons.Contrast, edits.contrast, -1f..1f, editable) { onAdjust(edits.copy(contrast = it)) },
-                                RawParam(R.string.raw_editor_whites, FujiIcons.Tonality2, edits.whites, -1f..1f, editable) { onAdjust(edits.copy(whites = it)) },
-                                RawParam(R.string.raw_editor_blacks, FujiIcons.Tonality, edits.blacks, -1f..1f, editable) { onAdjust(edits.copy(blacks = it)) },
+                                RawParam(R.string.raw_editor_shadows, FujiIcons.Tonality, edits.shadows, -1f..1f, editable) { onAdjust(edits.copy(shadows = it)) },
+                                RawParam(R.string.raw_editor_highlights, FujiIcons.Tonality2, edits.highlights, -1f..1f, editable) { onAdjust(edits.copy(highlights = it)) },
                             )
                             1 -> listOf(
-                                RawParam(R.string.raw_editor_temperature, FujiIcons.WbAuto, edits.temperature, -1f..1f, editable) { onAdjust(edits.copy(temperature = it)) },
-                                RawParam(R.string.raw_editor_tint, FujiIcons.DiscoverTune, edits.tint, -1f..1f, editable) { onAdjust(edits.copy(tint = it)) },
+                                RawParam(R.string.raw_editor_temperature, FujiIcons.Thermometer, edits.temperature, -1f..1f, editable) { onAdjust(edits.copy(temperature = it)) },
+                                RawParam(R.string.raw_editor_tint, FujiIcons.WaterDrop, edits.tint, -1f..1f, editable) { onAdjust(edits.copy(tint = it)) },
                                 RawParam(R.string.raw_editor_saturation, FujiIcons.Palette, edits.saturation, -1f..1f, editable) { onAdjust(edits.copy(saturation = it)) },
                                 RawParam(R.string.raw_editor_vibrance, FujiIcons.Colors, edits.vibrance, -1f..1f, editable) { onAdjust(edits.copy(vibrance = it)) },
                             )
                             2 -> listOf(
                                 RawParam(R.string.raw_editor_sharpening, FujiIcons.Details, edits.sharpening, 0f..1f, editable) { onAdjust(edits.copy(sharpening = it)) },
-                                RawParam(R.string.raw_editor_radius, FujiIcons.Tune, edits.sharpenRadius, .5f..3f, editable && edits.sharpening > 0, 1f, 1, " px", defaultValue = 1f, resetEnabled = editable) { onAdjust(edits.copy(sharpenRadius = it)) },
-                                RawParam(R.string.raw_editor_threshold, FujiIcons.Contrast, edits.sharpenThreshold, 0f..1f, editable && edits.sharpening > 0, resetEnabled = editable) { onAdjust(edits.copy(sharpenThreshold = it)) },
-                                RawParam(R.string.raw_editor_color_noise, FujiIcons.Deblur, edits.colorNoise, 0f..1f, editable) { onAdjust(edits.copy(colorNoise = it)) },
-                                RawParam(R.string.raw_editor_luminance_noise, FujiIcons.Grain, edits.luminanceNoise, 0f..1f, editable) { onAdjust(edits.copy(luminanceNoise = it)) },
-                                RawParam(R.string.raw_editor_noise_detail, FujiIcons.Diamond, edits.noiseDetail, 0f..1f, editable && (edits.colorNoise > 0 || edits.luminanceNoise > 0), defaultValue = .5f, resetEnabled = editable) { onAdjust(edits.copy(noiseDetail = it)) },
-                            )
-                            3 -> listOf(
-                                RawParam(R.string.raw_editor_grain_amount, FujiIcons.Grain, edits.grainAmount, 0f..1f, editable) { onAdjust(edits.copy(grainAmount = it)) },
-                                RawParam(R.string.raw_editor_grain_size, FujiIcons.Details, edits.grainSize, .5f..10f, editable && edits.grainAmount > 0, 1f, 1, " px", defaultValue = 3f, resetEnabled = editable) { onAdjust(edits.copy(grainSize = it)) },
-                                RawParam(R.string.raw_editor_grain_roughness, FujiIcons.Deblur, edits.grainRoughness, 0f..1f, editable && edits.grainAmount > 0, defaultValue = .5f, resetEnabled = editable) { onAdjust(edits.copy(grainRoughness = it)) },
-                                RawParam(R.string.raw_editor_clarity, FujiIcons.Diamond, edits.clarity, -1f..1f, editable) { onAdjust(edits.copy(clarity = it)) },
-                                RawParam(R.string.raw_editor_texture, FujiIcons.Grain, edits.texture, -1f..1f, editable) { onAdjust(edits.copy(texture = it)) },
-                                RawParam(R.string.raw_editor_dehaze, FujiIcons.TransitionDissolve, edits.dehaze, -1f..1f, editable) { onAdjust(edits.copy(dehaze = it)) },
-                                RawParam(R.string.raw_editor_vignette, FujiIcons.Tonality, edits.vignette, -1f..1f, editable) { onAdjust(edits.copy(vignette = it)) },
-                                RawParam(R.string.raw_editor_vignette_midpoint, FujiIcons.Tune, edits.vignetteMidpoint, 0f..1f, editable && edits.vignette != 0f, defaultValue = .5f, resetEnabled = editable) { onAdjust(edits.copy(vignetteMidpoint = it)) },
-                                RawParam(R.string.raw_editor_vignette_roundness, FujiIcons.Contrast, edits.vignetteRoundness, -1f..1f, editable && edits.vignette != 0f, resetEnabled = editable) { onAdjust(edits.copy(vignetteRoundness = it)) },
-                                RawParam(R.string.raw_editor_vignette_feather, FujiIcons.Deblur, edits.vignetteFeather, 0f..1f, editable && edits.vignette != 0f, defaultValue = .5f, resetEnabled = editable) { onAdjust(edits.copy(vignetteFeather = it)) },
+                                RawParam(R.string.raw_editor_color_noise, FujiIcons.BlurOff, edits.colorNoise, 0f..1f, editable) { onAdjust(edits.copy(colorNoise = it)) },
+                                RawParam(R.string.raw_editor_noise_detail, FujiIcons.DiamondShine, edits.noiseDetail, 0f..1f, editable && (edits.colorNoise > 0 || edits.luminanceNoise > 0), defaultValue = .5f, resetEnabled = editable) { onAdjust(edits.copy(noiseDetail = it)) },
                             )
                             4 -> listOf(
-                                RawParam(R.string.raw_editor_rotation, FujiIcons.Refresh, edits.quarterTurns.toFloat(), 0f..3f, editable, displayScale = 90f, suffix = "°", steps = 2) { onAdjust(edits.rotated(it.toInt())) },
-                                RawParam(R.string.raw_editor_straighten, FujiIcons.Tune, edits.straighten, -15f..15f, editable, displayScale = 1f, decimals = 1, suffix = "°") { onAdjust(edits.copy(straighten = it)) },
+                                RawParam(R.string.raw_editor_grain_amount, FujiIcons.Grain, edits.grainAmount, 0f..1f, editable) { onAdjust(edits.copy(grainAmount = it)) },
+                                RawParam(R.string.raw_editor_clarity, FujiIcons.Diamond, edits.clarity, -1f..1f, editable) { onAdjust(edits.copy(clarity = it)) },
+                                RawParam(R.string.raw_editor_texture, FujiIcons.Texture, edits.texture, -1f..1f, editable) { onAdjust(edits.copy(texture = it)) },
+                                RawParam(R.string.raw_editor_dehaze, FujiIcons.Dehaze, edits.dehaze, -1f..1f, editable) { onAdjust(edits.copy(dehaze = it)) },
+                                RawParam(R.string.raw_editor_vignette, FujiIcons.Vignette2, edits.vignette, -1f..1f, editable) { onAdjust(edits.copy(vignette = it)) },
                             )
                             5 -> listOf(
-                                RawParam(R.string.raw_editor_distortion, FujiIcons.Tonality2, edits.distortion, -1f..1f, editable) { onAdjust(edits.copy(distortion = it)) },
-                                RawParam(R.string.raw_editor_perspective_vertical, FujiIcons.Tune, edits.perspectiveVertical, -1f..1f, editable) { onAdjust(edits.copy(perspectiveVertical = it)) },
-                                RawParam(R.string.raw_editor_perspective_horizontal, FujiIcons.DiscoverTune, edits.perspectiveHorizontal, -1f..1f, editable) { onAdjust(edits.copy(perspectiveHorizontal = it)) },
-                                RawParam(R.string.raw_editor_chromatic_red, FujiIcons.Colors, edits.chromaticRed, -1f..1f, editable) { onAdjust(edits.copy(chromaticRed = it)) },
-                                RawParam(R.string.raw_editor_chromatic_blue, FujiIcons.Palette, edits.chromaticBlue, -1f..1f, editable) { onAdjust(edits.copy(chromaticBlue = it)) },
-                                RawParam(R.string.raw_editor_defringe_purple, FujiIcons.StarShine, edits.defringePurple, 0f..1f, editable) { onAdjust(edits.copy(defringePurple = it)) },
-                                RawParam(R.string.raw_editor_defringe_green, FujiIcons.Deblur, edits.defringeGreen, 0f..1f, editable) { onAdjust(edits.copy(defringeGreen = it)) },
+                                RawParam(R.string.raw_editor_distortion, FujiIcons.Vrpano, edits.distortion, -1f..1f, editable) { onAdjust(edits.copy(distortion = it)) },
+                                RawParam(R.string.raw_editor_perspective_vertical, FujiIcons.TiltArrowUp, edits.perspectiveVertical, -1f..1f, editable) { onAdjust(edits.copy(perspectiveVertical = it)) },
+                                RawParam(R.string.raw_editor_defringe_green, FujiIcons.FilterBAndW, edits.defringeGreen, 0f..1f, editable) { onAdjust(edits.copy(defringeGreen = it)) },
+                                RawParam(R.string.raw_editor_chromatic_red, FujiIcons.FormatColorFill, edits.chromaticRed, -1f..1f, editable) { onAdjust(edits.copy(chromaticRed = it)) },
                             )
                             else -> emptyList()
                         }
+                        val related = when (panel) {
+                            0 -> mapOf(
+                                R.string.raw_editor_shadows to listOf(
+                                    RawParam(R.string.raw_editor_blacks, FujiIcons.Tonality, edits.blacks, -1f..1f, editable) { onAdjust(edits.copy(blacks = it)) },
+                                ),
+                                R.string.raw_editor_highlights to listOf(
+                                    RawParam(R.string.raw_editor_whites, FujiIcons.Tonality2, edits.whites, -1f..1f, editable) { onAdjust(edits.copy(whites = it)) },
+                                ),
+                            )
+                            2 -> mapOf(
+                                R.string.raw_editor_sharpening to listOf(
+                                    RawParam(R.string.raw_editor_radius, FujiIcons.Tune, edits.sharpenRadius, .5f..3f, editable && edits.sharpening > 0, 1f, 1, " px", defaultValue = 1f, resetEnabled = editable) { onAdjust(edits.copy(sharpenRadius = it)) },
+                                ),
+                                R.string.raw_editor_color_noise to listOf(
+                                    RawParam(R.string.raw_editor_luminance_noise, FujiIcons.Grain, edits.luminanceNoise, 0f..1f, editable) { onAdjust(edits.copy(luminanceNoise = it)) },
+                                ),
+                            )
+                            4 -> mapOf(
+                                R.string.raw_editor_grain_amount to listOf(
+                                    RawParam(R.string.raw_editor_grain_size, FujiIcons.Details, edits.grainSize, .5f..10f, editable && edits.grainAmount > 0, 1f, 1, " px", defaultValue = 3f, resetEnabled = editable) { onAdjust(edits.copy(grainSize = it)) },
+                                    RawParam(R.string.raw_editor_grain_roughness, FujiIcons.BlurOff, edits.grainRoughness, 0f..1f, editable && edits.grainAmount > 0, defaultValue = .5f, resetEnabled = editable) { onAdjust(edits.copy(grainRoughness = it)) },
+                                ),
+                                R.string.raw_editor_vignette to listOf(
+                                    RawParam(R.string.raw_editor_vignette_midpoint, FujiIcons.Tune, edits.vignetteMidpoint, 0f..1f, editable && edits.vignette != 0f, defaultValue = .5f, resetEnabled = editable) { onAdjust(edits.copy(vignetteMidpoint = it)) },
+                                    RawParam(R.string.raw_editor_vignette_roundness, FujiIcons.Contrast, edits.vignetteRoundness, -1f..1f, editable && edits.vignette != 0f, resetEnabled = editable) { onAdjust(edits.copy(vignetteRoundness = it)) },
+                                    RawParam(R.string.raw_editor_vignette_feather, FujiIcons.BlurOff, edits.vignetteFeather, 0f..1f, editable && edits.vignette != 0f, defaultValue = .5f, resetEnabled = editable) { onAdjust(edits.copy(vignetteFeather = it)) },
+                                ),
+                            )
+                            5 -> mapOf(
+                                R.string.raw_editor_perspective_vertical to listOf(
+                                    RawParam(R.string.raw_editor_perspective_horizontal, FujiIcons.TiltArrowUp, edits.perspectiveHorizontal, -1f..1f, editable) { onAdjust(edits.copy(perspectiveHorizontal = it)) },
+                                ),
+                                R.string.raw_editor_defringe_green to listOf(
+                                    RawParam(R.string.raw_editor_defringe_purple, FujiIcons.FilterBAndW, edits.defringePurple, 0f..1f, editable) { onAdjust(edits.copy(defringePurple = it)) },
+                                ),
+                                R.string.raw_editor_chromatic_red to listOf(
+                                    RawParam(R.string.raw_editor_chromatic_blue, FujiIcons.Palette, edits.chromaticBlue, -1f..1f, editable) { onAdjust(edits.copy(chromaticBlue = it)) },
+                                ),
+                            )
+                            else -> emptyMap()
+                        }
+                        val optionLabels = mapOf(
+                            R.string.raw_editor_grain_amount to R.string.raw_editor_grain,
+                            R.string.raw_editor_color_noise to R.string.raw_editor_noise_reduction,
+                            R.string.raw_editor_perspective_vertical to R.string.raw_editor_perspective,
+                            R.string.raw_editor_defringe_green to R.string.raw_editor_defringe,
+                            R.string.raw_editor_chromatic_red to R.string.raw_editor_color_alignment,
+                        )
                         val activeIndex = selectedParam.coerceIn(0, params.lastIndex.coerceAtLeast(0))
                         val active = params.getOrNull(activeIndex)
+                        val activeControls = listOfNotNull(active) + related[active?.labelRes].orEmpty()
+                        var selectedControl by rememberSaveable(panel, active?.labelRes) { mutableIntStateOf(0) }
+                        var selectorOpen by remember(panel, active?.labelRes) { mutableStateOf(false) }
+                        val useSelector = activeControls.size >= 3
+                        val visibleControls = if (useSelector) listOf(activeControls[selectedControl.coerceIn(activeControls.indices)]) else activeControls
                         val locale = LocalConfiguration.current.locales[0]
 
                         Column(
@@ -370,58 +421,89 @@ fun RawEditorScreen(
                                 Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            if (panel == 6) RawToneCurveEditor(state, onAdjust, compact = wide, enabled = editable)
+                            if (panel == 3) RawToneCurveEditor(state, onAdjust, compact = wide, enabled = editable)
 
-                            // 1. Active Parameter Name + Value
-                            if (active != null) Text(
-                                text = "${stringResource(active.labelRes)}  ${active.formatValue(locale)}",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-
-                            // 2. Tick-Mark Dial for Active Parameter (placed above icons)
-                            if (active != null) RawTickDial(
-                                param = active,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 20.dp),
-                            )
+                            val grouped = activeControls.size > 1
+                            visibleControls.forEach { control ->
+                                key(control.labelRes) {
+                                    val label = stringResource(if (useSelector && control.labelRes == R.string.raw_editor_vignette) R.string.raw_editor_amount else control.labelRes)
+                                    val resetLabel = stringResource(R.string.raw_editor_reset_parameter, label)
+                                    val currentControl by rememberUpdatedState(control)
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                                        modifier = if (grouped) Modifier.semantics(mergeDescendants = true) {
+                                            contentDescription = label
+                                            progressBarRangeInfo = ProgressBarRangeInfo(control.value, control.range, control.steps)
+                                            if (control.enabled) setProgress { target ->
+                                                currentControl.onChange(currentControl.snap(target)); true
+                                            }
+                                            customActions = if (control.resetEnabled) listOf(
+                                                CustomAccessibilityAction(resetLabel) { currentControl.onChange(currentControl.defaultValue); true },
+                                            ) else emptyList()
+                                        } else Modifier,
+                                    ) {
+                                        Box {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                if (useSelector) IconButton(
+                                                    onClick = { selectorOpen = true },
+                                                    modifier = Modifier.testTag("raw-editor-parameter-selector"),
+                                                ) { Icon(FujiIcons.UnfoldMore, stringResource(R.string.raw_editor_select_parameter)) }
+                                                Text(
+                                                    text = "$label  ${control.formatValue(locale)}",
+                                                    modifier = Modifier.testTag("raw-editor-parameter-${control.labelRes}").pointerInput(control.resetEnabled, control.defaultValue, useSelector) {
+                                                        detectTapGestures(
+                                                            onTap = { if (useSelector) selectorOpen = true },
+                                                            onDoubleTap = { if (currentControl.resetEnabled) currentControl.onChange(currentControl.defaultValue) },
+                                                        )
+                                                    },
+                                                    style = MaterialTheme.typography.labelLarge,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                )
+                                            }
+                                            DropdownMenu(expanded = useSelector && selectorOpen, onDismissRequest = { selectorOpen = false }) {
+                                                activeControls.forEachIndexed { index, parameter ->
+                                                    DropdownMenuItem(
+                                                        text = { Text(stringResource(if (parameter.labelRes == R.string.raw_editor_vignette) R.string.raw_editor_amount else parameter.labelRes)) },
+                                                        onClick = { selectedControl = index; selectorOpen = false },
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        RawTickDial(control, Modifier.fillMaxWidth().padding(horizontal = 20.dp))
+                                    }
+                                }
+                            }
 
                             // 3. Circular Icon Carousel + Contextual Action Pills
-                            if (panel != 6) Row(
+                            if (panel != 3) Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .horizontalScroll(rememberScrollState())
+                                    .testTag("raw-editor-options")
                                     .padding(horizontal = 16.dp, vertical = 2.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                if (panel == 7) {
+                                if (panel == 6) {
                                     FilledTonalButton(onClick = { onMasks(true) }, enabled = editable && !state.rendering) { Text(stringResource(R.string.raw_editor_edit_masks, edits.masks.size)) }
                                 }
                                 if (panel == 1) {
-                                    FilledTonalButton(
-                                        onClick = { onAdjust(edits.copy(temperature = 0f, tint = 0f)) },
-                                        enabled = editable,
-                                    ) { Text(stringResource(R.string.raw_editor_as_shot)) }
-                                }
-                                if (panel == 4) {
-                                    FilledTonalButton(
-                                        onClick = onCrop,
-                                        enabled = editable && !state.rendering,
-                                    ) { Text(stringResource(R.string.raw_editor_crop)) }
-                                    if (edits.crop != RawCrop()) {
-                                        TextButton(
-                                            onClick = { onAdjust(edits.copy(crop = RawCrop())) },
-                                            enabled = editable,
-                                        ) { Text(stringResource(R.string.raw_editor_crop_reset)) }
+                                    Column(Modifier.widthIn(min = 56.dp, max = 76.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        IconButton(onClick = { onAdjust(edits.copy(temperature = 0f, tint = 0f)) }, enabled = editable,
+                                            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)) {
+                                            Icon(FujiIcons.PhotoCamera, stringResource(R.string.raw_editor_as_shot))
+                                        }
+                                        Text(stringResource(R.string.raw_editor_as_shot), style = MaterialTheme.typography.labelSmall)
                                     }
                                 }
                                 params.forEachIndexed { index, param ->
                                     RawParamCircle(
                                         param = param,
                                         selected = index == activeIndex,
+                                        related = related[param.labelRes].orEmpty(),
+                                        optionLabelRes = optionLabels[param.labelRes] ?: param.labelRes,
                                         onSelect = { selectedParam = index },
                                     )
                                 }
@@ -430,15 +512,17 @@ fun RawEditorScreen(
                             // 4. Secondary Category Tabs at Bottom
                             SecondaryScrollableTabRow(
                                 selectedTabIndex = panel,
+                                modifier = Modifier.testTag("raw-editor-groups"),
                                 edgePadding = 16.dp,
                             ) {
                                 listOf(
                                     R.string.raw_editor_light, R.string.raw_editor_color, R.string.raw_editor_detail,
-                                    R.string.raw_editor_effects, R.string.raw_editor_framing, R.string.raw_editor_optics,
-                                    R.string.raw_editor_curves, R.string.raw_editor_masks,
+                                    R.string.raw_editor_curves, R.string.raw_editor_effects, R.string.raw_editor_optics,
+                                    R.string.raw_editor_masks,
                                 ).forEachIndexed { index, label ->
                                     Tab(
                                         selected = panel == index,
+                                        enabled = !state.busy,
                                         onClick = { panel = index },
                                         text = { Text(stringResource(label)) },
                                     )
@@ -500,20 +584,24 @@ internal fun RawParamCircle(
     param: RawParam,
     selected: Boolean,
     onSelect: () -> Unit,
+    related: List<RawParam> = emptyList(),
+    optionLabelRes: Int = param.labelRes,
 ) {
-    val label = stringResource(param.labelRes)
+    val label = stringResource(optionLabelRes)
+    val description = if (related.isEmpty()) label else stringResource(R.string.raw_editor_parameter_controls, label)
+    val edited = param.isEdited || related.any { it.isEdited }
     val resetLabel = stringResource(R.string.raw_editor_reset_parameter, label)
     val currentParam by rememberUpdatedState(param)
     val currentOnSelect by rememberUpdatedState(onSelect)
 
     val containerColor = when {
         selected -> MaterialTheme.colorScheme.primary
-        param.isEdited -> MaterialTheme.colorScheme.secondaryContainer
+        edited -> MaterialTheme.colorScheme.secondaryContainer
         else -> MaterialTheme.colorScheme.surfaceContainerHigh
     }
     val contentColor = when {
         selected -> MaterialTheme.colorScheme.onPrimary
-        param.isEdited -> MaterialTheme.colorScheme.onSecondaryContainer
+        edited -> MaterialTheme.colorScheme.onSecondaryContainer
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
@@ -523,27 +611,27 @@ internal fun RawParamCircle(
         modifier = Modifier
             .widthIn(min = 56.dp, max = 76.dp)
             .alpha(if (param.enabled || param.resetEnabled) 1f else 0.45f)
-            .pointerInput(param.resetEnabled, param.defaultValue) {
+            .pointerInput(param.resetEnabled, param.defaultValue, related.isNotEmpty()) {
                 detectTapGestures(
                     onTap = { currentOnSelect() },
-                    onDoubleTap = {
+                    onDoubleTap = if (related.isEmpty()) ({
                         currentOnSelect()
                         if (currentParam.resetEnabled) currentParam.onChange(currentParam.defaultValue)
-                    },
+                    }) else null,
                 )
             }
             .semantics(mergeDescendants = true) {
-                contentDescription = label
+                contentDescription = description
                 onClick { currentOnSelect(); true }
-                progressBarRangeInfo = ProgressBarRangeInfo(param.value, param.range, param.steps)
-                if (param.enabled) {
+                if (related.isEmpty()) progressBarRangeInfo = ProgressBarRangeInfo(param.value, param.range, param.steps)
+                if (related.isEmpty() && param.enabled) {
                     setProgress { target ->
                         currentOnSelect()
                         currentParam.onChange(currentParam.snap(target))
                         true
                     }
                 }
-                customActions = if (param.resetEnabled) listOf(
+                customActions = if (related.isEmpty() && param.resetEnabled) listOf(
                     CustomAccessibilityAction(resetLabel) {
                         currentOnSelect()
                         currentParam.onChange(currentParam.defaultValue)
@@ -565,7 +653,7 @@ internal fun RawParamCircle(
                 tint = contentColor,
                 modifier = Modifier.size(22.dp),
             )
-            if (param.isEdited) {
+            if (edited) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -580,7 +668,7 @@ internal fun RawParamCircle(
             text = label,
             style = MaterialTheme.typography.labelSmall,
             color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
         )

@@ -53,6 +53,8 @@ data class RawEditorState(
     val detail: RawDetail? = null,
     val detailLoading: Boolean = false,
     val cropPreview: Bitmap? = null,
+    val cropAdjustments: RawAdjustments? = null,
+    val cropRendering: Boolean = false,
     val maskEditorOpen: Boolean = false,
     val activeMask: Int = 0,
     val maskOverlay: Bitmap? = null,
@@ -76,7 +78,7 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
     private var handle = 0L
     private var sourceFile: File? = null
     private val closed = AtomicBoolean(false)
-    private data class PreviewRequest(val edits: RawAdjustments, val mask: Int?, val generation: Int, val sequence: Int, val viewport: RawViewport?, val preview: Boolean)
+    private data class PreviewRequest(val edits: RawAdjustments, val mask: Int?, val generation: Int, val sequence: Int, val viewport: RawViewport?, val preview: Boolean, val framing: Boolean = false)
     private val previewRequests = MutableStateFlow<PreviewRequest?>(null)
     private var detailViewport: RawViewport? = null
     private var previewSequence = 0
@@ -101,7 +103,7 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
                     }
                     if (superseded != true) {
                         if (request.preview) renderPreview(request, draft = false)
-                        renderDetail(request)
+                        if (!request.framing) renderDetail(request)
                     }
                 } catch (error: CancellationException) { throw error }
                 catch (error: Exception) { if (previewRequests.value == request) fail(error) }
@@ -186,7 +188,7 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
     }
 
     fun detailViewport(viewport: RawViewport?) {
-        if (detailViewport == viewport || _state.value.busy || handle == 0L) return
+        if (detailViewport == viewport || _state.value.busy || _state.value.cropAdjustments != null || handle == 0L) return
         detailViewport = viewport
         _state.update { it.copy(detail = if (viewport == null) null else it.detail, detailLoading = viewport != null, error = if (viewport != null) null else it.error) }
         // A pan must not supersede a pending slider refinement.
@@ -236,6 +238,12 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
         } ?: return
         val latest = previewRequests.value ?: return
         if (request.generation != sourceGeneration || _state.value.busy || (!draft && latest != request)) return
+        if (request.framing) {
+            if (_state.value.cropAdjustments == null) return
+            _state.update { it.copy(cropPreview = result.first, cropImageAspect = result.second[0].toFloat() / result.second[1],
+                cropRendering = draft || latest != request) }
+            return
+        }
         _state.update {
             it.copy(preview = result.first, fullWidth = result.second[0], fullHeight = result.second[1],
                 rendering = draft || latest != request,
@@ -295,26 +303,41 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
 
     fun prepareCrop() {
         val current = _state.value
-        if (current.busy || current.rendering || handle == 0L) return
-        _state.update { it.copy(busy = true, error = null) }
+        if (current.busy || current.cropAdjustments != null || handle == 0L) return
+        previewRequests.value = null
+        detailViewport = null
+        _state.update { it.copy(busy = true, rendering = false, detail = null, detailLoading = false, error = null) }
         viewModelScope.launch {
             try {
                 val bitmap = withContext(Dispatchers.Default) {
                     mutex.withLock {
                         ensureActive()
+                        NativeRaw.releaseDetail(handle)
                         val edits = current.adjustments.copy(crop = RawCrop())
                         val size = NativeRaw.outputDimensions(handle, edits.nativeValues(), true)
                         renderBitmap(handle, edits, false) to size[0].toFloat() / size[1]
                     }
                 }
-                _state.update { it.copy(busy = false, cropPreview = bitmap.first, cropImageAspect = bitmap.second) }
+                _state.update { it.copy(busy = false, cropPreview = bitmap.first, cropImageAspect = bitmap.second,
+                    cropAdjustments = current.adjustments, cropRendering = false) }
             } catch (error: CancellationException) { throw error }
             catch (error: Exception) { fail(error) }
             catch (_: OutOfMemoryError) { failMemory() }
         }
     }
 
-    fun dismissCrop() { _state.update { it.copy(cropPreview = null, cropImageAspect = null) } }
+    fun adjustCrop(edits: RawAdjustments) {
+        if (_state.value.busy || _state.value.cropAdjustments == null || (_state.value.cropAdjustments == edits && _state.value.error == null)) return
+        _state.update { it.copy(cropAdjustments = edits, cropRendering = true, error = null) }
+        previewRequests.value = PreviewRequest(edits.copy(crop = RawCrop()), null, sourceGeneration,
+            ++previewSequence, null, preview = true, framing = true)
+    }
+
+    fun dismissCrop() {
+        previewRequests.value = null
+        _state.update { it.copy(cropPreview = null, cropImageAspect = null, cropAdjustments = null, cropRendering = false, error = null) }
+        requestRender(_state.value.adjustments, force = true)
+    }
 
     /** Freeze the requested edits while the system document picker is open. */
     fun prepareExport() { pendingExport = _state.value.adjustments }
@@ -373,11 +396,11 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
     }
 
     private fun fail(error: Exception) {
-        _state.update { it.copy(busy = false, rendering = false, detailLoading = false, error = error.message ?: context.getString(R.string.raw_editor_unreadable)) }
+        _state.update { it.copy(busy = false, rendering = false, detailLoading = false, cropRendering = false, error = error.message ?: context.getString(R.string.raw_editor_unreadable)) }
     }
 
     private fun failMemory() {
-        _state.update { it.copy(busy = false, rendering = false, detailLoading = false, error = context.getString(R.string.raw_editor_memory)) }
+        _state.update { it.copy(busy = false, rendering = false, detailLoading = false, cropRendering = false, error = context.getString(R.string.raw_editor_memory)) }
     }
 
     fun clearMessage() { _state.update { it.copy(message = null) } }

@@ -8,6 +8,8 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -40,13 +42,15 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import dev.bondarenko.fujirecipes.R
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.ScreenshotFrame2
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 @Composable
 internal fun RawEditorPreview(
     state: RawEditorState, grid: Boolean, showCamera: Boolean, onShowCamera: (Boolean) -> Unit,
-    onViewport: (RawViewport?) -> Unit, modifier: Modifier = Modifier,
+    onViewport: (RawViewport?) -> Unit, modifier: Modifier = Modifier, onCrop: () -> Unit = {},
 ) {
     val image = IntSize(
         state.fullWidth.takeIf { it > 0 } ?: state.preview?.width ?: 1,
@@ -142,7 +146,14 @@ internal fun RawEditorPreview(
             }
         }
         val loading = viewport != null && (state.detailLoading || state.detail?.viewport != viewport || state.detail.edits != state.adjustments)
-        if (showCamera || state.busy || loading) Surface(Modifier.align(Alignment.BottomCenter),
+        Surface(Modifier.align(Alignment.BottomEnd).padding(8.dp),
+            shape = androidx.compose.foundation.shape.CircleShape,
+            color = Color.Black.copy(alpha = .7f), contentColor = Color.White) {
+            IconButton(onClick = onCrop, enabled = !state.busy, modifier = Modifier.testTag("raw-editor-crop")) {
+                Icon(FujiIcons.ScreenshotFrame2, stringResource(R.string.raw_editor_framing))
+            }
+        }
+        if (showCamera || state.busy || loading) Surface(Modifier.align(Alignment.BottomCenter).padding(horizontal = 64.dp),
             color = Color.Black.copy(alpha = .8f), contentColor = Color.White) {
             Text(stringResource(when {
                 state.busy -> R.string.raw_editor_processing
