@@ -210,8 +210,11 @@ RAW recipe mapping is deliberately model-specific. The verified X-T50 adapter ap
 
 Open **More → RAW Editor → Open RAF**. The editor decodes the sensor data on the phone,
 reads the recorded film simulation, and applies its camera-matching color profile and
-as-shot white balance before the first editable preview. Adjust exposure, shadows, and
-highlights; **Reset** restores that starting point. **Compare camera JPEG** shows the
+as-shot white balance before the first editable preview. **Light** contains exposure,
+shadows, highlights, contrast, whites, and blacks. **Color** contains relative temperature,
+tint, saturation, and vibrance, with an **As Shot white balance** reset. **Detail** contains
+sharpening amount/radius/threshold, color noise reduction, luminance noise reduction, and
+detail preservation. **Reset** restores the complete starting point. **Compare camera JPEG** shows the
 original embedded camera image separately. **Save JPEG** develops the original RAW at
 its full active resolution and writes a new file to a destination you choose.
 
@@ -221,6 +224,7 @@ The profiles supply the film-simulation color look, not the complete camera engi
 grain, Color Chrome, and the other recipe effects are not reproduced. No camera connection
 or network is needed, and the original RAF is never modified. Lab remains the option for
 camera-engine development. See [the pipeline and verification notes](specs/plans/raw-editor.md).
+The [feature tracker](specs/plans/raw-editor-features.md) records delivered and planned tools.
 
 ### Custom Slots and Camera Tools
 

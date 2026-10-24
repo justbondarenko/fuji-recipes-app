@@ -68,12 +68,42 @@ class RawEditorHardwareTest {
             }
             assertTrue("Shadow lift must increase the image's luminance", after > before)
             snapshot(adjusted, "raw-editor-shadows.jpg")
+            for (edits in listOf(
+                RawAdjustments(temperature = .4f), RawAdjustments(tint = -.3f),
+                RawAdjustments(contrast = .3f), RawAdjustments(whites = .4f),
+                RawAdjustments(blacks = .4f), RawAdjustments(saturation = -1f),
+                RawAdjustments(vibrance = .6f),
+                RawAdjustments(sharpening = .7f, sharpenRadius = 1.8f, sharpenThreshold = .1f),
+                RawAdjustments(colorNoise = .8f), RawAdjustments(luminanceNoise = .8f, noiseDetail = .2f),
+            )) {
+                instrumentation.runOnMainSync { model.adjust(edits) }
+                assertFalse("The control must change RAW pixels: $edits", original.sameAs(awaitReady().preview))
+            }
             instrumentation.runOnMainSync { model.adjust(RawAdjustments()) }
             assertTrue("Reset must reproduce the profiled starting point", original.sameAs(awaitReady().preview))
             instrumentation.runOnMainSync {
-                model.adjust(RawAdjustments(shadows = .6f, highlights = -.3f))
+                model.adjust(RawAdjustments(shadows = .4f, highlights = -.3f,
+                    temperature = .2f, tint = -.1f, contrast = .15f, whites = -.1f, blacks = .1f,
+                    saturation = -.1f, vibrance = .2f, sharpening = .4f, sharpenRadius = 1.2f,
+                    sharpenThreshold = .1f, colorNoise = .5f, luminanceNoise = .4f, noiseDetail = .6f))
             }
-            awaitReady()
+            val allControls = awaitReady()
+            snapshot(allControls.preview!!, "raw-editor-batch.jpg")
+            lateinit var restored: RawEditorViewModel
+            instrumentation.runOnMainSync {
+                val restoredSaved = SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) })
+                val owner = object : ViewModelStoreOwner { override val viewModelStore = store }
+                restored = ViewModelProvider(owner, object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T = RawEditorViewModel(app, restoredSaved) as T
+                })["restored", RawEditorViewModel::class.java]
+            }
+            val restoredState = runBlocking { withTimeout(180_000) {
+                restored.state.first { !it.busy && (it.preview != null || it.error != null) }
+            } }
+            assertNull(restoredState.error, restoredState.error)
+            assertEquals(allControls.adjustments, restoredState.adjustments)
+            assertTrue(allControls.preview!!.sameAs(restoredState.preview))
             instrumentation.runOnMainSync {
                 model.prepareExport()
                 model.save(FileProvider.getUriForFile(app, "${app.packageName}.fileprovider", output))
@@ -93,7 +123,7 @@ class RawEditorHardwareTest {
             assertEquals(exported.adjustments, failed.adjustments)
             assertTrue(fixture.length() == input.length())
             invalid.delete()
-            Log.i("RawEditorProbe", "Shadow lift, reset, full export (${output.length()} bytes), and rejected replacement passed")
+            Log.i("RawEditorProbe", "All control effects, reset, session restore, full export (${output.length()} bytes), and rejected replacement passed")
         } finally {
             instrumentation.runOnMainSync { store.clear() }
             input.delete()
