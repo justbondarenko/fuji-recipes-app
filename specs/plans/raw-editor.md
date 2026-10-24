@@ -242,3 +242,26 @@ Source-radius units and camera-border geometry were cross-checked against the
 [LightCraft embedded-lens research](https://github.com/storytold/lightcraft/blob/main/docs/fuji-lens-corrections.md)
 and the camera JPEG from the supplied RAF. No upstream lens implementation or
 external lens database was added.
+
+
+The bottom-right preview Crop button starts the full-screen framing workspace. Its two
+rotation buttons apply counterclockwise/clockwise 90° turns, while Straighten
+is a separate ±15° dial below the image. Wide layouts put aspect/action controls
+beside the image and retain the Straighten dial underneath it. The crop and
+aspect lock rotate with the photo; crop state is independent of preview bitmap
+identity so draft/settled image replacement cannot discard a handle movement.
+
+The existing preview worker handles staged framing requests using the same
+sensor caches and native Frame mapping as ordinary adjustments. The global
+adjustments and SavedStateHandle remain untouched until Apply; Cancel drops
+staged requests and restores the original settled preview. Crop geometry input
+and Apply wait for the latest staged rendering to finish. Errors are displayed
+inside the workspace, leave global edits intact, and allow Cancel or retry.
+
+
+Control groups are ordered Light, Color, Details, Curves, Effects, Optics, then
+existing Masks. Each option retains independent RawAdjustments fields and
+native processing. Pairs show both dials; Grain and Vignette show one dial with
+an accessible parameter menu above it. Selection changes no edit values, and
+individual name resets affect only the selected field. Crop is independent of
+category selection and returns to the same category after Apply or Cancel.

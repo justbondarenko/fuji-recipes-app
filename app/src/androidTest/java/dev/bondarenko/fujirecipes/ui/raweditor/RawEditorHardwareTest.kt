@@ -196,6 +196,32 @@ class RawEditorHardwareTest {
             instrumentation.runOnMainSync { model.detailViewport(null) }
             assertNull(model.state.value.detail)
             assertFalse(model.state.value.detailLoading)
+            val base = RawAdjustments(exposure = .3f, crop = RawCrop(.1f,.2f,.8f,.9f))
+            instrumentation.runOnMainSync { model.adjust(base) }
+            val beforeFraming = ready().preview!!
+            fun cropReady() = runBlocking { withTimeout(60_000) {
+                model.state.first { !it.busy && !it.cropRendering && (it.cropPreview != null || it.error != null) }
+            } }.also { assertNull(it.error,it.error) }
+            instrumentation.runOnMainSync { model.prepareCrop() }
+            cropReady()
+            val framed = base.rotated(1).copy(straighten = -4.5f)
+            instrumentation.runOnMainSync { model.adjustCrop(framed) }
+            val staged = cropReady()
+            assertEquals(base,staged.adjustments)
+            assertEquals(base,RawAdjustments.fromValues(saved.get<FloatArray>("adjustments")!!))
+            assertEquals(framed,staged.cropAdjustments)
+            assertTrue("Quarter turn changes the uncropped RAW preview orientation",staged.cropPreview!!.width < staged.cropPreview.height)
+            instrumentation.runOnMainSync { model.dismissCrop() }
+            assertEquals(base,ready().adjustments)
+            assertTrue("Cancel restores the exact original RAW preview",beforeFraming.sameAs(model.state.value.preview))
+            instrumentation.runOnMainSync { model.prepareCrop() }
+            cropReady()
+            instrumentation.runOnMainSync { model.adjustCrop(framed) }
+            cropReady()
+            instrumentation.runOnMainSync { model.dismissCrop(); model.adjust(framed) }
+            assertEquals(framed,ready().adjustments)
+            assertEquals(framed,RawAdjustments.fromValues(saved.get<FloatArray>("adjustments")!!))
+
         } finally {
             instrumentation.runOnMainSync { store.clear() }
             input.delete()
