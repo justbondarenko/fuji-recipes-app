@@ -33,6 +33,7 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -84,7 +85,7 @@ private fun CreativeParameters(params: List<RawParam>) {
 }
 
 @Composable
-internal fun RawToneCurveEditor(state: RawEditorState, onAdjust: (RawAdjustments) -> Unit, compact: Boolean = false, enabled: Boolean = true) {
+internal fun RawToneCurveEditor(state: RawEditorState, onAdjust: (RawAdjustments) -> Unit, maxGraphSize: Dp, enabled: Boolean = true) {
     var channel by rememberSaveable(state.name) { mutableIntStateOf(0) }
     var selected by rememberSaveable(state.name, channel) { mutableIntStateOf(0) }
     val curves = state.adjustments.curves
@@ -122,7 +123,7 @@ internal fun RawToneCurveEditor(state: RawEditorState, onAdjust: (RawAdjustments
             Icon(FujiIcons.Refresh, actionLabels[4])
         }
     }
-    Canvas(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(if (compact) 140.dp else 180.dp).testTag("raw-tone-curve").semantics {
+    Canvas(Modifier.padding(horizontal = 16.dp).widthIn(max = maxGraphSize).fillMaxWidth().aspectRatio(1f).testTag("raw-tone-curve").semantics {
         contentDescription = description
         stateDescription = "${index+1}/${curve.points.size}: ${(point.x*100).toInt()}%, ${(point.y*100).toInt()}%"
         if (editable) customActions = buildList {

@@ -23,6 +23,9 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.swipe
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isPopup
@@ -132,6 +135,82 @@ class RawEditorLayoutTest {
             }
         }
         compose.onNodeWithText("Framing").assertDoesNotExist()
+    }
+
+    @Test
+    fun categorySwipesUseEmptySpaceAndCurvesStaySquare() {
+        val bitmap = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888)
+        val original = RawAdjustments(grainAmount = .4f, vignette = -.3f)
+        var state by mutableStateOf(RawEditorState(preview = bitmap, adjustments = original))
+        var dimensions by mutableStateOf(DpSize(840.dp, 800.dp))
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(dimensions)) {
+                FujiTheme { RawEditorScreen(state, {}, {}, { state = state.copy(adjustments = it) }, {}) }
+            }
+        }
+        val categories = listOf("Light", "Color", "Details", "Curves", "Effects", "Optics", "Masks")
+        val firstSliders = listOf(R.string.raw_editor_exposure, R.string.raw_editor_temperature, R.string.raw_editor_sharpening,
+            null, R.string.raw_editor_grain_amount, R.string.raw_editor_distortion, null)
+        fun swipeEmpty(index: Int, left: Boolean) {
+            val controls = compose.onNodeWithTag("raw-editor-controls")
+            val bounds = controls.fetchSemanticsNode().boundsInRoot
+            val after = when (index) {
+                3 -> compose.onNodeWithTag("raw-tone-curve").fetchSemanticsNode().boundsInRoot
+                6 -> compose.onNodeWithTag("raw-editor-options").fetchSemanticsNode().boundsInRoot
+                else -> compose.onNodeWithTag("raw-editor-slider-${firstSliders[index]}").fetchSemanticsNode().boundsInRoot
+            }
+            controls.performTouchInput {
+                val y = after.bottom - bounds.top + 3.dp.toPx()
+                swipe(Offset(width * if (left) .8f else .2f, y), Offset(width * if (left) .2f else .8f, y), 200)
+            }
+        }
+        for (size in listOf(DpSize(840.dp, 800.dp), DpSize(393.dp, 800.dp))) {
+            compose.runOnIdle { dimensions = size; state = state.copy(adjustments = original) }
+            compose.onNodeWithText("Light").performScrollTo().performClick()
+            swipeEmpty(0, false)
+            compose.onNodeWithText("Light").assertIsSelected()
+            for (index in 0..5) {
+                swipeEmpty(index, true)
+                compose.onNodeWithText(categories[index + 1]).assertIsSelected()
+            }
+            swipeEmpty(6, true)
+            compose.onNodeWithText("Masks").assertIsSelected()
+            for (index in 6 downTo 1) {
+                swipeEmpty(index, false)
+                compose.onNodeWithText(categories[index - 1]).assertIsSelected()
+            }
+            compose.runOnIdle { assertEquals(original,state.adjustments); state = state.copy(busy = true) }
+            swipeEmpty(0, true)
+            compose.onNodeWithText("Light").assertIsSelected()
+            compose.runOnIdle { state = state.copy(busy = false) }
+            compose.onNodeWithTag("raw-editor-slider-${R.string.raw_editor_exposure}").performTouchInput {
+                swipe(center, Offset(width * .8f, center.y), 200)
+            }
+            compose.onNodeWithText("Light").assertIsSelected()
+            compose.runOnIdle { assertTrue(state.adjustments.exposure > 0f) }
+            compose.onNodeWithText("Curves").performScrollTo().performClick()
+            val graph = compose.onNodeWithTag("raw-tone-curve")
+            val square = graph.getUnclippedBoundsInRoot()
+            assertEquals((square.right-square.left).value,(square.bottom-square.top).value,1f)
+            graph.performTouchInput { click(center) }
+            compose.mainClock.advanceTimeBy(400)
+            graph.performTouchInput { swipe(center, Offset(width * .7f, center.y), 200) }
+            compose.onNodeWithText("Curves").assertIsSelected()
+            compose.runOnIdle { assertEquals(3,state.adjustments.curves.master.points.size); assertTrue(state.adjustments.curves.master.points[1].x > .5f) }
+            if (size.width >= 700.dp) {
+                compose.onNodeWithText("Effects").performScrollTo().performClick()
+                val before = state.adjustments
+                val list = compose.onNodeWithTag("raw-editor-slider-list")
+                list.performTouchInput { swipeUp() }
+                compose.onNodeWithText("Effects").assertIsSelected()
+                assertTrue(list.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value() > 0f)
+                compose.runOnIdle { assertEquals(before,state.adjustments) }
+            }
+        }
+        compose.runOnIdle { dimensions = DpSize(840.dp, 393.dp) }
+        compose.onNodeWithText("Curves").performScrollTo().performClick()
+        val shortGraph = compose.onNodeWithTag("raw-tone-curve").getUnclippedBoundsInRoot()
+        assertEquals((shortGraph.right-shortGraph.left).value,(shortGraph.bottom-shortGraph.top).value,1f)
     }
 
     @Test
