@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -117,10 +118,15 @@ import kotlin.math.round
 fun RawEditorRouteContent(
     initialUri: String? = null,
     onBack: () -> Unit,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    onActiveSessionChange: (Boolean) -> Unit = {},
 ) {
     val model: RawEditorViewModel = viewModel()
     val state by model.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    LaunchedEffect(state.preview != null) {
+        onActiveSessionChange(state.preview != null)
+    }
     LaunchedEffect(initialUri) {
         if (initialUri != null && state.preview == null && !state.busy) {
             model.open(android.net.Uri.parse(initialUri))
@@ -152,6 +158,7 @@ fun RawEditorRouteContent(
         },
         onCrop = model::prepareCrop,
         onDismissCrop = model::dismissCrop,
+        contentPadding = contentPadding,
     )
     if (confirmAction != null) {
         AlertDialog(
@@ -178,6 +185,7 @@ fun RawEditorScreen(
     onSave: () -> Unit,
     onCrop: () -> Unit = {},
     onDismissCrop: () -> Unit = {},
+    contentPadding: PaddingValues = PaddingValues(0.dp),
 ) {
     var showCamera by remember(state.name, state.busy, state.cameraImage) { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
@@ -272,7 +280,9 @@ fun RawEditorScreen(
                     body = stringResource(R.string.raw_editor_intro_body),
                     actionLabel = stringResource(R.string.raw_editor_open),
                     onAction = onOpen,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = contentPadding.calculateBottomPadding()),
                     extra = {
                         TextButton(onClick = { showInfo = true }) {
                             Text(stringResource(R.string.raw_editor_profile_info))
