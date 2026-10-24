@@ -45,6 +45,7 @@ data class RawDetail(val viewport: RawViewport, val edits: RawAdjustments, val b
 data class RawEditorState(
     val name: String = "",
     val simulation: String = "",
+    val lensCorrectionApplied: Boolean = false,
     val fullWidth: Int = 0,
     val fullHeight: Int = 0,
     val preview: Bitmap? = null,
@@ -148,6 +149,7 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
                             RawEditorState(
                                 name = name, simulation = recipe!!.filmSimulationLabel.orEmpty(),
                                 fullWidth = dimensions[0], fullHeight = dimensions[1],
+                                lensCorrectionApplied = NativeRaw.dimensions(nextHandle)[4] == 1,
                                 preview = preview, cameraImage = camera, adjustments = edits,
                             )
                         } catch (error: Throwable) {

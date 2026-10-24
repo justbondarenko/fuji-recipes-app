@@ -31,6 +31,25 @@ import kotlin.math.roundToInt
 /** Opt in with -e rawEditorProbe true and files/raw-editor-fixture.raf on the device. */
 class RawEditorHardwareTest {
     @Test
+    fun embeddedLensDistortionIsAppliedBeforeTheFirstPreview() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("rawEditorProbe") == "true")
+        val app = InstrumentationRegistry.getInstrumentation().targetContext
+        val fixture = File(app.filesDir, "raw-editor-fixture.raf")
+        val handle = NativeRaw.open(fixture.path, app.assets.open("raw-profiles/classic-chrome.cube").use { it.readBytes() })
+        try {
+            assertEquals("The real X-T50 RAF contains a usable embedded lens table", 1, NativeRaw.dimensions(handle)[4])
+            val edits = RawAdjustments()
+            val size = NativeRaw.outputDimensions(handle, edits.nativeValues(), false)
+            val bitmap = Bitmap.createBitmap(size[0], size[1], Bitmap.Config.ARGB_8888)
+            NativeRaw.render(handle, bitmap, edits.nativeValues(), false)
+            val output = File(app.cacheDir, "export/raw-lens-corrected.png").also { it.parentFile!!.mkdirs() }
+            output.outputStream().use { assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+            bitmap.recycle()
+            Log.i("RawLensProbe", "Embedded distortion applied on open: ${size[0]}x${size[1]}; RAF=${fixture.length()} bytes")
+        } finally { NativeRaw.close(handle) }
+    }
+
+    @Test
     fun fullDetailTilesMatchExportIncludingFilterContext() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("rawEditorProbe") == "true")
         val app = InstrumentationRegistry.getInstrumentation().targetContext
@@ -214,6 +233,7 @@ class RawEditorHardwareTest {
             val start = awaitReady()
             assertEquals("Classic Chrome", start.simulation)
             assertTrue(maxOf(start.fullWidth, start.fullHeight) >= 7700 && minOf(start.fullWidth, start.fullHeight) >= 5100)
+            assertTrue("Embedded distortion is part of the starting point", start.lensCorrectionApplied)
             val original = start.preview!!
             snapshot(original, "raw-editor-start.jpg")
             Log.i("RawEditorProbe", "Profile=${start.simulation}, preview=${original.width}x${original.height}, full=${start.fullWidth}x${start.fullHeight}")

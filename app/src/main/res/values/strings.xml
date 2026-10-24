@@ -638,7 +638,8 @@
     <string name="raw_editor_effects">Effects</string>
     <string name="raw_editor_framing">Framing</string>
     <string name="raw_editor_optics">Optics</string>
-    <string name="raw_editor_optics_note">Manual lens and perspective correction. Empty edges are trimmed automatically. No automatic lens profile is applied.</string>
+    <string name="raw_editor_optics_note">Embedded lens distortion correction applied. Controls add further adjustments.</string>
+    <string name="raw_editor_optics_unavailable">No usable embedded lens distortion data. Manual correction is available.</string>
     <string name="raw_editor_distortion">Distortion</string>
     <string name="raw_editor_perspective_vertical">Vertical perspective</string>
     <string name="raw_editor_perspective_horizontal">Horizontal perspective</string>

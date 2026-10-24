@@ -1,5 +1,6 @@
 #pragma once
 #include "raw_color.h"
+#include "raw_lens.h"
 
 namespace fuji {
 /** Output-to-source mapping, shared by preview and export. Straightening trims empty corners. */
@@ -8,14 +9,16 @@ struct Frame {
     float rotatedWidth, rotatedHeight, safeWidth, safeHeight, cosine, sine;
     float left, top, cropWidth, cropHeight;
     double radial, vertical, horizontal, redScale, blueScale;
+    const LensDistortion* lens;
+    double lensRadiusScale;
 
-    Frame(int w, int h, const Adjustments& edits) : sourceWidth(w), sourceHeight(h), turns(edits.quarterTurns),
+    Frame(int w, int h, const Adjustments& edits, const LensDistortion* profile = nullptr) : sourceWidth(w), sourceHeight(h), turns(edits.quarterTurns),
         rotatedWidth(turns % 2 ? h : w), rotatedHeight(turns % 2 ? w : h),
         left(edits.cropLeft), top(edits.cropTop),
         cropWidth(edits.cropRight - left), cropHeight(edits.cropBottom - top),
         radial(edits.distortion * .25), vertical(edits.perspectiveVertical * .35),
         horizontal(edits.perspectiveHorizontal * .35),
-        redScale(1 + edits.chromaticRed * .002), blueScale(1 + edits.chromaticBlue * .002) {
+        redScale(1 + edits.chromaticRed * .002), blueScale(1 + edits.chromaticBlue * .002), lens(profile), lensRadiusScale(2/std::hypot(w,h)) {
         float angle = edits.straighten * 3.14159265358979323846f / 180;
         cosine = std::cos(angle);
         sine = std::sin(angle);
@@ -62,6 +65,12 @@ struct Frame {
             case 2: sx = sourceWidth - rx; sy = sourceHeight - ry; break;
             case 3: sx = sourceWidth - ry; sy = rx; break;
             default: sx = rx; sy = ry;
+        }
+        if (lens && lens->applied) {
+            double dx = sx-sourceWidth/2., dy = sy-sourceHeight/2.;
+            double correction = lens->mappingFactor(std::hypot(dx,dy)*lensRadiusScale);
+            sx = sourceWidth/2.+dx*correction;
+            sy = sourceHeight/2.+dy*correction;
         }
         return {sx - .5, sy - .5};
     }

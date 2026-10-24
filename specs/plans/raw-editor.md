@@ -16,7 +16,7 @@ MakerNote metadata and an explicitly labeled camera comparison, never editable p
 The eleven color simulations have bundled profiles. Unknown simulations and monochrome
 variants fail explicitly instead of silently displaying an unprofiled image. These are
 camera-matching color profiles, not Fujifilm's complete proprietary renderer. Grain, Color
-Chrome, the camera's sharpening/NR settings, clarity, automatic lens corrections, and the other recipe
+Chrome, the camera's sharpening/NR settings, clarity, and the other recipe
 effects are not replicated. Independent sharpening and NR controls are available in Detail.
 
 Previews use half-size demosaicing and retain linear sensor samples at a 1600-pixel
@@ -112,9 +112,10 @@ needed for judging fringes smaller than a fitted preview pixel.
 
 All seven Optics controls are neutral by default and share label double-tap reset
 and accessible actions. Sessions expand from 29 to 36 values, with sixteen- and
-twenty-nine-value sessions migrated using neutral corrections. Verified lens
-calibration profiles, complex radial/fisheye models, and automatic correction
-remain separate pending work; Fujifilm recipe metadata alone is not calibration.
+twenty-nine-value sessions migrated using neutral corrections. External lens
+calibration profiles and fisheye models remain pending. Embedded
+Fujifilm distortion calibration now applies independently of the manual controls
+as described below; recipe metadata alone is not calibration.
 
 
 Items 8, 19, and 21 extend the current compact carousel and tick dial. Curves
@@ -213,3 +214,31 @@ Tiled sensor decoding is deferred for devices that cannot retain a full decode.
 
 Zoom is transient UI state, separate from saved adjustments. Export always uses
 the full original resolution and current crop, regardless of zoom or pan.
+
+
+Embedded lens distortion is part of the unedited starting point. A LibRaw EXIF
+callback reads the RAF FujiIFD `0xf00b` signed-rational table with bounded counts
+(8, 9, or 11 knots). Validation rejects nonfinite values, invalid radii, singular
+or folding maps, and a reference half diagonal inconsistent with the active
+image by more than 1%. The last check deliberately leaves unverified camera crop
+modes/normalizations uncorrected rather than guessing their units. Only the
+X-T50 samples here are device-validated; other bodies need representative RAFs.
+
+Source radii are normalized to the image half diagonal; values are percentage
+radial displacements. Their piecewise-linear source-radius function is inverted
+analytically for output-to-source sampling. The largest source mapping factor
+along the full image border defines the frame-filling zoom. This mapping runs
+in the shared Frame class after manual geometry, so every preview scale,
+100% region, export, crop, mask stroke, and mask overlay uses the same profile.
+Saved crop/mask coordinates stay attached to the original sensor. The automatic
+profile is rederived from the source on reopen and Reset, not written into the
+manual Distortion parameter. Output resolution is preserved.
+
+Optics identifies whether embedded distortion data was applied or manual
+correction is needed. This change does not automatically apply vignetting or
+chromatic-aberration tables; those are separate from geometric distortion.
+Table tag definitions: [ExifTool FujiIFD tags](https://exiftool.org/TagNames/FujiFilm.html#IFD).
+Source-radius units and camera-border geometry were cross-checked against the
+[LightCraft embedded-lens research](https://github.com/storytold/lightcraft/blob/main/docs/fuji-lens-corrections.md)
+and the camera JPEG from the supplied RAF. No upstream lens implementation or
+external lens database was added.

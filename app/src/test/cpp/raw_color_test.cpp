@@ -250,6 +250,51 @@ int main(int argc, char** argv) {
     auto unaligned = fuji::sampleBilinear(gx, gy, 4001, 3001, colorEdge);
     assert(std::abs(unaligned[0] - unaligned[1]) > .0001f && std::abs(unaligned[2] - unaligned[1]) > .0001f);
 
+    // Source-radius tables must invert correctly and stay inside the sensor at every orientation.
+    std::vector<double> table{std::hypot(600,400)/2/9};
+    for (int i = 1; i <= 9; ++i) table.push_back(std::sqrt(i/8.));
+    for (int i = 1; i <= 9; ++i) table.push_back(2.5*i/8);
+    fuji::LensDistortion lens;
+    for (double sign : {-1.,1.}) {
+        auto values = table;
+        for (int i = 10; i < 19; ++i) values[i] *= sign;
+        lens.read(values); lens.prepare(600,400);
+        assert(lens.applied);
+        for (int i = 1; i <= 100; ++i) {
+            double r = i/100., source = r*lens.mappingFactor(r);
+            assert(std::abs(source/(r*lens.zoom)-lens.atSource(source)) < 1e-10);
+        }
+        for (int turn = 0; turn < 4; ++turn) for (float amount : {-1.f,0.f,1.f}) {
+            edits = {}; edits.quarterTurns = turn; edits.distortion = amount;
+            edits.perspectiveVertical = amount; edits.straighten = amount*15;
+            fuji::Frame frame(600,400,edits,&lens);
+            for (int y = 0; y <= 16; ++y) for (int x = 0; x <= 16; ++x) {
+                auto p = frame.unclampedSource((frame.width-1)*x/16.,(frame.height-1)*y/16.);
+                // Pixel centres may interpolate within the outer half-pixel sensor footprint.
+                assert(p.first >= -.5001 && p.first <= 599.5001 && p.second >= -.5001 && p.second <= 399.5001);
+            }
+            fuji::Frame small(300,200,edits,&lens);
+            auto a = frame.unclampedSource(frame.width*.3-.5,frame.height*.2-.5);
+            auto b = small.unclampedSource(small.width*.3-.5,small.height*.2-.5);
+            assert(std::abs((a.first+.5)/600-(b.first+.5)/300) < 1e-6);
+            assert(std::abs((a.second+.5)/400-(b.second+.5)/200) < 1e-6);
+        }
+    }
+    lens.read(table); lens.prepare(300,200); assert(!lens.applied); // Mismatched/crop-mode units.
+    for (int field : {0,1,5,10,18}) {
+        auto bad = table; bad[field] = std::nan(""); lens.read(bad); lens.prepare(600,400); assert(!lens.applied);
+    }
+    auto bad = table; bad[2] = bad[1]; lens.read(bad); lens.prepare(600,400); assert(!lens.applied);
+    bad = table; bad[10] = -100; lens.read(bad); lens.prepare(600,400); assert(!lens.applied);
+    lens.read({}); lens.prepare(600,400); assert(!lens.applied && lens.mappingFactor(1) == 1);
+    for (int knots : {8,9,11}) {
+        std::vector<double> neutral{std::hypot(600,400)/2/knots};
+        for (int i = 0; i < knots; ++i) neutral.push_back(double(i)/(knots-1));
+        neutral.resize(1+2*knots,0);
+        lens.read(neutral); lens.prepare(600,400);
+        assert(lens.applied && lens.mappingFactor(.5) == 1 && lens.mappingFactor(1) == 1);
+    }
+
     float invalid[61] = {};
     invalid[37] = 3; invalid[38] = .5f; invalid[39] = 1;
     for (int i = 40; i < 60; i += 5) { invalid[i] = 2; invalid[i+3] = invalid[i+4] = 1; }

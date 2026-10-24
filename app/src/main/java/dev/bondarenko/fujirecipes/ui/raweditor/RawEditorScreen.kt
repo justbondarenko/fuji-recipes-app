@@ -365,6 +365,11 @@ fun RawEditorScreen(
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
+                            if (panel == 5) Text(
+                                stringResource(if (state.lensCorrectionApplied) R.string.raw_editor_optics_note else R.string.raw_editor_optics_unavailable),
+                                Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                             if (panel == 6) RawToneCurveEditor(state, onAdjust, compact = wide, enabled = editable)
 
                             // 1. Active Parameter Name + Value
