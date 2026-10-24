@@ -214,8 +214,11 @@ as-shot white balance before the first editable preview. **Light** contains expo
 shadows, highlights, contrast, whites, and blacks. **Color** contains relative temperature,
 tint, saturation, and vibrance, with an **As Shot white balance** reset. **Detail** contains
 sharpening amount/radius/threshold, color noise reduction, luminance noise reduction, and
-detail preservation. **Reset** restores the complete starting point. **Compare camera JPEG** shows the
-original embedded camera image separately. **Save JPEG** develops the original RAW at
+detail preservation. Double-tap a parameter name to reset just that adjustment;
+**Reset** restores the complete starting point. Hold the image preview to compare
+with the original embedded camera JPEG, then release to return to the edit.
+Both actions are also available through screen-reader custom actions.
+**Save JPEG** develops the original RAW at
 its full active resolution and writes a new file to a destination you choose.
 
 The eleven color simulations are supported. Monochrome variants and unknown simulations

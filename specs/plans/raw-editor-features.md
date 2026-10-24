@@ -12,7 +12,11 @@ simulation color profile remains the default starting point.
 - [x] As-shot white balance applied before the first editable preview.
 - [x] Exposure, shadows, and highlights controls.
 - [x] Reset to the profiled starting point.
-- [x] Original embedded camera JPEG comparison.
+- [x] Hold the image preview to compare with the original embedded camera JPEG;
+  release or cancel to return to the edit, with no separate comparison button.
+- [x] Double-tap any parameter name to reset only that adjustment, including
+  inactive detail controls. Radius resets to 1 px and Preserve detail to 50%.
+- [x] Screen-reader custom actions for individual reset and JPEG comparison.
 - [x] Full-resolution JPEG export through the document picker.
 - [x] Discard confirmation and stable progress/comparison layouts.
 
@@ -79,3 +83,8 @@ Detail filtering uses overlapping strips with bounded extra memory and a native
 regression test for seams. Preview radii account for the downsampled image, but the
 fitted preview cannot replace judging the full-resolution export at 100% zoom.
 Full lint remains blocked by the same pre-existing camera-screen error.
+
+Gesture update on 2026-10-24: debug and test APKs build, and all 728 JVM tests pass.
+Wireless SM-F976B UI checks cover isolated resets for all sixteen parameters,
+single-tap and busy-state protection, inactive detail resets, hold/release/cancel
+comparison, screen-reader actions, and stable compact/wide layouts.

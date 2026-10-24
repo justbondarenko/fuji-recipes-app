@@ -642,6 +642,7 @@
     <string name="raw_editor_luminance_noise">Luminance noise reduction</string>
     <string name="raw_editor_noise_detail">Preserve detail</string>
     <string name="raw_editor_reset">Reset</string>
+    <string name="raw_editor_reset_parameter">Reset %1$s</string>
     <string name="raw_editor_save">Save JPEG</string>
     <string name="raw_editor_saved">Edited JPEG saved.</string>
     <string name="raw_editor_unreadable">This RAF could not be opened. Choose a local Fujifilm RAF and try again.</string>
