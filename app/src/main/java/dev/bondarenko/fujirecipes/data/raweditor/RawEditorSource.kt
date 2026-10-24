@@ -57,8 +57,29 @@ data class RawAdjustments(
     val vignetteMidpoint: Float = .5f,
     val vignetteRoundness: Float = 0f,
     val vignetteFeather: Float = .5f,
+    val distortion: Float = 0f,
+    val perspectiveVertical: Float = 0f,
+    val perspectiveHorizontal: Float = 0f,
+    val chromaticRed: Float = 0f,
+    val chromaticBlue: Float = 0f,
+    val defringePurple: Float = 0f,
+    val defringeGreen: Float = 0f,
 ) {
     val isEdited: Boolean get() = this != RawAdjustments()
+
+    fun rotated(turns: Int): RawAdjustments {
+        require(turns in 0..3)
+        var nextCrop = crop
+        var vertical = perspectiveVertical
+        var horizontal = perspectiveHorizontal
+        repeat((turns - quarterTurns + 4) % 4) {
+            nextCrop = nextCrop.rotateClockwise()
+            val previousHorizontal = horizontal
+            horizontal = if (vertical == 0f) 0f else -vertical
+            vertical = previousHorizontal
+        }
+        return copy(quarterTurns = turns, crop = nextCrop, perspectiveVertical = vertical, perspectiveHorizontal = horizontal)
+    }
 
     /** Wire order shared with Adjustments::read in raw_color.h; also the saved-session shape. */
     fun nativeValues(): FloatArray = floatArrayOf(
@@ -67,16 +88,18 @@ data class RawAdjustments(
         colorNoise, luminanceNoise, noiseDetail,
         clarity, texture, dehaze, crop.left, crop.top, crop.right, crop.bottom,
         quarterTurns.toFloat(), straighten, vignette, vignetteMidpoint, vignetteRoundness, vignetteFeather,
+        distortion, perspectiveVertical, perspectiveHorizontal, chromaticRed, chromaticBlue, defringePurple, defringeGreen,
     )
 
     companion object {
         fun fromValues(p: FloatArray): RawAdjustments {
-            require(p.size == 16 || p.size == 29)
-            // Upgrade saved sessions from the first control batch without losing edits.
-            if (p.size == 16) return fromValues(RawAdjustments().nativeValues().also { p.copyInto(it) })
+            require(p.size == 16 || p.size == 29 || p.size == 36)
+            // Upgrade older sessions without changing their edits or enabling corrections.
+            if (p.size != 36) return fromValues(RawAdjustments().nativeValues().also { p.copyInto(it) })
             return RawAdjustments(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
                 p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15], p[16], p[17], p[18],
-                RawCrop(p[19], p[20], p[21], p[22]), p[23].toInt(), p[24], p[25], p[26], p[27], p[28])
+                RawCrop(p[19], p[20], p[21], p[22]), p[23].toInt(), p[24], p[25], p[26], p[27], p[28],
+                p[29], p[30], p[31], p[32], p[33], p[34], p[35])
         }
     }
 }

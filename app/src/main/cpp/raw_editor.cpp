@@ -86,10 +86,10 @@ std::string stringValue(JNIEnv* env, jstring value) {
 }
 
 fuji::Adjustments adjustments(JNIEnv* env, jfloatArray parameters) {
-    float values[29];
-    if (env->GetArrayLength(parameters) != 29) throw std::runtime_error("Invalid RAW adjustment count.");
-    env->GetFloatArrayRegion(parameters, 0, 29, values);
-    return fuji::Adjustments::read(values, 29);
+    float values[36];
+    if (env->GetArrayLength(parameters) != 36) throw std::runtime_error("Invalid RAW adjustment count.");
+    env->GetFloatArrayRegion(parameters, 0, 36, values);
+    return fuji::Adjustments::read(values, 36);
 }
 }
 
@@ -177,18 +177,8 @@ Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_render(JNIEnv* env, job
             return fuji::renderPixel(linear, s.lut, edits, s.baseline);
         };
         auto point = [&](int x, int y) {
-            auto [sx, sy] = frame.source(x, y);
-            int left = int(sx), top = int(sy);
-            int right = std::min(left + 1, size.first - 1), bottom = std::min(top + 1, size.second - 1);
             auto sample = [&](int px, int py) { return full ? cameraPixel(*raw, px, py) : s.preview[py * s.width + px]; };
-            auto a = sample(left, top);
-            if (sx == left && sy == top) return develop(a);
-            auto b = sample(right, top), c = sample(left, bottom), d = sample(right, bottom);
-            fuji::Rgb camera{};
-            for (int i = 0; i < 3; ++i) camera[i] =
-                (a[i] * (1 - (sx - left)) + b[i] * (sx - left)) * (1 - (sy - top)) +
-                (c[i] * (1 - (sx - left)) + d[i] * (sx - left)) * (sy - top);
-            return develop(camera);
+            return develop(fuji::sampleCamera(frame, x, y, sample));
         };
         fuji::Rgb airlight{1,1,1};
         if (edits.dehaze != 0) {

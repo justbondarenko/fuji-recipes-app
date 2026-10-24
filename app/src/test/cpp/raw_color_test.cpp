@@ -96,13 +96,17 @@ int main(int argc, char** argv) {
     edits.clarity = .6f;
     edits.texture = -.4f;
     edits.dehaze = .5f;
-    auto whole = noisy;
+    edits.defringePurple = .8f;
+    edits.defringeGreen = .7f;
+    auto fringeScene = noisy;
+    for (int y = 0; y < height; ++y) fringeScene[y * width + 16] = y % 2 ? fuji::Rgb{.7f,.25f,.7f} : fuji::Rgb{.2f,.65f,.2f};
+    auto whole = fringeScene;
     fuji::applyDetails(whole, width, height, edits, 1);
     int halo = fuji::detailHalo(edits, 1);
     for (int top = 0; top < height; top += 7) {
         int bottom = std::min(top + 7, height);
         int first = std::max(0, top - halo), last = std::min(height, bottom + halo);
-        std::vector<fuji::Rgb> strip(noisy.begin() + first * width, noisy.begin() + last * width);
+        std::vector<fuji::Rgb> strip(fringeScene.begin() + first * width, fringeScene.begin() + last * width);
         fuji::applyDetails(strip, width, last - first, edits, 1);
         for (int y = top; y < bottom; ++y) for (int x = 0; x < width; ++x)
             for (int c = 0; c < 3; ++c) assert(std::abs(strip[(y - first) * width + x][c] - whole[y * width + x][c]) < .00001f);
@@ -123,6 +127,23 @@ int main(int argc, char** argv) {
     assert(haze[0][0] > noisy[0][0] && clear[0][0] < noisy[0][0]);
     for (const auto& image : {whole, haze, clear}) for (const auto& pixel : image)
         for (float c : pixel) assert(std::isfinite(c) && c >= 0 && c <= 1);
+
+    for (auto fringe : {fuji::Rgb{.7f,.25f,.7f}, fuji::Rgb{.2f,.65f,.2f}}) {
+        std::vector<fuji::Rgb> edge(81);
+        for (int y = 0; y < 9; ++y) for (int x = 0; x < 9; ++x) {
+            float gray = x < 4 ? .1f : .9f;
+            edge[y * 9 + x] = x == 4 ? fringe : fuji::Rgb{gray,gray,gray};
+        }
+        edits = {};
+        edits.defringePurple = edits.defringeGreen = 1;
+        fuji::defringe(edge, 9, 9, edits, 1);
+        auto corrected = edge[4 * 9 + 4];
+        assert(std::abs(corrected[0] - corrected[1]) < .00001f && std::abs(corrected[1] - corrected[2]) < .00001f);
+        assert(std::abs(fuji::luminance(corrected) - fuji::luminance(fringe)) < .00001f);
+        std::vector<fuji::Rgb> flat(81, fringe);
+        fuji::defringe(flat, 9, 9, edits, 1);
+        for (const auto& pixel : flat) assert(pixel == fringe);
+    }
 
     edits = {};
     fuji::Frame originalFrame(120, 80, edits);
@@ -181,20 +202,59 @@ int main(int argc, char** argv) {
     edits.vignetteFeather = 1;
     assert(vignette != fuji::vignette({.5f,.5f,.5f}, 15, 20, 150, 100, edits)[0]);
 
-    float invalid[29] = {};
+    // Every supported correction/rotation combination stays within the image before clamping.
+    for (int turns = 0; turns < 4; ++turns) for (float angle : {-15.f, 0.f, 15.f})
+    for (float distortion : {-1.f, 0.f, 1.f}) for (float vertical : {-1.f, 0.f, 1.f}) for (float horizontal : {-1.f, 0.f, 1.f}) {
+        edits = {};
+        edits.quarterTurns = turns; edits.straighten = angle; edits.distortion = distortion;
+        edits.perspectiveVertical = vertical; edits.perspectiveHorizontal = horizontal;
+        edits.chromaticRed = 1; edits.chromaticBlue = -1;
+        fuji::Frame corrected(7728, 5149, edits);
+        for (int y = 0; y <= 8; ++y) for (int x = 0; x <= 8; ++x) for (int channel = 0; channel < 3; ++channel) {
+            auto [sx, sy] = corrected.unclampedSource(x * corrected.width / 8. - .5, y * corrected.height / 8. - .5, channel);
+            assert(std::isfinite(sx) && std::isfinite(sy));
+            assert(sx >= -.501 && sy >= -.501 && sx <= 7727.501 && sy <= 5148.501);
+        }
+    }
+    edits = {};
+    edits.perspectiveVertical = .8f;
+    fuji::Frame verticalFrame(401, 301, edits);
+    auto topLeft = verticalFrame.unclampedSource(0, 0), topRight = verticalFrame.unclampedSource(verticalFrame.width - 1, 0);
+    auto bottomLeft = verticalFrame.unclampedSource(0, verticalFrame.height - 1), bottomRight = verticalFrame.unclampedSource(verticalFrame.width - 1, verticalFrame.height - 1);
+    assert(topRight.first - topLeft.first > bottomRight.first - bottomLeft.first);
+    for (float amount : {-1.f, 1.f}) {
+        edits = {}; edits.distortion = amount;
+        fuji::Frame curved(401, 301, edits);
+        auto middle = curved.unclampedSource(curved.width * .75, (curved.height - 1) / 2.);
+        auto edge = curved.unclampedSource(curved.width * .75, 0);
+        assert(amount < 0 ? edge.first < middle.first : edge.first > middle.first);
+    }
+    edits = {}; edits.chromaticRed = 1; edits.chromaticBlue = -1;
+    fuji::Frame aligned(4001, 3001, edits);
+    auto colorEdge = [&](int x, int) {
+        return fuji::Rgb{float(((x - 2000) / aligned.redScale + 2000) / 4000), x / 4000.f,
+                         float(((x - 2000) / aligned.blueScale + 2000) / 4000)};
+    };
+    auto matched = fuji::sampleCamera(aligned, aligned.width * 4 / 5, aligned.height / 2, colorEdge);
+    assert(std::abs(matched[0] - matched[1]) < .000001f && std::abs(matched[2] - matched[1]) < .000001f);
+    auto [gx, gy] = aligned.source(aligned.width * 4 / 5, aligned.height / 2);
+    auto unaligned = fuji::sampleBilinear(gx, gy, 4001, 3001, colorEdge);
+    assert(std::abs(unaligned[0] - unaligned[1]) > .0001f && std::abs(unaligned[2] - unaligned[1]) > .0001f);
+
+    float invalid[36] = {};
     invalid[11] = 1;
     invalid[21] = invalid[22] = 1;
     invalid[4] = std::nanf("");
     rejected = false;
-    try { fuji::Adjustments::read(invalid, 29); } catch (const std::exception&) { rejected = true; }
+    try { fuji::Adjustments::read(invalid, 36); } catch (const std::exception&) { rejected = true; }
     assert(rejected);
     invalid[4] = 0;
-    assert(fuji::Adjustments::read(invalid, 29).cropRight == 1);
-    for (int field : {16, 18, 19, 23, 24, 26, 28}) {
+    assert(fuji::Adjustments::read(invalid, 36).cropRight == 1);
+    for (int field : {16, 18, 19, 23, 24, 26, 28, 29, 30, 31, 32, 33, 34, 35}) {
         float original = invalid[field];
         invalid[field] = field == 23 ? .5f : 99;
         rejected = false;
-        try { fuji::Adjustments::read(invalid, 29); } catch (const std::exception&) { rejected = true; }
+        try { fuji::Adjustments::read(invalid, 36); } catch (const std::exception&) { rejected = true; }
         assert(rejected);
         invalid[field] = original;
     }

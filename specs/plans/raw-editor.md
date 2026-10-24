@@ -4,10 +4,11 @@ The separate More → RAW Editor section develops sensor RAW on the phone. The r
 film simulation's color profile and as-shot white balance are applied before the first
 editable preview. The original RAF is never modified. Lab retains camera-engine development.
 
-The pipeline is RAF → LibRaw demosaicing in unscaled sensor RGB → framing/bilinear resampling → floating-point as-shot
+The pipeline is RAF → LibRaw demosaicing in unscaled sensor RGB → optical/geometry
+correction and framing/bilinear resampling → floating-point as-shot
 WB plus relative temperature/tint → camera matrix → dynamic-range exposure compensation
 → exposure/shadow/highlight adjustments → sRGB encoding → the simulation's published
-3D color LUT → contrast/whites/blacks/saturation/vibrance → dehaze → edge-aware luminance/chroma
+3D color LUT → contrast/whites/blacks/saturation/vibrance → defringe → dehaze → edge-aware luminance/chroma
 noise reduction → texture/clarity → luminance sharpening → vignette → display/JPEG.
 Adjustments always re-render from retained linear RAW pixels. The embedded JPEG supplies
 MakerNote metadata and an explicitly labeled camera comparison, never editable pixels.
@@ -15,7 +16,7 @@ MakerNote metadata and an explicitly labeled camera comparison, never editable p
 The eleven color simulations have bundled profiles. Unknown simulations and monochrome
 variants fail explicitly instead of silently displaying an unprofiled image. These are
 camera-matching color profiles, not Fujifilm's complete proprietary renderer. Grain, Color
-Chrome, the camera's sharpening/NR settings, clarity, lens corrections, and the other recipe
+Chrome, the camera's sharpening/NR settings, clarity, automatic lens corrections, and the other recipe
 effects are not replicated. Independent sharpening and NR controls are available in Detail.
 
 Previews use half-size demosaicing and a 1600-pixel long edge. Export reopens the original
@@ -85,3 +86,29 @@ The saved parameter array expands from 16 to 29 values; earlier sessions upgrade
 with neutral effects and framing. All 25 scalar controls retain label double-tap
 reset, including inactive vignette shape controls. Crop is applied or cancelled as
 a group and has its own reset. The original camera JPEG comparison stays unframed.
+
+Item 20 adds an Optics panel for manual corrections; no calibration profile is inferred
+from a lens name. Distortion uses the first radial coefficient, normalized by the
+upright image's half diagonal, with k1 in ±0.25. Vertical/horizontal perspective
+use an inverse projective mapping with bounded coefficients (±0.35). These follow
+the standard [radial camera model](https://docs.opencv.org/4.x/d9/d0c/group__calib3d.html)
+and [destination-to-source mapping](https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html);
+OpenCV is not a dependency. A conservative global bound accounts for perspective,
+straightening, radial expansion, and every color channel when trimming empty edges.
+Crop bounds remain normalized on the corrected canvas. Rotating the image also
+rotates its perspective axes so the correction stays attached to the photo.
+
+Red/cyan and blue/yellow alignment resample the red and blue camera channels
+independently around the optical center, with ±0.2% radial magnification, before
+white balance, the camera matrix, and the simulation profile. Purple/green defringe
+then reduces the selected chroma while preserving luminance only where nearby
+neutral dark and bright pixels establish a high-contrast edge. Flat colored regions
+are unchanged. This conservative gate does not handle fringes against every colored
+background; a hue-range tool is a possible extension. Full-resolution export is
+needed for judging fringes smaller than a fitted preview pixel.
+
+All seven Optics controls are neutral by default and share label double-tap reset
+and accessible actions. Sessions expand from 29 to 36 values, with sixteen- and
+twenty-nine-value sessions migrated using neutral corrections. Verified lens
+calibration profiles, complex radial/fisheye models, and automatic correction
+remain separate pending work; Fujifilm recipe metadata alone is not calibration.

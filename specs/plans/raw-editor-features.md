@@ -50,6 +50,21 @@ sessions upgrade without changing their edits. Each scalar control supports labe
 double-tap reset; crop has Apply/Cancel and a separate reset. Crop movement and
 resizing are available as screen-reader actions.
 
+## Lens / geometry — item 20
+
+- [x] Manual barrel/pincushion distortion.
+- [x] Independent vertical and horizontal perspective correction, with guide grid.
+- [x] Red/cyan and blue/yellow alignment before the color profile.
+- [x] Localized purple/green defringe with luminance preservation and neutral-edge gating.
+- [x] Automatic edge trimming, editable crop, rotation-aware perspective axes,
+  saved sessions, per-parameter reset, and accessible controls.
+- [ ] Automatic lens profiles: requires verified lens/calibration data for the
+  relevant focal length and shooting conditions; no profile is guessed from a name.
+
+The manual controls are implemented and verified in preview and full-resolution export.
+The single radial coefficient covers basic barrel/pincushion distortion; complex
+radial/fisheye calibration and automatic profiles remain pending.
+
 ## Remaining proposed controls
 
 - [ ] **1. Film simulation selector:** switch between the eleven bundled profiles.
@@ -58,8 +73,6 @@ resizing are available as screen-reader actions.
 - [ ] **9. Color mixer / HSL:** hue, saturation, and brightness by color range.
 - [ ] **10. Color grading:** shadows, midtones, and highlights, with balance/blending.
 - [ ] **19. Grain:** amount, size, and roughness; independent of Fujifilm's grain engine.
-- [ ] **20. Lens / geometry corrections:** distortion, perspective, and color fringing;
-  automatic correction requires verified lens data.
 - [ ] **21. Selective adjustments:** brush, linear-gradient, and radial masks.
 
 ## Companion tools
@@ -113,3 +126,17 @@ The same four device tests pass on portrait `DSCF3979.RAF` with the final crop
 boundary fix in 88 seconds, including export after rotating the portrait to landscape.
 Full lint still has the existing `SlotDetailSheet.kt:332` error; the editor has no
 lint errors. See [the pipeline notes](raw-editor.md) for processing and crop limits.
+
+Item 20 manual corrections delivered on 2026-10-24: all 731 JVM tests and native
+checks pass. Native checks cover unclamped source bounds across 324 extreme
+correction/rotation/straighten combinations, synthetic lateral fringe alignment,
+purple/green fringe removal with luminance preservation, flat-color protection,
+and strip seams with all effects enabled. UI checks pass in 13 seconds for Optics
+controls, all 32 scalar resets, grid/comparison behavior, and compact/wide layouts.
+The real landscape `DSCF3946.RAF` check passes positive/negative distortion,
+perspective and channel alignment, reset, identical 36-value session restoration,
+square crop on the corrected canvas, full-resolution export, and rejected replacement
+in 76 seconds. Automatic calibration profiles remain unchecked above.
+The same real-RAF checks pass on portrait `DSCF3979.RAF` in 72 seconds. Debug APKs
+build successfully; full lint still stops at the existing `SlotDetailSheet.kt:332`
+error, with no RAW Editor lint errors.
