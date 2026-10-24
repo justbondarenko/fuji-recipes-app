@@ -465,6 +465,7 @@
     <string name="nav_read">Analyze</string>
     <string name="photo_title">Extract recipe from a photo</string>
     <string name="share_action_extract_recipe">Extract recipe</string>
+    <string name="share_action_edit_raw">Edit RAW</string>
     <string name="photo_intro">Pick a JPEG shot on a Fujifilm camera to read the recipe embedded in its maker notes and find a matching recipe in your library.</string>
     <string name="photo_action_choose">Choose a photo</string>
     <string name="photo_action_choose_phone">Choose from phone</string>

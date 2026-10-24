@@ -86,10 +86,18 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.Tune
 import kotlin.math.round
 
 @Composable
-fun RawEditorRouteContent(onBack: () -> Unit) {
+fun RawEditorRouteContent(
+    initialUri: String? = null,
+    onBack: () -> Unit,
+) {
     val model: RawEditorViewModel = viewModel()
     val state by model.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    LaunchedEffect(initialUri) {
+        if (initialUri != null && state.preview == null && !state.busy) {
+            model.open(android.net.Uri.parse(initialUri))
+        }
+    }
     val open = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { model.open(it) }
     }
