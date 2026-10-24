@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.bondarenko.fujirecipes.data.raweditor.RawAdjustments
+import dev.bondarenko.fujirecipes.data.raweditor.RawCrop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -75,6 +76,12 @@ class RawEditorHardwareTest {
                 RawAdjustments(vibrance = .6f),
                 RawAdjustments(sharpening = .7f, sharpenRadius = 1.8f, sharpenThreshold = .1f),
                 RawAdjustments(colorNoise = .8f), RawAdjustments(luminanceNoise = .8f, noiseDetail = .2f),
+                RawAdjustments(clarity = .6f), RawAdjustments(clarity = -.6f),
+                RawAdjustments(texture = .6f), RawAdjustments(texture = -.6f),
+                RawAdjustments(dehaze = .6f), RawAdjustments(dehaze = -.6f),
+                RawAdjustments(vignette = -.6f), RawAdjustments(vignette = .6f),
+                RawAdjustments(crop = RawCrop(.1f, .1f, .9f, .9f)),
+                RawAdjustments(quarterTurns = 1), RawAdjustments(straighten = 5f),
             )) {
                 instrumentation.runOnMainSync { model.adjust(edits) }
                 assertFalse("The control must change RAW pixels: $edits", original.sameAs(awaitReady().preview))
@@ -85,10 +92,27 @@ class RawEditorHardwareTest {
                 model.adjust(RawAdjustments(shadows = .4f, highlights = -.3f,
                     temperature = .2f, tint = -.1f, contrast = .15f, whites = -.1f, blacks = .1f,
                     saturation = -.1f, vibrance = .2f, sharpening = .4f, sharpenRadius = 1.2f,
-                    sharpenThreshold = .1f, colorNoise = .5f, luminanceNoise = .4f, noiseDetail = .6f))
+                    sharpenThreshold = .1f, colorNoise = .5f, luminanceNoise = .4f, noiseDetail = .6f,
+                    clarity = .3f, texture = .25f, dehaze = .2f,
+                    crop = RawCrop(.1f, .1f, .85f, .9f), quarterTurns = 1, straighten = 3.5f,
+                    vignette = -.4f, vignetteMidpoint = .4f, vignetteRoundness = .3f, vignetteFeather = .7f))
             }
             val allControls = awaitReady()
             snapshot(allControls.preview!!, "raw-editor-batch.jpg")
+            assertTrue("Quarter-turn must swap output orientation", (allControls.fullWidth > allControls.fullHeight) != (start.fullWidth > start.fullHeight))
+            instrumentation.runOnMainSync { model.prepareCrop() }
+            val cropState = awaitReady()
+            val crop = cropState.cropPreview!!
+            assertTrue("Crop editor must show the uncropped rendering", crop.width > allControls.preview.width && crop.height > allControls.preview.height)
+            instrumentation.runOnMainSync {
+                model.dismissCrop()
+                model.adjust(allControls.adjustments.copy(crop = RawCrop().fitAspect(1f, cropState.cropImageAspect!!)))
+            }
+            val square = awaitReady()
+            assertTrue("Square preset must use full-resolution dimensions", kotlin.math.abs(square.fullWidth - square.fullHeight) <= 1)
+            instrumentation.runOnMainSync { model.adjust(allControls.adjustments) }
+            awaitReady()
+            assertNull(model.state.value.cropPreview)
             lateinit var restored: RawEditorViewModel
             instrumentation.runOnMainSync {
                 val restoredSaved = SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) })
@@ -112,8 +136,9 @@ class RawEditorHardwareTest {
             assertTrue(output.length() > 1_000_000)
             val dimensions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeFile(output.path, dimensions)
-            assertEquals(start.fullWidth, dimensions.outWidth)
-            assertEquals(start.fullHeight, dimensions.outHeight)
+            assertEquals(allControls.fullWidth, dimensions.outWidth)
+            assertEquals(allControls.fullHeight, dimensions.outHeight)
+            Log.i("RawEditorProbe", "Framed export=${dimensions.outWidth}x${dimensions.outHeight}")
             assertFalse(exported.hasUnsavedChanges)
             // A rejected replacement keeps the current RAW, edits, and export source intact.
             val invalid = File(exports, "raw-editor-invalid.raf").apply { writeText("not a RAF") }

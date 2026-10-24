@@ -35,6 +35,21 @@ and reset to a neutral adjustment without replacing the recorded color profile.
 - [x] **12. Color noise reduction:** reduce colored speckles while preserving edges.
 - [x] **13. Luminance noise reduction:** smoothing amount and detail preservation.
 
+## Second batch — items 14–18
+
+- [x] **14. Clarity:** medium-scale local contrast, positive or negative.
+- [x] **15. Texture:** fine detail enhancement or softening.
+- [x] **16. Dehaze:** haze reduction or added atmospheric haze.
+- [x] **17. Framing:** draggable crop, locked aspect presets (including portrait),
+  clockwise rotation, and ±15° straighten with automatic corner trimming.
+- [x] **18. Vignette:** darken/brighten amount, midpoint, roundness, and feathering,
+  centered on the framed output.
+
+All five work in preview/export and persist in the session. Existing sixteen-value
+sessions upgrade without changing their edits. Each scalar control supports label
+double-tap reset; crop has Apply/Cancel and a separate reset. Crop movement and
+resizing are available as screen-reader actions.
+
 ## Remaining proposed controls
 
 - [ ] **1. Film simulation selector:** switch between the eleven bundled profiles.
@@ -42,11 +57,6 @@ and reset to a neutral adjustment without replacing the recorded color profile.
 - [ ] **8. Tone curve:** master curve, with optional separate RGB curves.
 - [ ] **9. Color mixer / HSL:** hue, saturation, and brightness by color range.
 - [ ] **10. Color grading:** shadows, midtones, and highlights, with balance/blending.
-- [ ] **14. Clarity:** medium-scale local contrast.
-- [ ] **15. Texture:** fine surface detail enhancement or softening.
-- [ ] **16. Dehaze:** haze reduction or a softer atmospheric appearance.
-- [ ] **17. Framing:** crop, aspect ratio, rotate, and straighten.
-- [ ] **18. Vignette:** amount, midpoint, roundness, and feathering.
 - [ ] **19. Grain:** amount, size, and roughness; independent of Fujifilm's grain engine.
 - [ ] **20. Lens / geometry corrections:** distortion, perspective, and color fringing;
   automatic correction requires verified lens data.
@@ -88,3 +98,18 @@ Gesture update on 2026-10-24: debug and test APKs build, and all 728 JVM tests p
 Wireless SM-F976B UI checks cover isolated resets for all sixteen parameters,
 single-tap and busy-state protection, inactive detail resets, hold/release/cancel
 comparison, screen-reader actions, and stable compact/wide layouts.
+
+Items 14–18 delivered on 2026-10-24: all 730 JVM tests and native checks pass.
+Checks cover old-session migration, 2,000 repeated crop moves/resizes, normalized
+bounds and aspect locking, full-resolution square presets at every quarter-turn
+and multiple straighten angles, effect direction/neutrality, finite output, and
+seam-free strip processing with all effects enabled. Wireless SM-F976B UI checks
+cover the new controls, all 25 scalar resets, crop dragging, preset locking,
+accessible movement/resize, Apply/Cancel/Reset, and stable compact/wide layouts.
+The landscape `DSCF3946.RAF` run passes individual positive/negative effects,
+uncropped crop-editor preparation, full-resolution square framing, identical
+29-value session restoration, full framed export, and rejection safety in 79 seconds.
+The same four device tests pass on portrait `DSCF3979.RAF` with the final crop
+boundary fix in 88 seconds, including export after rotating the portrait to landscape.
+Full lint still has the existing `SlotDetailSheet.kt:332` error; the editor has no
+lint errors. See [the pipeline notes](raw-editor.md) for processing and crop limits.

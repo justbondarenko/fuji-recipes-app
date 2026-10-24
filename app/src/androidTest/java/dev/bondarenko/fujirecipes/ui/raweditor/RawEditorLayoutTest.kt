@@ -25,7 +25,10 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.data.raweditor.RawAdjustments
+import dev.bondarenko.fujirecipes.data.raweditor.RawCrop
+import androidx.compose.ui.geometry.Offset
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -120,6 +123,25 @@ class RawEditorLayoutTest {
             assertEquals(.7f, state.adjustments.noiseDetail)
             assertEquals(-.2f, state.adjustments.blacks)
         }
+        compose.onNodeWithText("Effects").performScrollTo().performClick()
+        set("Clarity", .4f)
+        set("Texture", -.3f)
+        set("Dehaze", .2f)
+        set("Vignette", -.5f)
+        set("Midpoint", .6f)
+        set("Roundness", -.4f)
+        set("Feather", .7f)
+        compose.onNodeWithText("Framing").performScrollTo().performClick()
+        set("Rotation", 1f)
+        set("Straighten", -4.5f)
+        compose.runOnIdle {
+            assertEquals(.4f, state.adjustments.clarity)
+            assertEquals(-.3f, state.adjustments.texture)
+            assertEquals(.2f, state.adjustments.dehaze)
+            assertEquals(.7f, state.adjustments.vignetteFeather)
+            assertEquals(1, state.adjustments.quarterTurns)
+            assertEquals(-4.5f, state.adjustments.straighten)
+        }
     }
 
     @Test
@@ -130,6 +152,8 @@ class RawEditorLayoutTest {
             temperature = .4f, tint = -.3f, saturation = -.5f, vibrance = .5f,
             sharpening = .6f, sharpenRadius = 1.8f, sharpenThreshold = .2f,
             colorNoise = .6f, luminanceNoise = .5f, noiseDetail = .7f,
+            clarity = .4f, texture = -.3f, dehaze = .2f, quarterTurns = 2, straighten = 5f,
+            vignette = -.5f, vignetteMidpoint = .6f, vignetteRoundness = -.4f, vignetteFeather = .7f,
         )
         var state by mutableStateOf(RawEditorState(name = "sample.RAF", preview = bitmap, cameraImage = bitmap, adjustments = expected))
         compose.setContent {
@@ -167,10 +191,46 @@ class RawEditorLayoutTest {
         reset("Color noise reduction", expected.copy(colorNoise = 0f))
         reset("Luminance noise reduction", expected.copy(luminanceNoise = 0f))
         reset("Preserve detail", expected.copy(noiseDetail = .5f))
+        compose.onNodeWithText("Effects").performScrollTo().performClick()
+        reset("Clarity", expected.copy(clarity = 0f))
+        reset("Texture", expected.copy(texture = 0f))
+        reset("Dehaze", expected.copy(dehaze = 0f))
+        reset("Vignette", expected.copy(vignette = 0f))
+        reset("Midpoint", expected.copy(vignetteMidpoint = .5f))
+        reset("Roundness", expected.copy(vignetteRoundness = 0f))
+        reset("Feather", expected.copy(vignetteFeather = .5f))
+        compose.onNodeWithText("Framing").performScrollTo().performClick()
+        reset("Rotation", expected.copy(quarterTurns = 0))
+        reset("Straighten", expected.copy(straighten = 0f))
         compose.runOnIdle { assertEquals(RawAdjustments(), state.adjustments) }
-        compose.onNodeWithText("Light").performClick()
+        compose.onNodeWithText("Light").performScrollTo().performClick()
         compose.runOnIdle { state = state.copy(adjustments = state.adjustments.copy(exposure = 1f)) }
         compose.onNodeWithText("Exposure").performCustomAccessibilityActionWithLabel("Reset Exposure")
         compose.runOnIdle { assertEquals(RawAdjustments(), state.adjustments) }
+    }
+
+    @Test
+    fun cropSupportsDragAspectLockAccessibleMovementAndCancellation() {
+        val bitmap = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888)
+        var result: RawCrop? = null
+        var dismissed = false
+        compose.setContent {
+            FujiTheme { RawCropDialog(bitmap, RawCrop(.2f,.2f,.8f,.8f), { dismissed = true }, { result = it }, imageAspect = 2f) }
+        }
+        compose.onNodeWithTag("raw-crop-preview").performTouchInput {
+            down(center); moveBy(Offset(30f, 0f), 200); up()
+        }
+        compose.onNodeWithText("Apply crop").performClick()
+        compose.runOnIdle { assertTrue(result!!.left > .2f); assertEquals(.6f, result!!.width, .0001f) }
+        compose.onNodeWithText("1:1").performScrollTo().performClick()
+        compose.onNodeWithTag("raw-crop-preview").performCustomAccessibilityActionWithLabel("Make crop smaller")
+        compose.onNodeWithTag("raw-crop-preview").performCustomAccessibilityActionWithLabel("Move crop left")
+        compose.onNodeWithText("Apply crop").performClick()
+        compose.runOnIdle { assertEquals(1f, result!!.width / result!!.height * 2f, .0001f) }
+        compose.onNodeWithText("Reset").performClick()
+        compose.onNodeWithText("Apply crop").performClick()
+        compose.runOnIdle { assertEquals(RawCrop(), result) }
+        compose.onNodeWithText("Cancel").performClick()
+        compose.runOnIdle { assertTrue(dismissed) }
     }
 }

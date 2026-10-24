@@ -14,6 +14,7 @@ import dev.bondarenko.fujirecipes.data.photo.PhotoReadResult
 import dev.bondarenko.fujirecipes.data.photo.parseRecipeFromJpeg
 import dev.bondarenko.fujirecipes.data.raweditor.NativeRaw
 import dev.bondarenko.fujirecipes.data.raweditor.RawAdjustments
+import dev.bondarenko.fujirecipes.data.raweditor.RawCrop
 import dev.bondarenko.fujirecipes.data.raweditor.rawColorProfileIds
 import dev.bondarenko.fujirecipes.data.raweditor.readRafPreview
 import kotlinx.coroutines.CancellationException
@@ -43,6 +44,8 @@ data class RawEditorState(
     val fullHeight: Int = 0,
     val preview: Bitmap? = null,
     val cameraImage: Bitmap? = null,
+    val cropPreview: Bitmap? = null,
+    val cropImageAspect: Float? = null,
     val adjustments: RawAdjustments = RawAdjustments(),
     val savedAdjustments: RawAdjustments? = null,
     val busy: Boolean = false,
@@ -100,15 +103,15 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
                         val lut = context.assets.open("raw-profiles/$profile.cube").use { it.readBytes() }
                         val nextHandle = NativeRaw.open(file.absolutePath, lut)
                         val nextState = try {
-                            val dimensions = NativeRaw.dimensions(nextHandle)
-                            val preview = renderBitmap(nextHandle, dimensions[0], dimensions[1], edits, false)
+                            val dimensions = NativeRaw.outputDimensions(nextHandle, edits.nativeValues(), true)
+                            val preview = renderBitmap(nextHandle, edits, false)
                             val camera = ImageDecoder.decodeBitmap(ImageDecoder.createSource(ByteBuffer.wrap(cameraJpeg))) { decoder, info, _ ->
                                 val scale = minOf(1f, 1600f / maxOf(info.size.width, info.size.height))
                                 decoder.setTargetSize((info.size.width * scale).toInt(), (info.size.height * scale).toInt())
                             }
                             RawEditorState(
                                 name = name, simulation = recipe!!.filmSimulationLabel.orEmpty(),
-                                fullWidth = dimensions[2], fullHeight = dimensions[3],
+                                fullWidth = dimensions[0], fullHeight = dimensions[1],
                                 preview = preview, cameraImage = camera, adjustments = edits,
                             )
                         } catch (error: Throwable) {
@@ -144,16 +147,40 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
                 val bitmap = withContext(Dispatchers.Default) {
                     mutex.withLock {
                         ensureActive()
-                        val current = _state.value.preview ?: return@withLock null
-                        renderBitmap(handle, current.width, current.height, edits, false)
+                        renderBitmap(handle, edits, false) to NativeRaw.outputDimensions(handle, edits.nativeValues(), true)
                     }
                 }
-                if (_state.value.adjustments == edits) _state.update { it.copy(preview = bitmap, rendering = false) }
+                if (_state.value.adjustments == edits) _state.update {
+                    it.copy(preview = bitmap.first, fullWidth = bitmap.second[0], fullHeight = bitmap.second[1], rendering = false)
+                }
             } catch (error: CancellationException) { throw error }
             catch (error: Exception) { fail(error) }
             catch (_: OutOfMemoryError) { failMemory() }
         }
     }
+
+    fun prepareCrop() {
+        val current = _state.value
+        if (current.busy || current.rendering || handle == 0L) return
+        _state.update { it.copy(busy = true, error = null) }
+        viewModelScope.launch {
+            try {
+                val bitmap = withContext(Dispatchers.Default) {
+                    mutex.withLock {
+                        ensureActive()
+                        val edits = current.adjustments.copy(crop = RawCrop())
+                        val size = NativeRaw.outputDimensions(handle, edits.nativeValues(), true)
+                        renderBitmap(handle, edits, false) to size[0].toFloat() / size[1]
+                    }
+                }
+                _state.update { it.copy(busy = false, cropPreview = bitmap.first, cropImageAspect = bitmap.second) }
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) { fail(error) }
+            catch (_: OutOfMemoryError) { failMemory() }
+        }
+    }
+
+    fun dismissCrop() { _state.update { it.copy(cropPreview = null, cropImageAspect = null) } }
 
     /** Freeze the requested edits while the system document picker is open. */
     fun prepareExport() { pendingExport = _state.value.adjustments }
@@ -168,8 +195,7 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
             try {
                 withContext(Dispatchers.IO) {
                     mutex.withLock {
-                        val current = _state.value
-                        val bitmap = renderBitmap(handle, current.fullWidth, current.fullHeight, edits, true)
+                        val bitmap = renderBitmap(handle, edits, true)
                         val completed = File(directory, "export.jpg")
                         try {
                             completed.outputStream().use { output ->
@@ -193,8 +219,9 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
         }
     }
 
-    private fun renderBitmap(nativeHandle: Long, width: Int, height: Int, edits: RawAdjustments, full: Boolean): Bitmap {
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    private fun renderBitmap(nativeHandle: Long, edits: RawAdjustments, full: Boolean): Bitmap {
+        val dimensions = NativeRaw.outputDimensions(nativeHandle, edits.nativeValues(), full)
+        val bitmap = Bitmap.createBitmap(dimensions[0], dimensions[1], Bitmap.Config.ARGB_8888)
         try {
             NativeRaw.render(nativeHandle, bitmap, edits.nativeValues(), full)
             return bitmap
