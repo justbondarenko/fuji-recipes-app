@@ -142,6 +142,32 @@ class RawEditorLayoutTest {
             assertEquals(1, state.adjustments.quarterTurns)
             assertEquals(-4.5f, state.adjustments.straighten)
         }
+        compose.onNodeWithText("Optics").performScrollTo().performClick()
+        set("Distortion", -.4f)
+        set("Vertical perspective", .3f)
+        set("Horizontal perspective", -.2f)
+        set("Red/cyan alignment", .5f)
+        set("Blue/yellow alignment", -.5f)
+        set("Purple defringe", .6f)
+        set("Green defringe", .7f)
+        compose.runOnIdle {
+            assertEquals(-.4f, state.adjustments.distortion)
+            assertEquals(.3f, state.adjustments.perspectiveVertical)
+            assertEquals(-.2f, state.adjustments.perspectiveHorizontal)
+            assertEquals(.5f, state.adjustments.chromaticRed)
+            assertEquals(-.5f, state.adjustments.chromaticBlue)
+            assertEquals(.6f, state.adjustments.defringePurple)
+            assertEquals(.7f, state.adjustments.defringeGreen)
+            wide = true
+        }
+        compose.onNodeWithText("Save JPEG").assertIsDisplayed()
+        set("Distortion", -.3f)
+        compose.onNodeWithTag("raw-editor-optics-grid", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("raw-editor-preview").performTouchInput { down(center) }
+        compose.onNodeWithContentDescription("Original camera JPEG").assertIsDisplayed()
+        compose.onNodeWithTag("raw-editor-optics-grid", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithTag("raw-editor-preview").performTouchInput { up() }
+        compose.onNodeWithTag("raw-editor-optics-grid", useUnmergedTree = true).assertExists()
     }
 
     @Test
@@ -154,6 +180,8 @@ class RawEditorLayoutTest {
             colorNoise = .6f, luminanceNoise = .5f, noiseDetail = .7f,
             clarity = .4f, texture = -.3f, dehaze = .2f, quarterTurns = 2, straighten = 5f,
             vignette = -.5f, vignetteMidpoint = .6f, vignetteRoundness = -.4f, vignetteFeather = .7f,
+            distortion = -.4f, perspectiveVertical = .3f, perspectiveHorizontal = -.2f,
+            chromaticRed = .5f, chromaticBlue = -.5f, defringePurple = .6f, defringeGreen = .7f,
         )
         var state by mutableStateOf(RawEditorState(name = "sample.RAF", preview = bitmap, cameraImage = bitmap, adjustments = expected))
         compose.setContent {
@@ -199,6 +227,14 @@ class RawEditorLayoutTest {
         reset("Midpoint", expected.copy(vignetteMidpoint = .5f))
         reset("Roundness", expected.copy(vignetteRoundness = 0f))
         reset("Feather", expected.copy(vignetteFeather = .5f))
+        compose.onNodeWithText("Optics").performScrollTo().performClick()
+        reset("Distortion", expected.copy(distortion = 0f))
+        reset("Vertical perspective", expected.copy(perspectiveVertical = 0f))
+        reset("Horizontal perspective", expected.copy(perspectiveHorizontal = 0f))
+        reset("Red/cyan alignment", expected.copy(chromaticRed = 0f))
+        reset("Blue/yellow alignment", expected.copy(chromaticBlue = 0f))
+        reset("Purple defringe", expected.copy(defringePurple = 0f))
+        reset("Green defringe", expected.copy(defringeGreen = 0f))
         compose.onNodeWithText("Framing").performScrollTo().performClick()
         reset("Rotation", expected.copy(quarterTurns = 0))
         reset("Straighten", expected.copy(straighten = 0f))

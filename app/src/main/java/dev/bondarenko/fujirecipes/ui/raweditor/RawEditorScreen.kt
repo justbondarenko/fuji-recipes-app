@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -50,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.pointer.pointerInput
@@ -231,6 +233,15 @@ fun RawEditorScreen(
                                     it.asImageBitmap(), stringResource(if (showCamera) R.string.raw_editor_camera_image else R.string.raw_editor_raw_image),
                                     Modifier.fillMaxSize(), contentScale = ContentScale.Fit,
                                 )
+                                if (panel == 5 && !showCamera) Canvas(Modifier.fillMaxSize().testTag("raw-editor-optics-grid")) {
+                                    val bounds = imageBounds(size, it.width.toFloat() / it.height)
+                                    for (line in 1..3) {
+                                        val x = bounds.left + bounds.width * line / 4
+                                        val y = bounds.top + bounds.height * line / 4
+                                        drawLine(Color.White.copy(alpha = .35f), Offset(x, bounds.top), Offset(x, bounds.bottom))
+                                        drawLine(Color.White.copy(alpha = .35f), Offset(bounds.left, y), Offset(bounds.right, y))
+                                    }
+                                }
                             }
                             if (showCamera || state.busy) Surface(
                                 modifier = Modifier.align(Alignment.BottomCenter),
@@ -252,7 +263,7 @@ fun RawEditorScreen(
                         ) {
                             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 listOf(R.string.raw_editor_light, R.string.raw_editor_color, R.string.raw_editor_detail,
-                                    R.string.raw_editor_effects, R.string.raw_editor_framing).forEachIndexed { index, label ->
+                                    R.string.raw_editor_effects, R.string.raw_editor_framing, R.string.raw_editor_optics).forEachIndexed { index, label ->
                                     FilterChip(selected = panel == index, onClick = { panel = index }, label = { Text(stringResource(label)) })
                                 }
                             }
@@ -301,14 +312,22 @@ fun RawEditorScreen(
                                             }
                                             RawSlider(stringResource(R.string.raw_editor_rotation), edits.quarterTurns.toFloat(), 0f..3f, editable,
                                                 displayScale = 90f, suffix = "°", steps = 2) {
-                                                val turns = it.toInt()
-                                                var crop = edits.crop
-                                                repeat((turns - edits.quarterTurns + 4) % 4) { crop = crop.rotateClockwise() }
-                                                onAdjust(edits.copy(quarterTurns = turns, crop = crop))
+                                                onAdjust(edits.rotated(it.toInt()))
                                             }
                                             RawSlider(stringResource(R.string.raw_editor_straighten), edits.straighten, -15f..15f, editable,
                                                 displayScale = 1f, decimals = 1, suffix = "°") { onAdjust(edits.copy(straighten = it)) }
                                             Text(stringResource(R.string.raw_editor_straighten_note), style = MaterialTheme.typography.bodySmall)
+                                        }
+                                        5 -> {
+                                            Text(stringResource(R.string.raw_editor_optics_note), style = MaterialTheme.typography.bodySmall)
+                                            RawSlider(stringResource(R.string.raw_editor_distortion), edits.distortion, -1f..1f, editable) { onAdjust(edits.copy(distortion = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_perspective_vertical), edits.perspectiveVertical, -1f..1f, editable) { onAdjust(edits.copy(perspectiveVertical = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_perspective_horizontal), edits.perspectiveHorizontal, -1f..1f, editable) { onAdjust(edits.copy(perspectiveHorizontal = it)) }
+                                            Text(stringResource(R.string.raw_editor_chromatic_note), style = MaterialTheme.typography.bodySmall)
+                                            RawSlider(stringResource(R.string.raw_editor_chromatic_red), edits.chromaticRed, -1f..1f, editable) { onAdjust(edits.copy(chromaticRed = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_chromatic_blue), edits.chromaticBlue, -1f..1f, editable) { onAdjust(edits.copy(chromaticBlue = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_defringe_purple), edits.defringePurple, 0f..1f, editable) { onAdjust(edits.copy(defringePurple = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_defringe_green), edits.defringeGreen, 0f..1f, editable) { onAdjust(edits.copy(defringeGreen = it)) }
                                         }
                                     }
                                 }

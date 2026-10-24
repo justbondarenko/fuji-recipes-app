@@ -16,8 +16,28 @@ class RawEditorSourceTest {
         val edits = old.copy(clarity = .6f, texture = -.4f, dehaze = .3f,
             crop = RawCrop(.1f, .2f, .8f, .9f), quarterTurns = 3, straighten = -4.5f,
             vignette = -.5f, vignetteMidpoint = .4f, vignetteRoundness = -.3f, vignetteFeather = .7f)
+        assertEquals(edits, RawAdjustments.fromValues(edits.nativeValues().copyOf(29)))
         assertEquals(edits, RawAdjustments.fromValues(edits.nativeValues()))
+        val optics = edits.copy(distortion = -.4f, perspectiveVertical = .3f, perspectiveHorizontal = -.2f,
+            chromaticRed = .5f, chromaticBlue = -.5f, defringePurple = .6f, defringeGreen = .7f)
+        assertEquals(optics, RawAdjustments.fromValues(optics.nativeValues()))
         assertThrows(IllegalArgumentException::class.java) { RawAdjustments.fromValues(FloatArray(28)) }
+    }
+
+    @Test
+    fun rotationKeepsPerspectiveAttachedToThePhoto() {
+        val start = RawAdjustments(perspectiveVertical = .4f, perspectiveHorizontal = -.2f,
+            crop = RawCrop(.1f, .2f, .8f, .9f), distortion = .3f, chromaticRed = -.3f)
+        val rotated = start.rotated(1)
+        assertEquals(-.2f, rotated.perspectiveVertical)
+        assertEquals(-.4f, rotated.perspectiveHorizontal)
+        assertEquals(start.distortion, rotated.distortion)
+        assertEquals(start.chromaticRed, rotated.chromaticRed)
+        val restored = rotated.rotated(0)
+        assertEquals(start.perspectiveVertical, restored.perspectiveVertical)
+        assertEquals(start.perspectiveHorizontal, restored.perspectiveHorizontal)
+        assertEquals(start.crop.left, restored.crop.left, .00001f)
+        assertEquals(RawAdjustments(), RawAdjustments().rotated(1).rotated(0))
     }
 
     @Test

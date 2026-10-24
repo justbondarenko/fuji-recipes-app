@@ -230,6 +230,15 @@ Straightening trims empty corners automatically. Crop has a separate reset and
 screen-reader movement/resize actions. All changes persist with the session and
 apply to export; crop and rotation do not modify the original RAF.
 
+**Optics** provides manual barrel/pincushion distortion, vertical and horizontal
+perspective, red/cyan and blue/yellow channel alignment, and purple/green defringe.
+A guide grid helps judge straight lines; empty geometry edges are trimmed automatically.
+Negative distortion corrects barrel distortion; positive values correct pincushion.
+Alignment corrects lateral color fringes before the color profile; defringe reduces
+remaining colored edges between neutral dark and bright areas. Every control supports
+double-tap reset and saved sessions. Automatic lens profiles are not applied;
+they require verified calibration data for the lens and shooting conditions.
+
 The eleven color simulations are supported. Monochrome variants and unknown simulations
 are reported as unsupported; the editor never silently substitutes an unprofiled rendering.
 The profiles supply the film-simulation color look, not the complete camera engine:

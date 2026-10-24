@@ -77,11 +77,13 @@ struct Adjustments {
     int quarterTurns = 0;
     float straighten = 0;
     float vignette = 0, vignetteMidpoint = .5f, vignetteRoundness = 0, vignetteFeather = .5f;
+    float distortion = 0, perspectiveVertical = 0, perspectiveHorizontal = 0;
+    float chromaticRed = 0, chromaticBlue = 0, defringePurple = 0, defringeGreen = 0;
 
     static Adjustments read(const float* p, int count) {
-        if (count != 29) throw std::runtime_error("Invalid RAW adjustment count.");
-        constexpr float minimum[] = {-3,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,.5f,0,0,0,0,-1,-1,-1,0,0,0,0,0,-15,-1,0,-1,0};
-        constexpr float maximum[] = {3,1,1,1,1,1,1,1,1,1,1,3,1,1,1,1,1,1,1,1,1,1,1,3,15,1,1,1,1};
+        if (count != 36) throw std::runtime_error("Invalid RAW adjustment count.");
+        constexpr float minimum[] = {-3,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,.5f,0,0,0,0,-1,-1,-1,0,0,0,0,0,-15,-1,0,-1,0,-1,-1,-1,-1,-1,0,0};
+        constexpr float maximum[] = {3,1,1,1,1,1,1,1,1,1,1,3,1,1,1,1,1,1,1,1,1,1,1,3,15,1,1,1,1,1,1,1,1,1,1,1};
         for (int i = 0; i < count; ++i) {
             if (!std::isfinite(p[i]) || p[i] < minimum[i] || p[i] > maximum[i])
                 throw std::runtime_error("Invalid RAW adjustment.");
@@ -90,11 +92,13 @@ struct Adjustments {
             throw std::runtime_error("Invalid RAW framing.");
         return {p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
                 p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15], p[16], p[17], p[18],
-                p[19], p[20], p[21], p[22], int(p[23]), p[24], p[25], p[26], p[27], p[28]};
+                p[19], p[20], p[21], p[22], int(p[23]), p[24], p[25], p[26], p[27], p[28],
+                p[29], p[30], p[31], p[32], p[33], p[34], p[35]};
     }
 
     bool hasDetails() const {
-        return sharpening > 0 || colorNoise > 0 || luminanceNoise > 0 || clarity != 0 || texture != 0 || dehaze != 0;
+        return sharpening > 0 || colorNoise > 0 || luminanceNoise > 0 || clarity != 0 || texture != 0 || dehaze != 0 ||
+            defringePurple > 0 || defringeGreen > 0;
     }
 };
 

@@ -148,7 +148,7 @@ internal fun RawCropDialog(
     }
 }
 
-private fun imageBounds(size: Size, aspect: Float): Rect {
+internal fun imageBounds(size: Size, aspect: Float): Rect {
     val width = minOf(size.width, size.height * aspect)
     val height = width / aspect
     return Rect((size.width - width) / 2, (size.height - height) / 2, (size.width + width) / 2, (size.height + height) / 2)
