@@ -54,18 +54,18 @@ class RawEditorLayoutTest {
             compose.onNodeWithText("sample.RAF").assertIsDisplayed()
             compose.onNodeWithText("RAW Editor").assertDoesNotExist()
             compose.onNodeWithText("Open RAF").assertDoesNotExist()
-            compose.onNodeWithText("Reset").assertIsDisplayed()
-            compose.onNodeWithText("Save JPEG").assertIsDisplayed()
-            val save = bounds("Save JPEG")
+            compose.onNodeWithContentDescription("Reset").assertIsDisplayed()
+            compose.onNodeWithText("Save").assertIsDisplayed()
+            val save = bounds("Save")
             val shadows = bounds("Shadows")
             val image = compose.onNodeWithContentDescription("RAW with film simulation color profile").fetchSemanticsNode().boundsInRoot
             compose.runOnIdle { state = state.copy(rendering = true) }
-            assertEquals(save, bounds("Save JPEG"))
+            assertEquals(save, bounds("Save"))
             assertEquals(shadows, bounds("Shadows"))
             compose.runOnIdle { state = state.copy(rendering = false) }
             compose.onNodeWithText("Compare camera JPEG").assertDoesNotExist()
             compose.onNodeWithTag("raw-editor-preview").performTouchInput { down(center); advanceEventTime(600) }
-            assertEquals(save, bounds("Save JPEG"))
+            assertEquals(save, bounds("Save"))
             assertEquals(shadows, bounds("Shadows"))
             assertEquals(image, compose.onNodeWithContentDescription("Original camera JPEG").fetchSemanticsNode().boundsInRoot)
             compose.onNodeWithTag("raw-editor-preview").performTouchInput { up() }
@@ -94,7 +94,7 @@ class RawEditorLayoutTest {
         fun set(label: String, value: Float) {
             compose.onNodeWithContentDescription(label).performScrollTo()
                 .performSemanticsAction(SemanticsActions.SetProgress) { it(value) }
-            compose.onNodeWithText("Save JPEG").assertIsDisplayed()
+            compose.onNodeWithText("Save").assertIsDisplayed()
         }
         compose.onNodeWithText("Color").performClick()
         set("Temperature", .4f)
@@ -164,7 +164,7 @@ class RawEditorLayoutTest {
             assertEquals(.7f, state.adjustments.defringeGreen)
             wide = true
         }
-        compose.onNodeWithText("Save JPEG").assertIsDisplayed()
+        compose.onNodeWithText("Save").assertIsDisplayed()
         set("Distortion", -.3f)
         compose.onNodeWithTag("raw-editor-optics-grid", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("raw-editor-preview").performTouchInput { down(center) }
