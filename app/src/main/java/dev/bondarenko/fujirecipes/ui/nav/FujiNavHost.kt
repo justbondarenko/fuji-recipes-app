@@ -83,7 +83,7 @@ data class RawLabRoute(val recipeId: String? = null)
 
 /** Phone-side sensor RAW editing, with the recorded film-simulation color profile. */
 @Serializable
-data object RawEditorRoute
+data class RawEditorRoute(val initialUri: String? = null)
 
 /** Bottom bar → Read: decode a photo's MakerNote and match it (FEAT-009). */
 @Serializable
@@ -264,8 +264,12 @@ fun FujiNavHost(
             )
         }
 
-        composable<RawEditorRoute> {
-            RawEditorRouteContent(onBack = { navController.popBackStack() })
+        composable<RawEditorRoute> { entry ->
+            val route = entry.toRoute<RawEditorRoute>()
+            RawEditorRouteContent(
+                initialUri = route.initialUri,
+                onBack = { navController.popBackStack() },
+            )
         }
 
         composable<RecipeEditorRoute> { entry ->
@@ -311,7 +315,7 @@ fun FujiNavHost(
 
         composable<MoreRoute> {
             MoreRouteContent(
-                onOpenRawEditor = { navController.navigate(RawEditorRoute) { launchSingleTop = true } },
+                onOpenRawEditor = { navController.navigate(RawEditorRoute()) { launchSingleTop = true } },
                 onOpenCleanup = { navController.navigate(CleanupRoute) },
                 onOpenImport = { navController.navigate(ImportRoute) },
                 onOpenFileImport = { navController.navigate(FileImportRoute) },

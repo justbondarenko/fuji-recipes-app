@@ -54,6 +54,7 @@ import androidx.compose.runtime.LaunchedEffect
 
 class MainActivity : ComponentActivity() {
     private var sharedPhotoUri by mutableStateOf<String?>(null)
+    private var sharedRawUri by mutableStateOf<String?>(null)
 
     /** Set by a notification action; consumed once, by the navigation below. */
     private var pendingDestination by mutableStateOf<String?>(null)
@@ -61,7 +62,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         connectIfLaunchedByCamera(intent)
-        sharedPhotoUri = extractSharedImageUri(intent)
+        handleSharedIntent(intent)
         pendingDestination = intent.getStringExtra(EXTRA_DESTINATION)
         // Mandatory on Android 15+ regardless, so it is done deliberately here rather than
         // discovered in a release build.
@@ -75,6 +76,8 @@ class MainActivity : ComponentActivity() {
             FujiApp(
                 sharedPhotoUri = sharedPhotoUri,
                 onSharedPhotoHandled = { sharedPhotoUri = null },
+                sharedRawUri = sharedRawUri,
+                onSharedRawHandled = { sharedRawUri = null },
                 pendingDestination = pendingDestination,
                 onDestinationHandled = { pendingDestination = null },
             )
@@ -85,8 +88,21 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         connectIfLaunchedByCamera(intent)
-        extractSharedImageUri(intent)?.let { uri -> sharedPhotoUri = uri }
+        handleSharedIntent(intent)
         intent.getStringExtra(EXTRA_DESTINATION)?.let { pendingDestination = it }
+    }
+
+    private fun handleSharedIntent(intent: Intent?) {
+        val uri = extractSharedImageUri(intent) ?: return
+        val targetComponent = intent?.component?.className.orEmpty()
+        val isExplicitRawTarget = targetComponent.endsWith("ShareRawEditorActivity")
+        val isRafFile = uri.lowercase().contains(".raf") || intent?.type.orEmpty().contains("raf")
+
+        if (isExplicitRawTarget || isRafFile) {
+            sharedRawUri = uri
+        } else {
+            sharedPhotoUri = uri
+        }
     }
 
     /**
@@ -94,8 +110,6 @@ class MainActivity : ComponentActivity() {
      */
     private fun extractSharedImageUri(intent: Intent?): String? {
         if (intent == null || intent.action != Intent.ACTION_SEND) return null
-        val type = intent.type ?: return null
-        if (!type.startsWith("image/")) return null
         
         val uri: Uri? = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
             ?: @Suppress("DEPRECATION") (intent.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri)
@@ -128,6 +142,8 @@ class MainActivity : ComponentActivity() {
 private fun FujiApp(
     sharedPhotoUri: String? = null,
     onSharedPhotoHandled: () -> Unit = {},
+    sharedRawUri: String? = null,
+    onSharedRawHandled: () -> Unit = {},
     pendingDestination: String? = null,
     onDestinationHandled: () -> Unit = {},
 ) {
@@ -169,6 +185,15 @@ private fun FujiApp(
                 launchSingleTop = true
             }
             onSharedPhotoHandled()
+        }
+
+        LaunchedEffect(sharedRawUri) {
+            val uri = sharedRawUri ?: return@LaunchedEffect
+            navController.navigate(RawEditorRoute(initialUri = uri)) {
+                popUpTo(LibraryRoute)
+                launchSingleTop = true
+            }
+            onSharedRawHandled()
         }
 
         /**
