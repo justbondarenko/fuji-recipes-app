@@ -677,7 +677,7 @@
     <string name="raw_editor_noise_detail">Preserve detail</string>
     <string name="raw_editor_reset">Reset</string>
     <string name="raw_editor_reset_parameter">Reset %1$s</string>
-    <string name="raw_editor_save">Save JPEG</string>
+    <string name="raw_editor_save">Save</string>
     <string name="raw_editor_saved">Edited JPEG saved.</string>
     <string name="raw_editor_unreadable">This RAF could not be opened. Choose a local Fujifilm RAF and try again.</string>
     <string name="raw_editor_unsupported_profile">No bundled color profile for %1$s. This editor currently supports the eleven color film simulations, from PROVIA to REALA ACE. Choose a RAF shot with a supported simulation.</string>

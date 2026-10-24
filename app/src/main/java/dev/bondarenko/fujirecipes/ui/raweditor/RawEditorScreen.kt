@@ -8,33 +8,36 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -73,6 +76,8 @@ import dev.bondarenko.fujirecipes.data.raweditor.RawAdjustments
 import dev.bondarenko.fujirecipes.data.raweditor.RawCrop
 import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowBack
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.ResetWrench
+import dev.bondarenko.fujirecipes.ui.theme.icons.Save
 import kotlin.math.round
 
 @Composable
@@ -180,17 +185,27 @@ fun RawEditorScreen(
                     if (state.preview != null) {
                         Row(
                             modifier = Modifier.padding(end = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            FilledTonalButton(
+                            IconButton(
                                 onClick = { onAdjust(RawAdjustments()) },
                                 enabled = !state.busy && state.adjustments.isEdited,
-                            ) { Text(stringResource(R.string.raw_editor_reset)) }
+                            ) {
+                                Icon(FujiIcons.ResetWrench, stringResource(R.string.raw_editor_reset))
+                            }
                             Button(
                                 onClick = onSave,
                                 enabled = !state.busy && !state.rendering,
-                            ) { Text(stringResource(R.string.raw_editor_save)) }
+                            ) {
+                                Icon(
+                                    imageVector = FujiIcons.Save,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(ButtonDefaults.IconSize),
+                                )
+                                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                Text(stringResource(R.string.raw_editor_save))
+                            }
                         }
                     }
                 },
@@ -271,18 +286,29 @@ fun RawEditorScreen(
                     val controls: @Composable (Modifier) -> Unit = { modifier ->
                         val edits = state.adjustments
                         val editable = !state.busy && !showCamera
-                        Column(
-                            modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                listOf(R.string.raw_editor_light, R.string.raw_editor_color, R.string.raw_editor_detail,
-                                    R.string.raw_editor_effects, R.string.raw_editor_framing, R.string.raw_editor_optics).forEachIndexed { index, label ->
-                                    FilterChip(selected = panel == index, onClick = { panel = index }, label = { Text(stringResource(label)) })
+                        Column(modifier) {
+                            SecondaryScrollableTabRow(
+                                selectedTabIndex = panel,
+                                edgePadding = 16.dp,
+                            ) {
+                                listOf(
+                                    R.string.raw_editor_light, R.string.raw_editor_color, R.string.raw_editor_detail,
+                                    R.string.raw_editor_effects, R.string.raw_editor_framing, R.string.raw_editor_optics,
+                                ).forEachIndexed { index, label ->
+                                    Tab(
+                                        selected = panel == index,
+                                        onClick = { panel = index },
+                                        text = { Text(stringResource(label)) },
+                                    )
                                 }
                             }
                             key(panel) {
-                                Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                                Column(
+                                    Modifier
+                                        .weight(1f)
+                                        .verticalScroll(rememberScrollState())
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                ) {
                                     when (panel) {
                                         0 -> {
                                             RawSlider(stringResource(R.string.raw_editor_exposure), edits.exposure, -3f..3f, editable, 1f, 1, " EV") { onAdjust(edits.copy(exposure = it)) }
