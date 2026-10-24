@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -206,6 +207,11 @@ fun RawEditorScreen(
     var showCamera by remember(state.name, state.busy, state.cameraImage) { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
     var panel by rememberSaveable { mutableIntStateOf(0) }
+    val categoryLabels = listOf(
+        R.string.raw_editor_light, R.string.raw_editor_color, R.string.raw_editor_detail,
+        R.string.raw_editor_curves, R.string.raw_editor_effects, R.string.raw_editor_optics,
+        R.string.raw_editor_masks,
+    )
     var selectedParam by rememberSaveable(panel) { mutableIntStateOf(0) }
     if (state.maskEditorOpen && state.preview != null) RawMaskDialog(state, onAdjust, onSelectMask, onDrawMask, { onMasks(false) })
     val uriHandler = LocalUriHandler.current
@@ -312,6 +318,7 @@ fun RawEditorScreen(
             } else {
                 BoxWithConstraints(Modifier.weight(1f)) {
                     val wide = maxWidth >= 700.dp
+                    val maxCurveSize = if (wide) maxWidth else maxHeight * .4f
                     val preview: @Composable (Modifier) -> Unit = { modifier ->
                         RawEditorPreview(state, panel == 5, showCamera, { showCamera = it }, onViewport, modifier, onCrop)
                     }
@@ -415,11 +422,7 @@ fun RawEditorScreen(
                                 modifier = Modifier.testTag("raw-editor-groups"),
                                 edgePadding = 16.dp,
                             ) {
-                                listOf(
-                                    R.string.raw_editor_light, R.string.raw_editor_color, R.string.raw_editor_detail,
-                                    R.string.raw_editor_curves, R.string.raw_editor_effects, R.string.raw_editor_optics,
-                                    R.string.raw_editor_masks,
-                                ).forEachIndexed { index, label ->
+                                categoryLabels.forEachIndexed { index, label ->
                                     Tab(
                                         selected = panel == index,
                                         enabled = !state.busy,
@@ -430,7 +433,20 @@ fun RawEditorScreen(
                             }
                         }
                         Column(
-                            modifier = modifier.padding(top = 8.dp),
+                            modifier = modifier.padding(top = 8.dp).testTag("raw-editor-controls")
+                                .pointerInput(state.busy, categoryLabels.size) {
+                                    if (state.busy) return@pointerInput
+                                    var distance = 0f
+                                    detectHorizontalDragGestures(
+                                        onDragStart = { distance = 0f },
+                                        onHorizontalDrag = { change, amount -> change.consume(); distance += amount },
+                                        onDragEnd = {
+                                            if (kotlin.math.abs(distance) >= 48.dp.toPx()) {
+                                                panel = (panel + if (distance < 0) 1 else -1).coerceIn(categoryLabels.indices)
+                                            }
+                                        },
+                                    )
+                                },
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
@@ -447,7 +463,7 @@ fun RawEditorScreen(
                                     Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                                if (panel == 3) RawToneCurveEditor(state, onAdjust, compact = wide, enabled = editable)
+                                if (panel == 3) RawToneCurveEditor(state, onAdjust, maxGraphSize = maxCurveSize, enabled = editable)
 
                                 if (wide) {
                                     if (panel == 1) FilledTonalButton(

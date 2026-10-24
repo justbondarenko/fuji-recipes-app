@@ -78,7 +78,7 @@ External calibration profiles and fisheye models remain pending.
 
 - [x] **8. Tone curve:** master and separate RGB channels, editable control points,
   direct in-tab gestures, double-tap point deletion, channel reset, grey Master,
-  RGB circle pickers, and screen-reader point actions.
+  RGB circle pickers, square graph geometry, and screen-reader point actions.
 - [x] **19. Grain:** amount, size, and roughness; independent of Fujifilm's grain engine.
 - [x] **21. Selective adjustments:** brush paint/erase, linear-gradient, and radial
   masks, with local exposure, shadows, highlights, temperature, tint, contrast,
@@ -408,3 +408,23 @@ persistent Save/Crop, and preserved category/values when returning to compact.
 A later combined run passed the new wide check but lost the reset test's Compose
 window while the device changed display/foreground state; it is not recorded
 as a clean full-suite pass. The updated debug APK is installed on the SM-F976B.
+
+
+Curve geometry and category swipes (2026-10-25): the curve plot keeps a 1:1
+aspect ratio. Wide panels use their available width; compact screens cap its
+size relative to the editor height so the photo and tabs remain usable.
+Channel controls and the gesture hint remain outside the graph.
+
+Horizontal swipes on unused control-panel space navigate adjacent categories
+in every tab, in compact and wide layouts. A completed swipe changes one tab;
+the first and last categories clamp instead of wrapping. Vertical scrolling,
+slider dragging, curve editing, and preview gestures keep their own input.
+Navigation is disabled while the editor is busy, matching the category tabs.
+
+Verification: debug and instrumentation APK builds passed; all 11
+RawEditorLayoutTest checks passed on the connected SM-F976B. The new check
+swipes through all seven categories in both directions at compact and wide
+sizes, checks boundary/busy behavior, preserves slider/curve editing and
+vertical scrolling, and measures square curve geometry including short wide
+windows. These are UI checks with an in-memory image, not a new RAF processing
+or export test. The updated debug APK is installed on the device.

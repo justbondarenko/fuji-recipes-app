@@ -289,3 +289,11 @@ in the wide pane and bottom placement in compact mode. The wide body scrolls
 independently and renders the same RawParam definitions and callbacks as the
 compact editor, flattening grouped parameters into individually labeled rows.
 No processing, persisted adjustment, or export format changes are involved.
+
+
+RawToneCurveEditor sizes the graph with aspectRatio(1f); the parent editor
+bounds its maximum size on compact screens while the wide list can scroll.
+The controls container detects unconsumed horizontal drags and selects one
+adjacent category after release. Descendant sliders, curve editing, option
+carousels, and vertical scrolling consume their own gestures first. The photo
+preview is outside this gesture scope, retaining comparison, zoom, and pan.
