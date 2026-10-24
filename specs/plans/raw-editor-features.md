@@ -96,7 +96,7 @@ See [pipeline notes](raw-editor.md) for the limits.
 
 - [ ] Histogram.
 - [ ] Highlight and shadow clipping warnings.
-- [ ] 100% zoom for judging detail and noise.
+- [x] 100% zoom for judging detail and noise.
 
 ## Verification record
 
@@ -121,7 +121,7 @@ Detail adjusts how strongly edges are preserved. Sharpening
 uses luminance unsharp masking with a 0.5–3 px full-resolution radius and threshold.
 Detail filtering uses overlapping strips with bounded extra memory and a native
 regression test for seams. Preview radii account for the downsampled image, but the
-fitted preview cannot replace judging the full-resolution export at 100% zoom.
+fitted preview cannot replace judging full-resolution pixels; the editor now provides a 100% detail view.
 Full lint remains blocked by the same pre-existing camera-screen error.
 
 Gesture update on 2026-10-24: debug and test APKs build, and all 728 JVM tests pass.
@@ -213,4 +213,31 @@ Full lint still has only the existing SlotDetailSheet.kt:332 error; no RAW Edito
 lint errors were introduced.
 The final portrait JPEG is byte-for-byte identical to the saved pre-optimization
 export from the curves/grain/masks delivery: both have SHA-256
+`abda171f57d299bc99e55f864285b160a2843544ec577b7effef5d801928e7dc`.
+
+
+100% zoom delivered on 2026-10-24. Pinch to zoom, drag to pan, and double-tap
+or tap the Fit badge to switch between Fit and 100%. At 100%, one rendered RAW
+pixel occupies one physical screen pixel. Hold still on the image to compare
+with the fitted camera JPEG; release returns to the same RAW zoom and position.
+Framing changes reset zoom to Fit. Zoom is a viewing aid and does not change
+saved edits or export dimensions.
+
+The detail view decodes the original full-resolution sensor once while zoomed
+and renders only the visible region with the export pipeline. Tiles include
+filter context on all sides. The app labels pending detail explicitly while
+showing the fast preview underneath. Returning to Fit normally releases the
+full decode; a crop small enough to fit at 100% retains its detail view.
+The first full decode of the phone's 41,998,640-byte portrait X-T50 RAF took
+about 11 seconds. Cached 256 × 192 regions took 8 ms without detail filters and
+70–99 ms with combined effects. Real-RAF tests found zero channel differences
+against full-resolution export, including image edges, optics, masks, grain,
+and detail filters; fractional zoom regions also match a whole scaled render.
+The edit/pan queue test passes and preserves continuous slider preview updates.
+All 733 JVM tests and native color checks pass. Full lint still has the existing
+camera-screen error described above.
+
+The six RAW Editor gesture/layout tests pass on SM-F976B, including compact/wide
+controls and hold/release/cancel comparison. The combined-controls portrait
+export remains 4920 × 3496 and byte-identical to the pre-zoom reference:
 `abda171f57d299bc99e55f864285b160a2843544ec577b7effef5d801928e7dc`.

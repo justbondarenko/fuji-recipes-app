@@ -140,7 +140,7 @@ Grain in Effects has amount, full-resolution size (0.5–10 px), and roughness.
 It adds deterministic, luminance-weighted monochrome noise after detail filtering
 and vignette. Preview and export use the same full-resolution output coordinates;
 the fitted preview averages four samples when downscaled. Fine grain still needs
-a full-resolution export at 100% to judge. This is independent grain, not a
+the editor’s full-resolution 100% view to judge. This is independent grain, not a
 reproduction of Fujifilm's proprietary grain settings.
 
 Masks support brush paint/erase, linear gradients, and radial ellipses. Up to eight
@@ -190,3 +190,26 @@ Tick dials accumulate an unsnapped value during a gesture and round only the
 emitted parameter. Previously, repeated sub-step movements rounded back to the
 same value and were lost, making slow exposure or color adjustments feel stuck.
 This fix applies to every global and mask dial through the shared component.
+
+
+The main image supports pinch zoom and pan, bounded between Fit and 100%.
+Double-tap or the Fit/percentage badge toggles Fit and 100%; accessibility actions
+also expose zoom and four pan directions. Image pixels map to physical display
+pixels at 100%, independently of Android density. Geometry changes and opening
+another RAF reset the view; ordinary edits preserve it. Camera comparison is a
+stationary long press so pinch and pan do not flash the JPEG. Comparison retains
+the fitted original JPEG and restores the previous RAW zoom on release.
+
+Detail requests share the serialized, conflated preview worker. After input
+settles, a full sensor decode is cached and only the visible output rectangle
+is rendered. The renderer is shared with export, preserving source mapping,
+profile, adjustments, grain coordinates, vignette, and masks. Horizontal and
+vertical filter halos keep viewport boundaries consistent with export. A
+pending tile is labelled, and stale edits/scales never masquerade as current
+full detail. CPU tiles are limited to 4096 pixels per side; the full sensor
+cache uses hundreds of MB and is released on Fit, framing reset, session close,
+and before export. A small crop already fitting at 100% still requests detail.
+Tiled sensor decoding is deferred for devices that cannot retain a full decode.
+
+Zoom is transient UI state, separate from saved adjustments. Export always uses
+the full original resolution and current crop, regardless of zoom or pan.

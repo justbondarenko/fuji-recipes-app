@@ -40,6 +40,8 @@ import java.nio.file.Files
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
+data class RawDetail(val viewport: RawViewport, val edits: RawAdjustments, val bitmap: Bitmap)
+
 data class RawEditorState(
     val name: String = "",
     val simulation: String = "",
@@ -47,6 +49,8 @@ data class RawEditorState(
     val fullHeight: Int = 0,
     val preview: Bitmap? = null,
     val cameraImage: Bitmap? = null,
+    val detail: RawDetail? = null,
+    val detailLoading: Boolean = false,
     val cropPreview: Bitmap? = null,
     val maskEditorOpen: Boolean = false,
     val activeMask: Int = 0,
@@ -71,8 +75,9 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
     private var handle = 0L
     private var sourceFile: File? = null
     private val closed = AtomicBoolean(false)
-    private data class PreviewRequest(val edits: RawAdjustments, val mask: Int?, val generation: Int, val sequence: Int)
+    private data class PreviewRequest(val edits: RawAdjustments, val mask: Int?, val generation: Int, val sequence: Int, val viewport: RawViewport?, val preview: Boolean)
     private val previewRequests = MutableStateFlow<PreviewRequest?>(null)
+    private var detailViewport: RawViewport? = null
     private var previewSequence = 0
     private var sourceGeneration = 0
     private var pendingExport: RawAdjustments? = null
@@ -88,12 +93,15 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
             previewRequests.collect { request ->
                 if (request == null) return@collect
                 try {
-                    renderPreview(request, draft = true)
+                    if (request.preview) renderPreview(request, draft = true)
                     val superseded = withTimeoutOrNull(160) {
                         previewRequests.first { it != request }
                         true
                     }
-                    if (superseded != true) renderPreview(request, draft = false)
+                    if (superseded != true) {
+                        if (request.preview) renderPreview(request, draft = false)
+                        renderDetail(request)
+                    }
                 } catch (error: CancellationException) { throw error }
                 catch (error: Exception) { if (previewRequests.value == request) fail(error) }
                 catch (_: OutOfMemoryError) { if (previewRequests.value == request) failMemory() }
@@ -104,6 +112,7 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
 
     fun open(uri: Uri, edits: RawAdjustments = RawAdjustments()) {
         if (_state.value.busy) return
+        detailViewport = null
         sourceGeneration++
         previewRequests.value = null
         _state.update { it.copy(busy = true, rendering = false, error = null) }
@@ -167,9 +176,45 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
 
     private fun requestRender(edits: RawAdjustments, force: Boolean = false) {
         if (_state.value.busy || handle == 0L || (!force && _state.value.adjustments == edits)) return
+        if (edits.frameKey() != _state.value.adjustments.frameKey()) detailViewport = null
         rememberEdits(edits)
-        _state.update { it.copy(adjustments = edits, rendering = true, error = null) }
-        previewRequests.value = PreviewRequest(edits, _state.value.activeMask.takeIf { _state.value.maskEditorOpen }, sourceGeneration, ++previewSequence)
+        _state.update { it.copy(adjustments = edits, rendering = true, detail = null,
+            detailLoading = detailViewport != null, error = null) }
+        enqueuePreview(edits, preview = true)
+    }
+
+    fun detailViewport(viewport: RawViewport?) {
+        if (detailViewport == viewport || _state.value.busy || handle == 0L) return
+        detailViewport = viewport
+        _state.update { it.copy(detail = if (viewport == null) null else it.detail, detailLoading = viewport != null, error = if (viewport != null) null else it.error) }
+        // A pan must not supersede a pending slider refinement.
+        enqueuePreview(_state.value.adjustments, preview = _state.value.rendering)
+    }
+
+    private fun enqueuePreview(edits: RawAdjustments, preview: Boolean) {
+        previewRequests.value = PreviewRequest(edits, _state.value.activeMask.takeIf { _state.value.maskEditorOpen },
+            sourceGeneration, ++previewSequence, detailViewport, preview)
+    }
+
+    private suspend fun renderDetail(request: PreviewRequest) {
+        val result = withContext(Dispatchers.Default) {
+            mutex.withLock {
+                if (previewRequests.value != request || request.generation != sourceGeneration || _state.value.busy) return@withLock null
+                val viewport = request.viewport
+                if (viewport == null) {
+                    NativeRaw.releaseDetail(handle)
+                    return@withLock null
+                }
+                val bitmap = Bitmap.createBitmap(viewport.width, viewport.height, Bitmap.Config.ARGB_8888)
+                try {
+                    NativeRaw.renderDetail(handle, bitmap, request.edits.nativeValues(), viewport.left, viewport.top, viewport.scale)
+                    RawDetail(viewport, request.edits, bitmap)
+                } catch (error: Throwable) { bitmap.recycle(); throw error }
+            }
+        }
+        if (previewRequests.value == request && request.generation == sourceGeneration && !_state.value.busy) {
+            _state.update { it.copy(detail = result, detailLoading = false) }
+        }
     }
 
     private suspend fun renderPreview(request: PreviewRequest, draft: Boolean) {
@@ -282,6 +327,7 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
             try {
                 withContext(Dispatchers.IO) {
                     mutex.withLock {
+                        NativeRaw.releaseDetail(handle)
                         val bitmap = renderBitmap(handle, edits, true)
                         val completed = File(directory, "export.jpg")
                         try {
@@ -300,6 +346,7 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
                     }
                 }
                 _state.update { it.copy(busy = false, savedAdjustments = edits, message = context.getString(R.string.raw_editor_saved)) }
+                if (detailViewport != null) enqueuePreview(_state.value.adjustments, preview = false)
             } catch (error: CancellationException) { throw error }
             catch (error: Exception) { fail(error) }
             catch (_: OutOfMemoryError) { failMemory() }
@@ -324,11 +371,11 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
     }
 
     private fun fail(error: Exception) {
-        _state.update { it.copy(busy = false, rendering = false, error = error.message ?: context.getString(R.string.raw_editor_unreadable)) }
+        _state.update { it.copy(busy = false, rendering = false, detailLoading = false, error = error.message ?: context.getString(R.string.raw_editor_unreadable)) }
     }
 
     private fun failMemory() {
-        _state.update { it.copy(busy = false, rendering = false, error = context.getString(R.string.raw_editor_memory)) }
+        _state.update { it.copy(busy = false, rendering = false, detailLoading = false, error = context.getString(R.string.raw_editor_memory)) }
     }
 
     fun clearMessage() { _state.update { it.copy(message = null) } }

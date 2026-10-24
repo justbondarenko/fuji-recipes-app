@@ -48,6 +48,49 @@ class RawEditorLayoutTest {
     @get:Rule val compose = createComposeRule()
 
     @Test
+    fun zoomUsesSensorPixelsAndKeepsControlsAndComparisonStable() {
+        val bitmap = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888)
+        var state by mutableStateOf(RawEditorState(name = "sample.RAF", fullWidth = 7728, fullHeight = 5152,
+            preview = bitmap, cameraImage = bitmap))
+        var requested: RawViewport? = null
+        compose.setContent {
+            FujiTheme { RawEditorScreen(state, {}, {}, { state = state.copy(adjustments = it) }, {}, onViewport = { requested = it }) }
+        }
+        val saveBounds = compose.onNodeWithText("Save").fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithTag("raw-editor-preview").performTouchInput { doubleClick(center) }
+        compose.onNodeWithText("100%").assertIsDisplayed()
+        compose.waitUntil(5000) { requested?.scale == 1f }
+        val first = requested!!
+        val bounds = compose.onNodeWithTag("raw-editor-preview").fetchSemanticsNode().boundsInRoot
+        assertTrue(kotlin.math.abs(bounds.width - first.width) <= 1f)
+        assertTrue(kotlin.math.abs(bounds.height - first.height) <= 1f)
+        compose.onNodeWithTag("raw-editor-preview").performTouchInput { down(center); moveBy(Offset(120f, 90f), 300); up() }
+        compose.waitUntil(5000) { requested != null && requested != first }
+        val panned = requested!!
+        assertTrue(panned.left < first.left && panned.top < first.top)
+        compose.onNodeWithTag("raw-editor-preview").performCustomAccessibilityActionWithLabel("Compare camera JPEG")
+        compose.onNodeWithContentDescription("Original camera JPEG").assertIsDisplayed()
+        compose.onNodeWithTag("raw-editor-preview").performCustomAccessibilityActionWithLabel("Back to edited RAW")
+        compose.onNodeWithText("100%").assertIsDisplayed()
+        assertEquals(saveBounds, compose.onNodeWithText("Save").fetchSemanticsNode().boundsInRoot)
+        compose.onNodeWithTag("raw-editor-zoom").performClick()
+        compose.waitUntil(5000) { requested == null }
+        compose.onNodeWithText("Fit").assertIsDisplayed()
+        // Pinch from Fit, including the 100% upper bound.
+        compose.onNodeWithTag("raw-editor-preview").performTouchInput {
+            down(0, center + Offset(-30f, 0f)); down(1, center + Offset(30f, 0f))
+            moveTo(0, center + Offset(-200f, 0f), 100); moveTo(1, center + Offset(200f, 0f), 100)
+            up(0); up(1)
+        }
+        compose.waitUntil(5000) { requested != null }
+        assertTrue(requested!!.scale <= 1f)
+        compose.runOnIdle { state = state.copy(adjustments = state.adjustments.copy(exposure = .5f)) }
+        compose.onNodeWithTag("raw-editor-preview").assertIsDisplayed()
+        compose.runOnIdle { state = state.copy(adjustments = state.adjustments.rotated(1)) }
+        compose.waitUntil(5000) { requested == null }
+    }
+
+    @Test
     fun slowDialMovementAccumulatesBeforeQuantization() {
         var value by mutableStateOf(0f)
         compose.setContent {
@@ -97,12 +140,14 @@ class RawEditorLayoutTest {
             compose.runOnIdle { state = state.copy(rendering = false) }
             compose.onNodeWithText("Compare camera JPEG").assertDoesNotExist()
             compose.onNodeWithTag("raw-editor-preview").performTouchInput { down(center); advanceEventTime(600) }
+            compose.mainClock.advanceTimeBy(650)
             assertEquals(save, bounds("Save"))
             assertEquals(shadows, bounds("Shadows"))
             assertEquals(image, compose.onNodeWithContentDescription("Original camera JPEG").fetchSemanticsNode().boundsInRoot)
             compose.onNodeWithTag("raw-editor-preview").performTouchInput { up() }
             compose.onNodeWithContentDescription("RAW with film simulation color profile").assertIsDisplayed()
-            compose.onNodeWithTag("raw-editor-preview").performTouchInput { down(center) }
+            compose.onNodeWithTag("raw-editor-preview").performTouchInput { down(center); advanceEventTime(600) }
+            compose.mainClock.advanceTimeBy(650)
             compose.onNodeWithContentDescription("Original camera JPEG").assertIsDisplayed()
             compose.onNodeWithTag("raw-editor-preview").performTouchInput { cancel() }
             compose.onNodeWithContentDescription("RAW with film simulation color profile").assertIsDisplayed()
@@ -110,7 +155,8 @@ class RawEditorLayoutTest {
             compose.onNodeWithContentDescription("Original camera JPEG").assertIsDisplayed()
             compose.onNodeWithTag("raw-editor-preview").performCustomAccessibilityActionWithLabel("Back to edited RAW")
             compose.onNodeWithContentDescription("RAW with film simulation color profile").assertIsDisplayed()
-            compose.onNodeWithTag("raw-editor-preview").performTouchInput { down(center) }
+            compose.onNodeWithTag("raw-editor-preview").performTouchInput { down(center); advanceEventTime(600) }
+            compose.mainClock.advanceTimeBy(650)
             compose.runOnIdle { state = state.copy(busy = true) }
             compose.onNodeWithContentDescription("RAW with film simulation color profile").assertIsDisplayed()
             compose.onNodeWithTag("raw-editor-preview").performTouchInput { up(); down(center) }
@@ -199,7 +245,8 @@ class RawEditorLayoutTest {
         compose.onNodeWithText("Save").assertIsDisplayed()
         set("Distortion", -.3f)
         compose.onNodeWithTag("raw-editor-optics-grid", useUnmergedTree = true).assertExists()
-        compose.onNodeWithTag("raw-editor-preview").performTouchInput { down(center) }
+        compose.onNodeWithTag("raw-editor-preview").performTouchInput { down(center); advanceEventTime(600) }
+            compose.mainClock.advanceTimeBy(650)
         compose.onNodeWithContentDescription("Original camera JPEG").assertIsDisplayed()
         compose.onNodeWithTag("raw-editor-optics-grid", useUnmergedTree = true).assertDoesNotExist()
         compose.onNodeWithTag("raw-editor-preview").performTouchInput { up() }

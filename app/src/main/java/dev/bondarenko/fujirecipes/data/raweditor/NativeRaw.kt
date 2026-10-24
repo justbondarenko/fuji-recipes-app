@@ -14,5 +14,7 @@ internal object NativeRaw {
     external fun render(
         handle: Long, output: Bitmap, adjustments: FloatArray, full: Boolean, draft: Boolean = false,
     )
+    external fun renderDetail(handle: Long, output: Bitmap, adjustments: FloatArray, left: Int, top: Int, zoom: Float)
+    external fun releaseDetail(handle: Long)
     external fun close(handle: Long)
 }
