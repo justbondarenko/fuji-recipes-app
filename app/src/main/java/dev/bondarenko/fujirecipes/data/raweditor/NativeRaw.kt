@@ -9,6 +9,8 @@ internal object NativeRaw {
     external fun open(path: String, profile: ByteArray): Long
     external fun dimensions(handle: Long): IntArray
     external fun outputDimensions(handle: Long, adjustments: FloatArray, full: Boolean): IntArray
+    external fun mapPoints(handle: Long, adjustments: FloatArray, points: FloatArray): FloatArray
+    external fun maskOverlay(handle: Long, output: Bitmap, adjustments: FloatArray, index: Int)
     external fun render(
         handle: Long, output: Bitmap, adjustments: FloatArray, full: Boolean,
     )

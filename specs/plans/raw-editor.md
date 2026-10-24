@@ -6,10 +6,10 @@ editable preview. The original RAF is never modified. Lab retains camera-engine 
 
 The pipeline is RAF → LibRaw demosaicing in unscaled sensor RGB → optical/geometry
 correction and framing/bilinear resampling → floating-point as-shot
-WB plus relative temperature/tint → camera matrix → dynamic-range exposure compensation
-→ exposure/shadow/highlight adjustments → sRGB encoding → the simulation's published
-3D color LUT → contrast/whites/blacks/saturation/vibrance → defringe → dehaze → edge-aware luminance/chroma
-noise reduction → texture/clarity → luminance sharpening → vignette → display/JPEG.
+WB plus global/masked relative temperature/tint → camera matrix → dynamic-range exposure compensation
+→ global and masked exposure/shadow/highlight adjustments → sRGB encoding → the simulation's published
+3D color LUT → global/masked contrast and saturation, whites/blacks/vibrance → master/RGB curves → defringe → dehaze → edge-aware luminance/chroma
+noise reduction → texture/clarity → luminance sharpening → vignette → grain → display/JPEG.
 Adjustments always re-render from retained linear RAW pixels. The embedded JPEG supplies
 MakerNote metadata and an explicitly labeled camera comparison, never editable pixels.
 
@@ -112,3 +112,51 @@ and accessible actions. Sessions expand from 29 to 36 values, with sixteen- and
 twenty-nine-value sessions migrated using neutral corrections. Verified lens
 calibration profiles, complex radial/fisheye models, and automatic correction
 remain separate pending work; Fujifilm recipe metadata alone is not calibration.
+
+
+Items 8, 19, and 21 extend the current compact carousel and tick dial. Curves
+appear directly in their tab; the Masks editor has a fitted photo and scrollable
+controls. Both adapt to short landscape screens. Existing sharing, navigation,
+Save, double-tap scalar resets, and hold-to-compare remain in place.
+
+Tone curves appear directly in the Curves tab with master, red, green, and blue
+channels, each holding up to sixteen control points. Master is grey; the RGB
+channel pickers are colored circle buttons with screen-reader labels. Touching
+the curve line adds/selects a point and dragging moves it; double-tapping an
+interior point removes it. Input endpoints stay at 0 and 1, and double-tapping
+an endpoint resets its output to the identity value. There are no visible point
+navigation, add/remove, or input/output slider controls. Screen-reader custom
+actions on the graph retain point navigation, adding/removing, moving, and reset.
+The reset icon clears the current channel; global Reset clears all edits.
+Conservative cubic Hermite interpolation stays inside each segment's control
+values; native processing uses a 1,025-entry table. Identity curves bypass
+processing exactly. Curves act after the recorded simulation profile and color
+adjustments.
+
+Grain in Effects has amount, full-resolution size (0.5–10 px), and roughness.
+It adds deterministic, luminance-weighted monochrome noise after detail filtering
+and vignette. Preview and export use the same full-resolution output coordinates;
+the fitted preview averages four samples when downscaled. Fine grain still needs
+a full-resolution export at 100% to judge. This is independent grain, not a
+reproduction of Fujifilm's proprietary grain settings.
+
+Masks support brush paint/erase, linear gradients, and radial ellipses. Up to eight
+masks combine weighted exposure, shadows, highlights, temperature, tint, contrast,
+and saturation. Every mask has enable, invert, opacity, feather, and delete;
+brushes also have radius and stroke undo. The selected mask has a toggleable
+colored coverage overlay. Drag places/replaces gradients; brush taps paint dabs.
+Shape coordinates and a center-dab action provide accessible editing alternatives.
+Shape coordinates refer to the original upright photo. Local exposure and WB
+operate before the matrix/profile, so they retain sensor RAW recovery.
+
+Drawing coordinates map through the current crop, rotation, straighten, and
+optics into normalized original-image positions. Masks therefore stay attached
+to the subject when framing changes. Linear and radial coverage are analytic;
+brush coverage uses the retained preview-size source grid (maximum 1600 px long
+edge), shared by preview and export. This deliberately bounds memory and gives
+soft, stable brush edges; tiny full-resolution brush retouching would require a
+tiled full-resolution mask grid. A mask holds at most 64 strokes and a stroke
+holds 256 sampled points, with 4096 points total per image. The UI bounds temporary
+stroke feedback too and reports reaching the stored-point limit without losing
+edits. Grain, curves, and masks persist in a versioned, bounded float payload;
+old sixteen-, twenty-nine-, and thirty-six-value sessions upgrade unchanged.

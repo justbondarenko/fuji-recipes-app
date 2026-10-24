@@ -14,6 +14,9 @@ import dev.bondarenko.fujirecipes.data.photo.PhotoReadResult
 import dev.bondarenko.fujirecipes.data.photo.parseRecipeFromJpeg
 import dev.bondarenko.fujirecipes.data.raweditor.NativeRaw
 import dev.bondarenko.fujirecipes.data.raweditor.RawAdjustments
+import dev.bondarenko.fujirecipes.data.raweditor.RawMaskKind
+import dev.bondarenko.fujirecipes.data.raweditor.MaskPoint
+import dev.bondarenko.fujirecipes.data.raweditor.RawBrushStroke
 import dev.bondarenko.fujirecipes.data.raweditor.RawCrop
 import dev.bondarenko.fujirecipes.data.raweditor.rawColorProfileIds
 import dev.bondarenko.fujirecipes.data.raweditor.readRafPreview
@@ -45,6 +48,9 @@ data class RawEditorState(
     val preview: Bitmap? = null,
     val cameraImage: Bitmap? = null,
     val cropPreview: Bitmap? = null,
+    val maskEditorOpen: Boolean = false,
+    val activeMask: Int = 0,
+    val maskOverlay: Bitmap? = null,
     val cropImageAspect: Float? = null,
     val adjustments: RawAdjustments = RawAdjustments(),
     val savedAdjustments: RawAdjustments? = null,
@@ -136,8 +142,12 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
         }
     }
 
-    fun adjust(edits: RawAdjustments) {
-        if (_state.value.busy || handle == 0L || _state.value.adjustments == edits) return
+    fun adjust(edits: RawAdjustments) = requestRender(edits)
+
+    private fun requestRender(edits: RawAdjustments, force: Boolean = false) {
+        if (_state.value.busy || handle == 0L || (!force && _state.value.adjustments == edits)) return
+        val selectedMask = _state.value.activeMask
+        val overlayOpen = _state.value.maskEditorOpen
         rememberEdits(edits)
         _state.update { it.copy(adjustments = edits, rendering = true, error = null) }
         renderJob?.cancel()
@@ -147,11 +157,67 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
                 val bitmap = withContext(Dispatchers.Default) {
                     mutex.withLock {
                         ensureActive()
-                        renderBitmap(handle, edits, false) to NativeRaw.outputDimensions(handle, edits.nativeValues(), true)
+                        val preview = renderBitmap(handle, edits, false)
+                        val overlay = if (overlayOpen && selectedMask in edits.masks.indices) {
+                            Bitmap.createBitmap(preview.width, preview.height, Bitmap.Config.ARGB_8888).also {
+                                NativeRaw.maskOverlay(handle, it, edits.nativeValues(), selectedMask)
+                            }
+                        } else null
+                        Triple(preview, NativeRaw.outputDimensions(handle, edits.nativeValues(), true), overlay)
                     }
                 }
                 if (_state.value.adjustments == edits) _state.update {
-                    it.copy(preview = bitmap.first, fullWidth = bitmap.second[0], fullHeight = bitmap.second[1], rendering = false)
+                    it.copy(preview = bitmap.first, fullWidth = bitmap.second[0], fullHeight = bitmap.second[1], rendering = false,
+                        maskOverlay = if (it.maskEditorOpen && it.activeMask == selectedMask) bitmap.third else null)
+                }
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) { fail(error) }
+            catch (_: OutOfMemoryError) { failMemory() }
+        }
+    }
+
+    fun editMasks(open: Boolean) {
+        _state.update { it.copy(maskEditorOpen = open, maskOverlay = null) }
+        if (open) requestRender(_state.value.adjustments, force = true)
+    }
+
+    fun selectMask(index: Int) {
+        _state.update { it.copy(activeMask = index, maskOverlay = null) }
+        requestRender(_state.value.adjustments, force = true)
+    }
+
+    /** Drawing arrives in the framed preview; store it in upright sensor coordinates. */
+    fun drawMask(points: List<MaskPoint>, radius: Float, erase: Boolean) {
+        val current = _state.value
+        val index = current.activeMask
+        if (current.busy || current.rendering || index !in current.adjustments.masks.indices || points.isEmpty()) return
+        _state.update { it.copy(rendering = true, error = null) }
+        viewModelScope.launch {
+            try {
+                val next = withContext(Dispatchers.Default) {
+                    mutex.withLock {
+                        val mask = current.adjustments.masks[index]
+                        val preview = current.preview!!
+                        val center = points.first()
+                        val offset = radius * minOf(preview.width, preview.height) / preview.width
+                        val reference = MaskPoint((center.x + if (center.x > .5f) -offset else offset).coerceIn(0f, 1f), center.y)
+                        val mapped = NativeRaw.mapPoints(handle, current.adjustments.nativeValues(),
+                            (points + reference).flatMap { listOf(it.x, it.y) }.toFloatArray())
+                            .toList().chunked(2).map { MaskPoint(it[0], it[1]) }
+                        val source = NativeRaw.dimensions(handle)
+                        val r = kotlin.math.hypot((mapped.first().x - mapped.last().x) * source[2],
+                            (mapped.first().y - mapped.last().y) * source[3]) / minOf(source[2], source[3])
+                        val path = mapped.dropLast(1)
+                        if (mask.kind == RawMaskKind.BRUSH) {
+                            require(mask.strokes.size < 64 && current.adjustments.masks.sumOf { m -> m.strokes.sumOf { it.points.size } } + path.size <= 4096) {
+                                context.getString(R.string.raw_editor_mask_limit)
+                            }
+                            mask.copy(strokes = mask.strokes + RawBrushStroke(path, r.coerceIn(.0005f, 1f), erase))
+                        } else mask.copy(start = path.first(), end = path.last())
+                    }
+                }
+                if (_state.value.adjustments == current.adjustments && _state.value.activeMask == index) {
+                    requestRender(current.adjustments.copy(masks = current.adjustments.masks.toMutableList().also { it[index] = next }), force = true)
                 }
             } catch (error: CancellationException) { throw error }
             catch (error: Exception) { fail(error) }

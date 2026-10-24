@@ -64,6 +64,11 @@ data class RawAdjustments(
     val chromaticBlue: Float = 0f,
     val defringePurple: Float = 0f,
     val defringeGreen: Float = 0f,
+    val grainAmount: Float = 0f,
+    val grainSize: Float = 3f,
+    val grainRoughness: Float = .5f,
+    val curves: RawCurves = RawCurves(),
+    val masks: List<RawMask> = emptyList(),
 ) {
     val isEdited: Boolean get() = this != RawAdjustments()
 
@@ -89,17 +94,20 @@ data class RawAdjustments(
         clarity, texture, dehaze, crop.left, crop.top, crop.right, crop.bottom,
         quarterTurns.toFloat(), straighten, vignette, vignetteMidpoint, vignetteRoundness, vignetteFeather,
         distortion, perspectiveVertical, perspectiveHorizontal, chromaticRed, chromaticBlue, defringePurple, defringeGreen,
-    )
+        grainAmount, grainSize, grainRoughness,
+    ) + creativeValues().toFloatArray()
 
     companion object {
         fun fromValues(p: FloatArray): RawAdjustments {
-            require(p.size == 16 || p.size == 29 || p.size == 36)
+            require(p.size == 16 || p.size == 29 || p.size == 36 || p.size >= 61)
             // Upgrade older sessions without changing their edits or enabling corrections.
-            if (p.size != 36) return fromValues(RawAdjustments().nativeValues().also { p.copyInto(it) })
-            return RawAdjustments(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
+            if (p.size <= 36) return fromValues(RawAdjustments().nativeValues().also { p.copyInto(it) })
+            require(p[36] in 0f..1f && p[37] in .5f..10f && p[38] in 0f..1f)
+            val base = RawAdjustments(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
                 p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15], p[16], p[17], p[18],
                 RawCrop(p[19], p[20], p[21], p[22]), p[23].toInt(), p[24], p[25], p[26], p[27], p[28],
-                p[29], p[30], p[31], p[32], p[33], p[34], p[35])
+                p[29], p[30], p[31], p[32], p[33], p[34], p[35], p[36], p[37], p[38])
+            return RawCreativeReader(p).read(base)
         }
     }
 }

@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.bondarenko.fujirecipes.data.raweditor.RawAdjustments
+import dev.bondarenko.fujirecipes.data.raweditor.*
 import dev.bondarenko.fujirecipes.data.raweditor.RawCrop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -69,7 +70,17 @@ class RawEditorHardwareTest {
             }
             assertTrue("Shadow lift must increase the image's luminance", after > before)
             snapshot(adjusted, "raw-editor-shadows.jpg")
+            val curve = RawCurve(listOf(CurvePoint(0f,0f),CurvePoint(.4f,.6f),CurvePoint(1f,1f)))
+            val brush = RawMask(RawMaskKind.BRUSH, adjustments = RawLocalAdjustments(exposure = 1f), strokes = listOf(RawBrushStroke(listOf(MaskPoint(.2f,.5f),MaskPoint(.8f,.5f)),.15f)))
+            val linear = RawMask(RawMaskKind.LINEAR, adjustments = RawLocalAdjustments(shadows = .8f))
+            val radial = RawMask(RawMaskKind.RADIAL, adjustments = RawLocalAdjustments(temperature = .7f))
             for (edits in listOf(
+                RawAdjustments(curves = RawCurves(master = curve)),
+                RawAdjustments(curves = RawCurves(red = curve)),
+                RawAdjustments(curves = RawCurves(green = curve)),
+                RawAdjustments(curves = RawCurves(blue = curve)),
+                RawAdjustments(grainAmount = .8f), RawAdjustments(grainAmount = .8f,grainSize = 7f,grainRoughness = 1f),
+                RawAdjustments(masks = listOf(brush)), RawAdjustments(masks = listOf(linear)), RawAdjustments(masks = listOf(radial)),
                 RawAdjustments(temperature = .4f), RawAdjustments(tint = -.3f),
                 RawAdjustments(contrast = .3f), RawAdjustments(whites = .4f),
                 RawAdjustments(blacks = .4f), RawAdjustments(saturation = -1f),
@@ -93,6 +104,27 @@ class RawEditorHardwareTest {
             }
             instrumentation.runOnMainSync { model.adjust(RawAdjustments()) }
             assertTrue("Reset must reproduce the profiled starting point", original.sameAs(awaitReady().preview))
+            // Exercise the actual preview-to-source drawing path after crop and rotation.
+            val drawing = RawAdjustments(quarterTurns = 1, crop = RawCrop(.1f,.2f,.9f,.8f), masks = listOf(brush.copy(strokes = emptyList())))
+            instrumentation.runOnMainSync { model.adjust(drawing) }
+            awaitReady()
+            instrumentation.runOnMainSync { model.editMasks(true) }
+            val beforeDrawing = awaitReady().preview!!
+            instrumentation.runOnMainSync { model.drawMask(listOf(MaskPoint(.3f,.4f),MaskPoint(.7f,.6f)),.1f,false) }
+            val drawn = awaitReady()
+            val stroke = drawn.adjustments.masks[0].strokes.single()
+            assertEquals(2,stroke.points.size)
+            assertTrue(stroke.radius > 0)
+            assertNotEquals(MaskPoint(.3f,.4f),stroke.points.first())
+            assertFalse(beforeDrawing.sameAs(drawn.preview))
+            assertNotNull(drawn.maskOverlay)
+            instrumentation.runOnMainSync { model.adjust(drawing.copy(masks = listOf(linear))) }
+            awaitReady()
+            instrumentation.runOnMainSync { model.drawMask(listOf(MaskPoint(.2f,.2f),MaskPoint(.8f,.8f)),.1f,false) }
+            val placed = awaitReady().adjustments
+            instrumentation.runOnMainSync { model.drawMask(listOf(MaskPoint(.2f,.2f),MaskPoint(.8f,.8f)),.1f,false) }
+            assertEquals("Drawing the same gradient must still complete rendering",placed,awaitReady().adjustments)
+            instrumentation.runOnMainSync { model.editMasks(false) }
             instrumentation.runOnMainSync {
                 model.adjust(RawAdjustments(shadows = .4f, highlights = -.3f,
                     temperature = .2f, tint = -.1f, contrast = .15f, whites = -.1f, blacks = .1f,
@@ -102,12 +134,22 @@ class RawEditorHardwareTest {
                     crop = RawCrop(.1f, .1f, .85f, .9f), quarterTurns = 1, straighten = 3.5f,
                     vignette = -.4f, vignetteMidpoint = .4f, vignetteRoundness = .3f, vignetteFeather = .7f,
                     distortion = -.3f, perspectiveVertical = .15f, perspectiveHorizontal = -.1f,
-                    chromaticRed = .4f, chromaticBlue = -.3f, defringePurple = .5f, defringeGreen = .4f))
+                    chromaticRed = .4f, chromaticBlue = -.3f, defringePurple = .5f, defringeGreen = .4f,
+                    grainAmount = .5f, grainSize = 5f, grainRoughness = .8f, curves = RawCurves(master = curve,blue = curve),
+                    masks = listOf(brush.copy(strokes = brush.strokes + RawBrushStroke(listOf(MaskPoint(.5f,.5f)),.05f,true)),linear,radial)))
             }
             val allControls = awaitReady()
             snapshot(allControls.preview!!, "raw-editor-batch.jpg")
             assertTrue("Quarter-turn must swap output orientation", (allControls.fullWidth > allControls.fullHeight) != (start.fullWidth > start.fullHeight))
-            instrumentation.runOnMainSync { model.prepareCrop() }
+            instrumentation.runOnMainSync { model.editMasks(true) }
+            val masking = awaitReady()
+            assertNotNull(masking.maskOverlay)
+            assertEquals(masking.preview!!.width,masking.maskOverlay!!.width)
+            assertEquals(masking.preview.height,masking.maskOverlay.height)
+            instrumentation.runOnMainSync { model.selectMask(1) }
+            val gradientOverlay = awaitReady().maskOverlay!!
+            assertFalse(masking.maskOverlay.sameAs(gradientOverlay))
+            instrumentation.runOnMainSync { model.editMasks(false); model.prepareCrop() }
             val cropState = awaitReady()
             val crop = cropState.cropPreview!!
             assertTrue("Crop editor must show the uncropped rendering", crop.width > allControls.preview.width && crop.height > allControls.preview.height)
@@ -155,7 +197,7 @@ class RawEditorHardwareTest {
             assertEquals(exported.adjustments, failed.adjustments)
             assertTrue(fixture.length() == input.length())
             invalid.delete()
-            Log.i("RawEditorProbe", "All control effects, reset, session restore, full export (${output.length()} bytes), and rejected replacement passed")
+            Log.i("RawEditorProbe", "Curves, grain, brush/linear/radial masks and overlays; all control effects, reset, session restore, full export (${output.length()} bytes), and rejected replacement passed")
         } finally {
             instrumentation.runOnMainSync { store.clear() }
             input.delete()

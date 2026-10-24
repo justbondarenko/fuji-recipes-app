@@ -10,6 +10,35 @@ import java.nio.file.Files
 
 class RawEditorSourceTest {
     @Test
+    fun curvesGrainAndAllMaskTypesRoundTripAndRejectMalformedPayloads() {
+        val curve = RawCurve(listOf(CurvePoint(0f,0f),CurvePoint(.3f,.15f),CurvePoint(.7f,.85f),CurvePoint(1f,1f)))
+        val masks = RawMaskKind.entries.map { kind -> RawMask(kind, inverted = true, opacity = .7f,
+            adjustments = RawLocalAdjustments(1f,.3f,-.2f,.4f,-.1f,.2f,-.3f),
+            strokes = if (kind == RawMaskKind.BRUSH) listOf(RawBrushStroke(listOf(MaskPoint(.2f,.3f),MaskPoint(.4f,.5f)),.05f),
+                RawBrushStroke(listOf(MaskPoint(.3f,.4f)),.02f,true)) else emptyList()) }
+        val edits = RawAdjustments(grainAmount = .6f, grainSize = 4f, grainRoughness = .8f,
+            curves = RawCurves(curve,curve,curve,curve), masks = masks)
+        assertEquals(edits, RawAdjustments.fromValues(edits.nativeValues()))
+        assertEquals(masks, edits.rotated(1).copy(crop = RawCrop(.1f,.1f,.9f,.9f)).masks)
+        for (length in listOf(16,29,36)) assertEquals(RawAdjustments(), RawAdjustments.fromValues(RawAdjustments().nativeValues().copyOf(length)))
+        val values = edits.nativeValues()
+        for (n in 39 until values.size) assertThrows(IllegalArgumentException::class.java) { RawAdjustments.fromValues(values.copyOf(n)) }
+        for (index in listOf(36,37,38,39,40,41,values.lastIndex)) {
+            val bad = values.copyOf().also { it[index] = Float.NaN }
+            assertThrows(IllegalArgumentException::class.java) { RawAdjustments.fromValues(bad) }
+        }
+        assertThrows(IllegalArgumentException::class.java) { edits.copy(masks = List(9) { masks.first() }).nativeValues() }
+        assertThrows(IllegalArgumentException::class.java) { RawCurve(listOf(CurvePoint(0f,0f),CurvePoint(.001f,.5f),CurvePoint(1f,1f))) }
+        var previous = 0f
+        repeat(1001) { val value = curve.sample(it/1000f); assertTrue(value >= previous && value <= 1f); previous = value }
+        assertEquals(.15f,curve.sample(.3f),.00001f)
+        assertTrue(curve.moved(1,1f,.5f).points[1].x <= .69f)
+        assertEquals(0f,curve.moved(0,.5f,.2f).points.first().x)
+        val closePoints = RawCurve(listOf(CurvePoint(0f,0f),CurvePoint(.3f,.3f),CurvePoint(.31f,.5f),CurvePoint(.32f,.7f),CurvePoint(1f,1f)))
+        assertEquals(.4f,closePoints.moved(2,.9f,.4f).points[2].y)
+    }
+
+    @Test
     fun restoresOldSessionsAndRoundTripsEffectsAndFraming() {
         val old = RawAdjustments(shadows = .4f, temperature = .2f, sharpenRadius = 1.8f)
         assertEquals(old, RawAdjustments.fromValues(old.nativeValues().copyOf(16)))
