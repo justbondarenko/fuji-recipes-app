@@ -51,6 +51,10 @@ class RawEditorLayoutTest {
         }
         fun bounds(text: String): Rect = compose.onNodeWithText(text).fetchSemanticsNode().boundsInRoot
         fun checkStable() {
+            compose.onNodeWithText("sample.RAF").assertIsDisplayed()
+            compose.onNodeWithText("RAW Editor").assertDoesNotExist()
+            compose.onNodeWithText("Open RAF").assertDoesNotExist()
+            compose.onNodeWithText("Reset").assertIsDisplayed()
             compose.onNodeWithText("Save JPEG").assertIsDisplayed()
             val save = bounds("Save JPEG")
             val shadows = bounds("Shadows")
