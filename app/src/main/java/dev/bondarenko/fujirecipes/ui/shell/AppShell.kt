@@ -21,7 +21,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -419,10 +418,78 @@ fun AppShell(
                 },
                 bottomBar = {
                     if (showChrome && !useRail && !hideBottomNavigation) {
+                        val barEditDragModifier = if (isEditMode) {
+                            Modifier.pointerInput(Unit) {
+                                awaitEachGesture {
+                                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                                    val count = currentPinned.size + 1
+                                    val slotW = if (count > 0) size.width.toFloat() / count else 0f
+                                    if (slotW <= 0f) return@awaitEachGesture
+                                    val startSlot = (down.position.x / slotW).toInt().coerceIn(0, count - 1)
+                                    if (startSlot >= currentPinned.size) return@awaitEachGesture
+
+                                    val dragged = currentPinned[startSlot]
+                                    var activeDrag = false
+                                    var accumDx = 0f
+                                    val slop = viewConfiguration.touchSlop * 0.5f
+
+                                    try {
+                                        while (true) {
+                                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                                            val change = event.changes.firstOrNull { it.id == down.id }
+                                                ?: event.changes.firstOrNull { it.pressed }
+                                            if (change == null || !change.pressed) {
+                                                if (activeDrag) {
+                                                    event.changes.forEach { it.consume() }
+                                                }
+                                                break
+                                            }
+                                            val dx = change.position.x - change.previousPosition.x
+                                            accumDx += dx
+                                            if (!activeDrag && kotlin.math.abs(accumDx) > slop) {
+                                                activeDrag = true
+                                                draggingDest = dragged
+                                                dragOffsetPx = accumDx
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            }
+                                            if (activeDrag) {
+                                                change.consume()
+                                                dragOffsetPx += dx
+                                                val pinned = currentPinned
+                                                val curIdx = pinned.indexOf(dragged)
+                                                if (curIdx >= 0) {
+                                                    if (dragOffsetPx > slotW * 0.45f && curIdx < pinned.lastIndex) {
+                                                        val mutable = pinned.toMutableList()
+                                                        mutable[curIdx] = mutable[curIdx + 1]
+                                                        mutable[curIdx + 1] = dragged
+                                                        dragOffsetPx -= slotW
+                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                        currentOnUpdatePinned(mutable)
+                                                    } else if (dragOffsetPx < -slotW * 0.45f && curIdx > 0) {
+                                                        val mutable = pinned.toMutableList()
+                                                        mutable[curIdx] = mutable[curIdx - 1]
+                                                        mutable[curIdx - 1] = dragged
+                                                        dragOffsetPx += slotW
+                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                        currentOnUpdatePinned(mutable)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } finally {
+                                        draggingDest = null
+                                        dragOffsetPx = 0f
+                                    }
+                                }
+                            }
+                        } else {
+                            Modifier
+                        }
                         NavigationBar(
-                            modifier = Modifier.onSizeChanged { barWidthPx = it.width.toFloat() },
+                            modifier = Modifier
+                                .onSizeChanged { barWidthPx = it.width.toFloat() }
+                                .then(barEditDragModifier),
                         ) {
-                            val slotWidth = if (entries.isNotEmpty()) barWidthPx / entries.size else 0f
                             entries.forEachIndexed { index, entry ->
                                 val direction = if (index % 2 == 0) 1f else -1f
                                 val dest = entry.destination
@@ -459,48 +526,6 @@ fun AppShell(
                                                 scaleX = 1.08f
                                                 scaleY = 1.08f
                                             }
-                                        }
-                                        .pointerInput(dest, isEditMode, slotWidth) {
-                                            detectDragGestures(
-                                                onDragStart = {
-                                                    draggingDest = dest
-                                                    dragOffsetPx = 0f
-                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                },
-                                                onDragEnd = {
-                                                    draggingDest = null
-                                                    dragOffsetPx = 0f
-                                                },
-                                                onDragCancel = {
-                                                    draggingDest = null
-                                                    dragOffsetPx = 0f
-                                                },
-                                                onDrag = { change, dragAmount ->
-                                                    change.consume()
-                                                    dragOffsetPx += dragAmount.x
-                                                    val pinned = currentPinned
-                                                    val currentIndex = pinned.indexOf(dest)
-                                                    if (currentIndex >= 0 && slotWidth > 0f) {
-                                                        if (dragOffsetPx > slotWidth * 0.55f && currentIndex < pinned.lastIndex) {
-                                                            val mutable = pinned.toMutableList()
-                                                            val tmp = mutable[currentIndex]
-                                                            mutable[currentIndex] = mutable[currentIndex + 1]
-                                                            mutable[currentIndex + 1] = tmp
-                                                            dragOffsetPx -= slotWidth
-                                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                            currentOnUpdatePinned(mutable)
-                                                        } else if (dragOffsetPx < -slotWidth * 0.55f && currentIndex > 0) {
-                                                            val mutable = pinned.toMutableList()
-                                                            val tmp = mutable[currentIndex]
-                                                            mutable[currentIndex] = mutable[currentIndex - 1]
-                                                            mutable[currentIndex - 1] = tmp
-                                                            dragOffsetPx += slotWidth
-                                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                            currentOnUpdatePinned(mutable)
-                                                        }
-                                                    }
-                                                },
-                                            )
                                         }
                                     else -> Modifier
                                 }
