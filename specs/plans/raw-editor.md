@@ -265,3 +265,10 @@ native processing. Pairs show both dials; Grain and Vignette show one dial with
 an accessible parameter menu above it. Selection changes no edit values, and
 individual name resets affect only the selected field. Crop is independent of
 category selection and returns to the same category after Apply or Cancel.
+
+
+Framing's aspect-ratio picker lives in the header beside rotation controls.
+It reuses FujiAnchoredMenu with scrollable, selectable Material 3 items instead
+of a horizontal chip row. Original tracks the source orientation separately
+from fixed presets with the same numerical ratio; all crop fitting and locking
+continue to use the existing sensor/output mapping.

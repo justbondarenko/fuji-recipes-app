@@ -6,7 +6,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,7 +19,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -56,6 +58,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -64,10 +67,14 @@ import androidx.compose.ui.window.DialogProperties
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.data.raweditor.RawCrop
 import dev.bondarenko.fujirecipes.data.raweditor.RawAdjustments
+import dev.bondarenko.fujirecipes.ui.common.FujiAnchoredMenu
+import dev.bondarenko.fujirecipes.ui.theme.icons.Check
+import dev.bondarenko.fujirecipes.ui.theme.icons.UnfoldMore
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.Refresh
 import dev.bondarenko.fujirecipes.ui.theme.icons.Tune
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun RawCropDialog(
     bitmap: Bitmap, initial: RawAdjustments, onDismiss: () -> Unit, onApply: (RawAdjustments) -> Unit,
@@ -77,6 +84,17 @@ internal fun RawCropDialog(
 ) {
     var crop by remember { mutableStateOf(initial.crop) }
     var ratio by remember { mutableFloatStateOf(0f) }
+    // Original and a matching fixed preset remain distinct selections.
+    var originalRatio by remember { mutableStateOf(false) }
+    var ratioMenuOpen by remember { mutableStateOf(false) }
+    val ratios = listOf(stringResource(R.string.raw_editor_crop_free) to 0f,
+        stringResource(R.string.raw_editor_crop_original) to imageAspect,
+        "1:1" to 1f, "3:2" to 1.5f, "2:3" to 2f / 3, "4:3" to 4f / 3,
+        "3:4" to .75f, "16:9" to 16f / 9, "9:16" to 9f / 16)
+    val selectedRatio = if (originalRatio) 1 else ratios.indices.first { index ->
+        index != 1 && kotlin.math.abs(ratios[index].second - ratio) < .0001f
+    }
+    val ratioDescription = stringResource(R.string.raw_editor_crop_aspect, ratios[selectedRatio].first)
     fun rotate(delta: Int) {
         val next = initial.copy(crop = crop).rotated((initial.quarterTurns + delta + 4) % 4)
         crop = next.crop
@@ -102,7 +120,40 @@ internal fun RawCropDialog(
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.raw_editor_framing), Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall)
+                    Text(stringResource(R.string.raw_editor_framing), Modifier.weight(1f), style = MaterialTheme.typography.headlineSmall,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Box {
+                        FilledTonalButton(
+                            onClick = { ratioMenuOpen = true }, enabled = geometryReady,
+                            modifier = Modifier.testTag("raw-crop-aspect-selector").semantics { contentDescription = ratioDescription },
+                        ) {
+                            Text(ratios[selectedRatio].first)
+                            Icon(FujiIcons.UnfoldMore, null, Modifier.padding(start = 8.dp))
+                        }
+                        FujiAnchoredMenu(
+                            expanded = ratioMenuOpen,
+                            onDismissRequest = { ratioMenuOpen = false },
+                            modifier = Modifier.verticalScroll(rememberScrollState()),
+                            groups = listOf({
+                                ratios.forEachIndexed { index, (name, value) ->
+                                    DropdownMenuItem(
+                                        selected = index == selectedRatio,
+                                        enabled = geometryReady,
+                                        onClick = {
+                                            ratio = value
+                                            originalRatio = index == 1
+                                            if (value > 0) crop = crop.fitAspect(value, imageAspect)
+                                            ratioMenuOpen = false
+                                        },
+                                        text = { Text(name) },
+                                        shapes = MenuDefaults.itemShape(index, ratios.size),
+                                        selectedLeadingIcon = { Icon(FujiIcons.Check, null) },
+                                        colors = MenuDefaults.selectableItemVibrantColors(),
+                                    )
+                                }
+                            }),
+                        )
+                    }
                     FilledTonalIconButton(onClick = { rotate(-1) }) {
                         Icon(FujiIcons.Refresh, stringResource(R.string.raw_editor_rotate_left), Modifier.graphicsLayer { scaleX = -1f })
                     }
@@ -187,21 +238,9 @@ internal fun RawCropDialog(
                 val controls: @Composable (Modifier) -> Unit = { modifier ->
                     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            val ratios = listOf(stringResource(R.string.raw_editor_crop_free) to 0f,
-                                stringResource(R.string.raw_editor_crop_original) to imageAspect,
-                                "1:1" to 1f, "3:2" to 1.5f, "2:3" to 2f / 3, "4:3" to 4f / 3,
-                                "3:4" to .75f, "16:9" to 16f / 9, "9:16" to 9f / 16)
-                            ratios.forEach { (name, value) ->
-                                FilterChip(selected = ratio == value, enabled = geometryReady, onClick = {
-                                    ratio = value
-                                    if (value > 0) crop = crop.fitAspect(value, imageAspect)
-                                }, label = { Text(name) })
-                            }
-                        }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
-                            TextButton(onClick = { crop = RawCrop(); ratio = 0f; onAdjust(initial.rotated(0).copy(crop = RawCrop(), straighten = 0f)) }) { Text(stringResource(R.string.raw_editor_reset)) }
+                            TextButton(onClick = { crop = RawCrop(); ratio = 0f; originalRatio = false; onAdjust(initial.rotated(0).copy(crop = RawCrop(), straighten = 0f)) }) { Text(stringResource(R.string.raw_editor_reset)) }
                             Button(onClick = { onApply(initial.copy(crop = crop)) }, enabled = geometryReady) { Text(stringResource(R.string.raw_editor_crop_apply)) }
                         }
                     }

@@ -18,10 +18,14 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isPopup
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -91,6 +95,11 @@ class RawEditorLayoutTest {
             "Red/Cyan" -> R.string.raw_editor_chromatic_red
             else -> R.string.raw_editor_chromatic_blue
         }
+    }
+
+    private fun selectCropRatio(name: String) {
+        compose.onNodeWithTag("raw-crop-aspect-selector").performClick()
+        compose.onNode(hasText(name) and hasAnyAncestor(isPopup())).performScrollTo().performClick()
     }
 
     @Test
@@ -168,15 +177,26 @@ class RawEditorLayoutTest {
             compose.onNodeWithText("Cancel").performClick()
             compose.runOnIdle { assertEquals(original,state.adjustments); assertEquals(null,state.cropPreview) }
             compose.onNodeWithTag("raw-editor-crop").assertIsDisplayed().performClick()
-            compose.onNodeWithText("3:2").performScrollTo().performClick()
+            compose.onNodeWithTag("raw-crop-aspect-selector").assertTextContains("Free")
+            compose.onNodeWithText("1:1").assertDoesNotExist()
+            for (preset in listOf("9:16", "16:9", "Original")) {
+                selectCropRatio(preset)
+                compose.onNodeWithTag("raw-crop-aspect-selector").assertTextContains(preset)
+                compose.onNodeWithText("1:1").assertDoesNotExist()
+            }
             compose.onNodeWithContentDescription("Rotate right 90°").performClick()
-            compose.onNodeWithText("2:3").assertIsSelected()
+            compose.onNodeWithTag("raw-crop-aspect-selector").assertTextContains("Original")
+            compose.onNodeWithContentDescription("Rotate left 90°").performClick()
+            selectCropRatio("3:2")
+            compose.onNodeWithTag("raw-crop-aspect-selector").assertTextContains("3:2")
+            compose.onNodeWithContentDescription("Rotate right 90°").performClick()
+            compose.onNodeWithTag("raw-crop-aspect-selector").assertTextContains("2:3")
             compose.runOnIdle { state = state.copy(cropRendering = true) }
-            compose.onNodeWithText("1:1").assertIsNotEnabled()
+            compose.onNodeWithTag("raw-crop-aspect-selector").assertIsNotEnabled()
             compose.onNodeWithText("Apply crop").assertIsNotEnabled()
             compose.runOnIdle { state = state.copy(cropRendering = false) }
             compose.onNodeWithContentDescription("Straighten").performSemanticsAction(SemanticsActions.SetProgress) { it(-4.5f) }
-            compose.onNodeWithText("1:1").performScrollTo().performClick()
+            selectCropRatio("1:1")
             compose.onNodeWithText("Apply crop").performClick()
             compose.runOnIdle {
                 assertEquals(1,state.adjustments.quarterTurns)
@@ -629,12 +649,13 @@ class RawEditorLayoutTest {
         }
         compose.onNodeWithText("Apply crop").performClick()
         compose.runOnIdle { assertTrue(result!!.left > .2f); assertEquals(.6f, result!!.width, .0001f) }
-        compose.onNodeWithText("1:1").performScrollTo().performClick()
+        selectCropRatio("1:1")
         compose.onNodeWithTag("raw-crop-preview").performCustomAccessibilityActionWithLabel("Make crop smaller")
         compose.onNodeWithTag("raw-crop-preview").performCustomAccessibilityActionWithLabel("Move crop left")
         compose.onNodeWithText("Apply crop").performClick()
         compose.runOnIdle { assertEquals(1f, result!!.width / result!!.height * 2f, .0001f) }
         compose.onNodeWithText("Reset").performClick()
+        compose.onNodeWithTag("raw-crop-aspect-selector").assertTextContains("Free")
         compose.onNodeWithText("Apply crop").performClick()
         compose.runOnIdle { assertEquals(RawCrop(), result) }
         compose.onNodeWithText("Cancel").performClick()

@@ -24,6 +24,7 @@ simulation color profile remains the default starting point.
 - [x] Requested Light, Color, Details, Curves, Effects, and Optics group/option order and icons.
 - [x] Independent paired sliders; parameter selector above one dial for Grain and Vignette.
 - [x] Persistent bottom-right preview Crop button, with no Framing category.
+- [x] Compact Material 3 aspect-ratio menu beside rotation controls, replacing the chip row.
 
 ## First batch — authorized
 
@@ -345,3 +346,18 @@ framing from the persistent preview button. The updated debug APK is installed; 
 also visually checked with the real DSCF3979.RAF open on the phone.
 Lint remains blocked only by the pre-existing LocalContextGetResourceValueCall
 error at SlotDetailSheet.kt:332.
+
+
+Crop ratio menu (2026-10-25): a single header control shows the current preset
+and opens the existing app-wide Material 3 menu. Free, Original, square,
+landscape, and portrait presets remain available, with a selected checkmark.
+The menu scrolls within short windows; selecting an item closes it. Original
+remains distinct from an equal fixed ratio, fixed presets follow quarter-turn
+rotation, and Reset returns to Free. The chip row below the photo is removed.
+
+
+Verified on 2026-10-25: the APK builds and all nine SM-F976B UI checks pass
+in 26 seconds. Crop checks cover scrolling to portrait/wide presets, selected
+preset labels, Original remaining distinct from a matching fixed ratio,
+rotation updating fixed ratio orientation, disabled selection during pending
+rendering, Reset to Free, and Apply/Cancel in compact and wide layouts.
