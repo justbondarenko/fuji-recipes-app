@@ -57,6 +57,7 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.Info
 import dev.bondarenko.fujirecipes.ui.theme.icons.KeyboardArrowRight
 import dev.bondarenko.fujirecipes.ui.theme.icons.LinkedCamera
+import dev.bondarenko.fujirecipes.ui.theme.icons.Tune
 
 /**
  * More — everything the app can do to the library that is not a preference.
@@ -72,6 +73,7 @@ fun MoreScreen(
     onOpenAbout: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
+    onOpenRawEditor: () -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -86,6 +88,14 @@ fun MoreScreen(
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
+        )
+
+        SettingsCard(
+            title = stringResource(R.string.raw_editor_title),
+            subtitle = stringResource(R.string.raw_editor_subtitle),
+            icon = FujiIcons.Tune,
+            onClick = onOpenRawEditor,
+            showChevron = true,
         )
 
         SectionHeader(stringResource(R.string.settings_maintenance))
@@ -333,8 +343,10 @@ fun MoreRouteContent(
     onOpenExport: () -> Unit,
     onOpenAbout: () -> Unit,
     contentPadding: PaddingValues,
+    onOpenRawEditor: () -> Unit,
 ) {
     MoreScreen(
+        onOpenRawEditor = onOpenRawEditor,
         onOpenCleanup = onOpenCleanup,
         onOpenImport = onOpenImport,
         onOpenFileImport = onOpenFileImport,

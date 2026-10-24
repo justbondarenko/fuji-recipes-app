@@ -27,6 +27,7 @@
   - [Browse and Download Photos](#browse-and-download-photos)
   - [Analyze JPEGs from the Camera](#analyze-jpegs-from-the-camera)
   - [Develop a RAW in the Camera](#develop-a-raw-in-the-camera)
+  - [Edit a RAW on the Phone](#edit-a-raw-on-the-phone)
   - [Custom Slots and Camera Tools](#custom-slots-and-camera-tools)
 - [🧪 Testing & Feedback](#-testing--feedback)
 - [🛠️ Building & Developing](#️-building--developing)
@@ -205,6 +206,22 @@ The RAF is always uploaded from the phone: RAW Conversion mode accepts a RAF as 
 
 RAW recipe mapping is deliberately model-specific. The verified X-T50 adapter applies film simulation, exposure compensation, dynamic range, grain, Color Chrome effects, white balance and shift, Kelvin temperature, highlight/shadow tone, color, sharpness, high-ISO noise reduction, and clarity. Camera-native fields without a verified recipe mapping are preserved. An unknown profile is captured for calibration and conversion stops before the app guesses at its layout.
 
+### Edit a RAW on the Phone
+
+Open **More → RAW Editor → Open RAF**. The editor decodes the sensor data on the phone,
+reads the recorded film simulation, and applies its camera-matching color profile and
+as-shot white balance before the first editable preview. Adjust exposure, shadows, and
+highlights; **Reset** restores that starting point. **Compare camera JPEG** shows the
+original embedded camera image separately. **Save JPEG** develops the original RAW at
+its full active resolution and writes a new file to a destination you choose.
+
+The eleven color simulations are supported. Monochrome variants and unknown simulations
+are reported as unsupported; the editor never silently substitutes an unprofiled rendering.
+The profiles supply the film-simulation color look, not the complete camera engine:
+grain, Color Chrome, and the other recipe effects are not reproduced. No camera connection
+or network is needed, and the original RAF is never modified. Lab remains the option for
+camera-engine development. See [the pipeline and verification notes](specs/plans/raw-editor.md).
+
 ### Custom Slots and Camera Tools
 
 > 📱 See it: [custom slots](screenshots/README.md#-camera-connection--custom-slots) · [More tab](screenshots/README.md#-maintenance--tools)
@@ -233,6 +250,7 @@ Any feedback, bug reports, and compatibility test results are welcome!
 - **Android Studio** Ladybug (2024.2.1+) or newer
 - **JDK 17** (or Android Studio bundled JBR)
 - **Android SDK Platform 37** (`compileSdk = 37`, `minSdk = 29`)
+- **NDK 28.2.13676358 and CMake 3.22.1**, installed automatically by Gradle with accepted SDK licenses
 - An Android device with USB Host mode support (API 29+ / Android 10+)
 
 ### Clone & Build
@@ -243,6 +261,9 @@ cd fuji-recipes-app
 
 # Run all unit tests
 ./gradlew testDebugUnitTest
+
+# Check native color processing and every bundled film-simulation LUT
+sh scripts/check-raw-color.sh
 
 # Assemble debug APK
 ./gradlew :app:assembleDebug
@@ -297,6 +318,20 @@ This project is built using fantastic open-source libraries, tools, and research
 - [AndroidX DataStore](https://developer.android.com/topic/libraries/architecture/datastore) — Reactive key-value storage.
 - [Google Fonts Material Symbols Rounded](https://fonts.google.com/icons) — Clean iconography.
 - [Turbine](https://github.com/cashapp/turbine) & [JUnit](https://junit.org/) — Flow testing and unit testing.
+
+### RAW Decoder and Color Profiles
+
+[LibRaw 0.22.2](https://github.com/LibRaw/LibRaw/tree/0.22.2) is used under
+[CDDL 1.0](app/src/main/assets/licenses/LibRaw-CDDL.txt). Its unmodified source archive is
+bundled in `app/src/main/cpp/vendor/` and verified by SHA-256 during the native build.
+
+The film-simulation LUTs are from [abpy/FujifilmCameraProfiles](https://github.com/abpy/FujifilmCameraProfiles/tree/b5a1f16abfb2759b337c83d69d9dc49470e7e518),
+under [CC BY-NC-SA 4.0](app/src/main/assets/licenses/Profiles-CC-BY-NC-SA-4.0.txt).
+The sRGB `.cube` files are unchanged apart from lossless gzip compression. These assets
+retain their own attribution, noncommercial, and share-alike terms; the app code's MIT
+license does not cover them. Photos created with them remain the user's own work.
+The upstream README and licenses are bundled in the app's assets, with source and license
+links available from **RAW Editor → About color profiles**.
 
 ### Camera Protocol & Reverse-Engineering Research
 - [**filmkit** (`eggricesoy/filmkit`)](https://github.com/eggricesoy/filmkit) (MIT License) — Research on Fujifilm PTP property ranges, parameter encoding, and custom slot codes.
