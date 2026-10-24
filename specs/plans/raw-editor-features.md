@@ -17,6 +17,8 @@ simulation color profile remains the default starting point.
 - [x] Double-tap any parameter name to reset only that adjustment, including
   inactive detail controls. Radius resets to 1 px and Preserve detail to 50%.
 - [x] Screen-reader custom actions for individual reset and JPEG comparison.
+- [x] Interactive sensor RAW preview while dragging, with automatic settled refinement.
+- [x] Fine dial movements accumulate before rounding to parameter steps.
 - [x] Full-resolution JPEG export through the document picker.
 - [x] Discard confirmation and stable progress/comparison layouts.
 
@@ -177,3 +179,38 @@ an interior point to delete. Visible input/output, previous/next, and add/remove
 controls are removed; screen-reader graph actions retain equivalent operations.
 All four phone UI checks pass in 14 seconds, including fast drags from the initial
 finger-down position and deletion without affecting another color channel.
+
+Preview responsiveness improved on 2026-10-24. The prior 120 ms restarting
+preview debounce delivered zero frames during a continuous exposure drag on the
+wireless SM-F976B; the first frame appeared after 2484 ms. The renderer now takes
+the latest pending settings, displays completed drafts while input continues,
+and refines after 160 ms idle. Normal edits use an 800 px sensor preview; active
+detail filters use 400 px. Settled previews remain 1600 px and JPEG exports still
+decode the original RAW at full active resolution. Tick dials also retain small
+movement fractions instead of rounding them away on every event.
+
+On the same landscape DSCF3946.RAF, the final exposure check starts at 58 ms and
+shows 34 frames during the roughly two-second drag; effects plus a radial mask
+start at 53 ms and show 37 frames. Native rendering is 56 ms at 800 × 533 for
+exposure, compared with 226 ms at 1600 × 1066; the effects draft takes 52 ms at
+400 × 266, compared with 954 ms at 1600 × 1066. Portrait DSCF3979.RAF starts at
+61/54 ms and shows 33/36 exposure/effects frames, then refines to 1066 × 1600.
+Final refinement takes roughly 0.4 s for exposure and 1.1–1.2 s with the combined
+effects; the adjusted draft is displayed during that work. This remains a CPU
+renderer rather than a guaranteed 60 fps engine.
+
+All 732 JVM tests and native checks pass, including odd-sized sensor averaging.
+Real-RAF checks verify both preview scales, matching mask overlays, latest saved
+settings after rapid input, exact settled-preview restoration, reset, rejected
+replacement safety, and full-resolution framed JPEG export. The final portrait
+hardware run passes both tests in 88 seconds, exporting at 4920 × 3496. Landscape
+full export was also verified with the preview worker. Test RAFs available here
+are compressed 40 MP files of 41.5 and 42.0 MB; an 80 MB file was not available.
+After opening, preview rendering uses fixed-size caches without reading the RAF.
+Five phone UI tests pass in 16 seconds, including slow sub-step dial movement,
+compact/wide layouts, curve gestures, individual resets, and camera comparison.
+Full lint still has only the existing SlotDetailSheet.kt:332 error; no RAW Editor
+lint errors were introduced.
+The final portrait JPEG is byte-for-byte identical to the saved pre-optimization
+export from the curves/grain/masks delivery: both have SHA-256
+`abda171f57d299bc99e55f864285b160a2843544ec577b7effef5d801928e7dc`.

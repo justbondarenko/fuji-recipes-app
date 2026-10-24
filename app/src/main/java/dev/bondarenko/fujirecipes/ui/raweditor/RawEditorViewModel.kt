@@ -23,10 +23,10 @@ import dev.bondarenko.fujirecipes.data.raweditor.readRafPreview
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -71,7 +71,10 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
     private var handle = 0L
     private var sourceFile: File? = null
     private val closed = AtomicBoolean(false)
-    private var renderJob: Job? = null
+    private data class PreviewRequest(val edits: RawAdjustments, val mask: Int?, val generation: Int, val sequence: Int)
+    private val previewRequests = MutableStateFlow<PreviewRequest?>(null)
+    private var previewSequence = 0
+    private var sourceGeneration = 0
     private var pendingExport: RawAdjustments? = null
     private val initialEdits = saved.get<FloatArray>("adjustments")?.let(RawAdjustments::fromValues)
         ?: RawAdjustments(saved["exposure"] ?: 0f, saved["shadows"] ?: 0f, saved["highlights"] ?: 0f)
@@ -79,12 +82,30 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
     val state = _state.asStateFlow()
 
     init {
+        // ponytail: one CPU renderer; add native cancellation/GPU only if draft latency needs it.
+        // Conflate pending settings while still showing each completed draft.
+        viewModelScope.launch {
+            previewRequests.collect { request ->
+                if (request == null) return@collect
+                try {
+                    renderPreview(request, draft = true)
+                    val superseded = withTimeoutOrNull(160) {
+                        previewRequests.first { it != request }
+                        true
+                    }
+                    if (superseded != true) renderPreview(request, draft = false)
+                } catch (error: CancellationException) { throw error }
+                catch (error: Exception) { if (previewRequests.value == request) fail(error) }
+                catch (_: OutOfMemoryError) { if (previewRequests.value == request) failMemory() }
+            }
+        }
         saved.get<String>("uri")?.let { open(Uri.parse(it), initialEdits) }
     }
 
     fun open(uri: Uri, edits: RawAdjustments = RawAdjustments()) {
         if (_state.value.busy) return
-        renderJob?.cancel()
+        sourceGeneration++
+        previewRequests.value = null
         _state.update { it.copy(busy = true, rendering = false, error = null) }
         viewModelScope.launch {
             var imported: File? = null
@@ -146,33 +167,32 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
 
     private fun requestRender(edits: RawAdjustments, force: Boolean = false) {
         if (_state.value.busy || handle == 0L || (!force && _state.value.adjustments == edits)) return
-        val selectedMask = _state.value.activeMask
-        val overlayOpen = _state.value.maskEditorOpen
         rememberEdits(edits)
         _state.update { it.copy(adjustments = edits, rendering = true, error = null) }
-        renderJob?.cancel()
-        renderJob = viewModelScope.launch {
-            delay(120)
-            try {
-                val bitmap = withContext(Dispatchers.Default) {
-                    mutex.withLock {
-                        ensureActive()
-                        val preview = renderBitmap(handle, edits, false)
-                        val overlay = if (overlayOpen && selectedMask in edits.masks.indices) {
-                            Bitmap.createBitmap(preview.width, preview.height, Bitmap.Config.ARGB_8888).also {
-                                NativeRaw.maskOverlay(handle, it, edits.nativeValues(), selectedMask)
-                            }
-                        } else null
-                        Triple(preview, NativeRaw.outputDimensions(handle, edits.nativeValues(), true), overlay)
+        previewRequests.value = PreviewRequest(edits, _state.value.activeMask.takeIf { _state.value.maskEditorOpen }, sourceGeneration, ++previewSequence)
+    }
+
+    private suspend fun renderPreview(request: PreviewRequest, draft: Boolean) {
+        val result = withContext(Dispatchers.Default) {
+            mutex.withLock {
+                ensureActive()
+                if (previewRequests.value != request || request.generation != sourceGeneration || _state.value.busy) return@withLock null
+                val parameters = request.edits.nativeValues()
+                val preview = renderBitmap(handle, request.edits, false, draft)
+                val overlay = if (request.mask != null && request.mask in request.edits.masks.indices && _state.value.maskEditorOpen) {
+                    Bitmap.createBitmap(preview.width, preview.height, Bitmap.Config.ARGB_8888).also {
+                        NativeRaw.maskOverlay(handle, it, parameters, request.mask, draft)
                     }
-                }
-                if (_state.value.adjustments == edits) _state.update {
-                    it.copy(preview = bitmap.first, fullWidth = bitmap.second[0], fullHeight = bitmap.second[1], rendering = false,
-                        maskOverlay = if (it.maskEditorOpen && it.activeMask == selectedMask) bitmap.third else null)
-                }
-            } catch (error: CancellationException) { throw error }
-            catch (error: Exception) { fail(error) }
-            catch (_: OutOfMemoryError) { failMemory() }
+                } else null
+                Triple(preview, NativeRaw.outputDimensions(handle, parameters, true), overlay)
+            }
+        } ?: return
+        val latest = previewRequests.value ?: return
+        if (request.generation != sourceGeneration || _state.value.busy || (!draft && latest != request)) return
+        _state.update {
+            it.copy(preview = result.first, fullWidth = result.second[0], fullHeight = result.second[1],
+                rendering = draft || latest != request,
+                maskOverlay = if (it.maskEditorOpen && it.activeMask == request.mask) result.third else null)
         }
     }
 
@@ -191,6 +211,7 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
         val current = _state.value
         val index = current.activeMask
         if (current.busy || current.rendering || index !in current.adjustments.masks.indices || points.isEmpty()) return
+        previewRequests.value = null
         _state.update { it.copy(rendering = true, error = null) }
         viewModelScope.launch {
             try {
@@ -255,7 +276,7 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
         val edits = pendingExport ?: return
         pendingExport = null
         if (uri == null || _state.value.busy || handle == 0L) return
-        renderJob?.cancel()
+        previewRequests.value = null
         _state.update { it.copy(busy = true, rendering = false, error = null) }
         viewModelScope.launch {
             try {
@@ -285,11 +306,12 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
         }
     }
 
-    private fun renderBitmap(nativeHandle: Long, edits: RawAdjustments, full: Boolean): Bitmap {
-        val dimensions = NativeRaw.outputDimensions(nativeHandle, edits.nativeValues(), full)
+    private fun renderBitmap(nativeHandle: Long, edits: RawAdjustments, full: Boolean, draft: Boolean = false): Bitmap {
+        val parameters = edits.nativeValues()
+        val dimensions = NativeRaw.outputDimensions(nativeHandle, parameters, full, draft)
         val bitmap = Bitmap.createBitmap(dimensions[0], dimensions[1], Bitmap.Config.ARGB_8888)
         try {
-            NativeRaw.render(nativeHandle, bitmap, edits.nativeValues(), full)
+            NativeRaw.render(nativeHandle, bitmap, parameters, full, draft)
             return bitmap
         } catch (error: Throwable) {
             bitmap.recycle()

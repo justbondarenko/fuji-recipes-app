@@ -19,7 +19,10 @@ camera-matching color profiles, not Fujifilm's complete proprietary renderer. Gr
 Chrome, the camera's sharpening/NR settings, clarity, automatic lens corrections, and the other recipe
 effects are not replicated. Independent sharpening and NR controls are available in Detail.
 
-Previews use half-size demosaicing and a 1600-pixel long edge. Export reopens the original
+Previews use half-size demosaicing and retain linear sensor samples at a 1600-pixel
+long edge. Slider edits first render an 800-pixel draft (400 pixels with detail filters),
+then refine to 1600 after
+160 ms without a newer request. Export reopens the original
 RAF and demosaics at the full active crop, with the same profile and adjustments. It writes
 a completed JPEG in private cache before copying it to the user-selected SAF document.
 Exposure is ±3 EV; shadows and highlights provide a weighted ±2 EV adjustment. Clipped
@@ -160,3 +163,30 @@ holds 256 sampled points, with 4096 points total per image. The UI bounds tempor
 stroke feedback too and reports reaching the stored-point limit without losing
 edits. Grain, curves, and masks persist in a versioned, bounded float payload;
 old sixteen-, twenty-nine-, and thirty-six-value sessions upgrade unchanged.
+
+
+Preview responsiveness uses a single StateFlow consumer with conflated requests.
+A completed draft is displayed even while a newer adjustment is pending; only the
+latest settings get the settled refinement. This replaces the previous 120 ms
+restart-on-every-change debounce, which could suppress every frame during a drag
+and discard native renders that had already done their work. Opening a different
+RAF or starting export invalidates preview requests; source generations prevent
+an old photo's result from replacing the current one. Errors from superseded
+requests do not override the newest state.
+
+The 800-pixel draft contains one quarter of the retained preview's pixels (about
+0.43 MP for an X-T50 3:2 shot). When detail filters are enabled, a 400-pixel draft
+keeps their neighborhood processing responsive (about 0.11 MP). All levels
+contain averaged linear sensor RGB, then use the same camera WB, matrix, simulation profile, and edit pipeline.
+None of the preview levels edits the embedded JPEG. The smaller caches are built once when the
+RAF opens; sliders perform no RAW file reads or demosaicing. Detail radii and mask
+overlays use the current preview scale; settled masks and export retain the
+1600-pixel coverage grid. Export explicitly rejects draft mode and decodes the
+original RAF at full active resolution, applying the saved crop and all edits.
+The CPU renderer still finishes an in-flight frame before taking newer settings;
+GPU processing or native interruption is deferred unless measurements require it.
+
+Tick dials accumulate an unsnapped value during a gesture and round only the
+emitted parameter. Previously, repeated sub-step movements rounded back to the
+same value and were lost, making slow exposure or color adjustments feel stuck.
+This fix applies to every global and mask dial through the shared component.
