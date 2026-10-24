@@ -76,4 +76,4 @@ Plan: `specs/plans/raw-development-lab.md`.
 - [x] Bottom Bar Drag: Maintain local list and absolute finger tracking so dragged item stays exactly under finger
 - [x] Bottom Bar Drag: Eliminate jumping left/right during reordering across slot boundaries
 - [x] Verification: Unit tests & build
-- [ ] Git commit (unsigned) & push to raw-editor
+- [x] Git commit (unsigned) & push to raw-editor
