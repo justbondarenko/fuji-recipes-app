@@ -51,6 +51,11 @@ import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 
 import android.net.Uri
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import dev.bondarenko.fujirecipes.core.settings.NavDestinationId
+import dev.bondarenko.fujirecipes.core.settings.StoredUiPreferences
+import dev.bondarenko.fujirecipes.ui.nav.toNavDestinationId
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private var sharedPhotoUri by mutableStateOf<String?>(null)
@@ -201,6 +206,11 @@ private fun FujiApp(
          * happens to look busy: the editor owns its own bottom bar (FEAT-002), and subpages
          * have their own top app bar.
          */
+        val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
+        val uiPrefs by container.uiPreferences.preferences.collectAsStateWithLifecycle(initialValue = StoredUiPreferences())
+        val pinnedDestinations = uiPrefs.pinnedNavIds
+        val coroutineScope = rememberCoroutineScope()
+
         val onEditor = destination?.hasRoute<RecipeEditorRoute>() == true
         val onRawEditor = destination?.hasRoute<RawEditorRoute>() == true
         // The view screen carries its own top bar and back affordance, and a bottom nav
@@ -214,12 +224,16 @@ private fun FujiApp(
         val onSettings = destination?.hasRoute<SettingsRoute>() == true
         val onLab = destination?.hasRoute<RawLabRoute>() == true
         // Developing a RAF takes the whole screen; the lab's own header carries the way back.
-        val labState by (LocalContext.current.applicationContext as FujiRecipesApp).container.rawLabWorkspace.state
-            .collectAsStateWithLifecycle()
+        val labState by container.rawLabWorkspace.state.collectAsStateWithLifecycle()
+        var rawEditorActive by remember { mutableStateOf(false) }
         var libraryDetailOpen by remember { mutableStateOf(false) }
         val onLibrary = destination?.hasRoute<LibraryRoute>() == true
-        val showChrome = !onEditor && !onRawEditor && !onRecipeView && !onImport && !onFileImport &&
-            !onExport && !onCleanup && !onSettings && !(onLab && labState.hasRaf)
+        val currentDestId = destination.toNavDestinationId()
+        val isCurrentPinned = currentDestId != null && currentDestId in pinnedDestinations
+
+        val hideSubpageChrome = (!isCurrentPinned && (onRawEditor || onImport || onFileImport || onExport || onCleanup))
+        val showChrome = !onEditor && !onRecipeView && !onSettings && !hideSubpageChrome &&
+            !(onLab && labState.hasRaf) && !(onRawEditor && rawEditorActive)
 
         // Not a route: the dialog and the sheet behind it are ways of *starting* the editor,
         // and giving either a destination of its own would put a half-made choice in the back
@@ -240,7 +254,25 @@ private fun FujiApp(
 
         val isMoreSelected = destination?.hasRoute<MoreRoute>() == true ||
             destination?.hasRoute<AboutRoute>() == true ||
-            destination?.hasRoute<DisclaimerRoute>() == true
+            destination?.hasRoute<DisclaimerRoute>() == true ||
+            (currentDestId != null && currentDestId !in pinnedDestinations)
+
+        val navigateToDestination: (NavDestinationId) -> Unit = { dest ->
+            when (dest) {
+                NavDestinationId.LIBRARY -> navController.navigate(LibraryRoute) {
+                    popUpTo(LibraryRoute) { inclusive = true }
+                    launchSingleTop = true
+                }
+                NavDestinationId.ANALYZE -> navController.navigate(PhotoRoute()) { launchSingleTop = true }
+                NavDestinationId.LAB -> navController.navigate(RawLabRoute()) { launchSingleTop = true }
+                NavDestinationId.PHOTOS -> navController.navigate(CameraPhotosRoute) { launchSingleTop = true }
+                NavDestinationId.RAW_EDITOR -> navController.navigate(RawEditorRoute()) { launchSingleTop = true }
+                NavDestinationId.CLEANUP -> navController.navigate(CleanupRoute) { launchSingleTop = true }
+                NavDestinationId.IMPORT_CAMERA -> navController.navigate(ImportRoute) { launchSingleTop = true }
+                NavDestinationId.IMPORT_FILE -> navController.navigate(FileImportRoute) { launchSingleTop = true }
+                NavDestinationId.EXPORT -> navController.navigate(ExportRoute) { launchSingleTop = true }
+            }
+        }
 
         CompositionLocalProvider(LocalCameraSheetOpener provides { cameraSheetOpen = true }) {
             // The sheet is drawn over the shell rather than inside it: a modal covers the
@@ -249,28 +281,27 @@ private fun FujiApp(
                 AppShell(
                     showChrome = showChrome,
                     hideBottomNavigation = onLibrary && libraryDetailOpen,
-                    isLibrarySelected = destination?.hasRoute<LibraryRoute>() == true,
+                    isLibrarySelected = onLibrary,
                     isReadSelected = destination?.hasRoute<PhotoRoute>() == true,
                     isLabSelected = onLab,
                     isCameraPhotosSelected = destination?.hasRoute<CameraPhotosRoute>() == true,
                     isMoreSelected = isMoreSelected,
-                    onLibraryClick = {
-                        navController.navigate(LibraryRoute) {
-                            popUpTo(LibraryRoute) { inclusive = true }
-                            launchSingleTop = true
-                        }
-                    },
-                    onReadClick = { navController.navigate(PhotoRoute()) { launchSingleTop = true } },
-                    // No recipe id: the bar opens the lab as it was left, rather than
-                    // reseeding it with whatever recipe happened to open it last.
-                    onLabClick = { navController.navigate(RawLabRoute()) { launchSingleTop = true } },
-                    onCameraPhotosClick = {
-                        navController.navigate(CameraPhotosRoute) { launchSingleTop = true }
-                    },
+                    onLibraryClick = { navigateToDestination(NavDestinationId.LIBRARY) },
+                    onReadClick = { navigateToDestination(NavDestinationId.ANALYZE) },
+                    onLabClick = { navigateToDestination(NavDestinationId.LAB) },
+                    onCameraPhotosClick = { navigateToDestination(NavDestinationId.PHOTOS) },
                     onMoreClick = {
                         navController.navigate(MoreRoute) {
                             popUpTo(MoreRoute) { inclusive = true }
                             launchSingleTop = true
+                        }
+                    },
+                    pinnedDestinations = pinnedDestinations,
+                    selectedDestination = currentDestId,
+                    onDestinationClick = navigateToDestination,
+                    onUpdatePinnedDestinations = { updated ->
+                        coroutineScope.launch {
+                            container.uiPreferences.setPinnedNavIds(updated)
                         }
                     },
                     onCreateClick = { creating = true },
@@ -278,7 +309,7 @@ private fun FujiApp(
                     railBottomAction = { CameraSheetButtonHost() },
                     // Compact library/Lab pages carry their own camera trigger. The shell
                     // moves this shared action into the rail on wider windows.
-                    topBarAction = if (destination?.hasRoute<LibraryRoute>() == true || onLab) {
+                    topBarAction = if (onLibrary || onLab || onRawEditor || onCleanup || onImport || onFileImport || onExport) {
                         null
                     } else {
                         { CameraSheetButtonHost() }
@@ -289,6 +320,8 @@ private fun FujiApp(
                         contentPadding = contentPadding,
                         onLibrarySelectionChange = { librarySelecting = it },
                         onLibraryDetailChange = { libraryDetailOpen = it },
+                        onRawEditorActiveChange = { rawEditorActive = it },
+                        pinnedDestinations = pinnedDestinations,
                     )
                 }
 
