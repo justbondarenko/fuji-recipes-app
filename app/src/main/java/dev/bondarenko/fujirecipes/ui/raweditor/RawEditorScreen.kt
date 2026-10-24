@@ -394,7 +394,15 @@ fun RawEditorScreen(
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
 
-                            // 2. Circular Icon Carousel + Contextual Action Pills
+                            // 2. Tick-Mark Dial for Active Parameter (placed above icons)
+                            RawTickDial(
+                                param = active,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp),
+                            )
+
+                            // 3. Circular Icon Carousel + Contextual Action Pills
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -429,14 +437,6 @@ fun RawEditorScreen(
                                     )
                                 }
                             }
-
-                            // 3. Tick-Mark Dial for Active Parameter
-                            RawTickDial(
-                                param = active,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 20.dp),
-                            )
 
                             // 4. Secondary Category Tabs at Bottom
                             SecondaryScrollableTabRow(
@@ -516,15 +516,15 @@ private fun RawParamCircle(
     val currentParam by rememberUpdatedState(param)
     val currentOnSelect by rememberUpdatedState(onSelect)
 
-    val containerColor = if (selected) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerHigh
+    val containerColor = when {
+        selected -> MaterialTheme.colorScheme.primary
+        param.isEdited -> MaterialTheme.colorScheme.secondaryContainer
+        else -> MaterialTheme.colorScheme.surfaceContainerHigh
     }
-    val contentColor = if (selected) {
-        MaterialTheme.colorScheme.onPrimary
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
+    val contentColor = when {
+        selected -> MaterialTheme.colorScheme.onPrimary
+        param.isEdited -> MaterialTheme.colorScheme.onSecondaryContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
     Column(
