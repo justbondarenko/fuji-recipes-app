@@ -18,11 +18,11 @@ simulation color profile remains the default starting point.
   inactive detail controls. Radius resets to 1 px and Preserve detail to 50%.
 - [x] Screen-reader custom actions for individual reset and JPEG comparison.
 - [x] Interactive sensor RAW preview while dragging, with automatic settled refinement.
-- [x] Fine dial movements accumulate before rounding to parameter steps.
+- [x] Material 3 XS sliders with precision-matched steps, floating value indicators, and fine dragging.
 - [x] Full-resolution JPEG export through the document picker.
 - [x] Discard confirmation and stable progress/comparison layouts.
 - [x] Requested Light, Color, Details, Curves, Effects, and Optics group/option order and icons.
-- [x] Independent paired sliders; parameter selector above one dial for Grain and Vignette.
+- [x] Independent paired sliders; parameter selector above one slider for Grain and Vignette.
 - [x] Persistent bottom-right preview Crop button, with no Framing category.
 - [x] Compact Material 3 aspect-ratio menu beside rotation controls, replacing the chip row.
 
@@ -47,7 +47,7 @@ and reset to a neutral adjustment without replacing the recorded color profile.
 - [x] **15. Texture:** fine detail enhancement or softening.
 - [x] **16. Dehaze:** haze reduction or added atmospheric haze.
 - [x] **17. Framing:** direct-entry crop workspace, locked aspect presets (including portrait),
-  left/right 90° buttons, and a ±15° Straighten dial below the photo, with Apply/Cancel.
+  left/right 90° buttons, and a ±15° Straighten slider below the photo, with Apply/Cancel.
 - [x] **18. Vignette:** darken/brighten amount, midpoint, roundness, and feathering,
   centered on the framed output.
 
@@ -361,3 +361,25 @@ in 26 seconds. Crop checks cover scrolling to portrait/wide presets, selected
 preset labels, Original remaining distinct from a matching fixed ratio,
 rotation updating fixed ratio orientation, disabled selection during pending
 rendering, Reset to Free, and Apply/Cancel in compact and wide layouts.
+
+
+Material parameter sliders (2026-10-25): the custom Canvas tick dial is removed.
+Global parameters, Straighten, and mask/shape controls share the library's XS
+Slider (16 dp track, 44 dp handle with a 48 dp touch target). The library draws
+step markers, handles input, and shows the formatted value in a floating Label
+while pressing or dragging. Signed ranges use Material's centered track.
+Steps match displayed precision: 0.1 EV, pixels, or degrees; one point for
+percentage controls. Brush size shows one decimal percentage point so its
+0.5% lower bound remains selectable. Parameter names keep individual double-tap
+reset, and each slider exposes its own name, range, steps, and accessible reset.
+
+Option selection occurs on a completed tap without waiting for the double-tap
+window. Double-tap resets remain isolated, and swiping the option carousel does
+not select the option where the swipe began.
+
+
+Verified on 2026-10-25: debug APKs build and all nine SM-F976B UI checks pass
+in 30.5 seconds. Checks cover step counts and rounding, floating value visibility
+during drag, accumulated fine movement, disabled input, isolated name resets,
+instant option selection, paired controls, masks, and compact/wide framing.
+The updated debug APK is installed on the phone.

@@ -55,9 +55,6 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.ProgressBarRangeInfo
-import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
@@ -105,7 +102,6 @@ internal fun RawCropDialog(
         true, 1f, 1, "°") { onAdjust(initial.copy(crop = crop, straighten = it)) }
     val currentStraighten by rememberUpdatedState(straighten)
     val straightenLabel = stringResource(R.string.raw_editor_straighten)
-    val resetStraighten = stringResource(R.string.raw_editor_reset_parameter, straightenLabel)
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     val currentCrop by rememberUpdatedState(crop)
     val currentRatio by rememberUpdatedState(ratio)
@@ -226,12 +222,7 @@ internal fun RawCropDialog(
                         Text("$straightenLabel  ${straighten.formatValue(java.util.Locale.getDefault())}",
                             Modifier.pointerInput(Unit) { detectTapGestures(onDoubleTap = { currentStraighten.onChange(0f) }) },
                             style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                        RawTickDial(straighten, Modifier.fillMaxWidth().semantics {
-                            contentDescription = straightenLabel
-                            progressBarRangeInfo = ProgressBarRangeInfo(straighten.value, straighten.range)
-                            setProgress { value -> currentStraighten.onChange(currentStraighten.snap(value)); true }
-                            customActions = listOf(CustomAccessibilityAction(resetStraighten) { currentStraighten.onChange(0f); true })
-                        })
+                        RawParameterSlider(straighten, Modifier.fillMaxWidth())
                         Box(Modifier.height(4.dp).fillMaxWidth()) { if (rendering) LinearProgressIndicator(Modifier.fillMaxWidth()) }
                     }
                 }
