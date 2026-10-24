@@ -42,6 +42,7 @@ import dev.bondarenko.fujirecipes.ui.nav.LibraryRoute
 import dev.bondarenko.fujirecipes.ui.nav.MoreRoute
 import dev.bondarenko.fujirecipes.ui.nav.PhotoRoute
 import dev.bondarenko.fujirecipes.ui.nav.RawLabRoute
+import dev.bondarenko.fujirecipes.ui.nav.RawEditorRoute
 import dev.bondarenko.fujirecipes.ui.nav.RecipeEditorRoute
 import dev.bondarenko.fujirecipes.ui.nav.RecipeViewRoute
 import dev.bondarenko.fujirecipes.ui.nav.SettingsRoute
@@ -176,6 +177,7 @@ private fun FujiApp(
          * have their own top app bar.
          */
         val onEditor = destination?.hasRoute<RecipeEditorRoute>() == true
+        val onRawEditor = destination?.hasRoute<RawEditorRoute>() == true
         // The view screen carries its own top bar and back affordance, and a bottom nav
         // under a recipe would invite leaving the thing you just opened.
         val onRecipeView = destination?.hasRoute<RecipeViewRoute>() == true
@@ -191,7 +193,7 @@ private fun FujiApp(
             .collectAsStateWithLifecycle()
         var libraryDetailOpen by remember { mutableStateOf(false) }
         val onLibrary = destination?.hasRoute<LibraryRoute>() == true
-        val showChrome = !onEditor && !onRecipeView && !onImport && !onFileImport &&
+        val showChrome = !onEditor && !onRawEditor && !onRecipeView && !onImport && !onFileImport &&
             !onExport && !onCleanup && !onSettings && !(onLab && labState.hasRaf)
 
         // Not a route: the dialog and the sheet behind it are ways of *starting* the editor,

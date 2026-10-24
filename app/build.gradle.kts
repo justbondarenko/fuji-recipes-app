@@ -7,6 +7,7 @@ plugins {
 android {
     namespace = "dev.bondarenko.fujirecipes"
     compileSdk = 37
+    ndkVersion = "28.2.13676358"
 
     defaultConfig {
         applicationId = "dev.bondarenko.fujirecipes"
@@ -16,6 +17,9 @@ android {
         versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
     }
 
     /**
@@ -85,6 +89,13 @@ android {
         // Off by default from AGP 8. The settings screen shows the version name, which is
         // the only thing read from it.
         buildConfig = true
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     packaging {

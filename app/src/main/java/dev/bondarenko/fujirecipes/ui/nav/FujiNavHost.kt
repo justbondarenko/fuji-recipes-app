@@ -33,6 +33,7 @@ import dev.bondarenko.fujirecipes.ui.importing.ImportRouteContent
 import dev.bondarenko.fujirecipes.ui.photo.PhotoReaderRouteContent
 import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewRouteContent
 import dev.bondarenko.fujirecipes.ui.lab.RawLabRouteContent
+import dev.bondarenko.fujirecipes.ui.raweditor.RawEditorRouteContent
 import dev.bondarenko.fujirecipes.ui.settings.MoreRouteContent
 import dev.bondarenko.fujirecipes.ui.settings.SettingsRouteContent
 import dev.bondarenko.fujirecipes.ui.theme.LocalReducedMotion
@@ -79,6 +80,10 @@ data class RecipeViewRoute(val id: String)
  */
 @Serializable
 data class RawLabRoute(val recipeId: String? = null)
+
+/** Phone-side sensor RAW editing, with the recorded film-simulation color profile. */
+@Serializable
+data object RawEditorRoute
 
 /** Bottom bar → Read: decode a photo's MakerNote and match it (FEAT-009). */
 @Serializable
@@ -259,6 +264,10 @@ fun FujiNavHost(
             )
         }
 
+        composable<RawEditorRoute> {
+            RawEditorRouteContent(onBack = { navController.popBackStack() })
+        }
+
         composable<RecipeEditorRoute> { entry ->
             val route = entry.toRoute<RecipeEditorRoute>()
             RecipeEditorRouteContent(
@@ -302,6 +311,7 @@ fun FujiNavHost(
 
         composable<MoreRoute> {
             MoreRouteContent(
+                onOpenRawEditor = { navController.navigate(RawEditorRoute) { launchSingleTop = true } },
                 onOpenCleanup = { navController.navigate(CleanupRoute) },
                 onOpenImport = { navController.navigate(ImportRoute) },
                 onOpenFileImport = { navController.navigate(FileImportRoute) },
