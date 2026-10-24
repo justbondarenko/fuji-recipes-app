@@ -21,6 +21,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
@@ -56,8 +57,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -69,6 +72,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -76,6 +80,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.core.settings.NavDestinationId
 import dev.bondarenko.fujirecipes.ui.common.readableWidth
@@ -156,6 +161,7 @@ val NavDestinationId.icon: ImageVector
     }
 
 private data class BarEntry(
+    val destination: NavDestinationId? = null,
     val labelRes: Int,
     val icon: ImageVector,
     val selected: Boolean,
@@ -199,10 +205,19 @@ fun AppShell(
 ) {
     var isEditMode by rememberSaveable { mutableStateOf(false) }
     var suppressNextClick by remember { mutableStateOf(false) }
+    var draggingDest by remember { mutableStateOf<NavDestinationId?>(null) }
+    var dragOffsetPx by remember { mutableFloatStateOf(0f) }
+    var barWidthPx by remember { mutableFloatStateOf(0f) }
+    val currentPinned by rememberUpdatedState(pinnedDestinations)
+    val currentOnUpdatePinned by rememberUpdatedState(onUpdatePinnedDestinations)
     val haptic = LocalHapticFeedback.current
 
     if (isEditMode) {
-        BackHandler { isEditMode = false }
+        BackHandler {
+            draggingDest = null
+            dragOffsetPx = 0f
+            isEditMode = false
+        }
     }
 
     val jiggleAngleState = if (isEditMode) {
@@ -264,6 +279,7 @@ fun AppShell(
                 }
                 add(
                     BarEntry(
+                        destination = dest,
                         labelRes = dest.navLabelRes,
                         icon = dest.icon,
                         selected = isSelected,
@@ -389,7 +405,7 @@ fun AppShell(
                 modifier = Modifier.weight(1f).fillMaxHeight(),
                 containerColor = MaterialTheme.colorScheme.surface,
                 topBar = {
-                    if (showChrome && topBarAction != null && (!useRail || railBottomAction == null)) {
+                    if (showChrome && !isEditMode && topBarAction != null && (!useRail || railBottomAction == null)) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -403,10 +419,15 @@ fun AppShell(
                 },
                 bottomBar = {
                     if (showChrome && !useRail && !hideBottomNavigation) {
-                        NavigationBar {
+                        NavigationBar(
+                            modifier = Modifier.onSizeChanged { barWidthPx = it.width.toFloat() },
+                        ) {
+                            val slotWidth = if (entries.isNotEmpty()) barWidthPx / entries.size else 0f
                             entries.forEachIndexed { index, entry ->
                                 val direction = if (index % 2 == 0) 1f else -1f
-                                val interactionSource = remember(index) { MutableInteractionSource() }
+                                val dest = entry.destination
+                                val isDraggingThis = isEditMode && dest != null && draggingDest == dest
+                                val interactionSource = remember(dest ?: "more") { MutableInteractionSource() }
                                 if (entry.isMore) {
                                     LaunchedEffect(interactionSource) {
                                         var holdJob: Job? = null
@@ -428,6 +449,61 @@ fun AppShell(
                                         }
                                     }
                                 }
+                                val itemModifier = when {
+                                    entry.isMore -> moreLongPressModifier
+                                    isEditMode && dest != null -> Modifier
+                                        .zIndex(if (isDraggingThis) 1f else 0f)
+                                        .graphicsLayer {
+                                            if (isDraggingThis) {
+                                                translationX = dragOffsetPx
+                                                scaleX = 1.08f
+                                                scaleY = 1.08f
+                                            }
+                                        }
+                                        .pointerInput(dest, isEditMode, slotWidth) {
+                                            detectDragGestures(
+                                                onDragStart = {
+                                                    draggingDest = dest
+                                                    dragOffsetPx = 0f
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                },
+                                                onDragEnd = {
+                                                    draggingDest = null
+                                                    dragOffsetPx = 0f
+                                                },
+                                                onDragCancel = {
+                                                    draggingDest = null
+                                                    dragOffsetPx = 0f
+                                                },
+                                                onDrag = { change, dragAmount ->
+                                                    change.consume()
+                                                    dragOffsetPx += dragAmount.x
+                                                    val pinned = currentPinned
+                                                    val currentIndex = pinned.indexOf(dest)
+                                                    if (currentIndex >= 0 && slotWidth > 0f) {
+                                                        if (dragOffsetPx > slotWidth * 0.55f && currentIndex < pinned.lastIndex) {
+                                                            val mutable = pinned.toMutableList()
+                                                            val tmp = mutable[currentIndex]
+                                                            mutable[currentIndex] = mutable[currentIndex + 1]
+                                                            mutable[currentIndex + 1] = tmp
+                                                            dragOffsetPx -= slotWidth
+                                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                            currentOnUpdatePinned(mutable)
+                                                        } else if (dragOffsetPx < -slotWidth * 0.55f && currentIndex > 0) {
+                                                            val mutable = pinned.toMutableList()
+                                                            val tmp = mutable[currentIndex]
+                                                            mutable[currentIndex] = mutable[currentIndex - 1]
+                                                            mutable[currentIndex - 1] = tmp
+                                                            dragOffsetPx += slotWidth
+                                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                            currentOnUpdatePinned(mutable)
+                                                        }
+                                                    }
+                                                },
+                                            )
+                                        }
+                                    else -> Modifier
+                                }
                                 NavigationBarItem(
                                     selected = entry.selected,
                                     onClick = {
@@ -437,7 +513,7 @@ fun AppShell(
                                             entry.onClick()
                                         }
                                     },
-                                    modifier = if (entry.isMore) moreLongPressModifier else Modifier,
+                                    modifier = itemModifier,
                                     interactionSource = interactionSource,
                                     icon = {
                                         Icon(
