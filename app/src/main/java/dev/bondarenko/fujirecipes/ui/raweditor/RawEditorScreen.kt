@@ -29,9 +29,11 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryScrollableTabRow
@@ -41,6 +43,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -74,10 +77,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.data.raweditor.RawAdjustments
 import dev.bondarenko.fujirecipes.data.raweditor.RawCrop
+import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowBack
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.ResetWrench
 import dev.bondarenko.fujirecipes.ui.theme.icons.Save
+import dev.bondarenko.fujirecipes.ui.theme.icons.Tune
 import kotlin.math.round
 
 @Composable
@@ -127,7 +132,7 @@ fun RawEditorRouteContent(onBack: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun RawEditorScreen(
     state: RawEditorState,
@@ -223,17 +228,20 @@ fun RawEditorScreen(
             )
             state.error?.let { Text(it, Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error) }
             if (state.preview == null) {
-                Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(stringResource(R.string.raw_editor_intro), style = MaterialTheme.typography.headlineSmall)
-                    Text(stringResource(R.string.raw_editor_intro_body), style = MaterialTheme.typography.bodyLarge)
-                    Button(onClick = onOpen, enabled = !state.busy) { Text(stringResource(R.string.raw_editor_open)) }
-                    Text(stringResource(R.string.raw_editor_profile_note), style = MaterialTheme.typography.bodySmall)
-                    TextButton(onClick = { showInfo = true }) { Text(stringResource(R.string.raw_editor_profile_info)) }
-                }
+                FujiIconPanel(
+                    icon = FujiIcons.Tune,
+                    shape = MaterialShapes.Pill.toShape(),
+                    title = stringResource(R.string.raw_editor_title),
+                    body = stringResource(R.string.raw_editor_intro_body),
+                    actionLabel = stringResource(R.string.raw_editor_open),
+                    onAction = onOpen,
+                    modifier = Modifier.fillMaxSize(),
+                    extra = {
+                        TextButton(onClick = { showInfo = true }) {
+                            Text(stringResource(R.string.raw_editor_profile_info))
+                        }
+                    },
+                )
             } else {
                 BoxWithConstraints(Modifier.weight(1f)) {
                     val wide = maxWidth >= 700.dp
