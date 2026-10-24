@@ -20,6 +20,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.toRoute
+import dev.bondarenko.fujirecipes.core.settings.NavDestinationId
 import dev.bondarenko.fujirecipes.ui.about.AboutRouteContent
 import dev.bondarenko.fujirecipes.ui.about.DisclaimerRouteContent
 import dev.bondarenko.fujirecipes.ui.cameraphotos.CameraPhotosRouteContent
@@ -33,6 +34,7 @@ import dev.bondarenko.fujirecipes.ui.importing.ImportRouteContent
 import dev.bondarenko.fujirecipes.ui.photo.PhotoReaderRouteContent
 import dev.bondarenko.fujirecipes.ui.recipe.RecipeViewRouteContent
 import dev.bondarenko.fujirecipes.ui.lab.RawLabRouteContent
+import dev.bondarenko.fujirecipes.ui.raweditor.RawEditorRouteContent
 import dev.bondarenko.fujirecipes.ui.settings.MoreRouteContent
 import dev.bondarenko.fujirecipes.ui.settings.SettingsRouteContent
 import dev.bondarenko.fujirecipes.ui.theme.LocalReducedMotion
@@ -80,6 +82,10 @@ data class RecipeViewRoute(val id: String)
 @Serializable
 data class RawLabRoute(val recipeId: String? = null)
 
+/** Phone-side sensor RAW editing, with the recorded film-simulation color profile. */
+@Serializable
+data class RawEditorRoute(val initialUri: String? = null)
+
 /** Bottom bar → Read: decode a photo's MakerNote and match it (FEAT-009). */
 @Serializable
 data class PhotoRoute(val initialUri: String? = null)
@@ -119,6 +125,20 @@ data object AboutRoute
 @Serializable
 data object DisclaimerRoute
 
+fun NavDestination?.toNavDestinationId(): NavDestinationId? = when {
+    this == null -> null
+    hasRoute<LibraryRoute>() -> NavDestinationId.LIBRARY
+    hasRoute<PhotoRoute>() -> NavDestinationId.ANALYZE
+    hasRoute<RawLabRoute>() -> NavDestinationId.LAB
+    hasRoute<CameraPhotosRoute>() -> NavDestinationId.PHOTOS
+    hasRoute<RawEditorRoute>() -> NavDestinationId.RAW_EDITOR
+    hasRoute<CleanupRoute>() -> NavDestinationId.CLEANUP
+    hasRoute<ImportRoute>() -> NavDestinationId.IMPORT_CAMERA
+    hasRoute<FileImportRoute>() -> NavDestinationId.IMPORT_FILE
+    hasRoute<ExportRoute>() -> NavDestinationId.EXPORT
+    else -> null
+}
+
 /**
  * Where a destination sits in the toolbar, left to right, or -1 if it is not in the bar.
  *
@@ -126,14 +146,15 @@ data object DisclaimerRoute
  * of where you are slides the screens left, and vice versa, so the motion agrees with the
  * thing you pressed. Keep in step with the item order in `AppShell`.
  */
-private fun NavDestination?.toolbarIndex(): Int = when {
-    this == null -> -1
-    hasRoute<LibraryRoute>() -> 0
-    hasRoute<PhotoRoute>() -> 1
-    hasRoute<RawLabRoute>() -> 2
-    hasRoute<CameraPhotosRoute>() -> 3
-    hasRoute<MoreRoute>() -> 4
-    else -> -1
+private fun NavDestination?.toolbarIndex(pinnedDestinations: List<NavDestinationId>): Int {
+    if (this == null) return -1
+    val destId = toNavDestinationId()
+    if (destId != null) {
+        val idx = pinnedDestinations.indexOf(destId)
+        if (idx >= 0) return idx
+    }
+    if (hasRoute<MoreRoute>()) return pinnedDestinations.size
+    return -1
 }
 
 /** 💡 The arriving screen starts slightly small and grows in; reversed on the way back. */
@@ -152,9 +173,10 @@ private const val DepthScaleOut = 1.06f
 private fun slideDirection(
     from: NavDestination?,
     to: NavDestination?,
+    pinnedDestinations: List<NavDestinationId>,
 ): AnimatedContentTransitionScope.SlideDirection? {
-    val start = from.toolbarIndex()
-    val end = to.toolbarIndex()
+    val start = from.toolbarIndex(pinnedDestinations)
+    val end = to.toolbarIndex(pinnedDestinations)
     return when {
         start < 0 || end < 0 || start == end -> null
         // Start/End rather than Left/Right, so this still reads correctly in RTL.
@@ -170,6 +192,8 @@ fun FujiNavHost(
     /** The library entered or left selection mode; the shell hides its FAB while it is on. */
     onLibrarySelectionChange: (Boolean) -> Unit = {},
     onLibraryDetailChange: (Boolean) -> Unit = {},
+    onRawEditorActiveChange: (Boolean) -> Unit = {},
+    pinnedDestinations: List<NavDestinationId> = NavDestinationId.DEFAULT_PINNED,
 ) {
     // Hoisted: the transition lambdas below are not composable, so they cannot read either of
     // these themselves.
@@ -189,7 +213,7 @@ fun FujiNavHost(
      * because the effects spring is quick enough to be imperceptible on a full-screen change.
      */
     fun AnimatedContentTransitionScope<NavBackStackEntry>.enter(forward: Boolean): EnterTransition {
-        val direction = slideDirection(initialState.destination, targetState.destination)
+        val direction = slideDirection(initialState.destination, targetState.destination, pinnedDestinations)
         return when {
             reducedMotion -> fadeIn(effects)
             direction != null -> slideIntoContainer(direction, spatial)
@@ -199,7 +223,7 @@ fun FujiNavHost(
     }
 
     fun AnimatedContentTransitionScope<NavBackStackEntry>.exit(forward: Boolean): ExitTransition {
-        val direction = slideDirection(initialState.destination, targetState.destination)
+        val direction = slideDirection(initialState.destination, targetState.destination, pinnedDestinations)
         return when {
             reducedMotion -> fadeOut(effects)
             direction != null -> slideOutOfContainer(direction, spatial)
@@ -259,6 +283,16 @@ fun FujiNavHost(
             )
         }
 
+        composable<RawEditorRoute> { entry ->
+            val route = entry.toRoute<RawEditorRoute>()
+            RawEditorRouteContent(
+                initialUri = route.initialUri,
+                onBack = { navController.popBackStack() },
+                contentPadding = contentPadding,
+                onActiveSessionChange = onRawEditorActiveChange,
+            )
+        }
+
         composable<RecipeEditorRoute> { entry ->
             val route = entry.toRoute<RecipeEditorRoute>()
             RecipeEditorRouteContent(
@@ -302,12 +336,27 @@ fun FujiNavHost(
 
         composable<MoreRoute> {
             MoreRouteContent(
+                onOpenRawEditor = { navController.navigate(RawEditorRoute()) { launchSingleTop = true } },
                 onOpenCleanup = { navController.navigate(CleanupRoute) },
                 onOpenImport = { navController.navigate(ImportRoute) },
                 onOpenFileImport = { navController.navigate(FileImportRoute) },
                 onOpenExport = { navController.navigate(ExportRoute) },
                 onOpenAbout = { navController.navigate(AboutRoute) },
                 contentPadding = contentPadding,
+                pinnedDestinations = pinnedDestinations.toSet(),
+                onOpenDestination = { dest ->
+                    when (dest) {
+                        NavDestinationId.LIBRARY -> navController.navigate(LibraryRoute) { launchSingleTop = true }
+                        NavDestinationId.ANALYZE -> navController.navigate(PhotoRoute()) { launchSingleTop = true }
+                        NavDestinationId.LAB -> navController.navigate(RawLabRoute()) { launchSingleTop = true }
+                        NavDestinationId.PHOTOS -> navController.navigate(CameraPhotosRoute) { launchSingleTop = true }
+                        NavDestinationId.RAW_EDITOR -> navController.navigate(RawEditorRoute()) { launchSingleTop = true }
+                        NavDestinationId.CLEANUP -> navController.navigate(CleanupRoute) { launchSingleTop = true }
+                        NavDestinationId.IMPORT_CAMERA -> navController.navigate(ImportRoute) { launchSingleTop = true }
+                        NavDestinationId.IMPORT_FILE -> navController.navigate(FileImportRoute) { launchSingleTop = true }
+                        NavDestinationId.EXPORT -> navController.navigate(ExportRoute) { launchSingleTop = true }
+                    }
+                },
             )
         }
 

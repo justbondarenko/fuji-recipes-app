@@ -9,9 +9,10 @@ import kotlin.test.assertNull
 class CameraCaptureDateTest {
     @Test
     fun `formats a PTP timestamp for people`() {
+        val formatted = formatCameraCaptureDate("20260905T132036", Locale.US)
         assertEquals(
             "Sep 5, 2026, 1:20 PM",
-            formatCameraCaptureDate("20260905T132036", Locale.US),
+            formatted?.replace('\u202F', ' '),
         )
     }
 

@@ -24,6 +24,39 @@ enum class RecipeViewMode(val id: String) {
 }
 
 /**
+ * Customizable navigation destinations that can be pinned to the bottom bar (up to 4)
+ * or shown in the More screen when unpinned.
+ */
+enum class NavDestinationId(val id: String) {
+    LIBRARY("library"),
+    ANALYZE("analyze"),
+    LAB("lab"),
+    PHOTOS("photos"),
+    RAW_EDITOR("raw_editor"),
+    CLEANUP("cleanup"),
+    IMPORT_CAMERA("import_camera"),
+    IMPORT_FILE("import_file"),
+    EXPORT("export");
+
+    companion object {
+        val DEFAULT_PINNED: List<NavDestinationId> = listOf(LIBRARY, ANALYZE, LAB, PHOTOS)
+        const val MAX_PINNED = 4
+
+        fun fromId(id: String?): NavDestinationId? =
+            entries.firstOrNull { it.id == id }
+
+        fun fromStoredString(raw: String?): List<NavDestinationId> {
+            if (raw.isNullOrBlank()) return DEFAULT_PINNED
+            val parsed = raw.split(",")
+                .mapNotNull { fromId(it.trim()) }
+                .distinct()
+                .take(MAX_PINNED)
+            return parsed.ifEmpty { DEFAULT_PINNED }
+        }
+    }
+}
+
+/**
  * Stored UI settings preserved across app sessions.
  */
 data class StoredUiPreferences(
@@ -32,6 +65,7 @@ data class StoredUiPreferences(
     val showTags: Boolean = true,
     val showFilmSimulation: Boolean = true,
     val showRating: Boolean = true,
+    val pinnedNavIds: List<NavDestinationId> = NavDestinationId.DEFAULT_PINNED,
 )
 
 private val Context.uiDataStore: DataStore<Preferences> by
@@ -48,6 +82,7 @@ class UiPreferences(
         val ShowTags = booleanPreferencesKey("ui.show_tags")
         val ShowFilmSimulation = booleanPreferencesKey("ui.show_film_simulation")
         val ShowRating = booleanPreferencesKey("ui.show_rating")
+        val PinnedNavIds = stringPreferencesKey("ui.pinned_nav_ids")
     }
 
     val preferences: Flow<StoredUiPreferences> = dataStore.data.map { prefs ->
@@ -57,7 +92,16 @@ class UiPreferences(
             showTags = prefs[Keys.ShowTags] ?: true,
             showFilmSimulation = prefs[Keys.ShowFilmSimulation] ?: true,
             showRating = prefs[Keys.ShowRating] ?: true,
+            pinnedNavIds = NavDestinationId.fromStoredString(prefs[Keys.PinnedNavIds]),
         )
+    }
+
+    suspend fun setPinnedNavIds(ids: List<NavDestinationId>) {
+        val normalized = ids.distinct().take(NavDestinationId.MAX_PINNED)
+        if (normalized.isEmpty()) return
+        dataStore.edit { prefs ->
+            prefs[Keys.PinnedNavIds] = normalized.joinToString(",") { it.id }
+        }
     }
 
     suspend fun setRecipeViewMode(mode: RecipeViewMode) {

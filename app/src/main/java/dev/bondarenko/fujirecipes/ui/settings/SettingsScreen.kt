@@ -45,21 +45,21 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.bondarenko.fujirecipes.BuildConfig
 import dev.bondarenko.fujirecipes.FujiRecipesApp
 import dev.bondarenko.fujirecipes.R
+import dev.bondarenko.fujirecipes.core.settings.NavDestinationId
 import dev.bondarenko.fujirecipes.core.settings.RecipeViewMode
 import dev.bondarenko.fujirecipes.core.settings.StoredUiPreferences
 import dev.bondarenko.fujirecipes.ui.common.SectionHeader
+import dev.bondarenko.fujirecipes.ui.shell.icon
+import dev.bondarenko.fujirecipes.ui.shell.moreSubtitleRes
+import dev.bondarenko.fujirecipes.ui.shell.moreTitleRes
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
-import dev.bondarenko.fujirecipes.ui.theme.icons.FileExport
-import dev.bondarenko.fujirecipes.ui.theme.icons.FileSave
-import dev.bondarenko.fujirecipes.ui.theme.icons.CleaningServices
 import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowBack
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.Info
 import dev.bondarenko.fujirecipes.ui.theme.icons.KeyboardArrowRight
-import dev.bondarenko.fujirecipes.ui.theme.icons.LinkedCamera
 
 /**
- * More — everything the app can do to the library that is not a preference.
+ * More — everything the app can do to the library that is not a preference or pinned to the bottom bar.
  *
  * Preferences live on [SettingsScreen], behind the button each page carries.
  */
@@ -72,7 +72,43 @@ fun MoreScreen(
     onOpenAbout: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
+    onOpenRawEditor: () -> Unit = {},
+    pinnedDestinations: Set<NavDestinationId> = NavDestinationId.DEFAULT_PINNED.toSet(),
+    onOpenDestination: ((NavDestinationId) -> Unit)? = null,
 ) {
+    val openDest: (NavDestinationId) -> Unit = { dest ->
+        if (onOpenDestination != null) {
+            onOpenDestination(dest)
+        } else {
+            when (dest) {
+                NavDestinationId.RAW_EDITOR -> onOpenRawEditor()
+                NavDestinationId.CLEANUP -> onOpenCleanup()
+                NavDestinationId.IMPORT_CAMERA -> onOpenImport()
+                NavDestinationId.IMPORT_FILE -> onOpenFileImport()
+                NavDestinationId.EXPORT -> onOpenExport()
+                else -> {}
+            }
+        }
+    }
+
+    val featureItems = listOf(
+        NavDestinationId.LIBRARY,
+        NavDestinationId.ANALYZE,
+        NavDestinationId.LAB,
+        NavDestinationId.PHOTOS,
+        NavDestinationId.RAW_EDITOR,
+    ).filterNot { it in pinnedDestinations }
+
+    val maintenanceItems = listOf(
+        NavDestinationId.CLEANUP,
+    ).filterNot { it in pinnedDestinations }
+
+    val backupItems = listOf(
+        NavDestinationId.IMPORT_CAMERA,
+        NavDestinationId.IMPORT_FILE,
+        NavDestinationId.EXPORT,
+    ).filterNot { it in pinnedDestinations }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -88,45 +124,49 @@ fun MoreScreen(
             color = MaterialTheme.colorScheme.onSurface,
         )
 
-        SectionHeader(stringResource(R.string.settings_maintenance))
+        featureItems.forEach { dest ->
+            SettingsCard(
+                title = stringResource(dest.moreTitleRes),
+                subtitle = stringResource(dest.moreSubtitleRes),
+                icon = dest.icon,
+                onClick = { openDest(dest) },
+                showChevron = true,
+            )
+        }
 
-        SettingsCard(
-            title = stringResource(R.string.cleanup_title),
-            subtitle = stringResource(R.string.cleanup_subtitle),
-            icon = FujiIcons.CleaningServices,
-            onClick = onOpenCleanup,
-            showChevron = true,
-        )
+        if (maintenanceItems.isNotEmpty()) {
+            SectionHeader(stringResource(R.string.settings_maintenance))
 
-        HorizontalDivider(
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-        )
+            maintenanceItems.forEach { dest ->
+                SettingsCard(
+                    title = stringResource(dest.moreTitleRes),
+                    subtitle = stringResource(dest.moreSubtitleRes),
+                    icon = dest.icon,
+                    onClick = { openDest(dest) },
+                    showChevron = true,
+                )
+            }
+        }
 
-        SectionHeader(stringResource(R.string.settings_backup_restore))
+        if (backupItems.isNotEmpty()) {
+            if (featureItems.isNotEmpty() || maintenanceItems.isNotEmpty()) {
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                )
+            }
 
-        SettingsCard(
-            title = stringResource(R.string.settings_import_camera_title),
-            subtitle = stringResource(R.string.settings_import_camera_subtitle),
-            icon = FujiIcons.LinkedCamera,
-            onClick = onOpenImport,
-            showChevron = true,
-        )
+            SectionHeader(stringResource(R.string.settings_backup_restore))
 
-        SettingsCard(
-            title = stringResource(R.string.file_import_title),
-            subtitle = stringResource(R.string.file_import_subtitle),
-            icon = FujiIcons.FileSave,
-            onClick = onOpenFileImport,
-            showChevron = true,
-        )
-
-        SettingsCard(
-            title = stringResource(R.string.export_title),
-            subtitle = stringResource(R.string.export_subtitle),
-            icon = FujiIcons.FileExport,
-            onClick = onOpenExport,
-            showChevron = true,
-        )
+            backupItems.forEach { dest ->
+                SettingsCard(
+                    title = stringResource(dest.moreTitleRes),
+                    subtitle = stringResource(dest.moreSubtitleRes),
+                    icon = dest.icon,
+                    onClick = { openDest(dest) },
+                    showChevron = true,
+                )
+            }
+        }
 
         HorizontalDivider(
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
@@ -333,14 +373,20 @@ fun MoreRouteContent(
     onOpenExport: () -> Unit,
     onOpenAbout: () -> Unit,
     contentPadding: PaddingValues,
+    onOpenRawEditor: () -> Unit,
+    pinnedDestinations: Set<NavDestinationId> = NavDestinationId.DEFAULT_PINNED.toSet(),
+    onOpenDestination: ((NavDestinationId) -> Unit)? = null,
 ) {
     MoreScreen(
+        onOpenRawEditor = onOpenRawEditor,
         onOpenCleanup = onOpenCleanup,
         onOpenImport = onOpenImport,
         onOpenFileImport = onOpenFileImport,
         onOpenExport = onOpenExport,
         onOpenAbout = onOpenAbout,
         contentPadding = contentPadding,
+        pinnedDestinations = pinnedDestinations,
+        onOpenDestination = onOpenDestination,
     )
 }
 

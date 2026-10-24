@@ -70,3 +70,10 @@ Plan: `specs/plans/raw-development-lab.md`.
   lab never shows still survive a save untouched.
 - Not verified on a device or a camera. The two hardware gates above decide whether the automatic
   mode and the preview/full split survive as designed.
+
+# Dynamic navigation bar customization polish
+- [x] Sheet: Grey out / visually disable unpinned options when 4 items are pinned
+- [x] Bottom Bar Drag: Maintain local list and absolute finger tracking so dragged item stays exactly under finger
+- [x] Bottom Bar Drag: Eliminate jumping left/right during reordering across slot boundaries
+- [x] Verification: Unit tests & build
+- [x] Git commit (unsigned) & push to raw-editor
