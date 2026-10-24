@@ -407,94 +407,9 @@ fun RawEditorScreen(
                         val useSelector = activeControls.size >= 3
                         val visibleControls = if (useSelector) listOf(activeControls[selectedControl.coerceIn(activeControls.indices)]) else activeControls
                         val locale = LocalConfiguration.current.locales[0]
+                        val listScroll = key(panel) { rememberScrollState() }
 
-                        Column(
-                            modifier = modifier.padding(top = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            if (panel == 5) Text(
-                                stringResource(if (state.lensCorrectionApplied) R.string.raw_editor_optics_note else R.string.raw_editor_optics_unavailable),
-                                Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            if (panel == 3) RawToneCurveEditor(state, onAdjust, compact = wide, enabled = editable)
-
-                            visibleControls.forEach { control ->
-                                key(control.labelRes) {
-                                    val label = stringResource(if (useSelector && control.labelRes == R.string.raw_editor_vignette) R.string.raw_editor_amount else control.labelRes)
-                                    val currentControl by rememberUpdatedState(control)
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                                    ) {
-                                        Box {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                if (useSelector) IconButton(
-                                                    onClick = { selectorOpen = true },
-                                                    modifier = Modifier.testTag("raw-editor-parameter-selector"),
-                                                ) { Icon(FujiIcons.UnfoldMore, stringResource(R.string.raw_editor_select_parameter)) }
-                                                Text(
-                                                    text = "$label  ${control.formatValue(locale)}",
-                                                    modifier = Modifier.testTag("raw-editor-parameter-${control.labelRes}").pointerInput(control.resetEnabled, control.defaultValue, useSelector) {
-                                                        detectTapGestures(
-                                                            onTap = { if (useSelector) selectorOpen = true },
-                                                            onDoubleTap = { if (currentControl.resetEnabled) currentControl.onChange(currentControl.defaultValue) },
-                                                        )
-                                                    },
-                                                    style = MaterialTheme.typography.labelLarge,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                )
-                                            }
-                                            DropdownMenu(expanded = useSelector && selectorOpen, onDismissRequest = { selectorOpen = false }) {
-                                                activeControls.forEachIndexed { index, parameter ->
-                                                    DropdownMenuItem(
-                                                        text = { Text(stringResource(if (parameter.labelRes == R.string.raw_editor_vignette) R.string.raw_editor_amount else parameter.labelRes)) },
-                                                        onClick = { selectedControl = index; selectorOpen = false },
-                                                    )
-                                                }
-                                            }
-                                        }
-                                        RawParameterSlider(control, Modifier.fillMaxWidth().padding(horizontal = 20.dp), label)
-                                    }
-                                }
-                            }
-
-                            // 3. Circular Icon Carousel + Contextual Action Pills
-                            if (panel != 3) Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState())
-                                    .testTag("raw-editor-options")
-                                    .padding(horizontal = 16.dp, vertical = 2.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                if (panel == 6) {
-                                    FilledTonalButton(onClick = { onMasks(true) }, enabled = editable && !state.rendering) { Text(stringResource(R.string.raw_editor_edit_masks, edits.masks.size)) }
-                                }
-                                if (panel == 1) {
-                                    Column(Modifier.widthIn(min = 56.dp, max = 76.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        IconButton(onClick = { onAdjust(edits.copy(temperature = 0f, tint = 0f)) }, enabled = editable,
-                                            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)) {
-                                            Icon(FujiIcons.PhotoCamera, stringResource(R.string.raw_editor_as_shot))
-                                        }
-                                        Text(stringResource(R.string.raw_editor_as_shot), style = MaterialTheme.typography.labelSmall)
-                                    }
-                                }
-                                params.forEachIndexed { index, param ->
-                                    RawParamCircle(
-                                        param = param,
-                                        selected = index == activeIndex,
-                                        related = related[param.labelRes].orEmpty(),
-                                        optionLabelRes = optionLabels[param.labelRes] ?: param.labelRes,
-                                        onSelect = { selectedParam = index },
-                                    )
-                                }
-                            }
-
-                            // 4. Secondary Category Tabs at Bottom
+                        val categories: @Composable () -> Unit = {
                             SecondaryScrollableTabRow(
                                 selectedTabIndex = panel,
                                 modifier = Modifier.testTag("raw-editor-groups"),
@@ -514,12 +429,136 @@ fun RawEditorScreen(
                                 }
                             }
                         }
+                        Column(
+                            modifier = modifier.padding(top = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            if (wide) categories()
+                            Column(
+                                modifier = if (wide) Modifier.weight(1f).fillMaxWidth()
+                                    .verticalScroll(listScroll)
+                                    .testTag("raw-editor-slider-list").padding(vertical = 12.dp) else Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(if (wide) 16.dp else 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                if (panel == 5) Text(
+                                    stringResource(if (state.lensCorrectionApplied) R.string.raw_editor_optics_note else R.string.raw_editor_optics_unavailable),
+                                    Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                if (panel == 3) RawToneCurveEditor(state, onAdjust, compact = wide, enabled = editable)
+
+                                if (wide) {
+                                    if (panel == 1) FilledTonalButton(
+                                        onClick = { onAdjust(edits.copy(temperature = 0f, tint = 0f)) }, enabled = editable,
+                                        modifier = Modifier.align(Alignment.Start).padding(horizontal = 20.dp),
+                                    ) {
+                                        Icon(FujiIcons.PhotoCamera, null, Modifier.size(20.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(stringResource(R.string.raw_editor_as_shot))
+                                    }
+                                    params.forEach { option ->
+                                        val optionLabel = stringResource(optionLabels[option.labelRes] ?: option.labelRes)
+                                        (listOf(option) + related[option.labelRes].orEmpty()).forEach { control ->
+                                            key(control.labelRes) {
+                                                val label = stringResource(if (control.labelRes == R.string.raw_editor_vignette) R.string.raw_editor_amount else control.labelRes)
+                                                val title = if (label == optionLabel) label else "$optionLabel · $label"
+                                                val currentControl by rememberUpdatedState(control)
+                                                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                                        Icon(option.icon, null, Modifier.size(22.dp).testTag("raw-editor-icon-${control.labelRes}"), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                        Text(title, Modifier.weight(1f).testTag("raw-editor-parameter-${control.labelRes}")
+                                                            .pointerInput(control.resetEnabled, control.defaultValue) {
+                                                                detectTapGestures(onDoubleTap = { if (currentControl.resetEnabled) currentControl.onChange(currentControl.defaultValue) })
+                                                            }, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                                                        Text(control.formatValue(locale), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                    }
+                                                    RawParameterSlider(control, Modifier.fillMaxWidth(), title)
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else visibleControls.forEach { control ->
+                                    key(control.labelRes) {
+                                        val label = stringResource(if (useSelector && control.labelRes == R.string.raw_editor_vignette) R.string.raw_editor_amount else control.labelRes)
+                                        val currentControl by rememberUpdatedState(control)
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                                        ) {
+                                            Box {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    if (useSelector) IconButton(
+                                                        onClick = { selectorOpen = true },
+                                                        modifier = Modifier.testTag("raw-editor-parameter-selector"),
+                                                    ) { Icon(FujiIcons.UnfoldMore, stringResource(R.string.raw_editor_select_parameter)) }
+                                                    Text(
+                                                        text = "$label  ${control.formatValue(locale)}",
+                                                        modifier = Modifier.testTag("raw-editor-parameter-${control.labelRes}").pointerInput(control.resetEnabled, control.defaultValue, useSelector) {
+                                                            detectTapGestures(
+                                                                onTap = { if (useSelector) selectorOpen = true },
+                                                                onDoubleTap = { if (currentControl.resetEnabled) currentControl.onChange(currentControl.defaultValue) },
+                                                            )
+                                                        },
+                                                        style = MaterialTheme.typography.labelLarge,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = MaterialTheme.colorScheme.onSurface,
+                                                    )
+                                                }
+                                                DropdownMenu(expanded = useSelector && selectorOpen, onDismissRequest = { selectorOpen = false }) {
+                                                    activeControls.forEachIndexed { index, parameter ->
+                                                        DropdownMenuItem(
+                                                            text = { Text(stringResource(if (parameter.labelRes == R.string.raw_editor_vignette) R.string.raw_editor_amount else parameter.labelRes)) },
+                                                            onClick = { selectedControl = index; selectorOpen = false },
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            RawParameterSlider(control, Modifier.fillMaxWidth().padding(horizontal = 20.dp), label)
+                                        }
+                                    }
+                                }
+
+                                // Compact option carousel; Masks retains its entry action in both layouts.
+                                if (panel != 3 && (!wide || panel == 6)) Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState())
+                                        .testTag("raw-editor-options")
+                                        .padding(horizontal = 16.dp, vertical = 2.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    if (panel == 6) {
+                                        FilledTonalButton(onClick = { onMasks(true) }, enabled = editable && !state.rendering) { Text(stringResource(R.string.raw_editor_edit_masks, edits.masks.size)) }
+                                    }
+                                    if (panel == 1) {
+                                        Column(Modifier.widthIn(min = 56.dp, max = 76.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            IconButton(onClick = { onAdjust(edits.copy(temperature = 0f, tint = 0f)) }, enabled = editable,
+                                                modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)) {
+                                                Icon(FujiIcons.PhotoCamera, stringResource(R.string.raw_editor_as_shot))
+                                            }
+                                            Text(stringResource(R.string.raw_editor_as_shot), style = MaterialTheme.typography.labelSmall)
+                                        }
+                                    }
+                                    params.forEachIndexed { index, param ->
+                                        RawParamCircle(
+                                            param = param,
+                                            selected = index == activeIndex,
+                                            related = related[param.labelRes].orEmpty(),
+                                            optionLabelRes = optionLabels[param.labelRes] ?: param.labelRes,
+                                            onSelect = { selectedParam = index },
+                                        )
+                                    }
+                                }
+                            }
+                            if (!wide) categories()
+                        }
                     }
                     if (wide) Row(Modifier.fillMaxSize()) {
                         preview(Modifier.weight(1f).fillMaxSize())
-                        Box(Modifier.widthIn(max = 360.dp).fillMaxHeight(), contentAlignment = Alignment.BottomCenter) {
-                            controls(Modifier.fillMaxWidth().wrapContentHeight())
-                        }
+                        controls(Modifier.width(360.dp).fillMaxHeight())
                     } else Column(Modifier.fillMaxSize()) {
                         preview(Modifier.weight(1f).fillMaxWidth())
                         controls(Modifier.fillMaxWidth().wrapContentHeight())

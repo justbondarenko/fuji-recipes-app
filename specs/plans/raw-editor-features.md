@@ -22,6 +22,7 @@ simulation color profile remains the default starting point.
 - [x] Full-resolution JPEG export through the document picker.
 - [x] Discard confirmation and stable progress/comparison layouts.
 - [x] Requested Light, Color, Details, Curves, Effects, and Optics group/option order and icons.
+- [x] Wide/foldable editor: fixed category tabs above a vertically scrolling list of icon-and-title sliders.
 - [x] Independent paired sliders; parameter selector above one slider for Grain and Vignette.
 - [x] Persistent bottom-right preview Crop button, with no Framing category.
 - [x] Compact Material 3 aspect-ratio menu beside rotation controls, replacing the chip row.
@@ -383,3 +384,27 @@ in 30.5 seconds. Checks cover step counts and rounding, floating value visibilit
 during drag, accumulated fine movement, disabled input, isolated name resets,
 instant option selection, paired controls, masks, and compact/wide framing.
 The updated debug APK is installed on the phone.
+
+
+Wide editor panel (2026-10-25): at the existing 700 dp breakpoint, the right
+pane uses its full height. Category tabs stay at the top; every slider in the
+selected category appears in a vertically scrolling list, with the option icon
+beside its title and its current value at the trailing edge. Grouped parameters
+appear as individual sliders, including all Grain and Vignette controls, with
+context in their titles. As shot stays available in Color; Curves and Masks
+remain accessible. Crop and zoom remain on the photo preview.
+
+Compact layouts retain the option carousel, paired sliders, and selectors.
+Resizing preserves the selected category and all adjustment values. Selecting
+a category starts its list at the top. Individual name double-tap resets,
+Material value indicators, and accessible slider actions continue to work.
+
+
+Verified on 2026-10-25: debug APKs build. The existing nine UI checks passed;
+the dedicated wide-panel check passes at 840 × 800, 1200 × 800, and 840 × 393 dp.
+It covers every category's slider order, icon/title placement, fixed tabs,
+scrolling to the final Vignette control, isolated reset, Curves/Masks access,
+persistent Save/Crop, and preserved category/values when returning to compact.
+A later combined run passed the new wide check but lost the reset test's Compose
+window while the device changed display/foreground state; it is not recorded
+as a clean full-suite pass. The updated debug APK is installed on the SM-F976B.

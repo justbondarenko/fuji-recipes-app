@@ -135,6 +135,65 @@ class RawEditorLayoutTest {
     }
 
     @Test
+    fun widePanelListsAllSlidersBelowFixedTabsAndPreservesEditsWhenResized() {
+        val bitmap = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888)
+        val original = RawAdjustments(exposure = .6f, grainAmount = .4f, vignette = -.3f)
+        var state by mutableStateOf(RawEditorState(preview = bitmap, cameraImage = bitmap, adjustments = original))
+        var size by mutableStateOf(DpSize(840.dp, 800.dp))
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(size)) {
+                FujiTheme { RawEditorScreen(state, {}, {}, { state = state.copy(adjustments = it) }, {}) }
+            }
+        }
+        val expected = mapOf(
+            "Light" to listOf(R.string.raw_editor_exposure, R.string.raw_editor_contrast, R.string.raw_editor_shadows, R.string.raw_editor_blacks, R.string.raw_editor_highlights, R.string.raw_editor_whites),
+            "Color" to listOf(R.string.raw_editor_temperature, R.string.raw_editor_tint, R.string.raw_editor_saturation, R.string.raw_editor_vibrance),
+            "Details" to listOf(R.string.raw_editor_sharpening, R.string.raw_editor_radius, R.string.raw_editor_color_noise, R.string.raw_editor_luminance_noise, R.string.raw_editor_noise_detail),
+            "Effects" to listOf(R.string.raw_editor_grain_amount, R.string.raw_editor_grain_size, R.string.raw_editor_grain_roughness, R.string.raw_editor_clarity, R.string.raw_editor_texture, R.string.raw_editor_dehaze, R.string.raw_editor_vignette, R.string.raw_editor_vignette_midpoint, R.string.raw_editor_vignette_roundness, R.string.raw_editor_vignette_feather),
+            "Optics" to listOf(R.string.raw_editor_distortion, R.string.raw_editor_perspective_vertical, R.string.raw_editor_perspective_horizontal, R.string.raw_editor_defringe_green, R.string.raw_editor_defringe_purple, R.string.raw_editor_chromatic_red, R.string.raw_editor_chromatic_blue),
+        )
+        fun sliderTags(node: androidx.compose.ui.semantics.SemanticsNode): List<String> =
+            listOfNotNull(node.config.getOrElse(SemanticsProperties.TestTag) { "" }.takeIf { it.startsWith("raw-editor-slider-") && node.config.contains(SemanticsProperties.ProgressBarRangeInfo) }) + node.children.flatMap(::sliderTags)
+        expected.forEach { (category, ids) ->
+            compose.onNodeWithText(category).performScrollTo().performClick()
+            compose.onNodeWithTag("raw-editor-options").assertDoesNotExist()
+            compose.onNodeWithTag("raw-editor-parameter-selector", useUnmergedTree = true).assertDoesNotExist()
+            assertEquals(ids.map { "raw-editor-slider-$it" }, sliderTags(compose.onNodeWithTag("raw-editor-slider-list").fetchSemanticsNode()))
+        }
+        compose.onNodeWithText("Curves").performScrollTo().performClick()
+        compose.onNodeWithTag("raw-tone-curve").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Masks").performScrollTo().performClick()
+        compose.onNodeWithText("Edit masks (0)").assertIsDisplayed()
+        for (dimensions in listOf(DpSize(840.dp, 800.dp), DpSize(1200.dp, 800.dp), DpSize(840.dp, 393.dp))) {
+            compose.runOnIdle { size = dimensions }
+            compose.onNodeWithText("Light").performScrollTo().performClick()
+            val title = compose.onNodeWithTag("raw-editor-parameter-${R.string.raw_editor_exposure}", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            val icon = compose.onNodeWithTag("raw-editor-icon-${R.string.raw_editor_exposure}", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+            val tabs = compose.onNodeWithTag("raw-editor-groups").fetchSemanticsNode().boundsInRoot
+            val preview = compose.onNodeWithTag("raw-editor-preview").fetchSemanticsNode().boundsInRoot
+            assertTrue("Category tabs stay above the sliders",tabs.bottom <= title.top)
+            assertTrue("Icons sit beside titles",icon.right <= title.left)
+            assertTrue("The slider list stays beside the photo",preview.right <= icon.left)
+            compose.onNodeWithText("Effects").performScrollTo().performClick()
+            val fixedTabs = compose.onNodeWithTag("raw-editor-groups").fetchSemanticsNode().boundsInRoot
+            val feather = compose.onNodeWithTag("raw-editor-slider-${R.string.raw_editor_vignette_feather}")
+            feather.performScrollTo().assertIsDisplayed().performSemanticsAction(SemanticsActions.SetProgress) { it(.7f) }
+            compose.runOnIdle { assertEquals(original.copy(vignetteFeather = .7f),state.adjustments) }
+            assertEquals(fixedTabs,compose.onNodeWithTag("raw-editor-groups").fetchSemanticsNode().boundsInRoot)
+            assertEquals(preview,compose.onNodeWithTag("raw-editor-preview").fetchSemanticsNode().boundsInRoot)
+            compose.onNodeWithTag("raw-editor-parameter-${R.string.raw_editor_vignette_feather}", useUnmergedTree = true).performTouchInput { doubleClick() }
+            compose.runOnIdle { assertEquals(original,state.adjustments) }
+            compose.onNodeWithText("Save").assertIsDisplayed()
+            compose.onNodeWithTag("raw-editor-crop").assertIsDisplayed()
+            compose.runOnIdle { size = DpSize(393.dp, 800.dp) }
+            compose.onNodeWithText("Effects").assertIsSelected()
+            compose.onNodeWithTag("raw-editor-slider-list").assertDoesNotExist()
+            compose.onNodeWithTag("raw-editor-options").assertIsDisplayed()
+            compose.runOnIdle { assertEquals(original,state.adjustments) }
+        }
+    }
+
+    @Test
     fun framingStartsDirectlyWithButtonsAndStagesChangesUntilApply() {
         val landscape = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888)
         val portrait = Bitmap.createBitmap(80, 120, Bitmap.Config.ARGB_8888)
@@ -225,30 +284,34 @@ class RawEditorLayoutTest {
                 ) }
             }
         }
-        fun set(label: String, value: Float) = compose.onNodeWithContentDescription(label)
-            .performSemanticsAction(SemanticsActions.SetProgress) { it(value) }
+        fun slider(id: Int) = compose.onNodeWithTag("raw-editor-slider-$id")
+        fun set(id: Int, value: Float) {
+            val control = slider(id)
+            if (wide) control.performScrollTo()
+            control.performSemanticsAction(SemanticsActions.SetProgress) { it(value) }
+        }
         for (expanded in listOf(false, true)) {
             compose.runOnIdle { wide = expanded; state = state.copy(adjustments = original) }
-            compose.onNodeWithContentDescription("Highlights controls").performClick()
-            compose.onNodeWithContentDescription("Highlights").assertIsDisplayed()
-            compose.onNodeWithContentDescription("Whites").assertIsDisplayed()
-            compose.onNodeWithContentDescription("Shadows").assertDoesNotExist()
+            if (!expanded) compose.onNodeWithContentDescription("Highlights controls").performClick()
+            slider(R.string.raw_editor_highlights).assertIsDisplayed()
+            slider(R.string.raw_editor_whites).assertIsDisplayed()
+            if (!expanded) compose.onNodeWithContentDescription("Shadows").assertDoesNotExist()
             compose.runOnIdle { assertEquals(original, state.adjustments) }
-            set("Highlights", -.6f)
+            set(R.string.raw_editor_highlights, -.6f)
             compose.runOnIdle { assertEquals(original.copy(highlights = -.6f), state.adjustments) }
-            set("Whites", .2f)
+            set(R.string.raw_editor_whites, .2f)
             compose.runOnIdle { assertEquals(original.copy(highlights = -.6f, whites = .2f), state.adjustments) }
             compose.onNodeWithTag("raw-editor-parameter-${R.string.raw_editor_highlights}", useUnmergedTree = true)
                 .performTouchInput { doubleClick() }
             compose.runOnIdle { assertEquals(original.copy(highlights = 0f, whites = .2f), state.adjustments) }
-            compose.onNodeWithContentDescription("Highlights controls").performTouchInput { doubleClick() }
+            if (!expanded) compose.onNodeWithContentDescription("Highlights controls").performTouchInput { doubleClick() }
             compose.runOnIdle { assertEquals(original.copy(highlights = 0f, whites = .2f), state.adjustments) }
-            compose.onNodeWithContentDescription("Shadows controls").performClick()
-            compose.onNodeWithContentDescription("Shadows").assertIsDisplayed()
-            compose.onNodeWithContentDescription("Blacks").assertIsDisplayed()
-            compose.onNodeWithContentDescription("Whites").assertDoesNotExist()
-            set("Shadows", .3f)
-            set("Blacks", -.6f)
+            if (!expanded) compose.onNodeWithContentDescription("Shadows controls").performClick()
+            slider(R.string.raw_editor_shadows).assertIsDisplayed()
+            slider(R.string.raw_editor_blacks).assertIsDisplayed()
+            if (!expanded) compose.onNodeWithContentDescription("Whites").assertDoesNotExist()
+            set(R.string.raw_editor_shadows, .3f)
+            set(R.string.raw_editor_blacks, -.6f)
             compose.runOnIdle { assertEquals(original.copy(highlights = 0f, whites = .2f, shadows = .3f, blacks = -.6f), state.adjustments) }
             compose.onNodeWithTag("raw-editor-parameter-${R.string.raw_editor_blacks}", useUnmergedTree = true)
                 .performTouchInput { doubleClick() }
@@ -402,7 +465,8 @@ class RawEditorLayoutTest {
         fun set(label: String, value: Float) {
             val grouped = selectGroupedControl(label) != null
             val control = compose.onNodeWithContentDescription(if (label == "Vignette") "Amount" else label)
-            if (!grouped && label != "Straighten") compose.onNodeWithContentDescription("$label controls").performScrollTo().performClick()
+            if (wide) control.performScrollTo()
+            else if (!grouped && label != "Straighten") compose.onNodeWithContentDescription("$label controls").performScrollTo().performClick()
             control.performSemanticsAction(SemanticsActions.SetProgress) { it(value) }
             compose.onNodeWithText("Save").assertIsDisplayed()
         }

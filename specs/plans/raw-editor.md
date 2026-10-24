@@ -281,3 +281,11 @@ are derived from the existing displayed precision and rounding keeps exact
 parameter units. The previous custom pointer handling and Canvas dial drawing
 are removed. Option circles select controls; the native slider owns adjustable
 semantics, avoiding duplicate sliders in the accessibility tree.
+
+
+At 700 dp and wider, RawEditorScreen keeps the preview on the left and fills
+the right pane vertically. One category row is shared between top placement
+in the wide pane and bottom placement in compact mode. The wide body scrolls
+independently and renders the same RawParam definitions and callbacks as the
+compact editor, flattening grouped parameters into individually labeled rows.
+No processing, persisted adjustment, or export format changes are involved.
