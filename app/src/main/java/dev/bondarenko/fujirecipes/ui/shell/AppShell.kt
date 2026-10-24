@@ -22,6 +22,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -52,6 +53,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -91,14 +93,14 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.LinkedCamera
 import dev.bondarenko.fujirecipes.ui.theme.icons.MoreVert
 import dev.bondarenko.fujirecipes.ui.theme.icons.Science
 import dev.bondarenko.fujirecipes.ui.theme.icons.Tune
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Pages can omit their camera trigger when the shell provides it in the navigation rail. */
 val LocalRailActionProvided = compositionLocalOf { false }
 
-private const val LONG_PRESS_EDIT_MS = 3_000L
+private const val LONG_PRESS_EDIT_MS = 500L
 private val PinYellow = Color(0xFFFBC02D)
 
 val NavDestinationId.navLabelRes: Int
@@ -158,6 +160,7 @@ private data class BarEntry(
     val icon: ImageVector,
     val selected: Boolean,
     val onClick: () -> Unit,
+    val isMore: Boolean = false,
 )
 
 /**
@@ -195,31 +198,41 @@ fun AppShell(
     content: @Composable (PaddingValues) -> Unit,
 ) {
     var isEditMode by rememberSaveable { mutableStateOf(false) }
+    var suppressNextClick by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
 
     if (isEditMode) {
         BackHandler { isEditMode = false }
     }
 
-    val jiggleTransition = rememberInfiniteTransition(label = "nav-jiggle")
-    val jiggleAngle by jiggleTransition.animateFloat(
-        initialValue = -3.5f,
-        targetValue = 3.5f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 115, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "jiggle-angle",
-    )
-    val jiggleOffsetY by jiggleTransition.animateFloat(
-        initialValue = -1.2f,
-        targetValue = 1.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 140, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "jiggle-offset-y",
-    )
+    val jiggleAngleState = if (isEditMode) {
+        val jiggleTransition = rememberInfiniteTransition(label = "nav-jiggle")
+        jiggleTransition.animateFloat(
+            initialValue = -3.5f,
+            targetValue = 3.5f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 115, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "jiggle-angle",
+        )
+    } else {
+        null
+    }
+    val jiggleOffsetYState = if (isEditMode) {
+        val jiggleTransition = rememberInfiniteTransition(label = "nav-jiggle-y")
+        jiggleTransition.animateFloat(
+            initialValue = -1.2f,
+            targetValue = 1.2f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 140, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "jiggle-offset-y",
+        )
+    } else {
+        null
+    }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val railMinHeight = if (railBottomAction != null) 600.dp else 480.dp
@@ -264,45 +277,33 @@ fun AppShell(
                     icon = FujiIcons.MoreVert,
                     selected = isMoreSelected,
                     onClick = onMoreClick,
+                    isMore = true,
                 ),
             )
         }
 
-        val longPressModifier = Modifier.pointerInput(Unit) {
-            coroutineScope {
-                awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                    var triggered = false
-                    val timerJob = launch {
-                        delay(LONG_PRESS_EDIT_MS)
-                        triggered = true
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        isEditMode = true
-                    }
-                    try {
-                        while (true) {
-                            val event = awaitPointerEvent(PointerEventPass.Initial)
-                            if (triggered) {
-                                event.changes.forEach { it.consume() }
-                            }
-                            if (event.changes.none { it.pressed }) {
-                                break
-                            }
-                            val activeChange = event.changes.firstOrNull { it.id == down.id }
-                                ?: event.changes.firstOrNull { it.pressed }
-                            if (!triggered && activeChange != null) {
-                                val pos = activeChange.position
-                                val margin = 48.dp.toPx()
-                                if (pos.x < -margin || pos.x > size.width + margin ||
-                                    pos.y < -margin || pos.y > size.height + margin
-                                ) {
-                                    timerJob.cancel()
-                                    break
-                                }
-                            }
+        val moreLongPressModifier = Modifier.pointerInput(Unit) {
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                val releasedBeforeTimeout = withTimeoutOrNull(LONG_PRESS_EDIT_MS) {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        if (event.changes.none { it.pressed }) {
+                            return@withTimeoutOrNull true
                         }
-                    } finally {
-                        timerJob.cancel()
+                    }
+                    @Suppress("UNREACHABLE_CODE")
+                    true
+                } ?: false
+
+                if (!releasedBeforeTimeout) {
+                    suppressNextClick = true
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    isEditMode = true
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        event.changes.forEach { it.consume() }
+                        if (event.changes.none { it.pressed }) break
                     }
                 }
             }
@@ -310,7 +311,7 @@ fun AppShell(
 
         Row(Modifier.fillMaxSize()) {
             if (showChrome && useRail) {
-                NavigationRail(modifier = Modifier.fillMaxHeight().then(longPressModifier)) {
+                NavigationRail(modifier = Modifier.fillMaxHeight()) {
                     Box(Modifier.fillMaxHeight()) {
                         Column(
                             modifier = Modifier.align(Alignment.Center),
@@ -319,19 +320,47 @@ fun AppShell(
                         ) {
                             entries.forEachIndexed { index, entry ->
                                 val direction = if (index % 2 == 0) 1f else -1f
+                                val interactionSource = remember(index) { MutableInteractionSource() }
+                                if (entry.isMore) {
+                                    LaunchedEffect(interactionSource) {
+                                        var holdJob: Job? = null
+                                        interactionSource.interactions.collect { interaction ->
+                                            when (interaction) {
+                                                is PressInteraction.Press -> {
+                                                    holdJob?.cancel()
+                                                    holdJob = launch {
+                                                        delay(LONG_PRESS_EDIT_MS)
+                                                        suppressNextClick = true
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        isEditMode = true
+                                                    }
+                                                }
+                                                is PressInteraction.Release, is PressInteraction.Cancel -> {
+                                                    holdJob?.cancel()
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                                 NavigationRailItem(
                                     selected = entry.selected,
                                     onClick = {
-                                        if (!isEditMode) entry.onClick()
+                                        if (suppressNextClick) {
+                                            suppressNextClick = false
+                                        } else if (!isEditMode) {
+                                            entry.onClick()
+                                        }
                                     },
+                                    modifier = if (entry.isMore) moreLongPressModifier else Modifier,
+                                    interactionSource = interactionSource,
                                     icon = {
                                         Icon(
                                             imageVector = entry.icon,
                                             contentDescription = null,
                                             modifier = if (isEditMode) {
                                                 Modifier.graphicsLayer {
-                                                    rotationZ = jiggleAngle * direction
-                                                    translationY = jiggleOffsetY * direction
+                                                    rotationZ = (jiggleAngleState?.value ?: 0f) * direction
+                                                    translationY = (jiggleOffsetYState?.value ?: 0f) * direction
                                                 }
                                             } else {
                                                 Modifier
@@ -374,38 +403,64 @@ fun AppShell(
                 },
                 bottomBar = {
                     if (showChrome && !useRail && !hideBottomNavigation) {
-                        Box(modifier = longPressModifier) {
-                            NavigationBar {
-                                entries.forEachIndexed { index, entry ->
-                                    val direction = if (index % 2 == 0) 1f else -1f
-                                    NavigationBarItem(
-                                        selected = entry.selected,
-                                        onClick = {
-                                            if (!isEditMode) entry.onClick()
-                                        },
-                                        icon = {
-                                            Icon(
-                                                imageVector = entry.icon,
-                                                contentDescription = null,
-                                                modifier = if (isEditMode) {
-                                                    Modifier.graphicsLayer {
-                                                        rotationZ = jiggleAngle * direction
-                                                        translationY = jiggleOffsetY * direction
+                        NavigationBar {
+                            entries.forEachIndexed { index, entry ->
+                                val direction = if (index % 2 == 0) 1f else -1f
+                                val interactionSource = remember(index) { MutableInteractionSource() }
+                                if (entry.isMore) {
+                                    LaunchedEffect(interactionSource) {
+                                        var holdJob: Job? = null
+                                        interactionSource.interactions.collect { interaction ->
+                                            when (interaction) {
+                                                is PressInteraction.Press -> {
+                                                    holdJob?.cancel()
+                                                    holdJob = launch {
+                                                        delay(LONG_PRESS_EDIT_MS)
+                                                        suppressNextClick = true
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        isEditMode = true
                                                     }
-                                                } else {
-                                                    Modifier
-                                                },
-                                            )
-                                        },
-                                        label = {
-                                            Text(
-                                                text = stringResource(entry.labelRes),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                            )
-                                        },
-                                    )
+                                                }
+                                                is PressInteraction.Release, is PressInteraction.Cancel -> {
+                                                    holdJob?.cancel()
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
+                                NavigationBarItem(
+                                    selected = entry.selected,
+                                    onClick = {
+                                        if (suppressNextClick) {
+                                            suppressNextClick = false
+                                        } else if (!isEditMode) {
+                                            entry.onClick()
+                                        }
+                                    },
+                                    modifier = if (entry.isMore) moreLongPressModifier else Modifier,
+                                    interactionSource = interactionSource,
+                                    icon = {
+                                        Icon(
+                                            imageVector = entry.icon,
+                                            contentDescription = null,
+                                            modifier = if (isEditMode) {
+                                                Modifier.graphicsLayer {
+                                                    rotationZ = (jiggleAngleState?.value ?: 0f) * direction
+                                                    translationY = (jiggleOffsetYState?.value ?: 0f) * direction
+                                                }
+                                            } else {
+                                                Modifier
+                                            },
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            text = stringResource(entry.labelRes),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
+                                )
                             }
                         }
                     }
