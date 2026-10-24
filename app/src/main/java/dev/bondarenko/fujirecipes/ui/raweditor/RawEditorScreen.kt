@@ -23,6 +23,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -37,7 +38,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -115,6 +119,7 @@ fun RawEditorScreen(
 ) {
     var showCamera by remember(state.name) { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
+    var panel by rememberSaveable { mutableIntStateOf(0) }
     val uriHandler = LocalUriHandler.current
     if (showInfo) AlertDialog(
         onDismissRequest = { showInfo = false },
@@ -203,22 +208,50 @@ fun RawEditorScreen(
                         }
                     }
                     val controls: @Composable (Modifier) -> Unit = { modifier ->
+                        val edits = state.adjustments
+                        val editable = !state.busy && !showCamera
                         Column(
                             modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
-                                TextButton(onClick = { showCamera = !showCamera }, enabled = !state.busy) {
-                                    Text(stringResource(if (showCamera) R.string.raw_editor_show_raw else R.string.raw_editor_show_camera))
+                            TextButton(onClick = { showCamera = !showCamera }, enabled = !state.busy) {
+                                Text(stringResource(if (showCamera) R.string.raw_editor_show_raw else R.string.raw_editor_show_camera))
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                listOf(R.string.raw_editor_light, R.string.raw_editor_color, R.string.raw_editor_detail).forEachIndexed { index, label ->
+                                    FilterChip(selected = panel == index, onClick = { panel = index }, label = { Text(stringResource(label)) })
                                 }
-                                RawSlider(stringResource(R.string.raw_editor_exposure), state.adjustments.exposure, -3f..3f, !state.busy && !showCamera, true) {
-                                    onAdjust(state.adjustments.copy(exposure = it))
-                                }
-                                RawSlider(stringResource(R.string.raw_editor_shadows), state.adjustments.shadows, -1f..1f, !state.busy && !showCamera) {
-                                    onAdjust(state.adjustments.copy(shadows = it))
-                                }
-                                RawSlider(stringResource(R.string.raw_editor_highlights), state.adjustments.highlights, -1f..1f, !state.busy && !showCamera) {
-                                    onAdjust(state.adjustments.copy(highlights = it))
+                            }
+                            key(panel) {
+                                Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                                    when (panel) {
+                                        0 -> {
+                                            RawSlider(stringResource(R.string.raw_editor_exposure), edits.exposure, -3f..3f, editable, 1f, 1, " EV") { onAdjust(edits.copy(exposure = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_shadows), edits.shadows, -1f..1f, editable) { onAdjust(edits.copy(shadows = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_highlights), edits.highlights, -1f..1f, editable) { onAdjust(edits.copy(highlights = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_contrast), edits.contrast, -1f..1f, editable) { onAdjust(edits.copy(contrast = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_whites), edits.whites, -1f..1f, editable) { onAdjust(edits.copy(whites = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_blacks), edits.blacks, -1f..1f, editable) { onAdjust(edits.copy(blacks = it)) }
+                                        }
+                                        1 -> {
+                                            Text(stringResource(R.string.raw_editor_wb_relative), style = MaterialTheme.typography.bodySmall)
+                                            TextButton(onClick = { onAdjust(edits.copy(temperature = 0f, tint = 0f)) }, enabled = editable) {
+                                                Text(stringResource(R.string.raw_editor_as_shot))
+                                            }
+                                            RawSlider(stringResource(R.string.raw_editor_temperature), edits.temperature, -1f..1f, editable) { onAdjust(edits.copy(temperature = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_tint), edits.tint, -1f..1f, editable) { onAdjust(edits.copy(tint = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_saturation), edits.saturation, -1f..1f, editable) { onAdjust(edits.copy(saturation = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_vibrance), edits.vibrance, -1f..1f, editable) { onAdjust(edits.copy(vibrance = it)) }
+                                        }
+                                        2 -> {
+                                            RawSlider(stringResource(R.string.raw_editor_sharpening), edits.sharpening, 0f..1f, editable) { onAdjust(edits.copy(sharpening = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_radius), edits.sharpenRadius, .5f..3f, editable && edits.sharpening > 0, 1f, 1, " px") { onAdjust(edits.copy(sharpenRadius = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_threshold), edits.sharpenThreshold, 0f..1f, editable && edits.sharpening > 0) { onAdjust(edits.copy(sharpenThreshold = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_color_noise), edits.colorNoise, 0f..1f, editable) { onAdjust(edits.copy(colorNoise = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_luminance_noise), edits.luminanceNoise, 0f..1f, editable) { onAdjust(edits.copy(luminanceNoise = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_noise_detail), edits.noiseDetail, 0f..1f, editable && (edits.colorNoise > 0 || edits.luminanceNoise > 0)) { onAdjust(edits.copy(noiseDetail = it)) }
+                                        }
+                                    }
                                 }
                             }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -248,17 +281,19 @@ fun RawEditorScreen(
 @Composable
 private fun RawSlider(
     label: String, value: Float, range: ClosedFloatingPointRange<Float>, enabled: Boolean,
-    exposure: Boolean = false, onChange: (Float) -> Unit,
+    displayScale: Float = 100f, decimals: Int = 0, suffix: String = "", onChange: (Float) -> Unit,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     Column {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, style = MaterialTheme.typography.labelLarge)
-            Text(if (exposure) String.format(locale, "%+.1f EV", value) else String.format(locale, "%+.0f", value * 100))
+            val sign = if (range.start < 0) "+" else ""
+            val displayed = if (value == 0f) 0f else value
+            Text(String.format(locale, "%$sign.${decimals}f$suffix", displayed * displayScale))
         }
         Slider(
             value = value, onValueChange = {
-                val precision = if (exposure) 10f else 100f
+                val precision = displayScale * if (decimals == 1) 10f else 1f
                 onChange(round(it * precision).toInt() / precision)
             }, valueRange = range, enabled = enabled,
             modifier = Modifier.semantics { contentDescription = label },

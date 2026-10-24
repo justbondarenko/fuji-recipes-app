@@ -5,15 +5,18 @@ film simulation's color profile and as-shot white balance are applied before the
 editable preview. The original RAF is never modified. Lab retains camera-engine development.
 
 The pipeline is RAF → LibRaw demosaicing in unscaled sensor RGB → floating-point as-shot
-WB and camera matrix → dynamic-range exposure compensation → exposure/shadow/highlight
-adjustments → sRGB encoding → the simulation's published 3D color LUT → display/JPEG.
+WB plus relative temperature/tint → camera matrix → dynamic-range exposure compensation
+→ exposure/shadow/highlight adjustments → sRGB encoding → the simulation's published
+3D color LUT → contrast/whites/blacks/saturation/vibrance → edge-aware luminance/chroma
+noise reduction → luminance sharpening → display/JPEG.
 Adjustments always re-render from retained linear RAW pixels. The embedded JPEG supplies
 MakerNote metadata and an explicitly labeled camera comparison, never editable pixels.
 
 The eleven color simulations have bundled profiles. Unknown simulations and monochrome
 variants fail explicitly instead of silently displaying an unprofiled image. These are
 camera-matching color profiles, not Fujifilm's complete proprietary renderer. Grain, Color
-Chrome, sharpening, clarity, lens corrections, and the other recipe effects are not replicated.
+Chrome, the camera's sharpening/NR settings, clarity, lens corrections, and the other recipe
+effects are not replicated. Independent sharpening and NR controls are available in Detail.
 
 Previews use half-size demosaicing and a 1600-pixel long edge. Export reopens the original
 RAF and demosaics at the full active crop, with the same profile and adjustments. It writes
@@ -46,3 +49,12 @@ passes at 393 dp and 840 dp: progress and comparison do not move the preview or 
 in `ui/camera/SlotDetailSheet.kt:332`; the editor has no lint errors. Process-death restoration
 is implemented through SavedStateHandle and the persisted SAF grant, but has not been
 independently forced and verified on hardware. No camera-engine operation was used.
+
+The first expanded control batch is tracked in [raw-editor-features.md](raw-editor-features.md).
+Light, Color, and Detail panels share the same saved adjustments and native processing in
+preview and export. The white-balance cache retains camera-space samples so WB edits happen
+before the camera matrix. Temperature and tint are relative to As Shot. Zero adjustments
+keep the original color profile as the starting point. Detail operations use overlapping
+96-row strips; additional filter memory does not scale with the whole image height.
+The expanded phone test verifies each control, identical restoration from SavedStateHandle,
+reset, rejection safety, and full-resolution export with the combined controls enabled.

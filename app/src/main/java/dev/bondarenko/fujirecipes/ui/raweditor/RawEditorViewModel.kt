@@ -64,7 +64,8 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
     private val closed = AtomicBoolean(false)
     private var renderJob: Job? = null
     private var pendingExport: RawAdjustments? = null
-    private val initialEdits = RawAdjustments(saved["exposure"] ?: 0f, saved["shadows"] ?: 0f, saved["highlights"] ?: 0f)
+    private val initialEdits = saved.get<FloatArray>("adjustments")?.let(RawAdjustments::fromValues)
+        ?: RawAdjustments(saved["exposure"] ?: 0f, saved["shadows"] ?: 0f, saved["highlights"] ?: 0f)
     private val _state = MutableStateFlow(RawEditorState(adjustments = initialEdits))
     val state = _state.asStateFlow()
 
@@ -195,7 +196,7 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
     private fun renderBitmap(nativeHandle: Long, width: Int, height: Int, edits: RawAdjustments, full: Boolean): Bitmap {
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         try {
-            NativeRaw.render(nativeHandle, bitmap, edits.exposure, edits.shadows, edits.highlights, full)
+            NativeRaw.render(nativeHandle, bitmap, edits.nativeValues(), full)
             return bitmap
         } catch (error: Throwable) {
             bitmap.recycle()
@@ -204,9 +205,7 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
     }
 
     private fun rememberEdits(edits: RawAdjustments) {
-        saved["exposure"] = edits.exposure
-        saved["shadows"] = edits.shadows
-        saved["highlights"] = edits.highlights
+        saved["adjustments"] = edits.nativeValues()
     }
 
     private fun fail(error: Exception) {

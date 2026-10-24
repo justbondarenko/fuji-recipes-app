@@ -1,4 +1,5 @@
 #include "raw_color.h"
+#include "raw_detail.h"
 #include "libraw/libraw.h"
 #include <android/bitmap.h>
 #include <jni.h>
@@ -11,6 +12,7 @@ struct Session {
     fuji::Lut lut;
     int width = 0, height = 0, fullWidth = 0, fullHeight = 0;
     float baseline = 1;
+    float cameraToRgb[3][3]{};
     std::vector<fuji::Rgb> preview;
     Session(std::string p, std::string profile) : path(std::move(p)), lut(profile) {}
 };
@@ -53,7 +55,7 @@ std::pair<int, int> dimensions(const LibRaw& raw) {
 }
 
 // Coordinates are displayed upright; the sensor buffer itself has not been rotated.
-fuji::Rgb linearPixel(const LibRaw& raw, int x, int y) {
+fuji::Rgb cameraPixel(const LibRaw& raw, int x, int y) {
     const auto& d = raw.imgdata;
     int row = y, col = x;
     if (d.sizes.flip & 4) std::swap(row, col);
@@ -65,9 +67,8 @@ fuji::Rgb linearPixel(const LibRaw& raw, int x, int y) {
     if (!(minimumWb > 0) || color.maximum == 0)
         throw std::runtime_error("The RAW has no usable as-shot white balance.");
     fuji::Rgb result{};
-    for (int c = 0; c < 3; ++c) for (int sensor = 0; sensor < 3; ++sensor)
-        result[c] += color.rgb_cam[c][sensor] * pixel[sensor] *
-                     (color.cam_mul[sensor] / minimumWb) / color.maximum;
+    for (int c = 0; c < 3; ++c)
+        result[c] = pixel[c] * (color.cam_mul[c] / minimumWb) / color.maximum;
     return result;
 }
 
@@ -99,6 +100,8 @@ Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_open(JNIEnv* env, jobje
         session->fullHeight = fullSize.second;
         auto dr = raw->imgdata.makernotes.fuji.DevelopmentDynamicRange;
         session->baseline = dr == 400 ? 4.f : dr == 200 ? 2.f : 1.f;
+        for (int c = 0; c < 3; ++c) for (int sensor = 0; sensor < 3; ++sensor)
+            session->cameraToRgb[c][sensor] = raw->imgdata.color.rgb_cam[c][sensor];
         float scale = std::min(1.f, 1600.f / std::max(width, height));
         session->width = std::max(1, int(width * scale));
         session->height = std::max(1, int(height * scale));
@@ -108,7 +111,7 @@ Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_open(JNIEnv* env, jobje
             int count = 0;
             for (int sy = y * height / session->height; sy < (y + 1) * height / session->height; ++sy)
                 for (int sx = x * width / session->width; sx < (x + 1) * width / session->width; ++sx) {
-                    auto pixel = linearPixel(*raw, sx, sy);
+                    auto pixel = cameraPixel(*raw, sx, sy);
                     for (int c = 0; c < 3; ++c) sum[c] += pixel[c];
                     ++count;
                 }
@@ -130,12 +133,13 @@ Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_dimensions(JNIEnv* env,
 
 extern "C" JNIEXPORT void JNICALL
 Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_render(JNIEnv* env, jobject, jlong handle,
-    jobject bitmap, jfloat exposure, jfloat shadows, jfloat highlights, jboolean full) {
+    jobject bitmap, jfloatArray parameters, jboolean full) {
     void* pixels = nullptr;
     try {
-        if (!std::isfinite(exposure) || std::abs(exposure) > 3 || !std::isfinite(shadows) ||
-            std::abs(shadows) > 1 || !std::isfinite(highlights) || std::abs(highlights) > 1)
-            throw std::runtime_error("Invalid RAW adjustment.");
+        float values[16];
+        if (env->GetArrayLength(parameters) != 16) throw std::runtime_error("Invalid RAW adjustment count.");
+        env->GetFloatArrayRegion(parameters, 0, 16, values);
+        auto edits = fuji::Adjustments::read(values, 16);
         auto& s = *reinterpret_cast<Session*>(handle);
         std::unique_ptr<LibRaw> raw;
         if (full) raw = decodeRaf(s.path, false);
@@ -146,14 +150,34 @@ Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_render(JNIEnv* env, job
             info.height != unsigned(size.second)) throw std::runtime_error("Incorrect RAW output size.");
         if (AndroidBitmap_lockPixels(env, bitmap, &pixels) != ANDROID_BITMAP_RESULT_SUCCESS)
             throw std::runtime_error("Could not allocate the rendered image.");
-        fuji::Adjustments edits{exposure, shadows, highlights};
-        for (int y = 0; y < size.second; ++y) {
-            auto* row = static_cast<uint8_t*>(pixels) + y * info.stride;
-            for (int x = 0; x < size.first; ++x) {
-                auto linear = full ? linearPixel(*raw, x, y) : s.preview[y * s.width + x];
-                auto rgb = fuji::renderPixel(linear, s.lut, edits, s.baseline);
-                for (int c = 0; c < 3; ++c) row[x * 4 + c] = uint8_t(std::clamp(std::lround(rgb[c] * 255), 0L, 255L));
-                row[x * 4 + 3] = 255;
+        auto gains = fuji::whiteBalanceGains(edits);
+        auto point = [&](int x, int y) {
+            auto camera = full ? cameraPixel(*raw, x, y) : s.preview[y * s.width + x];
+            fuji::Rgb linear{};
+            for (int c = 0; c < 3; ++c) for (int sensor = 0; sensor < 3; ++sensor)
+                linear[c] += s.cameraToRgb[c][sensor] * camera[sensor] * gains[sensor];
+            return fuji::renderPixel(linear, s.lut, edits, s.baseline);
+        };
+        auto write = [&](int x, int y, const fuji::Rgb& rgb) {
+            auto* pixel = static_cast<uint8_t*>(pixels) + y * info.stride + x * 4;
+            for (int c = 0; c < 3; ++c) pixel[c] = uint8_t(std::clamp(std::lround(rgb[c] * 255), 0L, 255L));
+            pixel[3] = 255;
+        };
+        if (!edits.hasDetails()) {
+            for (int y = 0; y < size.second; ++y) for (int x = 0; x < size.first; ++x) write(x, y, point(x, y));
+        } else {
+            float scale = full ? 1.f : float(s.width) / s.fullWidth;
+            int halo = fuji::detailHalo(edits, scale);
+            // Bound filter memory to a strip, with overlapping halos to avoid seams.
+            for (int top = 0; top < size.second; top += 96) {
+                int bottom = std::min(top + 96, size.second);
+                int first = std::max(0, top - halo), last = std::min(size.second, bottom + halo);
+                std::vector<fuji::Rgb> strip(size.first * (last - first));
+                for (int y = first; y < last; ++y) for (int x = 0; x < size.first; ++x)
+                    strip[(y - first) * size.first + x] = point(x, y);
+                fuji::applyDetails(strip, size.first, last - first, edits, scale);
+                for (int y = top; y < bottom; ++y) for (int x = 0; x < size.first; ++x)
+                    write(x, y, strip[(y - first) * size.first + x]);
             }
         }
         AndroidBitmap_unlockPixels(env, bitmap);

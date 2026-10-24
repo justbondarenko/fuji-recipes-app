@@ -68,7 +68,51 @@ struct Lut {
 
 struct Adjustments {
     float exposure = 0, shadows = 0, highlights = 0;
+    float temperature = 0, tint = 0, contrast = 0, whites = 0, blacks = 0;
+    float saturation = 0, vibrance = 0;
+    float sharpening = 0, sharpenRadius = 1, sharpenThreshold = 0;
+    float colorNoise = 0, luminanceNoise = 0, noiseDetail = .5f;
+
+    static Adjustments read(const float* p, int count) {
+        if (count != 16) throw std::runtime_error("Invalid RAW adjustment count.");
+        for (int i = 0; i < count; ++i) {
+            float minimum = i == 0 ? -3.f : i >= 10 ? 0.f : -1.f;
+            float maximum = i == 0 || i == 11 ? 3.f : 1.f;
+            if (!std::isfinite(p[i]) || p[i] < minimum || p[i] > maximum || (i == 11 && p[i] < .5f))
+                throw std::runtime_error("Invalid RAW adjustment.");
+        }
+        return {p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
+                p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]};
+    }
+
+    bool hasDetails() const { return sharpening > 0 || colorNoise > 0 || luminanceNoise > 0; }
 };
+
+inline float luminance(const Rgb& rgb) { return .2126f * rgb[0] + .7152f * rgb[1] + .0722f * rgb[2]; }
+
+inline Rgb whiteBalanceGains(const Adjustments& edits) {
+    // Relative camera-space WB, not a fabricated absolute Kelvin reading for Auto WB.
+    return {std::exp2(edits.temperature * .75f), std::exp2(-edits.tint * .5f), std::exp2(-edits.temperature * .75f)};
+}
+
+inline Rgb finishColor(Rgb rgb, const Adjustments& edits) {
+    if (edits.contrast != 0) {
+        float factor = std::exp2(edits.contrast);
+        for (auto& c : rgb) c = std::clamp((c - .5f) * factor + .5f, 0.f, 1.f);
+    }
+    float y = luminance(rgb);
+    float shift = .25f * (edits.whites * y * y + edits.blacks * (1 - y) * (1 - y));
+    if (shift != 0) for (auto& c : rgb) c = std::clamp(c + shift, 0.f, 1.f);
+    if (edits.saturation != 0 || edits.vibrance != 0) {
+        y = luminance(rgb);
+        float maximum = std::max({rgb[0], rgb[1], rgb[2]});
+        float minimum = std::min({rgb[0], rgb[1], rgb[2]});
+        float muted = maximum > 0 ? 1 - (maximum - minimum) / maximum : 1;
+        float amount = (1 + edits.saturation) * (1 + edits.vibrance * muted);
+        for (auto& c : rgb) c = std::clamp(y + (c - y) * amount, 0.f, 1.f);
+    }
+    return rgb;
+}
 
 inline Rgb renderPixel(Rgb linear, const Lut& lut, const Adjustments& edits, float baseline) {
     for (auto& c : linear) c = std::max(0.f, c * baseline);
@@ -78,6 +122,6 @@ inline Rgb renderPixel(Rgb linear, const Lut& lut, const Adjustments& edits, flo
     float gain = std::exp2(edits.exposure + edits.shadows * 2.f * shadowWeight +
                           edits.highlights * 2.f * highlightWeight);
     for (auto& c : linear) c = srgb(c * gain);
-    return lut.apply(linear);
+    return finishColor(lut.apply(linear), edits);
 }
 } // namespace fuji
