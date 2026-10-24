@@ -547,9 +547,8 @@ fun AppShell(
                                                 val curSlotCenter = (index + 0.5f) * slotW
                                                 val targetCenterX = dragFingerX - dragInitialGrabOffset
                                                 translationX = targetCenterX - curSlotCenter
-                                                scaleX = 1.12f
-                                                scaleY = 1.12f
-                                                shadowElevation = 8f
+                                                scaleX = 1.08f
+                                                scaleY = 1.08f
                                             }
                                         }
                                     else -> Modifier
