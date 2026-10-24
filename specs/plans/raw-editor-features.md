@@ -65,15 +65,30 @@ The manual controls are implemented and verified in preview and full-resolution 
 The single radial coefficient covers basic barrel/pincushion distortion; complex
 radial/fisheye calibration and automatic profiles remain pending.
 
+## Curves, grain, and selective edits — items 8, 19, 21
+
+- [x] **8. Tone curve:** master and separate RGB channels, editable control points,
+  direct in-tab gestures, double-tap point deletion, channel reset, grey Master,
+  RGB circle pickers, and screen-reader point actions.
+- [x] **19. Grain:** amount, size, and roughness; independent of Fujifilm's grain engine.
+- [x] **21. Selective adjustments:** brush paint/erase, linear-gradient, and radial
+  masks, with local exposure, shadows, highlights, temperature, tint, contrast,
+  and saturation. Includes enable/invert, opacity/feather, overlay, undo/delete,
+  and accessible shape controls.
+
+Masks follow the original photo through crop, rotation, straighten, and optics.
+All new edits use sensor RAW pixels with the recorded color profile, persist with
+the session, and apply to full-resolution export. Eight masks and 4096 stored
+brush points per photo bound edit data; brush coverage uses a 1600 px source grid.
+Fine grain and very small brush edges require judging the full-resolution export.
+See [pipeline notes](raw-editor.md) for the limits.
+
 ## Remaining proposed controls
 
 - [ ] **1. Film simulation selector:** switch between the eleven bundled profiles.
 - [ ] **3. White balance eyedropper:** sample a neutral surface in the photo.
-- [ ] **8. Tone curve:** master curve, with optional separate RGB curves.
 - [ ] **9. Color mixer / HSL:** hue, saturation, and brightness by color range.
 - [ ] **10. Color grading:** shadows, midtones, and highlights, with balance/blending.
-- [ ] **19. Grain:** amount, size, and roughness; independent of Fujifilm's grain engine.
-- [ ] **21. Selective adjustments:** brush, linear-gradient, and radial masks.
 
 ## Companion tools
 
@@ -140,3 +155,25 @@ in 76 seconds. Automatic calibration profiles remain unchecked above.
 The same real-RAF checks pass on portrait `DSCF3979.RAF` in 72 seconds. Debug APKs
 build successfully; full lint still stops at the existing `SlotDetailSheet.kt:332`
 error, with no RAW Editor lint errors.
+
+Items 8, 19, and 21 delivered on 2026-10-24: all 732 JVM tests and native checks
+pass. Checks cover curve interpolation/channel isolation/identity, tightly spaced
+control points, deterministic grain, mask coverage/erase/invert/opacity/enable,
+source anchoring, malformed payload rejection, and old-session migration. Four
+wireless SM-F976B UI tests pass in 14 seconds, covering curve drawing and point
+actions, grain resets, all mask types, brush gestures/undo/delete, accessible
+shape edits, and compact/wide/short-landscape layouts. The supplied landscape
+DSCF3946.RAF passes control effects, overlays, reset, identical restoration, and
+full-resolution framed export (3278 × 5248) in 70 seconds. Portrait DSCF3979.RAF
+passes the same checks plus actual drawing through crop/rotation and repeating an
+unchanged gradient without stalling, exporting at 4920 × 3496 in 102 seconds.
+Debug APKs build; the only lint error remains the existing SlotDetailSheet.kt:332
+resource-lookup error. Grain and mask adjustments reuse the current carousel and
+tick dial; sharing and customizable navigation files are unchanged.
+
+Curves UI refinement: curves appear directly in the tab, with grey Master and
+colored RGB circle pickers. Touch the line to add, drag to move, and double-tap
+an interior point to delete. Visible input/output, previous/next, and add/remove
+controls are removed; screen-reader graph actions retain equivalent operations.
+All four phone UI checks pass in 14 seconds, including fast drags from the initial
+finger-down position and deletion without affecting another color channel.

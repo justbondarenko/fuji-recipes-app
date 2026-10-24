@@ -8,9 +8,9 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include "raw_creative.h"
 
 namespace fuji {
-using Rgb = std::array<float, 3>;
 
 inline float srgb(float x) {
     x = std::max(0.f, x);
@@ -79,21 +79,26 @@ struct Adjustments {
     float vignette = 0, vignetteMidpoint = .5f, vignetteRoundness = 0, vignetteFeather = .5f;
     float distortion = 0, perspectiveVertical = 0, perspectiveHorizontal = 0;
     float chromaticRed = 0, chromaticBlue = 0, defringePurple = 0, defringeGreen = 0;
+    float grainAmount = 0, grainSize = 3, grainRoughness = .5f;
+    std::array<ToneCurve,4> curves;
+    std::vector<LocalMask> masks;
 
     static Adjustments read(const float* p, int count) {
-        if (count != 36) throw std::runtime_error("Invalid RAW adjustment count.");
-        constexpr float minimum[] = {-3,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,.5f,0,0,0,0,-1,-1,-1,0,0,0,0,0,-15,-1,0,-1,0,-1,-1,-1,-1,-1,0,0};
-        constexpr float maximum[] = {3,1,1,1,1,1,1,1,1,1,1,3,1,1,1,1,1,1,1,1,1,1,1,3,15,1,1,1,1,1,1,1,1,1,1,1};
-        for (int i = 0; i < count; ++i) {
+        if (count < 61 || count > 16384) throw std::runtime_error("Invalid RAW adjustment count.");
+        constexpr float minimum[] = {-3,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,.5f,0,0,0,0,-1,-1,-1,0,0,0,0,0,-15,-1,0,-1,0,-1,-1,-1,-1,-1,0,0,0,.5f,0};
+        constexpr float maximum[] = {3,1,1,1,1,1,1,1,1,1,1,3,1,1,1,1,1,1,1,1,1,1,1,3,15,1,1,1,1,1,1,1,1,1,1,1,1,10,1};
+        for (int i = 0; i < 39; ++i) {
             if (!std::isfinite(p[i]) || p[i] < minimum[i] || p[i] > maximum[i])
                 throw std::runtime_error("Invalid RAW adjustment.");
         }
         if (p[21] - p[19] < .04999f || p[22] - p[20] < .04999f || p[23] != std::round(p[23]))
             throw std::runtime_error("Invalid RAW framing.");
-        return {p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
+        Adjustments result{p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
                 p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15], p[16], p[17], p[18],
                 p[19], p[20], p[21], p[22], int(p[23]), p[24], p[25], p[26], p[27], p[28],
-                p[29], p[30], p[31], p[32], p[33], p[34], p[35]};
+                p[29], p[30], p[31], p[32], p[33], p[34], p[35], p[36], p[37], p[38], {}, {}};
+        CreativeReader{p,count}.read(result.curves,result.masks);
+        return result;
     }
 
     bool hasDetails() const {
@@ -104,38 +109,40 @@ struct Adjustments {
 
 inline float luminance(const Rgb& rgb) { return .2126f * rgb[0] + .7152f * rgb[1] + .0722f * rgb[2]; }
 
-inline Rgb whiteBalanceGains(const Adjustments& edits) {
+inline Rgb whiteBalanceGains(const Adjustments& edits, const LocalEdits& local = {}) {
     // Relative camera-space WB, not a fabricated absolute Kelvin reading for Auto WB.
-    return {std::exp2(edits.temperature * .75f), std::exp2(-edits.tint * .5f), std::exp2(-edits.temperature * .75f)};
+    return {std::exp2((edits.temperature+local.temperature) * .75f), std::exp2(-(edits.tint+local.tint) * .5f), std::exp2(-(edits.temperature+local.temperature) * .75f)};
 }
 
-inline Rgb finishColor(Rgb rgb, const Adjustments& edits) {
-    if (edits.contrast != 0) {
-        float factor = std::exp2(edits.contrast);
+inline Rgb finishColor(Rgb rgb, const Adjustments& edits, const LocalEdits& local = {}) {
+    if (edits.contrast + local.contrast != 0) {
+        float factor = std::exp2(edits.contrast + local.contrast);
         for (auto& c : rgb) c = std::clamp((c - .5f) * factor + .5f, 0.f, 1.f);
     }
     float y = luminance(rgb);
     float shift = .25f * (edits.whites * y * y + edits.blacks * (1 - y) * (1 - y));
     if (shift != 0) for (auto& c : rgb) c = std::clamp(c + shift, 0.f, 1.f);
-    if (edits.saturation != 0 || edits.vibrance != 0) {
+    if (edits.saturation != 0 || edits.vibrance != 0 || local.saturation != 0) {
         y = luminance(rgb);
         float maximum = std::max({rgb[0], rgb[1], rgb[2]});
         float minimum = std::min({rgb[0], rgb[1], rgb[2]});
         float muted = maximum > 0 ? 1 - (maximum - minimum) / maximum : 1;
-        float amount = (1 + edits.saturation) * (1 + edits.vibrance * muted);
+        float amount = std::max(0.f, 1 + edits.saturation + local.saturation) * (1 + edits.vibrance * muted);
         for (auto& c : rgb) c = std::clamp(y + (c - y) * amount, 0.f, 1.f);
     }
     return rgb;
 }
 
-inline Rgb renderPixel(Rgb linear, const Lut& lut, const Adjustments& edits, float baseline) {
+inline Rgb renderPixel(Rgb linear, const Lut& lut, const Adjustments& edits, float baseline, const LocalEdits& local = {}) {
     for (auto& c : linear) c = std::max(0.f, c * baseline);
     float luminance = .2126f * linear[0] + .7152f * linear[1] + .0722f * linear[2];
     float shadowWeight = std::pow(std::max(0.f, 1.f - luminance / .5f), 2.f);
     float highlightWeight = std::clamp((luminance - .25f) / .75f, 0.f, 1.f);
-    float gain = std::exp2(edits.exposure + edits.shadows * 2.f * shadowWeight +
-                          edits.highlights * 2.f * highlightWeight);
+    float gain = std::exp2(edits.exposure + local.exposure + (edits.shadows+local.shadows) * 2.f * shadowWeight +
+                          (edits.highlights+local.highlights) * 2.f * highlightWeight);
     for (auto& c : linear) c = srgb(c * gain);
-    return finishColor(lut.apply(linear), edits);
+    auto rgb = finishColor(lut.apply(linear), edits, local);
+    for (int c = 0; c < 3; ++c) rgb[c] = edits.curves[c+1].apply(edits.curves[0].apply(rgb[c]));
+    return rgb;
 }
 } // namespace fuji

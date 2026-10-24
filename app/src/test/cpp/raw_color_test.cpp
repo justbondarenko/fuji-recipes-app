@@ -241,22 +241,77 @@ int main(int argc, char** argv) {
     auto unaligned = fuji::sampleBilinear(gx, gy, 4001, 3001, colorEdge);
     assert(std::abs(unaligned[0] - unaligned[1]) > .0001f && std::abs(unaligned[2] - unaligned[1]) > .0001f);
 
-    float invalid[36] = {};
+    float invalid[61] = {};
+    invalid[37] = 3; invalid[38] = .5f; invalid[39] = 1;
+    for (int i = 40; i < 60; i += 5) { invalid[i] = 2; invalid[i+3] = invalid[i+4] = 1; }
     invalid[11] = 1;
     invalid[21] = invalid[22] = 1;
     invalid[4] = std::nanf("");
     rejected = false;
-    try { fuji::Adjustments::read(invalid, 36); } catch (const std::exception&) { rejected = true; }
+    try { fuji::Adjustments::read(invalid, 61); } catch (const std::exception&) { rejected = true; }
     assert(rejected);
     invalid[4] = 0;
-    assert(fuji::Adjustments::read(invalid, 36).cropRight == 1);
-    for (int field : {16, 18, 19, 23, 24, 26, 28, 29, 30, 31, 32, 33, 34, 35}) {
+    assert(fuji::Adjustments::read(invalid, 61).cropRight == 1);
+    for (int field : {16, 18, 19, 23, 24, 26, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 43, 60}) {
         float original = invalid[field];
         invalid[field] = field == 23 ? .5f : 99;
         rejected = false;
-        try { fuji::Adjustments::read(invalid, 36); } catch (const std::exception&) { rejected = true; }
+        try { fuji::Adjustments::read(invalid, 61); } catch (const std::exception&) { rejected = true; }
         assert(rejected);
         invalid[field] = original;
+    }
+    // Curves bypass identity exactly, stay inside their endpoints, and isolate RGB channels.
+    fuji::ToneCurve curve;
+    curve.points = {{0,0},{.3f,.1f},{.7f,.9f},{1,1}}; curve.prepare();
+    float previous = 0;
+    for (int i = 0; i <= 1000; ++i) {
+        float value = curve.apply(i/1000.f); assert(value >= previous && value <= 1); previous = value;
+    }
+    assert(std::abs(curve.apply(.3f)-.1f) < .001f);
+    edits = {}; edits.curves[1] = curve;
+    auto redCurve = fuji::renderPixel({.02f,.02f,.02f},identity,edits,1);
+    auto plain = fuji::renderPixel({.02f,.02f,.02f},identity,{},1);
+    assert(redCurve[0] != plain[0] && redCurve[1] == plain[1] && redCurve[2] == plain[2]);
+    fuji::ToneCurve diagonal; diagonal.points = {{0,0},{.4f,.4f},{1,1}}; diagonal.prepare();
+    assert(diagonal.apply(.123456f) == .123456f);
+    curve.points = {{0,.8f},{.3f,.1f},{.7f,.9f},{1,.2f}}; curve.prepare();
+    for (int i = 0; i <= 1024; ++i) assert(curve.apply(i/1024.f) >= .099f && curve.apply(i/1024.f) <= .901f);
+
+    fuji::Rgb neutral{.5f,.5f,.5f};
+    assert(fuji::addGrain(neutral,3,7,100,100,100,100,0,3,.5f) == neutral);
+    auto grain = fuji::addGrain(neutral,3,7,100,100,100,100,.8f,3,.5f);
+    assert(grain == fuji::addGrain(neutral,3,7,100,100,100,100,.8f,3,.5f));
+    assert(grain != neutral && grain[0] == grain[1] && grain[1] == grain[2]);
+    assert(grain != fuji::addGrain(neutral,3,7,100,100,100,100,.8f,6,.5f));
+    assert(grain != fuji::addGrain(neutral,3,7,100,100,100,100,.8f,3,1));
+    for (int y = 0; y < 20; ++y) for (int x = 0; x < 20; ++x)
+        for (float c : fuji::addGrain({0,.5f,1},x,y,20,20,8000,6000,1,.5f,1)) assert(std::isfinite(c) && c >= 0 && c <= 1);
+
+    fuji::LocalMask mask; mask.kind = 1; mask.start = {0,0}; mask.end = {1,0}; mask.feather = 1;
+    assert(mask.coverage(0,.5f,1.5f) == 1 && mask.coverage(1,.5f,1.5f) == 0);
+    assert(std::abs(mask.coverage(.5f,.5f,1.5f)-.5f) < .00001f);
+    mask.edits.exposure = 1; mask.opacity = .5f;
+    assert(fuji::localEdits({mask},0,.5f,1.5f).exposure == .5f);
+    auto local = fuji::localEdits({mask},1,.5f,1.5f);
+    assert(local.exposure == 0 && fuji::renderPixel({.02f,.02f,.02f},identity,{},1,local) == plain);
+    mask.enabled = false; assert(fuji::localEdits({mask},0,.5f,1.5f).exposure == 0); mask.enabled = true;
+    mask.inverted = true; assert(mask.coverage(0,.5f,1.5f) == 0 && mask.coverage(1,.5f,1.5f) == 1);
+    mask.inverted = false; mask.kind = 2; mask.start = {.5f,.5f}; mask.end = {.8f,.7f};
+    assert(mask.coverage(.5f,.5f,1.5f) == 1 && mask.coverage(.9f,.9f,1.5f) == 0);
+    mask.kind = 0; mask.feather = .5f;
+    mask.strokes = {{.2f,false,{{.2f,.5f},{.8f,.5f}}}}; mask.prepare(120,80);
+    assert(mask.coverage(.5f,.5f,1.5f) == 1 && mask.coverage(.5f,.1f,1.5f) == 0);
+    mask.strokes.push_back({.08f,true,{{.5f,.5f}}}); mask.prepare(120,80);
+    assert(mask.coverage(.5f,.5f,1.5f) == 0 && mask.coverage(.3f,.5f,1.5f) == 1);
+    // The same source point retains coverage under crop and rotation.
+    edits = {}; edits.quarterTurns = 1; edits.cropLeft = .1f; edits.cropRight = .9f;
+    fuji::Frame maskedFrame(120,80,edits);
+    auto sourcePoint = maskedFrame.unclampedSource(maskedFrame.width*.5-.5, maskedFrame.height*.3-.5);
+    assert(mask.coverage((sourcePoint.first+.5)/120,(sourcePoint.second+.5)/80,1.5f) > .9f);
+    for (int length = 0; length < 61; ++length) {
+        rejected = false;
+        try { fuji::Adjustments::read(invalid,length); } catch (const std::exception&) { rejected = true; }
+        assert(rejected);
     }
     for (int i = 1; i < argc; ++i) {
         std::ifstream input(argv[i]);

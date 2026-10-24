@@ -86,10 +86,11 @@ std::string stringValue(JNIEnv* env, jstring value) {
 }
 
 fuji::Adjustments adjustments(JNIEnv* env, jfloatArray parameters) {
-    float values[36];
-    if (env->GetArrayLength(parameters) != 36) throw std::runtime_error("Invalid RAW adjustment count.");
-    env->GetFloatArrayRegion(parameters, 0, 36, values);
-    return fuji::Adjustments::read(values, 36);
+    int count = env->GetArrayLength(parameters);
+    if (count < 61 || count > 16384) throw std::runtime_error("Invalid RAW adjustment count.");
+    std::vector<float> values(count);
+    env->GetFloatArrayRegion(parameters, 0, count, values.data());
+    return fuji::Adjustments::read(values.data(), count);
 }
 }
 
@@ -169,16 +170,24 @@ Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_render(JNIEnv* env, job
             info.height != unsigned(frame.height)) throw std::runtime_error("Incorrect RAW output size.");
         if (AndroidBitmap_lockPixels(env, bitmap, &pixels) != ANDROID_BITMAP_RESULT_SUCCESS)
             throw std::runtime_error("Could not allocate the rendered image.");
-        auto gains = fuji::whiteBalanceGains(edits);
-        auto develop = [&](const fuji::Rgb& camera) {
+        for (auto& mask : edits.masks) if (mask.enabled && mask.hasEdits() && mask.opacity > 0) mask.prepare(s.width,s.height);
+        fuji::Frame fullFrame(s.fullWidth,s.fullHeight,edits);
+        const auto globalGains = fuji::whiteBalanceGains(edits);
+        auto develop = [&](const fuji::Rgb& camera, const fuji::LocalEdits& local = fuji::LocalEdits{}) {
+            auto gains = local.temperature == 0 && local.tint == 0 ? globalGains : fuji::whiteBalanceGains(edits,local);
             fuji::Rgb linear{};
             for (int c = 0; c < 3; ++c) for (int sensor = 0; sensor < 3; ++sensor)
                 linear[c] += s.cameraToRgb[c][sensor] * camera[sensor] * gains[sensor];
-            return fuji::renderPixel(linear, s.lut, edits, s.baseline);
+            return fuji::renderPixel(linear, s.lut, edits, s.baseline, local);
         };
         auto point = [&](int x, int y) {
             auto sample = [&](int px, int py) { return full ? cameraPixel(*raw, px, py) : s.preview[py * s.width + px]; };
-            return develop(fuji::sampleCamera(frame, x, y, sample));
+            fuji::LocalEdits local;
+            if (!edits.masks.empty()) {
+                auto [sx,sy] = frame.unclampedSource(x,y);
+                local = fuji::localEdits(edits.masks,(sx+.5f)/size.first,(sy+.5f)/size.second,float(s.fullWidth)/s.fullHeight);
+            }
+            return develop(fuji::sampleCamera(frame, x, y, sample),local);
         };
         fuji::Rgb airlight{1,1,1};
         if (edits.dehaze != 0) {
@@ -197,6 +206,8 @@ Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_render(JNIEnv* env, job
         auto write = [&](int x, int y, const fuji::Rgb& rgb) {
             auto* pixel = static_cast<uint8_t*>(pixels) + y * info.stride + x * 4;
             auto finished = fuji::vignette(rgb, x, y, frame.width, frame.height, edits);
+            finished = fuji::addGrain(finished,x,y,frame.width,frame.height,fullFrame.width,fullFrame.height,
+                edits.grainAmount,edits.grainSize,edits.grainRoughness);
             for (int c = 0; c < 3; ++c) pixel[c] = uint8_t(std::clamp(std::lround(finished[c] * 255), 0L, 255L));
             pixel[3] = 255;
         };
@@ -221,6 +232,58 @@ Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_render(JNIEnv* env, job
     } catch (const std::exception& e) {
         if (pixels) AndroidBitmap_unlockPixels(env, bitmap);
         failure(env, e);
+    }
+}
+
+extern "C" JNIEXPORT jfloatArray JNICALL
+Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_mapPoints(JNIEnv* env, jobject, jlong handle,
+    jfloatArray parameters, jfloatArray points) {
+    try {
+        int count = env->GetArrayLength(points);
+        if (count < 2 || count > 1024 || count % 2) throw std::runtime_error("Invalid mask coordinates.");
+        std::vector<float> values(count);
+        env->GetFloatArrayRegion(points,0,count,values.data());
+        const auto& s = *reinterpret_cast<Session*>(handle);
+        fuji::Frame frame(s.fullWidth,s.fullHeight,adjustments(env,parameters));
+        for (int i = 0; i < count; i += 2) {
+            if (!std::isfinite(values[i]) || !std::isfinite(values[i+1]) || values[i] < 0 || values[i] > 1 || values[i+1] < 0 || values[i+1] > 1)
+                throw std::runtime_error("Invalid mask coordinates.");
+            auto [x,y] = frame.unclampedSource(values[i]*frame.width-.5, values[i+1]*frame.height-.5);
+            values[i] = std::clamp(float((x+.5)/s.fullWidth),0.f,1.f);
+            values[i+1] = std::clamp(float((y+.5)/s.fullHeight),0.f,1.f);
+        }
+        auto result = env->NewFloatArray(count);
+        if (result) env->SetFloatArrayRegion(result,0,count,values.data());
+        return result;
+    } catch (const std::exception& e) { failure(env,e); return nullptr; }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_maskOverlay(JNIEnv* env, jobject, jlong handle,
+    jobject bitmap, jfloatArray parameters, jint index) {
+    void* pixels = nullptr;
+    try {
+        auto edits = adjustments(env,parameters);
+        if (index < 0 || index >= int(edits.masks.size())) throw std::runtime_error("Invalid mask selection.");
+        auto& s = *reinterpret_cast<Session*>(handle);
+        auto& mask = edits.masks[index]; mask.prepare(s.width,s.height);
+        fuji::Frame frame(s.width,s.height,edits);
+        AndroidBitmapInfo info{};
+        if (AndroidBitmap_getInfo(env,bitmap,&info) != ANDROID_BITMAP_RESULT_SUCCESS ||
+            info.format != ANDROID_BITMAP_FORMAT_RGBA_8888 || info.width != unsigned(frame.width) || info.height != unsigned(frame.height))
+            throw std::runtime_error("Incorrect mask preview size.");
+        if (AndroidBitmap_lockPixels(env,bitmap,&pixels) != ANDROID_BITMAP_RESULT_SUCCESS) throw std::runtime_error("Could not allocate mask overlay.");
+        for (int y = 0; y < frame.height; ++y) for (int x = 0; x < frame.width; ++x) {
+            auto [sx,sy] = frame.unclampedSource(x,y);
+            float coverage = mask.coverage((sx+.5f)/s.width,(sy+.5f)/s.height,float(s.fullWidth)/s.fullHeight);
+            auto* p = static_cast<uint8_t*>(pixels) + y*info.stride + x*4;
+            uint8_t alpha = uint8_t(std::lround(coverage*mask.opacity*128));
+            p[0] = p[1] = p[2] = p[3] = alpha; // Premultiplied white; Compose supplies the overlay tint.
+        }
+        AndroidBitmap_unlockPixels(env,bitmap);
+    } catch (const std::exception& e) {
+        if (pixels) AndroidBitmap_unlockPixels(env,bitmap);
+        failure(env,e);
     }
 }
 

@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.data.raweditor.RawAdjustments
+import dev.bondarenko.fujirecipes.data.raweditor.*
 import dev.bondarenko.fujirecipes.data.raweditor.RawCrop
 import androidx.compose.ui.geometry.Offset
 import org.junit.Assert.assertEquals
@@ -247,6 +248,84 @@ class RawEditorLayoutTest {
         compose.runOnIdle { state = state.copy(adjustments = state.adjustments.copy(exposure = 1f)) }
         compose.onNodeWithText("Exposure").performCustomAccessibilityActionWithLabel("Reset Exposure")
         compose.runOnIdle { assertEquals(RawAdjustments(), state.adjustments) }
+    }
+
+    @Test
+    fun curvesGrainAndSelectiveControlsUseTheCurrentCarouselAndGestures() {
+        val bitmap = Bitmap.createBitmap(120,80,Bitmap.Config.ARGB_8888)
+        var state by mutableStateOf(RawEditorState(name = "sample.RAF",preview = bitmap))
+        var drawn = emptyList<MaskPoint>()
+        var wide by mutableStateOf(false)
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(if (wide) 840.dp else 393.dp,if (wide) 393.dp else 800.dp))) {
+                FujiTheme { RawEditorScreen(state, {}, {}, { state = state.copy(adjustments = it) }, {},
+                    onMasks = { state = state.copy(maskEditorOpen = it) },
+                    onSelectMask = { state = state.copy(activeMask = it) },
+                    onDrawMask = { points,_,_ -> drawn = points }) }
+            }
+        }
+        fun set(label: String, value: Float) {
+            compose.onNodeWithContentDescription(label).performScrollTo().performSemanticsAction(SemanticsActions.SetProgress) { it(value) }
+        }
+        compose.onNodeWithText("Effects").performScrollTo().performClick()
+        set("Grain",.6f); set("Grain size",6f); set("Roughness",.8f)
+        compose.onNodeWithText("Grain").performScrollTo().performTouchInput { doubleClick() }
+        compose.runOnIdle { assertEquals(0f,state.adjustments.grainAmount); assertEquals(6f,state.adjustments.grainSize) }
+        compose.onNodeWithText("Grain size").performScrollTo().performTouchInput { doubleClick() }
+        compose.onNodeWithText("Roughness").performScrollTo().performTouchInput { doubleClick() }
+        compose.runOnIdle { assertEquals(RawAdjustments(),state.adjustments) }
+        compose.onNodeWithText("Curves").performScrollTo().performClick()
+        compose.onNodeWithTag("raw-tone-curve").assertIsDisplayed()
+        listOf("Edit tone curves","Input","Output","Previous","Next","Add point","Remove point").forEach {
+            compose.onNodeWithText(it).assertDoesNotExist()
+        }
+        compose.onNodeWithTag("raw-tone-curve").performTouchInput { click(center) }
+        compose.mainClock.advanceTimeBy(400)
+        compose.onNodeWithTag("raw-tone-curve").performTouchInput { down(center); moveTo(Offset(width*.5f,height*.3f),200); up() }
+        compose.runOnIdle { assertEquals(.7f,state.adjustments.curves.master.points[1].y,.02f) }
+        compose.onNodeWithContentDescription("Red").performClick()
+        compose.onNodeWithText("Red").assertDoesNotExist()
+        compose.onNodeWithTag("raw-tone-curve").performTouchInput { click(center) }
+        compose.mainClock.advanceTimeBy(400)
+        compose.onNodeWithTag("raw-tone-curve").performTouchInput { down(center); moveTo(Offset(width*.5f,height*.7f),200); up() }
+        compose.runOnIdle { assertEquals(.3f,state.adjustments.curves.red.points[1].y,.02f); assertEquals(.7f,state.adjustments.curves.master.points[1].y,.02f) }
+        compose.onNodeWithTag("raw-tone-curve").performTouchInput { doubleClick(Offset(width*.5f,height*.7f)) }
+        compose.runOnIdle { assertEquals(2,state.adjustments.curves.red.points.size); assertTrue(state.adjustments.curves.red.isIdentity) }
+        compose.onNodeWithText("Master").performClick()
+        compose.onNodeWithTag("raw-tone-curve").performTouchInput { click(Offset(width*.5f,height*.95f)) }
+        compose.mainClock.advanceTimeBy(400)
+        compose.runOnIdle { assertEquals(3,state.adjustments.curves.master.points.size) }
+        compose.onNodeWithTag("raw-tone-curve").performCustomAccessibilityActionWithLabel("Add point")
+        compose.onNodeWithTag("raw-tone-curve").performCustomAccessibilityActionWithLabel("Move point up")
+        compose.runOnIdle { assertEquals(4,state.adjustments.curves.master.points.size) }
+        compose.onNodeWithTag("raw-tone-curve").performCustomAccessibilityActionWithLabel("Remove point")
+        compose.runOnIdle { assertEquals(3,state.adjustments.curves.master.points.size) }
+        compose.onNodeWithText("Masks").performScrollTo().performClick()
+        compose.onNodeWithText("Edit masks (0)").performClick()
+        compose.onNodeWithText("+ Brush").performScrollTo().performClick()
+        compose.onNodeWithTag("raw-mask-preview").performTouchInput { down(center); moveBy(Offset(30f,20f),200); up() }
+        compose.runOnIdle { assertTrue(drawn.isNotEmpty()); assertTrue(drawn.first() != drawn.last()); assertTrue(drawn.all { it.x in 0f..1f && it.y in 0f..1f }) }
+        set("Exposure",.8f)
+        compose.onNodeWithText("Center dab").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(.8f,state.adjustments.masks[0].adjustments.exposure); assertEquals(1,state.adjustments.masks[0].strokes.size) }
+        compose.onNodeWithText("Undo stroke").performScrollTo().performClick()
+        compose.runOnIdle { assertTrue(state.adjustments.masks[0].strokes.isEmpty()) }
+        compose.onNodeWithText("+ Linear").performScrollTo().performClick()
+        compose.onNodeWithTag("raw-mask-preview").performTouchInput { down(center); moveBy(Offset(60f,80f),200); up() }
+        compose.runOnIdle { assertTrue(drawn.first() != drawn.last()) }
+        compose.onNodeWithText("Mask shape").performClick()
+        set("Start X",.2f); set("End Y",.9f); set("Opacity",.6f); set("Feather",.7f)
+        compose.runOnIdle { assertEquals(.2f,state.adjustments.masks[1].start.x); assertEquals(.9f,state.adjustments.masks[1].end.y) }
+        compose.onNodeWithText("Invert").performScrollTo().performClick()
+        compose.onNodeWithText("+ Radial").performScrollTo().performClick()
+        compose.runOnIdle { wide = true }
+        set("Opacity",.4f)
+        compose.onNodeWithTag("raw-mask-preview").assertIsDisplayed()
+        compose.onNodeWithText("Done").assertIsDisplayed()
+        compose.onNodeWithText("Delete mask").performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(2,state.adjustments.masks.size); assertTrue(state.adjustments.masks[1].inverted) }
+        compose.onNodeWithText("Done").performClick()
+        compose.onNodeWithText("Save").assertIsDisplayed()
     }
 
     @Test
