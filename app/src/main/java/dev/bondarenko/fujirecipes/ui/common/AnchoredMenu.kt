@@ -35,9 +35,11 @@ fun FujiAnchoredMenu(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
     groups: List<@Composable ColumnScope.() -> Unit>,
+    modifier: Modifier = Modifier,
 ) {
     DropdownMenuPopup(
         expanded = expanded,
+        modifier = modifier,
         onDismissRequest = onDismissRequest,
         popupPositionProvider = MenuDefaults.rememberDropdownMenuPopupPositionProvider(
             dropdownMenuAnchorPosition = MenuAnchorPosition.Above,

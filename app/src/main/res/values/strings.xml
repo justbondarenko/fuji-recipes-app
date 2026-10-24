@@ -664,6 +664,7 @@
     <string name="raw_editor_crop">Crop and aspect ratio</string>
     <string name="raw_editor_crop_reset">Reset crop</string>
     <string name="raw_editor_crop_hint">Drag a corner to resize. Drag inside the frame to move it.</string>
+    <string name="raw_editor_crop_aspect">Aspect ratio: %1$s</string>
     <string name="raw_editor_crop_free">Free</string>
     <string name="raw_editor_crop_original">Original</string>
     <string name="raw_editor_crop_apply">Apply crop</string>
