@@ -91,7 +91,9 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.LinkedCamera
 import dev.bondarenko.fujirecipes.ui.theme.icons.MoreVert
 import dev.bondarenko.fujirecipes.ui.theme.icons.Science
 import dev.bondarenko.fujirecipes.ui.theme.icons.Tune
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /** Pages can omit their camera trigger when the shell provides it in the navigation rail. */
 val LocalRailActionProvided = compositionLocalOf { false }
@@ -267,31 +269,40 @@ fun AppShell(
         }
 
         val longPressModifier = Modifier.pointerInput(Unit) {
-            awaitEachGesture {
-                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                val startPos = down.position
-                val touchSlop = viewConfiguration.touchSlop
-                val releasedOrMoved = withTimeoutOrNull(LONG_PRESS_EDIT_MS) {
-                    while (true) {
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                        val change = event.changes.firstOrNull { it.id == down.id }
-                        if (change == null || !change.pressed) {
-                            break
-                        }
-                        if ((change.position - startPos).getDistance() > touchSlop) {
-                            break
-                        }
+            coroutineScope {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    var triggered = false
+                    val timerJob = launch {
+                        delay(LONG_PRESS_EDIT_MS)
+                        triggered = true
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        isEditMode = true
                     }
-                    true
-                } ?: false
-
-                if (!releasedOrMoved) {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    isEditMode = true
-                    while (true) {
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                        event.changes.forEach { it.consume() }
-                        if (event.changes.none { it.pressed }) break
+                    try {
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            if (triggered) {
+                                event.changes.forEach { it.consume() }
+                            }
+                            if (event.changes.none { it.pressed }) {
+                                break
+                            }
+                            val activeChange = event.changes.firstOrNull { it.id == down.id }
+                                ?: event.changes.firstOrNull { it.pressed }
+                            if (!triggered && activeChange != null) {
+                                val pos = activeChange.position
+                                val margin = 48.dp.toPx()
+                                if (pos.x < -margin || pos.x > size.width + margin ||
+                                    pos.y < -margin || pos.y > size.height + margin
+                                ) {
+                                    timerJob.cancel()
+                                    break
+                                }
+                            }
+                        }
+                    } finally {
+                        timerJob.cancel()
                     }
                 }
             }
@@ -363,36 +374,38 @@ fun AppShell(
                 },
                 bottomBar = {
                     if (showChrome && !useRail && !hideBottomNavigation) {
-                        NavigationBar(modifier = longPressModifier) {
-                            entries.forEachIndexed { index, entry ->
-                                val direction = if (index % 2 == 0) 1f else -1f
-                                NavigationBarItem(
-                                    selected = entry.selected,
-                                    onClick = {
-                                        if (!isEditMode) entry.onClick()
-                                    },
-                                    icon = {
-                                        Icon(
-                                            imageVector = entry.icon,
-                                            contentDescription = null,
-                                            modifier = if (isEditMode) {
-                                                Modifier.graphicsLayer {
-                                                    rotationZ = jiggleAngle * direction
-                                                    translationY = jiggleOffsetY * direction
-                                                }
-                                            } else {
-                                                Modifier
-                                            },
-                                        )
-                                    },
-                                    label = {
-                                        Text(
-                                            text = stringResource(entry.labelRes),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    },
-                                )
+                        Box(modifier = longPressModifier) {
+                            NavigationBar {
+                                entries.forEachIndexed { index, entry ->
+                                    val direction = if (index % 2 == 0) 1f else -1f
+                                    NavigationBarItem(
+                                        selected = entry.selected,
+                                        onClick = {
+                                            if (!isEditMode) entry.onClick()
+                                        },
+                                        icon = {
+                                            Icon(
+                                                imageVector = entry.icon,
+                                                contentDescription = null,
+                                                modifier = if (isEditMode) {
+                                                    Modifier.graphicsLayer {
+                                                        rotationZ = jiggleAngle * direction
+                                                        translationY = jiggleOffsetY * direction
+                                                    }
+                                                } else {
+                                                    Modifier
+                                                },
+                                            )
+                                        },
+                                        label = {
+                                            Text(
+                                                text = stringResource(entry.labelRes),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                        },
+                                    )
+                                }
                             }
                         }
                     }
