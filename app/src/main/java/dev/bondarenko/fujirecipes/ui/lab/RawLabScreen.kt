@@ -111,17 +111,16 @@ fun RawLabScreen(
             .fillMaxSize()
             .padding(contentPadding),
     ) {
-        LabHeader(
-            // The filename *is* the title once there is one: the page is about that file, and
-            // a separate chip for it cost a row of a screen that needs the height.
-            title = lab.rafName.ifEmpty { stringResource(R.string.lab_title) },
-            subtitle = lab.appliedRecipeName?.let { name ->
-                if (lab.isDirty) stringResource(R.string.lab_recipe_edited, name) else name
-            },
-            showActions = lab.hasRaf,
-            onBack = onBack,
-            onApplyRecipe = onApplyRecipe,
-        )
+        if (lab.hasRaf) {
+            LabHeader(
+                title = lab.rafName,
+                subtitle = lab.appliedRecipeName?.let { name ->
+                    if (lab.isDirty) stringResource(R.string.lab_recipe_edited, name) else name
+                },
+                onBack = onBack,
+                onApplyRecipe = onApplyRecipe,
+            )
+        }
 
         val importing = lab.importing
         val calibration = lab.calibration
@@ -175,24 +174,21 @@ fun RawLabScreen(
 private fun LabHeader(
     title: String,
     subtitle: String?,
-    showActions: Boolean,
     onBack: () -> Unit,
     onApplyRecipe: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = if (showActions) 4.dp else 20.dp, end = 8.dp, top = 4.dp, bottom = 2.dp),
+            .padding(start = 4.dp, end = 8.dp, top = 4.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (showActions) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = FujiIcons.ArrowBack,
-                    contentDescription = stringResource(R.string.action_back),
-                )
-            }
+        IconButton(onClick = onBack) {
+            Icon(
+                imageVector = FujiIcons.ArrowBack,
+                contentDescription = stringResource(R.string.action_back),
+            )
         }
 
         Column(modifier = Modifier.weight(1f)) {
@@ -214,14 +210,12 @@ private fun LabHeader(
             }
         }
 
-        if (showActions) {
-            // Round and tonal, matching the camera button beside it.
-            FilledTonalIconButton(onClick = onApplyRecipe, shape = CircleShape) {
-                Icon(
-                    imageVector = FujiIcons.BookmarkStacks,
-                    contentDescription = stringResource(R.string.lab_action_apply_recipe),
-                )
-            }
+        // Round and tonal, matching the camera button beside it.
+        FilledTonalIconButton(onClick = onApplyRecipe, shape = CircleShape) {
+            Icon(
+                imageVector = FujiIcons.BookmarkStacks,
+                contentDescription = stringResource(R.string.lab_action_apply_recipe),
+            )
         }
         if (!LocalRailActionProvided.current) CameraSheetButtonHost()
     }
