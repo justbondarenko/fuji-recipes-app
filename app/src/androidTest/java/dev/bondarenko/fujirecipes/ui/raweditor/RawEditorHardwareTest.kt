@@ -13,6 +13,9 @@ import androidx.test.platform.app.InstrumentationRegistry
 import dev.bondarenko.fujirecipes.data.raweditor.RawAdjustments
 import dev.bondarenko.fujirecipes.data.raweditor.*
 import dev.bondarenko.fujirecipes.data.raweditor.RawCrop
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -20,9 +23,95 @@ import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
+import kotlin.system.measureNanoTime
 
 /** Opt in with -e rawEditorProbe true and files/raw-editor-fixture.raf on the device. */
 class RawEditorHardwareTest {
+    @Test
+    fun previewKeepsUpdatingDuringContinuousSliderChanges() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("rawEditorProbe") == "true")
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val app = instrumentation.targetContext.applicationContext as Application
+        val fixture = File(app.filesDir,"raw-editor-fixture.raf")
+        check(fixture.isFile)
+        val profile = app.assets.open("raw-profiles/classic-chrome.cube").use { it.readBytes() }
+        val handle = NativeRaw.open(fixture.path,profile)
+        val heavy = RawAdjustments(clarity=.4f,texture=.3f,dehaze=.2f,colorNoise=.4f,luminanceNoise=.4f,
+            sharpening=.4f,grainAmount=.5f,masks=listOf(RawMask(RawMaskKind.RADIAL,adjustments=RawLocalAdjustments(exposure=.4f))))
+        try {
+            for ((label,edits) in listOf("Exposure" to RawAdjustments(exposure=.5f),"Effects" to heavy)) {
+                for (draft in listOf(false,true)) {
+                    val size = NativeRaw.outputDimensions(handle,edits.nativeValues(),false,draft)
+                    val bitmap = Bitmap.createBitmap(size[0],size[1],Bitmap.Config.ARGB_8888)
+                    val elapsed = measureNanoTime { NativeRaw.render(handle,bitmap,edits.nativeValues(),false,draft) } / 1_000_000
+                    Log.i("RawEditorPerf","$label ${size[0]}x${size[1]}: ${elapsed}ms; RAF=${fixture.length()} bytes")
+                    assertEquals(if (draft) { if (label == "Effects") 400 else 800 } else 1600,maxOf(bitmap.width,bitmap.height))
+                    bitmap.recycle()
+                }
+            }
+            assertThrows(java.io.IOException::class.java) { NativeRaw.outputDimensions(handle,heavy.nativeValues(),true,true) }
+        } finally { NativeRaw.close(handle) }
+        val input = File(app.cacheDir,"export/raw-editor-perf.raf").also { it.parentFile!!.mkdirs(); fixture.copyTo(it,true) }
+        val saved = SavedStateHandle()
+        val store = ViewModelStore()
+        lateinit var model: RawEditorViewModel
+        instrumentation.runOnMainSync {
+            model = ViewModelProvider(object : ViewModelStoreOwner { override val viewModelStore = store }, object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T = RawEditorViewModel(app,saved) as T
+            })[RawEditorViewModel::class.java]
+            model.open(FileProvider.getUriForFile(app,"${app.packageName}.fileprovider",input))
+        }
+        fun ready() = runBlocking { withTimeout(60_000) { model.state.first { !it.busy && !it.rendering && (it.preview != null || it.error != null) } } }
+            .also { assertNull(it.error,it.error) }
+        try {
+            ready()
+            for ((label,base) in listOf("Exposure" to RawAdjustments(),"Effects" to heavy)) {
+                val frames = AtomicInteger()
+                val firstFrame = AtomicLong()
+                val draftFrames = AtomicInteger()
+                val started = System.nanoTime()
+                var lastInput = started
+                var movingFrames = 0
+                runBlocking {
+                    var previous = model.state.value.preview
+                    val collector = launch(Dispatchers.Default) {
+                        model.state.collect { state ->
+                            if (state.preview != null && state.preview !== previous) {
+                                previous = state.preview
+                                frames.incrementAndGet()
+                                if (maxOf(state.preview.width,state.preview.height) <= 800) draftFrames.incrementAndGet()
+                                firstFrame.compareAndSet(0,System.nanoTime())
+                            }
+                        }
+                    }
+                    repeat(120) { i ->
+                        instrumentation.runOnMainSync { model.adjust(base.copy(exposure=(i+1)/120f)) }
+                        delay(16)
+                    }
+                    lastInput = System.nanoTime()
+                    movingFrames = frames.get()
+                    withTimeout(60_000) { model.state.first { !it.rendering } }
+                    collector.cancel()
+                }
+                val final = ready()
+                val settle = (System.nanoTime()-lastInput)/1_000_000
+                val first = (firstFrame.get()-started)/1_000_000
+                Log.i("RawEditorPerf","$label drag: framesWhileMoving=$movingFrames, first=${first}ms, settle=${settle}ms, final=${final.preview!!.width}x${final.preview.height}")
+                assertEquals(1600,maxOf(final.preview!!.width,final.preview.height))
+                assertTrue("Dragging must use the reduced sensor preview",draftFrames.get() >= 3)
+                assertEquals(base.copy(exposure=1f),final.adjustments)
+                assertEquals(final.adjustments,RawAdjustments.fromValues(saved.get<FloatArray>("adjustments")!!))
+                assertTrue("Preview must update while the slider is still moving ($label)",movingFrames >= 3)
+            }
+        } finally {
+            instrumentation.runOnMainSync { store.clear() }
+            input.delete()
+        }
+    }
+
     @Test
     fun realRafStartsWithItsProfileRecoversShadowsAndExportsFullResolution() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("rawEditorProbe") == "true")
@@ -142,6 +231,11 @@ class RawEditorHardwareTest {
             snapshot(allControls.preview!!, "raw-editor-batch.jpg")
             assertTrue("Quarter-turn must swap output orientation", (allControls.fullWidth > allControls.fullHeight) != (start.fullWidth > start.fullHeight))
             instrumentation.runOnMainSync { model.editMasks(true) }
+            val draftMasking = runBlocking { withTimeout(30_000) {
+                model.state.first { it.maskOverlay != null && maxOf(it.maskOverlay.width,it.maskOverlay.height) <= 800 }
+            } }
+            assertEquals(draftMasking.preview!!.width,draftMasking.maskOverlay!!.width)
+            assertEquals(draftMasking.preview.height,draftMasking.maskOverlay.height)
             val masking = awaitReady()
             assertNotNull(masking.maskOverlay)
             assertEquals(masking.preview!!.width,masking.maskOverlay!!.width)

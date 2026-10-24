@@ -4,6 +4,16 @@ import android.graphics.Bitmap
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.platform.testTag
+import dev.bondarenko.fujirecipes.R
+import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.Exposure
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.ForcedSize
@@ -36,6 +46,27 @@ import org.junit.Test
 @OptIn(ExperimentalTestApi::class)
 class RawEditorLayoutTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test
+    fun slowDialMovementAccumulatesBeforeQuantization() {
+        var value by mutableStateOf(0f)
+        compose.setContent {
+            FujiTheme {
+                Box(Modifier.fillMaxSize().safeDrawingPadding(),contentAlignment=Alignment.Center) {
+                    RawTickDial(RawParam(R.string.raw_editor_exposure,FujiIcons.Exposure,value,-3f..3f,true,1f,1) { value=it },
+                        Modifier.fillMaxWidth().testTag("test-dial"))
+                }
+            }
+        }
+        compose.onNodeWithTag("test-dial").performTouchInput { down(center); moveBy(Offset(width*.1f,0f),200) }
+        var before = 0f
+        compose.runOnIdle { before = value }
+        compose.onNodeWithTag("test-dial").performTouchInput {
+            repeat(30) { moveBy(Offset(width/600f,0f),16) }
+            up()
+        }
+        compose.runOnIdle { assertTrue("Sub-step movement must not be discarded",value >= before+.2f) }
+    }
 
     @Test
     fun previewControlsAndSaveStayInPlaceDuringRenderingAndComparison() {

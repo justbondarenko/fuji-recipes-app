@@ -146,6 +146,15 @@ int main(int argc, char** argv) {
     }
 
     edits = {};
+    // Drafts average retained linear sensor pixels and include odd-sized edges.
+    auto draft = fuji::downsampleCamera(5,3,2,1,[](int x,int y) { return fuji::Rgb{float(x),float(y),1}; });
+    assert(draft.size() == 2 && draft[0] == (fuji::Rgb{.5f,1,1}) && draft[1] == (fuji::Rgb{3,1,1}));
+    auto onePixel = fuji::downsampleCamera(1,1,1,1,[](int,int) { return fuji::Rgb{.2f,.4f,.6f}; });
+    assert(onePixel[0] == (fuji::Rgb{.2f,.4f,.6f}));
+    rejected = false;
+    try { fuji::downsampleCamera(1,1,2,1,[](int,int) { return fuji::Rgb{}; }); }
+    catch (const std::exception&) { rejected = true; }
+    assert(rejected);
     fuji::Frame originalFrame(120, 80, edits);
     assert(originalFrame.width == 120 && originalFrame.height == 80);
     for (int y = 0; y < 80; ++y) for (int x = 0; x < 120; ++x)

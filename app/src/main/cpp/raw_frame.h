@@ -72,6 +72,27 @@ struct Frame {
     }
 };
 
+/** Average linear sensor samples, before WB, matrix, and the simulation profile. */
+template <typename Sample>
+inline std::vector<Rgb> downsampleCamera(int width, int height, int targetWidth, int targetHeight, const Sample& sample) {
+    if (targetWidth < 1 || targetHeight < 1 || targetWidth > width || targetHeight > height)
+        throw std::runtime_error("Invalid RAW preview size.");
+    std::vector<Rgb> result(targetWidth * targetHeight);
+    for (int y = 0; y < targetHeight; ++y) for (int x = 0; x < targetWidth; ++x) {
+        Rgb sum{};
+        int count = 0;
+        for (int sy = y * height / targetHeight; sy < (y+1) * height / targetHeight; ++sy)
+            for (int sx = x * width / targetWidth; sx < (x+1) * width / targetWidth; ++sx) {
+                auto pixel = sample(sx,sy);
+                for (int c = 0; c < 3; ++c) sum[c] += pixel[c];
+                ++count;
+            }
+        for (auto& c : sum) c /= count;
+        result[y * targetWidth + x] = sum;
+    }
+    return result;
+}
+
 template <typename Sample>
 inline Rgb sampleBilinear(float sx, float sy, int width, int height, const Sample& sample) {
     int left = int(sx), top = int(sy);

@@ -652,12 +652,17 @@ internal fun RawTickDial(
             }
             .pointerInput(param.enabled, param.range) {
                 if (!param.enabled) return@pointerInput
-                detectHorizontalDragGestures { change, dragAmount ->
-                    change.consume()
-                    val span = currentParam.range.endInclusive - currentParam.range.start
-                    val delta = (dragAmount / size.width.coerceAtLeast(1)) * span
-                    currentParam.onChange(currentParam.snap(currentParam.value + delta))
-                }
+                var dragValue = currentParam.value
+                detectHorizontalDragGestures(
+                    onDragStart = { dragValue = currentParam.value },
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        val span = currentParam.range.endInclusive - currentParam.range.start
+                        val delta = (dragAmount / size.width.coerceAtLeast(1)) * span
+                        dragValue = (dragValue + delta).coerceIn(currentParam.range.start, currentParam.range.endInclusive)
+                        currentParam.onChange(currentParam.snap(dragValue))
+                    },
+                )
             },
     ) {
         val tickCount = 41
