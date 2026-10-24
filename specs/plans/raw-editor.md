@@ -4,11 +4,11 @@ The separate More → RAW Editor section develops sensor RAW on the phone. The r
 film simulation's color profile and as-shot white balance are applied before the first
 editable preview. The original RAF is never modified. Lab retains camera-engine development.
 
-The pipeline is RAF → LibRaw demosaicing in unscaled sensor RGB → floating-point as-shot
+The pipeline is RAF → LibRaw demosaicing in unscaled sensor RGB → framing/bilinear resampling → floating-point as-shot
 WB plus relative temperature/tint → camera matrix → dynamic-range exposure compensation
 → exposure/shadow/highlight adjustments → sRGB encoding → the simulation's published
-3D color LUT → contrast/whites/blacks/saturation/vibrance → edge-aware luminance/chroma
-noise reduction → luminance sharpening → display/JPEG.
+3D color LUT → contrast/whites/blacks/saturation/vibrance → dehaze → edge-aware luminance/chroma
+noise reduction → texture/clarity → luminance sharpening → vignette → display/JPEG.
 Adjustments always re-render from retained linear RAW pixels. The embedded JPEG supplies
 MakerNote metadata and an explicitly labeled camera comparison, never editable pixels.
 
@@ -58,3 +58,30 @@ keep the original color profile as the starting point. Detail operations use ove
 96-row strips; additional filter memory does not scale with the whole image height.
 The expanded phone test verifies each control, identical restoration from SavedStateHandle,
 reset, rejection safety, and full-resolution export with the combined controls enabled.
+
+Items 14–18 add Effects and Framing panels. Clarity uses midtone-weighted local
+contrast at a 40 px full-resolution radius; texture uses a 6 px radius. Both can
+soften or enhance. Dehaze uses a dark-channel transmission estimate with sampled
+airlight and a smoothed local minimum; negative amounts add atmospheric haze.
+The model is based on [He, Sun and Tang's dark-channel paper](https://people.csail.mit.edu/kaiming/publications/cvpr09.pdf).
+This is a conservative manual adjustment with bounded transmission, not a depth
+reconstruction. Smoothed transmission can leave halos at strong depth boundaries;
+guided refinement is a possible later improvement. Filter halos accumulate across
+all enabled operations and native tests compare strips with whole-image results.
+
+Framing stores normalized crop bounds, clockwise quarter-turns, and a ±15° angle.
+Straightening takes the largest centered inset with the original aspect ratio that
+avoids empty corners, then applies the crop. The crop dialog renders the full
+uncropped, rotated/straightened preview, supports dragging corners and moving the
+selection, locks aspect presets, and exposes accessible movement/resize actions.
+Presets use full-resolution dimensions rather than rounded preview dimensions.
+Crop selections retain at least 5% of each image dimension. Rotating also rotates
+the selection so it follows the same subject. Geometry samples the source directly
+into the final output, avoiding a second full-resolution bitmap allocation.
+Vignette is centered on the framed output and supports darkening/brightening,
+midpoint, rectangular/elliptical/circular roundness, and feathering.
+
+The saved parameter array expands from 16 to 29 values; earlier sessions upgrade
+with neutral effects and framing. All 25 scalar controls retain label double-tap
+reset, including inactive vignette shape controls. Crop is applied or cancelled as
+a group and has its own reset. The original camera JPEG comparison stays unframed.

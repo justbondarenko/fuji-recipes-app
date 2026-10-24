@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -66,6 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.data.raweditor.RawAdjustments
+import dev.bondarenko.fujirecipes.data.raweditor.RawCrop
 import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowBack
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import kotlin.math.round
@@ -99,6 +101,8 @@ fun RawEditorRouteContent(onBack: () -> Unit) {
             model.prepareExport()
             save.launch("${state.name.substringBeforeLast('.')}-edited.jpg")
         },
+        onCrop = model::prepareCrop,
+        onDismissCrop = model::dismissCrop,
     )
     if (confirmAction != null) {
         AlertDialog(
@@ -123,11 +127,19 @@ fun RawEditorScreen(
     onOpen: () -> Unit,
     onAdjust: (RawAdjustments) -> Unit,
     onSave: () -> Unit,
+    onCrop: () -> Unit = {},
+    onDismissCrop: () -> Unit = {},
 ) {
     var showCamera by remember(state.name, state.busy, state.cameraImage) { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
     var panel by rememberSaveable { mutableIntStateOf(0) }
     val uriHandler = LocalUriHandler.current
+    state.cropPreview?.let { bitmap ->
+        RawCropDialog(bitmap, state.adjustments.crop, onDismissCrop, onApply = { crop ->
+            onAdjust(state.adjustments.copy(crop = crop))
+            onDismissCrop()
+        }, imageAspect = state.cropImageAspect ?: bitmap.width.toFloat() / bitmap.height)
+    }
     if (showInfo) AlertDialog(
         onDismissRequest = { showInfo = false },
         title = { Text(stringResource(R.string.raw_editor_profile_info)) },
@@ -238,8 +250,9 @@ fun RawEditorScreen(
                             modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                listOf(R.string.raw_editor_light, R.string.raw_editor_color, R.string.raw_editor_detail).forEachIndexed { index, label ->
+                            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                listOf(R.string.raw_editor_light, R.string.raw_editor_color, R.string.raw_editor_detail,
+                                    R.string.raw_editor_effects, R.string.raw_editor_framing).forEachIndexed { index, label ->
                                     FilterChip(selected = panel == index, onClick = { panel = index }, label = { Text(stringResource(label)) })
                                 }
                             }
@@ -272,6 +285,31 @@ fun RawEditorScreen(
                                             RawSlider(stringResource(R.string.raw_editor_luminance_noise), edits.luminanceNoise, 0f..1f, editable) { onAdjust(edits.copy(luminanceNoise = it)) }
                                             RawSlider(stringResource(R.string.raw_editor_noise_detail), edits.noiseDetail, 0f..1f, editable && (edits.colorNoise > 0 || edits.luminanceNoise > 0), defaultValue = .5f, resetEnabled = editable) { onAdjust(edits.copy(noiseDetail = it)) }
                                         }
+                                        3 -> {
+                                            RawSlider(stringResource(R.string.raw_editor_clarity), edits.clarity, -1f..1f, editable) { onAdjust(edits.copy(clarity = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_texture), edits.texture, -1f..1f, editable) { onAdjust(edits.copy(texture = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_dehaze), edits.dehaze, -1f..1f, editable) { onAdjust(edits.copy(dehaze = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_vignette), edits.vignette, -1f..1f, editable) { onAdjust(edits.copy(vignette = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_vignette_midpoint), edits.vignetteMidpoint, 0f..1f, editable && edits.vignette != 0f, defaultValue = .5f, resetEnabled = editable) { onAdjust(edits.copy(vignetteMidpoint = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_vignette_roundness), edits.vignetteRoundness, -1f..1f, editable && edits.vignette != 0f, resetEnabled = editable) { onAdjust(edits.copy(vignetteRoundness = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_vignette_feather), edits.vignetteFeather, 0f..1f, editable && edits.vignette != 0f, defaultValue = .5f, resetEnabled = editable) { onAdjust(edits.copy(vignetteFeather = it)) }
+                                        }
+                                        4 -> {
+                                            Button(onClick = onCrop, enabled = editable && !state.rendering) { Text(stringResource(R.string.raw_editor_crop)) }
+                                            TextButton(onClick = { onAdjust(edits.copy(crop = RawCrop())) }, enabled = editable && edits.crop != RawCrop()) {
+                                                Text(stringResource(R.string.raw_editor_crop_reset))
+                                            }
+                                            RawSlider(stringResource(R.string.raw_editor_rotation), edits.quarterTurns.toFloat(), 0f..3f, editable,
+                                                displayScale = 90f, suffix = "°", steps = 2) {
+                                                val turns = it.toInt()
+                                                var crop = edits.crop
+                                                repeat((turns - edits.quarterTurns + 4) % 4) { crop = crop.rotateClockwise() }
+                                                onAdjust(edits.copy(quarterTurns = turns, crop = crop))
+                                            }
+                                            RawSlider(stringResource(R.string.raw_editor_straighten), edits.straighten, -15f..15f, editable,
+                                                displayScale = 1f, decimals = 1, suffix = "°") { onAdjust(edits.copy(straighten = it)) }
+                                            Text(stringResource(R.string.raw_editor_straighten_note), style = MaterialTheme.typography.bodySmall)
+                                        }
                                     }
                                 }
                             }
@@ -303,7 +341,7 @@ fun RawEditorScreen(
 private fun RawSlider(
     label: String, value: Float, range: ClosedFloatingPointRange<Float>, enabled: Boolean,
     displayScale: Float = 100f, decimals: Int = 0, suffix: String = "",
-    defaultValue: Float = 0f, resetEnabled: Boolean = enabled, onChange: (Float) -> Unit,
+    defaultValue: Float = 0f, resetEnabled: Boolean = enabled, steps: Int = 0, onChange: (Float) -> Unit,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val currentOnChange by rememberUpdatedState(onChange)
@@ -330,7 +368,7 @@ private fun RawSlider(
             value = value, onValueChange = {
                 val precision = displayScale * if (decimals == 1) 10f else 1f
                 onChange(round(it * precision).toInt() / precision)
-            }, valueRange = range, enabled = enabled,
+            }, valueRange = range, enabled = enabled, steps = steps,
             modifier = Modifier.semantics { contentDescription = label },
         )
     }

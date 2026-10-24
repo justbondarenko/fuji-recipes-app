@@ -1,5 +1,6 @@
 #include "../../main/cpp/raw_color.h"
 #include "../../main/cpp/raw_detail.h"
+#include "../../main/cpp/raw_frame.h"
 #include <cassert>
 #include <fstream>
 #include <iostream>
@@ -47,7 +48,7 @@ int main(int argc, char** argv) {
     auto vivid = fuji::finishColor({.2f, .5f, .8f}, edits);
     assert((muted[2] - muted[0]) / .1f > (vivid[2] - vivid[0]) / .6f);
 
-    constexpr int width = 32, height = 40;
+    constexpr int width = 32, height = 256;
     std::vector<fuji::Rgb> noisy(width * height);
     for (int y = 0; y < height; ++y) for (int x = 0; x < width; ++x) {
         float level = (x < width / 2 ? .25f : .75f) + ((x + y) % 2 ? .025f : -.025f);
@@ -92,6 +93,9 @@ int main(int argc, char** argv) {
     edits.colorNoise = .7f;
     edits.luminanceNoise = .6f;
     edits.sharpenRadius = 1.8f;
+    edits.clarity = .6f;
+    edits.texture = -.4f;
+    edits.dehaze = .5f;
     auto whole = noisy;
     fuji::applyDetails(whole, width, height, edits, 1);
     int halo = fuji::detailHalo(edits, 1);
@@ -103,12 +107,97 @@ int main(int argc, char** argv) {
         for (int y = top; y < bottom; ++y) for (int x = 0; x < width; ++x)
             for (int c = 0; c < 3; ++c) assert(std::abs(strip[(y - first) * width + x][c] - whole[y * width + x][c]) < .00001f);
     }
-    float invalid[16] = {};
+    for (bool texture : {false, true}) {
+        auto stronger = noisy, softer = noisy;
+        fuji::localContrast(stronger, width, height, .7f, 1, texture);
+        fuji::localContrast(softer, width, height, -.7f, 1, texture);
+        assert(stronger[10 * width + 16][0] > noisy[10 * width + 16][0]);
+        assert(softer[10 * width + 16][0] < noisy[10 * width + 16][0]);
+        std::vector<fuji::Rgb> flat(width * height, {.5f,.5f,.5f});
+        fuji::localContrast(flat, width, height, 1, 1, texture);
+        for (const auto& pixel : flat) assert(std::abs(pixel[0] - .5f) < .00001f);
+    }
+    auto haze = noisy, clear = noisy;
+    fuji::dehaze(haze, width, height, -1, 1, {1,1,1});
+    fuji::dehaze(clear, width, height, 1, 1, {1,1,1});
+    assert(haze[0][0] > noisy[0][0] && clear[0][0] < noisy[0][0]);
+    for (const auto& image : {whole, haze, clear}) for (const auto& pixel : image)
+        for (float c : pixel) assert(std::isfinite(c) && c >= 0 && c <= 1);
+
+    edits = {};
+    fuji::Frame originalFrame(120, 80, edits);
+    assert(originalFrame.width == 120 && originalFrame.height == 80);
+    for (int y = 0; y < 80; ++y) for (int x = 0; x < 120; ++x)
+        assert(originalFrame.source(x, y) == std::make_pair(float(x), float(y)));
+    edits.quarterTurns = 1;
+    fuji::Frame clockwise(120, 80, edits);
+    assert(clockwise.width == 80 && clockwise.height == 120);
+    assert(clockwise.source(0, 0) == std::make_pair(0.f, 79.f));
+    edits.quarterTurns = 2;
+    assert(fuji::Frame(120, 80, edits).source(0, 0) == std::make_pair(119.f, 79.f));
+    edits.quarterTurns = 3;
+    assert(fuji::Frame(120, 80, edits).source(0, 0) == std::make_pair(119.f, 0.f));
+    edits = {};
+    edits.cropLeft = .25f; edits.cropTop = .125f; edits.cropRight = .75f; edits.cropBottom = .875f;
+    fuji::Frame cropped(120, 80, edits);
+    assert(cropped.width == 60 && cropped.height == 60);
+    assert(cropped.source(0, 0) == std::make_pair(30.f, 10.f));
+    assert(cropped.source(59, 59) == std::make_pair(89.f, 69.f));
+    edits.straighten = 15;
+    fuji::Frame straightened(120, 80, edits);
+    assert(straightened.width < cropped.width && straightened.height < cropped.height);
+    auto [sx, sy] = straightened.source(straightened.width / 2, straightened.height / 2);
+    assert(std::abs(sx - 60) < 2 && std::abs(sy - 40) < 2);
+    // Presets use the full-resolution upright canvas, not the rounded 1600 px preview.
+    for (int turns = 0; turns < 4; ++turns) for (float angle : {-15.f, -3.5f, 0.f, 3.5f, 15.f}) {
+        edits = {};
+        edits.quarterTurns = turns;
+        edits.straighten = angle;
+        fuji::Frame uncropped(7728, 5149, edits);
+        float aspect = float(uncropped.width) / uncropped.height;
+        float w = std::min(1.f, 1 / aspect), h = w * aspect;
+        edits.cropLeft = (1 - w) / 2; edits.cropRight = (1 + w) / 2;
+        edits.cropTop = (1 - h) / 2; edits.cropBottom = (1 + h) / 2;
+        fuji::Frame square(7728, 5149, edits);
+        assert(std::abs(square.width - square.height) <= 1);
+    }
+    edits = {};
+    assert(fuji::vignette({.5f,.5f,.5f}, 0, 0, 101, 101, edits)[0] == .5f);
+    edits.vignette = -1;
+    assert(fuji::vignette({.5f,.5f,.5f}, 50, 50, 101, 101, edits)[0] == .5f);
+    assert(fuji::vignette({.5f,.5f,.5f}, 0, 0, 101, 101, edits)[0] < .5f);
+    edits.vignette = 1;
+    assert(fuji::vignette({.5f,.5f,.5f}, 0, 0, 101, 101, edits)[0] > .5f);
+    edits.vignetteMidpoint = .2f;
+    auto vignette = fuji::vignette({.5f,.5f,.5f}, 15, 20, 150, 100, edits)[0];
+    edits.vignetteMidpoint = .8f;
+    assert(vignette != fuji::vignette({.5f,.5f,.5f}, 15, 20, 150, 100, edits)[0]);
+    edits.vignette = -.5f;
+    edits.vignetteMidpoint = .5f;
+    vignette = fuji::vignette({.5f,.5f,.5f}, 15, 20, 150, 100, edits)[0];
+    edits.vignetteRoundness = 1;
+    assert(vignette != fuji::vignette({.5f,.5f,.5f}, 15, 20, 150, 100, edits)[0]);
+    edits.vignetteRoundness = 0;
+    edits.vignetteFeather = 1;
+    assert(vignette != fuji::vignette({.5f,.5f,.5f}, 15, 20, 150, 100, edits)[0]);
+
+    float invalid[29] = {};
     invalid[11] = 1;
+    invalid[21] = invalid[22] = 1;
     invalid[4] = std::nanf("");
     rejected = false;
-    try { fuji::Adjustments::read(invalid, 16); } catch (const std::exception&) { rejected = true; }
+    try { fuji::Adjustments::read(invalid, 29); } catch (const std::exception&) { rejected = true; }
     assert(rejected);
+    invalid[4] = 0;
+    assert(fuji::Adjustments::read(invalid, 29).cropRight == 1);
+    for (int field : {16, 18, 19, 23, 24, 26, 28}) {
+        float original = invalid[field];
+        invalid[field] = field == 23 ? .5f : 99;
+        rejected = false;
+        try { fuji::Adjustments::read(invalid, 29); } catch (const std::exception&) { rejected = true; }
+        assert(rejected);
+        invalid[field] = original;
+    }
     for (int i = 1; i < argc; ++i) {
         std::ifstream input(argv[i]);
         std::stringstream text;

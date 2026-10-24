@@ -221,6 +221,15 @@ Both actions are also available through screen-reader custom actions.
 **Save JPEG** develops the original RAW at
 its full active resolution and writes a new file to a destination you choose.
 
+**Effects** adds clarity, texture, dehaze, and a vignette with midpoint, roundness,
+and feather controls. Negative clarity/texture soften detail, negative dehaze adds
+haze, and vignette can darken or brighten edges. **Framing** has quarter-turn rotation,
+±15° straightening, and a crop editor: drag corners or move the selection, choose
+Free, Original, square, 3:2, 4:3, or 16:9 (including portrait ratios), then apply.
+Straightening trims empty corners automatically. Crop has a separate reset and
+screen-reader movement/resize actions. All changes persist with the session and
+apply to export; crop and rotation do not modify the original RAF.
+
 The eleven color simulations are supported. Monochrome variants and unknown simulations
 are reported as unsupported; the editor never silently substitutes an unprofiled rendering.
 The profiles supply the film-simulation color look, not the complete camera engine:

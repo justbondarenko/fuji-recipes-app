@@ -1,11 +1,15 @@
 #pragma once
 #include "raw_color.h"
+#include "raw_effects.h"
 
 namespace fuji {
 inline int detailHalo(const Adjustments& edits, float scale) {
     int noise = (edits.colorNoise > 0 || edits.luminanceNoise > 0) ? std::max(1, int(std::round(2 * scale))) : 0;
     int sharp = edits.sharpening > 0 ? int(std::ceil(3 * std::max(.5f, edits.sharpenRadius * scale))) : 0;
-    return noise + sharp;
+    int texture = edits.texture != 0 ? std::max(1, int(std::round(6 * scale))) : 0;
+    int clarity = edits.clarity != 0 ? std::max(1, int(std::round(40 * scale))) : 0;
+    int haze = edits.dehaze > 0 ? 2 * std::max(1, int(std::round(12 * scale))) : 0;
+    return noise + sharp + texture + clarity + haze;
 }
 
 inline void denoise(std::vector<Rgb>& image, int width, int height, const Adjustments& edits, float scale) {
@@ -67,8 +71,11 @@ inline void sharpen(std::vector<Rgb>& image, int width, int height, const Adjust
     }
 }
 
-inline void applyDetails(std::vector<Rgb>& image, int width, int height, const Adjustments& edits, float scale) {
+inline void applyDetails(std::vector<Rgb>& image, int width, int height, const Adjustments& edits, float scale, const Rgb& airlight = {1,1,1}) {
+    dehaze(image, width, height, edits.dehaze, scale, airlight);
     denoise(image, width, height, edits, scale);
+    localContrast(image, width, height, edits.texture, scale, true);
+    localContrast(image, width, height, edits.clarity, scale, false);
     sharpen(image, width, height, edits, scale);
 }
 } // namespace fuji
