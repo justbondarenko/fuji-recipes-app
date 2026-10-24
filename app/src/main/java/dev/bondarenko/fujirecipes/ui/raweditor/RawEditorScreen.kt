@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -40,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -48,11 +51,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -117,7 +124,7 @@ fun RawEditorScreen(
     onAdjust: (RawAdjustments) -> Unit,
     onSave: () -> Unit,
 ) {
-    var showCamera by remember(state.name) { mutableStateOf(false) }
+    var showCamera by remember(state.name, state.busy, state.cameraImage) { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
     var panel by rememberSaveable { mutableIntStateOf(0) }
     val uriHandler = LocalUriHandler.current
@@ -188,7 +195,24 @@ fun RawEditorScreen(
                 BoxWithConstraints(Modifier.weight(1f)) {
                     val wide = maxWidth >= 700.dp
                     val preview: @Composable (Modifier) -> Unit = { modifier ->
-                        Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
+                        val compareLabel = stringResource(if (showCamera) R.string.raw_editor_show_raw else R.string.raw_editor_show_camera)
+                        Box(
+                            modifier.background(Color.Black).testTag("raw-editor-preview")
+                                .pointerInput(state.cameraImage, state.busy) {
+                                    detectTapGestures(onPress = {
+                                        if (!state.busy && state.cameraImage != null) {
+                                            showCamera = true
+                                            try { tryAwaitRelease() } finally { showCamera = false }
+                                        }
+                                    })
+                                }
+                                .semantics(mergeDescendants = true) {
+                                    customActions = if (!state.busy && state.cameraImage != null) listOf(
+                                        CustomAccessibilityAction(compareLabel) { showCamera = !showCamera; true },
+                                    ) else emptyList()
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
                             val bitmap = if (showCamera) state.cameraImage else state.preview
                             bitmap?.let {
                                 Image(
@@ -214,9 +238,6 @@ fun RawEditorScreen(
                             modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            TextButton(onClick = { showCamera = !showCamera }, enabled = !state.busy) {
-                                Text(stringResource(if (showCamera) R.string.raw_editor_show_raw else R.string.raw_editor_show_camera))
-                            }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 listOf(R.string.raw_editor_light, R.string.raw_editor_color, R.string.raw_editor_detail).forEachIndexed { index, label ->
                                     FilterChip(selected = panel == index, onClick = { panel = index }, label = { Text(stringResource(label)) })
@@ -245,11 +266,11 @@ fun RawEditorScreen(
                                         }
                                         2 -> {
                                             RawSlider(stringResource(R.string.raw_editor_sharpening), edits.sharpening, 0f..1f, editable) { onAdjust(edits.copy(sharpening = it)) }
-                                            RawSlider(stringResource(R.string.raw_editor_radius), edits.sharpenRadius, .5f..3f, editable && edits.sharpening > 0, 1f, 1, " px") { onAdjust(edits.copy(sharpenRadius = it)) }
-                                            RawSlider(stringResource(R.string.raw_editor_threshold), edits.sharpenThreshold, 0f..1f, editable && edits.sharpening > 0) { onAdjust(edits.copy(sharpenThreshold = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_radius), edits.sharpenRadius, .5f..3f, editable && edits.sharpening > 0, 1f, 1, " px", defaultValue = 1f, resetEnabled = editable) { onAdjust(edits.copy(sharpenRadius = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_threshold), edits.sharpenThreshold, 0f..1f, editable && edits.sharpening > 0, resetEnabled = editable) { onAdjust(edits.copy(sharpenThreshold = it)) }
                                             RawSlider(stringResource(R.string.raw_editor_color_noise), edits.colorNoise, 0f..1f, editable) { onAdjust(edits.copy(colorNoise = it)) }
                                             RawSlider(stringResource(R.string.raw_editor_luminance_noise), edits.luminanceNoise, 0f..1f, editable) { onAdjust(edits.copy(luminanceNoise = it)) }
-                                            RawSlider(stringResource(R.string.raw_editor_noise_detail), edits.noiseDetail, 0f..1f, editable && (edits.colorNoise > 0 || edits.luminanceNoise > 0)) { onAdjust(edits.copy(noiseDetail = it)) }
+                                            RawSlider(stringResource(R.string.raw_editor_noise_detail), edits.noiseDetail, 0f..1f, editable && (edits.colorNoise > 0 || edits.luminanceNoise > 0), defaultValue = .5f, resetEnabled = editable) { onAdjust(edits.copy(noiseDetail = it)) }
                                         }
                                     }
                                 }
@@ -281,12 +302,26 @@ fun RawEditorScreen(
 @Composable
 private fun RawSlider(
     label: String, value: Float, range: ClosedFloatingPointRange<Float>, enabled: Boolean,
-    displayScale: Float = 100f, decimals: Int = 0, suffix: String = "", onChange: (Float) -> Unit,
+    displayScale: Float = 100f, decimals: Int = 0, suffix: String = "",
+    defaultValue: Float = 0f, resetEnabled: Boolean = enabled, onChange: (Float) -> Unit,
 ) {
     val locale = LocalConfiguration.current.locales[0]
+    val currentOnChange by rememberUpdatedState(onChange)
+    val resetLabel = stringResource(R.string.raw_editor_reset_parameter, label)
     Column {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, style = MaterialTheme.typography.labelLarge)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                label, style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                    .pointerInput(resetEnabled, defaultValue) {
+                        if (resetEnabled) detectTapGestures(onDoubleTap = { currentOnChange(defaultValue) })
+                    }
+                    .semantics {
+                        customActions = if (resetEnabled) listOf(
+                            CustomAccessibilityAction(resetLabel) { currentOnChange(defaultValue); true },
+                        ) else emptyList()
+                    }.wrapContentHeight(),
+            )
             val sign = if (range.start < 0) "+" else ""
             val displayed = if (value == 0f) 0f else value
             Text(String.format(locale, "%$sign.${decimals}f$suffix", displayed * displayScale))
