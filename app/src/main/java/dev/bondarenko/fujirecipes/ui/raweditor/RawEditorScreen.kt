@@ -64,6 +64,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -163,15 +164,34 @@ fun RawEditorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.raw_editor_title)) },
+                title = {
+                    Text(
+                        text = if (state.preview != null && state.name.isNotBlank()) state.name else stringResource(R.string.raw_editor_title),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(FujiIcons.ArrowBack, stringResource(R.string.action_back))
                     }
                 },
                 actions = {
-                    if (state.preview != null) TextButton(onClick = onOpen, enabled = !state.busy) {
-                        Text(stringResource(R.string.raw_editor_open))
+                    if (state.preview != null) {
+                        Row(
+                            modifier = Modifier.padding(end = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            FilledTonalButton(
+                                onClick = { onAdjust(RawAdjustments()) },
+                                enabled = !state.busy && state.adjustments.isEdited,
+                            ) { Text(stringResource(R.string.raw_editor_reset)) }
+                            Button(
+                                onClick = onSave,
+                                enabled = !state.busy && !state.rendering,
+                            ) { Text(stringResource(R.string.raw_editor_save)) }
+                        }
                     }
                 },
             )
@@ -197,15 +217,9 @@ fun RawEditorScreen(
                     Text(stringResource(R.string.raw_editor_intro_body), style = MaterialTheme.typography.bodyLarge)
                     Button(onClick = onOpen, enabled = !state.busy) { Text(stringResource(R.string.raw_editor_open)) }
                     Text(stringResource(R.string.raw_editor_profile_note), style = MaterialTheme.typography.bodySmall)
+                    TextButton(onClick = { showInfo = true }) { Text(stringResource(R.string.raw_editor_profile_info)) }
                 }
             } else {
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    Text(state.name, style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        stringResource(R.string.raw_editor_profile, state.simulation, state.fullWidth, state.fullHeight),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
                 BoxWithConstraints(Modifier.weight(1f)) {
                     val wide = maxWidth >= 700.dp
                     val preview: @Composable (Modifier) -> Unit = { modifier ->
@@ -332,15 +346,6 @@ fun RawEditorScreen(
                                     }
                                 }
                             }
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                FilledTonalButton(
-                                    onClick = { onAdjust(RawAdjustments()) }, enabled = !state.busy && state.adjustments.isEdited,
-                                ) { Text(stringResource(R.string.raw_editor_reset)) }
-                                Button(onClick = onSave, enabled = !state.busy && !state.rendering) {
-                                    Text(stringResource(R.string.raw_editor_save))
-                                }
-                            }
-                            TextButton(onClick = { showInfo = true }) { Text(stringResource(R.string.raw_editor_profile_info)) }
                         }
                     }
                     if (wide) Row(Modifier.fillMaxSize()) {
