@@ -60,12 +60,14 @@ resizing are available as screen-reader actions.
 - [x] Localized purple/green defringe with luminance preservation and neutral-edge gating.
 - [x] Automatic edge trimming, editable crop, rotation-aware perspective axes,
   saved sessions, per-parameter reset, and accessible controls.
-- [ ] Automatic lens profiles: requires verified lens/calibration data for the
-  relevant focal length and shooting conditions; no profile is guessed from a name.
+- [x] Apply valid embedded Fujifilm lens distortion tables automatically at load,
+  in previews, 100% detail, crop/mask mapping, and full-resolution export.
+- [ ] External lens profiles for files without usable embedded distortion data;
+  no profile is guessed from a lens name.
 
 The manual controls are implemented and verified in preview and full-resolution export.
-The single radial coefficient covers basic barrel/pincushion distortion; complex
-radial/fisheye calibration and automatic profiles remain pending.
+The manual radial coefficient adds fine tuning on top of the embedded correction.
+External calibration profiles and fisheye models remain pending.
 
 ## Curves, grain, and selective edits — items 8, 19, 21
 
@@ -241,3 +243,35 @@ The six RAW Editor gesture/layout tests pass on SM-F976B, including compact/wide
 controls and hold/release/cancel comparison. The combined-controls portrait
 export remains 4920 × 3496 and byte-identical to the pre-zoom reference:
 `abda171f57d299bc99e55f864285b160a2843544ec577b7effef5d801928e7dc`.
+
+
+Automatic embedded lens distortion correction delivered on 2026-10-24. The
+starting point reads the RAF's signed-rational `FujiIFD:GeometricDistortionParams`
+(`0xf00b`) through LibRaw's existing EXIF callback. It uses the recorded source
+radius/displacement table and a frame-filling scale, without a lens-name lookup
+or changing saved adjustment values. Reset and individual Distortion reset keep
+the automatic baseline; manual Distortion remains an additional adjustment.
+Optics reports whether usable embedded data was applied. Missing, malformed,
+folding, or unverified normalization tables leave manual correction available.
+
+Validated with the user's `DSCF3946.RAF` (X-T50, Tamron 18–300 mm, 64.3 mm).
+Against its embedded camera JPEG, 2450 shared SIFT features at 1200 × 800 gave
+median similarity-aligned residuals of 1.27 px before and 0.36 px after correction;
+the 90th percentile fell from 2.62 to 0.89 px. This measures geometric agreement,
+not an identical rendering of Fujifilm color or sharpening. The on-open flag and
+corrected 100% tile/export pixel checks pass on SM-F976B. Native checks cover
+source-table inversion, both distortion signs, sensor-edge coverage, rotation,
+manual corrections, preview scaling, and malformed data. Six device UI checks
+and all 733 JVM tests pass.
+
+With automatic distortion enabled on this landscape RAF, 800 px exposure drafts
+render in 83 ms and 400 px effects drafts in 69 ms. During continuous input the
+phone delivers 21 exposure and 25 effects frames before the gesture ends; the
+first frames arrive in 100 and 77 ms. Full lint still reports only the existing
+`SlotDetailSheet.kt:332` error.
+
+The final real-RAF workflow also passes with automatic correction enabled:
+all control effects, Reset to the corrected baseline, crop/mask drawing and
+overlays, exact saved-session restoration, full-resolution JPEG export, and
+rejected replacement preserving the active image. Both device workflow tests
+pass together; the on-open and corrected tile/export checks pass separately.
