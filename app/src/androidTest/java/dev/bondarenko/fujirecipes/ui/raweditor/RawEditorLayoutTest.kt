@@ -116,11 +116,11 @@ class RawEditorLayoutTest {
             node.config.getOrElse(SemanticsProperties.Text) { emptyList() }.map { it.text } + node.children.flatMap(::tabLabels)
         assertEquals(groups, tabLabels(tabs))
         val expectedOptions = mapOf(
-            "Light" to listOf("Exposure", "Contrast", "Shadows controls", "Highlights controls"),
-            "Color" to listOf("As shot", "Temperature", "Tint", "Saturation", "Vibrance"),
-            "Details" to listOf("Sharpening controls", "Noise Reduction controls", "Preserve Detail"),
-            "Effects" to listOf("Grain controls", "Clarity", "Texture", "Dehaze", "Vignette controls"),
-            "Optics" to listOf("Distortion", "Perspective controls", "Defringe controls", "Color alignment controls"),
+            "Light" to listOf("Exposure controls", "Contrast controls", "Shadows controls", "Highlights controls"),
+            "Color" to listOf("As shot", "Temperature controls", "Tint controls", "Saturation controls", "Vibrance controls"),
+            "Details" to listOf("Sharpening controls", "Noise Reduction controls", "Preserve Detail controls"),
+            "Effects" to listOf("Grain controls", "Clarity controls", "Texture controls", "Dehaze controls", "Vignette controls"),
+            "Optics" to listOf("Distortion controls", "Perspective controls", "Defringe controls", "Color alignment controls"),
         )
         groups.forEach { group ->
             compose.onNodeWithText(group).performScrollTo().performClick()
@@ -301,24 +301,40 @@ class RawEditorLayoutTest {
     }
 
     @Test
-    fun slowDialMovementAccumulatesBeforeQuantization() {
+    fun materialSliderHasStepsValueIndicatorAndFineDragging() {
         var value by mutableStateOf(0f)
+        var enabled by mutableStateOf(true)
+        val exposure = RawParam(R.string.raw_editor_exposure, FujiIcons.Exposure, 0f, -3f..3f, true, 1f, 1, " EV") {}
+        assertEquals(59, exposure.steps)
+        assertEquals(.5f, exposure.snap(.46f))
+        assertEquals(-3f, exposure.snap(-100f))
+        assertEquals(24, exposure.copy(range = .5f..3f).steps)
+        assertEquals(99, exposure.copy(range = 0f..1f, displayScale = 100f, decimals = 0).steps)
         compose.setContent {
             FujiTheme {
                 Box(Modifier.fillMaxSize().safeDrawingPadding(),contentAlignment=Alignment.Center) {
-                    RawTickDial(RawParam(R.string.raw_editor_exposure,FujiIcons.Exposure,value,-3f..3f,true,1f,1) { value=it },
-                        Modifier.fillMaxWidth().testTag("test-dial"))
+                    RawParameterSlider(exposure.copy(value = value, enabled = enabled, onChange = { value = it }), Modifier.fillMaxWidth())
                 }
             }
         }
-        compose.onNodeWithTag("test-dial").performTouchInput { down(center); moveBy(Offset(width*.1f,0f),200) }
+        val slider = compose.onNodeWithTag("raw-editor-slider-${R.string.raw_editor_exposure}")
+        assertEquals(59, slider.fetchSemanticsNode().config[SemanticsProperties.ProgressBarRangeInfo].steps)
+        compose.onNodeWithTag("raw-editor-slider-value", useUnmergedTree = true).assertDoesNotExist()
+        slider.performTouchInput { down(center); moveBy(Offset(width*.1f,0f),200) }
+        compose.mainClock.advanceTimeBy(300)
+        compose.onNodeWithTag("raw-editor-slider-value", useUnmergedTree = true).assertIsDisplayed()
         var before = 0f
         compose.runOnIdle { before = value }
-        compose.onNodeWithTag("test-dial").performTouchInput {
+        slider.performTouchInput {
             repeat(30) { moveBy(Offset(width/600f,0f),16) }
             up()
         }
-        compose.runOnIdle { assertTrue("Sub-step movement must not be discarded",value >= before+.2f) }
+        compose.runOnIdle { assertTrue("Fine drag must retain sub-step movement",value >= before+.2f) }
+        compose.mainClock.advanceTimeBy(500)
+        compose.onNodeWithTag("raw-editor-slider-value", useUnmergedTree = true).assertDoesNotExist()
+        compose.runOnIdle { enabled = false; before = value }
+        slider.assertIsNotEnabled().performTouchInput { click(centerRight) }
+        compose.runOnIdle { assertEquals(before,value) }
     }
 
     @Test
@@ -386,7 +402,7 @@ class RawEditorLayoutTest {
         fun set(label: String, value: Float) {
             val grouped = selectGroupedControl(label) != null
             val control = compose.onNodeWithContentDescription(if (label == "Vignette") "Amount" else label)
-            if (!grouped && label != "Straighten") control.performScrollTo()
+            if (!grouped && label != "Straighten") compose.onNodeWithContentDescription("$label controls").performScrollTo().performClick()
             control.performSemanticsAction(SemanticsActions.SetProgress) { it(value) }
             compose.onNodeWithText("Save").assertIsDisplayed()
         }
@@ -568,7 +584,8 @@ class RawEditorLayoutTest {
         }
         fun set(label: String, value: Float) {
             val control = compose.onNodeWithContentDescription(label)
-            if (label in listOf("Amount", "Size", "Roughness")) selectGroupedControl(label) else control.performScrollTo()
+            if (label in listOf("Amount", "Size", "Roughness")) selectGroupedControl(label)
+            else compose.onNodeWithContentDescription("$label controls").performScrollTo().performClick()
             control.performSemanticsAction(SemanticsActions.SetProgress) { it(value) }
         }
         fun reset(label: String) {

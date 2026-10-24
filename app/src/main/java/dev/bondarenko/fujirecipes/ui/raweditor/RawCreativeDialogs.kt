@@ -76,7 +76,7 @@ private fun CreativeParameters(params: List<RawParam>) {
     val active = params[index]
     Text("${stringResource(active.labelRes)}  ${active.formatValue(LocalConfiguration.current.locales[0])}",
         style = MaterialTheme.typography.labelLarge, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp))
-    RawTickDial(active, Modifier.fillMaxWidth().padding(horizontal = 16.dp))
+    RawParameterSlider(active, Modifier.fillMaxWidth().padding(horizontal = 16.dp))
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         params.forEachIndexed { i, param -> RawParamCircle(param, i == index, { selected = i }) }
@@ -304,7 +304,7 @@ internal fun RawMaskDialog(
                     if (shapeControls) CreativeParameters(buildList {
                         add(RawParam(R.string.raw_editor_mask_opacity,FujiIcons.Contrast,mask.opacity,0f..1f,editable,defaultValue=1f) { update(mask.copy(opacity=it)) })
                         add(RawParam(R.string.raw_editor_mask_feather,FujiIcons.Deblur,mask.feather,0f..1f,editable,defaultValue=.5f) { update(mask.copy(feather=it)) })
-                        if (mask.kind == RawMaskKind.BRUSH) add(RawParam(R.string.raw_editor_mask_brush_size,FujiIcons.Grain,brushRadius,.005f.. .5f,editable,defaultValue=.05f) { brushRadius=it })
+                        if (mask.kind == RawMaskKind.BRUSH) add(RawParam(R.string.raw_editor_mask_brush_size,FujiIcons.Grain,brushRadius,.005f.. .5f,editable,decimals=1,defaultValue=.05f) { brushRadius=it })
                         else {
                             add(RawParam(R.string.raw_editor_mask_start_x,FujiIcons.Tune,mask.start.x,0f..1f,editable,defaultValue=.5f) { update(mask.copy(start=mask.start.copy(x=it))) })
                             add(RawParam(R.string.raw_editor_mask_start_y,FujiIcons.Tune,mask.start.y,0f..1f,editable,defaultValue=.5f) { update(mask.copy(start=mask.start.copy(y=it))) })

@@ -246,8 +246,8 @@ external lens database was added.
 
 The bottom-right preview Crop button starts the full-screen framing workspace. Its two
 rotation buttons apply counterclockwise/clockwise 90° turns, while Straighten
-is a separate ±15° dial below the image. Wide layouts put aspect/action controls
-beside the image and retain the Straighten dial underneath it. The crop and
+is a separate ±15° slider below the image. Wide layouts put aspect/action controls
+beside the image and retain the Straighten slider underneath it. The crop and
 aspect lock rotate with the photo; crop state is independent of preview bitmap
 identity so draft/settled image replacement cannot discard a handle movement.
 
@@ -261,7 +261,7 @@ inside the workspace, leave global edits intact, and allow Cancel or retry.
 
 Control groups are ordered Light, Color, Details, Curves, Effects, Optics, then
 existing Masks. Each option retains independent RawAdjustments fields and
-native processing. Pairs show both dials; Grain and Vignette show one dial with
+native processing. Pairs show both sliders; Grain and Vignette show one slider with
 an accessible parameter menu above it. Selection changes no edit values, and
 individual name resets affect only the selected field. Crop is independent of
 category selection and returns to the same category after Apply or Cancel.
@@ -272,3 +272,12 @@ It reuses FujiAnchoredMenu with scrollable, selectable Material 3 items instead
 of a horizontal chip row. Original tracks the source orientation separately
 from fixed presets with the same numerical ratio; all crop fitting and locking
 continue to use the existing sensor/output mapping.
+
+
+All RAW parameter inputs now use RawParameterSlider, a shared Material 3 Slider
+with default XS dimensions and the library Label/PlainTooltip on its thumb.
+Positive/negative ranges use CenteredTrack; unipolar ranges use Track. Steps
+are derived from the existing displayed precision and rounding keeps exact
+parameter units. The previous custom pointer handling and Canvas dial drawing
+are removed. Option circles select controls; the native slider owns adjustable
+semantics, avoiding duplicate sliders in the accessibility tree.

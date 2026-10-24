@@ -1,13 +1,12 @@
 package dev.bondarenko.fujirecipes.ui.raweditor
 
 import android.widget.Toast
-import androidx.compose.foundation.Canvas
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -43,6 +42,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Label
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Surface
@@ -65,10 +68,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
@@ -77,12 +77,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
-import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -423,25 +420,13 @@ fun RawEditorScreen(
                             )
                             if (panel == 3) RawToneCurveEditor(state, onAdjust, compact = wide, enabled = editable)
 
-                            val grouped = activeControls.size > 1
                             visibleControls.forEach { control ->
                                 key(control.labelRes) {
                                     val label = stringResource(if (useSelector && control.labelRes == R.string.raw_editor_vignette) R.string.raw_editor_amount else control.labelRes)
-                                    val resetLabel = stringResource(R.string.raw_editor_reset_parameter, label)
                                     val currentControl by rememberUpdatedState(control)
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = Arrangement.spacedBy(6.dp),
-                                        modifier = if (grouped) Modifier.semantics(mergeDescendants = true) {
-                                            contentDescription = label
-                                            progressBarRangeInfo = ProgressBarRangeInfo(control.value, control.range, control.steps)
-                                            if (control.enabled) setProgress { target ->
-                                                currentControl.onChange(currentControl.snap(target)); true
-                                            }
-                                            customActions = if (control.resetEnabled) listOf(
-                                                CustomAccessibilityAction(resetLabel) { currentControl.onChange(currentControl.defaultValue); true },
-                                            ) else emptyList()
-                                        } else Modifier,
                                     ) {
                                         Box {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -471,7 +456,7 @@ fun RawEditorScreen(
                                                 }
                                             }
                                         }
-                                        RawTickDial(control, Modifier.fillMaxWidth().padding(horizontal = 20.dp))
+                                        RawParameterSlider(control, Modifier.fillMaxWidth().padding(horizontal = 20.dp), label)
                                     }
                                 }
                             }
@@ -556,21 +541,16 @@ internal data class RawParam(
     val suffix: String = "",
     val defaultValue: Float = 0f,
     val resetEnabled: Boolean = enabled,
-    val steps: Int = 0,
     val onChange: (Float) -> Unit,
 ) {
     val isEdited: Boolean get() = kotlin.math.abs(value - defaultValue) > 0.0005f
 
-    fun snap(raw: Float): Float {
-        val clamped = raw.coerceIn(range.start, range.endInclusive)
-        if (steps > 0) {
-            val stepCount = steps + 1
-            val stepSize = (range.endInclusive - range.start) / stepCount
-            return range.start + round((clamped - range.start) / stepSize) * stepSize
-        }
-        val precision = displayScale * if (decimals == 1) 10f else 1f
-        return round(clamped * precision).toInt() / precision
-    }
+    private val precision: Float get() = displayScale * if (decimals == 1) 10f else 1f
+    val steps: Int get() = (round((range.endInclusive - range.start) * precision).toInt() - 1).coerceAtLeast(0)
+
+    fun snap(raw: Float): Float =
+        (round(raw.coerceIn(range.start, range.endInclusive) * precision) / precision)
+            .coerceIn(range.start, range.endInclusive)
 
     fun formatValue(locale: java.util.Locale): String {
         val sign = if (range.start < 0) "+" else ""
@@ -588,7 +568,7 @@ internal fun RawParamCircle(
     optionLabelRes: Int = param.labelRes,
 ) {
     val label = stringResource(optionLabelRes)
-    val description = if (related.isEmpty()) label else stringResource(R.string.raw_editor_parameter_controls, label)
+    val description = stringResource(R.string.raw_editor_parameter_controls, label)
     val edited = param.isEdited || related.any { it.isEdited }
     val resetLabel = stringResource(R.string.raw_editor_reset_parameter, label)
     val currentParam by rememberUpdatedState(param)
@@ -613,7 +593,7 @@ internal fun RawParamCircle(
             .alpha(if (param.enabled || param.resetEnabled) 1f else 0.45f)
             .pointerInput(param.resetEnabled, param.defaultValue, related.isNotEmpty()) {
                 detectTapGestures(
-                    onTap = { currentOnSelect() },
+                    onPress = { if (tryAwaitRelease()) currentOnSelect() },
                     onDoubleTap = if (related.isEmpty()) ({
                         currentOnSelect()
                         if (currentParam.resetEnabled) currentParam.onChange(currentParam.defaultValue)
@@ -623,14 +603,6 @@ internal fun RawParamCircle(
             .semantics(mergeDescendants = true) {
                 contentDescription = description
                 onClick { currentOnSelect(); true }
-                if (related.isEmpty()) progressBarRangeInfo = ProgressBarRangeInfo(param.value, param.range, param.steps)
-                if (related.isEmpty() && param.enabled) {
-                    setProgress { target ->
-                        currentOnSelect()
-                        currentParam.onChange(currentParam.snap(target))
-                        true
-                    }
-                }
                 customActions = if (related.isEmpty() && param.resetEnabled) listOf(
                     CustomAccessibilityAction(resetLabel) {
                         currentOnSelect()
@@ -675,80 +647,46 @@ internal fun RawParamCircle(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun RawTickDial(
+internal fun RawParameterSlider(
     param: RawParam,
     modifier: Modifier = Modifier,
+    label: String = stringResource(param.labelRes),
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val locale = LocalConfiguration.current.locales[0]
     val currentParam by rememberUpdatedState(param)
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val tickColor = MaterialTheme.colorScheme.onSurfaceVariant
-
-    Canvas(
-        modifier = modifier
-            .height(36.dp)
-            .alpha(if (param.enabled) 1f else 0.38f)
-            .pointerInput(param.enabled, param.range, param.defaultValue) {
-                if (!param.enabled) return@pointerInput
-                detectTapGestures(
-                    onDoubleTap = { currentParam.onChange(currentParam.defaultValue) },
-                    onTap = { offset ->
-                        val fraction = (offset.x / size.width.coerceAtLeast(1)).coerceIn(0f, 1f)
-                        val raw = currentParam.range.start + fraction * (currentParam.range.endInclusive - currentParam.range.start)
-                        currentParam.onChange(currentParam.snap(raw))
-                    },
-                )
+    val resetLabel = stringResource(R.string.raw_editor_reset_parameter, label)
+    Slider(
+        value = param.value,
+        onValueChange = { currentParam.onChange(currentParam.snap(it)) },
+        valueRange = param.range,
+        steps = param.steps,
+        enabled = param.enabled,
+        interactionSource = interactionSource,
+        modifier = modifier.testTag("raw-editor-slider-${param.labelRes}").semantics {
+            contentDescription = label
+            customActions = if (param.resetEnabled) listOf(
+                CustomAccessibilityAction(resetLabel) { currentParam.onChange(currentParam.defaultValue); true },
+            ) else emptyList()
+        },
+        thumb = {
+            Label(
+                label = {
+                    PlainTooltip(Modifier.testTag("raw-editor-slider-value")) { Text(param.formatValue(locale)) }
+                },
+                interactionSource = interactionSource,
+            ) {
+                SliderDefaults.Thumb(interactionSource, enabled = param.enabled)
             }
-            .pointerInput(param.enabled, param.range) {
-                if (!param.enabled) return@pointerInput
-                var dragValue = currentParam.value
-                detectHorizontalDragGestures(
-                    onDragStart = { dragValue = currentParam.value },
-                    onHorizontalDrag = { change, dragAmount ->
-                        change.consume()
-                        val span = currentParam.range.endInclusive - currentParam.range.start
-                        val delta = (dragAmount / size.width.coerceAtLeast(1)) * span
-                        dragValue = (dragValue + delta).coerceIn(currentParam.range.start, currentParam.range.endInclusive)
-                        currentParam.onChange(currentParam.snap(dragValue))
-                    },
-                )
-            },
-    ) {
-        val tickCount = 41
-        val width = size.width
-        val centerY = size.height / 2f
-        val span = (param.range.endInclusive - param.range.start).coerceAtLeast(0.0001f)
-        val valueFraction = ((param.value - param.range.start) / span).coerceIn(0f, 1f)
-        val defaultFraction = ((param.defaultValue - param.range.start) / span).coerceIn(0f, 1f)
-
-        for (i in 0 until tickCount) {
-            val f = i.toFloat() / (tickCount - 1)
-            val x = f * width
-            val isDefaultTick = kotlin.math.abs(f - defaultFraction) < (0.5f / (tickCount - 1))
-            val isMajor = i % 5 == 0
-            val halfH = when {
-                isDefaultTick -> 10.dp.toPx()
-                isMajor -> 7.dp.toPx()
-                else -> 4.5.dp.toPx()
+        },
+        track = { state ->
+            if (param.range.start < 0f && param.range.endInclusive > 0f) {
+                SliderDefaults.CenteredTrack(state, enabled = param.enabled)
+            } else {
+                SliderDefaults.Track(state, enabled = param.enabled)
             }
-            val inActiveSpan = (f >= minOf(defaultFraction, valueFraction) - 0.001f) &&
-                (f <= maxOf(defaultFraction, valueFraction) + 0.001f) && param.isEdited
-            drawLine(
-                color = if (inActiveSpan) primaryColor.copy(alpha = 0.85f) else tickColor.copy(alpha = if (isMajor) 0.55f else 0.3f),
-                start = Offset(x, centerY - halfH),
-                end = Offset(x, centerY + halfH),
-                strokeWidth = if (isDefaultTick) 2.dp.toPx() else 1.5.dp.toPx(),
-                cap = StrokeCap.Round,
-            )
-        }
-
-        val markerX = valueFraction * width
-        drawLine(
-            color = primaryColor,
-            start = Offset(markerX, centerY - 13.dp.toPx()),
-            end = Offset(markerX, centerY + 13.dp.toPx()),
-            strokeWidth = 3.dp.toPx(),
-            cap = StrokeCap.Round,
-        )
-    }
+        },
+    )
 }
