@@ -1,11 +1,10 @@
 package dev.bondarenko.fujirecipes.ui.raweditor
 
 import android.widget.Toast
+import androidx.compose.foundation.Canvas
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -67,18 +66,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.ProgressBarRangeInfo
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.onClick
@@ -163,6 +160,7 @@ fun RawEditorRouteContent(
         onDrawMask = model::drawMask,
         onCrop = model::prepareCrop,
         onDismissCrop = model::dismissCrop,
+        onViewport = model::detailViewport,
         contentPadding = contentPadding,
     )
     if (confirmAction != null) {
@@ -193,6 +191,7 @@ fun RawEditorScreen(
     onDrawMask: (List<MaskPoint>, Float, Boolean) -> Unit = { _, _, _ -> },
     onCrop: () -> Unit = {},
     onDismissCrop: () -> Unit = {},
+    onViewport: (RawViewport?) -> Unit = {},
     contentPadding: PaddingValues = PaddingValues(0.dp),
 ) {
     var showCamera by remember(state.name, state.busy, state.cameraImage) { mutableStateOf(false) }
@@ -273,7 +272,7 @@ fun RawEditorScreen(
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             Box(Modifier.fillMaxWidth().height(4.dp)) {
-                if (state.busy || state.rendering) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (state.busy || state.rendering || state.detailLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
             }
             if (state.busy && state.preview == null) Text(
                 stringResource(R.string.raw_editor_processing),
@@ -302,50 +301,7 @@ fun RawEditorScreen(
                 BoxWithConstraints(Modifier.weight(1f)) {
                     val wide = maxWidth >= 700.dp
                     val preview: @Composable (Modifier) -> Unit = { modifier ->
-                        val compareLabel = stringResource(if (showCamera) R.string.raw_editor_show_raw else R.string.raw_editor_show_camera)
-                        Box(
-                            modifier.background(Color.Black).testTag("raw-editor-preview")
-                                .pointerInput(state.cameraImage, state.busy) {
-                                    detectTapGestures(onPress = {
-                                        if (!state.busy && state.cameraImage != null) {
-                                            showCamera = true
-                                            try { tryAwaitRelease() } finally { showCamera = false }
-                                        }
-                                    })
-                                }
-                                .semantics(mergeDescendants = true) {
-                                    customActions = if (!state.busy && state.cameraImage != null) listOf(
-                                        CustomAccessibilityAction(compareLabel) { showCamera = !showCamera; true },
-                                    ) else emptyList()
-                                },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            val bitmap = if (showCamera) state.cameraImage else state.preview
-                            bitmap?.let {
-                                Image(
-                                    it.asImageBitmap(), stringResource(if (showCamera) R.string.raw_editor_camera_image else R.string.raw_editor_raw_image),
-                                    Modifier.fillMaxSize(), contentScale = ContentScale.Fit,
-                                )
-                                if (panel == 5 && !showCamera) Canvas(Modifier.fillMaxSize().testTag("raw-editor-optics-grid")) {
-                                    val bounds = imageBounds(size, it.width.toFloat() / it.height)
-                                    for (line in 1..3) {
-                                        val x = bounds.left + bounds.width * line / 4
-                                        val y = bounds.top + bounds.height * line / 4
-                                        drawLine(Color.White.copy(alpha = .35f), Offset(x, bounds.top), Offset(x, bounds.bottom))
-                                        drawLine(Color.White.copy(alpha = .35f), Offset(bounds.left, y), Offset(bounds.right, y))
-                                    }
-                                }
-                            }
-                            if (showCamera || state.busy) Surface(
-                                modifier = Modifier.align(Alignment.BottomCenter),
-                                color = Color.Black.copy(alpha = .8f), contentColor = Color.White,
-                            ) {
-                                Text(
-                                    stringResource(if (state.busy) R.string.raw_editor_processing else R.string.raw_editor_comparison_note),
-                                    Modifier.padding(8.dp), style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                        }
+                        RawEditorPreview(state, panel == 5, showCamera, { showCamera = it }, onViewport, modifier)
                     }
                     val controls: @Composable (Modifier) -> Unit = { modifier ->
                         val edits = state.adjustments

@@ -26,9 +26,60 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.system.measureNanoTime
+import kotlin.math.roundToInt
 
 /** Opt in with -e rawEditorProbe true and files/raw-editor-fixture.raf on the device. */
 class RawEditorHardwareTest {
+    @Test
+    fun fullDetailTilesMatchExportIncludingFilterContext() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("rawEditorProbe") == "true")
+        val app = InstrumentationRegistry.getInstrumentation().targetContext
+        val fixture = File(app.filesDir, "raw-editor-fixture.raf")
+        check(fixture.isFile)
+        val handle = NativeRaw.open(fixture.path, app.assets.open("raw-profiles/classic-chrome.cube").use { it.readBytes() })
+        try {
+            val crop = RawCrop(.25f, .3f, .4f, .55f)
+            val effects = RawAdjustments(crop = crop, quarterTurns = 1, straighten = 2f,
+                distortion = .1f, perspectiveVertical = .1f, chromaticRed = .2f,
+                clarity = .3f, texture = .2f, dehaze = .2f, sharpening = .4f,
+                colorNoise = .5f, luminanceNoise = .3f, defringePurple = .3f,
+                vignette = -.2f, grainAmount = .4f,
+                masks = listOf(RawMask(RawMaskKind.RADIAL, adjustments = RawLocalAdjustments(exposure = .5f))))
+            for (edits in listOf(RawAdjustments(crop = crop), effects)) {
+                val size = NativeRaw.outputDimensions(handle, edits.nativeValues(), true)
+                val reference = Bitmap.createBitmap(size[0], size[1], Bitmap.Config.ARGB_8888)
+                NativeRaw.render(handle, reference, edits.nativeValues(), true)
+                for ((left, top) in listOf(0 to 0, 137 to 113, (size[0]-256) to (size[1]-192))) {
+                    val tile = Bitmap.createBitmap(256, 192, Bitmap.Config.ARGB_8888)
+                    val elapsed = measureNanoTime { NativeRaw.renderDetail(handle, tile, edits.nativeValues(), left, top, 1f) } / 1_000_000
+                    val expected = IntArray(256*192)
+                    val actual = IntArray(expected.size)
+                    reference.getPixels(expected, 0, 256, left, top, 256, 192)
+                    tile.getPixels(actual, 0, 256, 0, 0, 256, 192)
+                    var maxDifference = 0
+                    for (p in expected.indices) for (shift in listOf(0,8,16)) {
+                        maxDifference = maxOf(maxDifference, kotlin.math.abs(((expected[p] ushr shift) and 255) - ((actual[p] ushr shift) and 255)))
+                    }
+                    assertTrue("Tile must match export; max channel error=$maxDifference", maxDifference <= 1)
+                    Log.i("RawZoomProbe", "100% tile $left,$top: ${elapsed}ms, max export difference=$maxDifference")
+                    tile.recycle()
+                }
+                // Fractional zoom uses the same global coordinates as a whole scaled render.
+                val half = Bitmap.createBitmap((size[0]*.5f).roundToInt(), (size[1]*.5f).roundToInt(), Bitmap.Config.ARGB_8888)
+                NativeRaw.renderDetail(handle, half, edits.nativeValues(), 0, 0, .5f)
+                val part = Bitmap.createBitmap(128, 96, Bitmap.Config.ARGB_8888)
+                NativeRaw.renderDetail(handle, part, edits.nativeValues(), 50, 40, .5f)
+                val a = IntArray(128*96); val b = IntArray(a.size)
+                half.getPixels(a,0,128,50,40,128,96); part.getPixels(b,0,128,0,0,128,96)
+                for (p in a.indices) for (shift in listOf(0,8,16)) assertTrue(kotlin.math.abs(((a[p] ushr shift) and 255)-((b[p] ushr shift) and 255)) <= 1)
+                assertThrows(java.io.IOException::class.java) { NativeRaw.renderDetail(handle,part,edits.nativeValues(),0,0,Float.NaN) }
+                assertThrows(java.io.IOException::class.java) { NativeRaw.renderDetail(handle,part,edits.nativeValues(),size[0],0,1f) }
+                part.recycle(); half.recycle(); reference.recycle()
+            }
+            NativeRaw.releaseDetail(handle)
+        } finally { NativeRaw.close(handle) }
+    }
+
     @Test
     fun previewKeepsUpdatingDuringContinuousSliderChanges() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("rawEditorProbe") == "true")
@@ -106,6 +157,26 @@ class RawEditorHardwareTest {
                 assertEquals(final.adjustments,RawAdjustments.fromValues(saved.get<FloatArray>("adjustments")!!))
                 assertTrue("Preview must update while the slider is still moving ($label)",movingFrames >= 3)
             }
+            val viewport = RawViewport(100, 100, 640, 480, 1f)
+            fun detailReady() = runBlocking { withTimeout(60_000) {
+                model.state.first { !it.rendering && !it.detailLoading && (it.detail != null || it.error != null) }
+            } }.also { assertNull(it.error, it.error) }
+            instrumentation.runOnMainSync { model.detailViewport(viewport) }
+            val originalDetail = detailReady().detail!!
+            assertEquals(viewport, originalDetail.viewport)
+            instrumentation.runOnMainSync {
+                model.adjust(model.state.value.adjustments.copy(exposure = -.5f))
+                // A pan during a queued slider edit must still finish the preview refinement.
+                model.detailViewport(viewport.copy(left = 180))
+            }
+            val changedDetail = detailReady()
+            assertEquals(-.5f, changedDetail.adjustments.exposure)
+            assertEquals(changedDetail.adjustments, changedDetail.detail!!.edits)
+            assertEquals(180, changedDetail.detail.viewport.left)
+            assertFalse(originalDetail.bitmap.sameAs(changedDetail.detail.bitmap))
+            instrumentation.runOnMainSync { model.detailViewport(null) }
+            assertNull(model.state.value.detail)
+            assertFalse(model.state.value.detailLoading)
         } finally {
             instrumentation.runOnMainSync { store.clear() }
             input.delete()

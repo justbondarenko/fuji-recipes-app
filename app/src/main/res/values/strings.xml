@@ -742,4 +742,12 @@
     <string name="raw_editor_curve_right">Move point right</string>
     <string name="raw_editor_curve_up">Move point up</string>
     <string name="raw_editor_curve_down">Move point down</string>
+    <string name="raw_editor_zoom_100">Zoom to 100%</string>
+    <string name="raw_editor_zoom_fit">Fit</string>
+    <string name="raw_editor_pan_left">Pan left</string>
+    <string name="raw_editor_pan_right">Pan right</string>
+    <string name="raw_editor_pan_up">Pan up</string>
+    <string name="raw_editor_pan_down">Pan down</string>
+    <string name="raw_editor_detail_loading">Rendering full RAW detail…</string>
+    <string name="raw_editor_detail_failed">Full RAW detail unavailable</string>
 </resources>

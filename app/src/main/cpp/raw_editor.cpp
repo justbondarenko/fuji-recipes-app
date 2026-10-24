@@ -15,6 +15,8 @@ struct Session {
     float baseline = 1;
     float cameraToRgb[3][3]{};
     std::vector<fuji::Rgb> preview, draftPreview, detailDraft;
+    // ponytail: one full decode uses hundreds of MB; use tiled decoding on low-memory devices.
+    std::unique_ptr<LibRaw> detailRaw;
     Session(std::string p, std::string profile) : path(std::move(p)), lut(profile) {}
 };
 
@@ -156,23 +158,37 @@ Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_outputDimensions(JNIEnv
     } catch (const std::exception& e) { failure(env, e); return nullptr; }
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_render(JNIEnv* env, jobject, jlong handle,
-    jobject bitmap, jfloatArray parameters, jboolean full, jboolean draft) {
+static void render(JNIEnv* env, jlong handle, jobject bitmap, jfloatArray parameters,
+    bool full, bool draft, bool detail = false, int left = 0, int top = 0, float zoom = 1) {
     void* pixels = nullptr;
     try {
         auto edits = adjustments(env, parameters);
         auto& s = *reinterpret_cast<Session*>(handle);
         if (full && draft) throw std::runtime_error("Export requires full resolution.");
         std::unique_ptr<LibRaw> raw;
-        if (full) raw = decodeRaf(s.path, false);
-        auto size = full ? dimensions(*raw) : previewDimensions(s,draft,edits.hasDetails());
-        const auto& sourcePreview = draft ? (edits.hasDetails() ? s.detailDraft : s.draftPreview) : s.preview;
-        fuji::Frame frame(size.first, size.second, edits);
+        if (detail && (!std::isfinite(zoom) || zoom <= 0 || zoom > 1 || left < 0 || top < 0))
+            throw std::runtime_error("Invalid RAW detail viewport.");
+        // Validate the requested viewport before decoding the full sensor.
+        fuji::Frame expected(s.fullWidth,s.fullHeight,edits);
         AndroidBitmapInfo info{};
         if (AndroidBitmap_getInfo(env, bitmap, &info) != ANDROID_BITMAP_RESULT_SUCCESS ||
-            info.format != ANDROID_BITMAP_FORMAT_RGBA_8888 || info.width != unsigned(frame.width) ||
-            info.height != unsigned(frame.height)) throw std::runtime_error("Incorrect RAW output size.");
+            info.format != ANDROID_BITMAP_FORMAT_RGBA_8888) throw std::runtime_error("Incorrect RAW output format.");
+        if (detail && (info.width == 0 || info.height == 0 || info.width > 4096 || info.height > 4096 ||
+            uint64_t(left)+info.width > unsigned(std::max(1,int(std::round(expected.width*zoom)))) ||
+            uint64_t(top)+info.height > unsigned(std::max(1,int(std::round(expected.height*zoom))))))
+            throw std::runtime_error("Invalid RAW detail viewport.");
+        if (detail && !s.detailRaw) s.detailRaw = decodeRaf(s.path,false);
+        if (full && !s.detailRaw) raw = decodeRaf(s.path, false);
+        const auto* sensor = s.detailRaw ? s.detailRaw.get() : raw.get();
+        auto size = full ? dimensions(*sensor) : previewDimensions(s,draft,edits.hasDetails());
+        const auto& sourcePreview = draft ? (edits.hasDetails() ? s.detailDraft : s.draftPreview) : s.preview;
+        fuji::Frame frame(size.first, size.second, edits);
+        if (detail) {
+            frame.width = std::max(1,int(std::round(frame.width*zoom)));
+            frame.height = std::max(1,int(std::round(frame.height*zoom)));
+        } else if (info.width != unsigned(frame.width) || info.height != unsigned(frame.height))
+            throw std::runtime_error("Incorrect RAW output size.");
+        int right = left + info.width, bottom = top + info.height;
         if (AndroidBitmap_lockPixels(env, bitmap, &pixels) != ANDROID_BITMAP_RESULT_SUCCESS)
             throw std::runtime_error("Could not allocate the rendered image.");
         auto maskSize = previewDimensions(s,!full && draft,edits.hasDetails());
@@ -187,7 +203,7 @@ Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_render(JNIEnv* env, job
             return fuji::renderPixel(linear, s.lut, edits, s.baseline, local);
         };
         auto point = [&](int x, int y) {
-            auto sample = [&](int px, int py) { return full ? cameraPixel(*raw, px, py) : sourcePreview[py * size.first + px]; };
+            auto sample = [&](int px, int py) { return full ? cameraPixel(*sensor, px, py) : sourcePreview[py * size.first + px]; };
             fuji::LocalEdits local;
             if (!edits.masks.empty()) {
                 auto [sx,sy] = frame.unclampedSource(x,y);
@@ -210,7 +226,7 @@ Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_render(JNIEnv* env, job
             for (auto& c : airlight) c = std::clamp(c, .6f, 1.f);
         }
         auto write = [&](int x, int y, const fuji::Rgb& rgb) {
-            auto* pixel = static_cast<uint8_t*>(pixels) + y * info.stride + x * 4;
+            auto* pixel = static_cast<uint8_t*>(pixels) + (y-top) * info.stride + (x-left) * 4;
             auto finished = fuji::vignette(rgb, x, y, frame.width, frame.height, edits);
             finished = fuji::addGrain(finished,x,y,frame.width,frame.height,fullFrame.width,fullFrame.height,
                 edits.grainAmount,edits.grainSize,edits.grainRoughness);
@@ -218,20 +234,22 @@ Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_render(JNIEnv* env, job
             pixel[3] = 255;
         };
         if (!edits.hasDetails()) {
-            for (int y = 0; y < frame.height; ++y) for (int x = 0; x < frame.width; ++x) write(x, y, point(x, y));
+            for (int y = top; y < bottom; ++y) for (int x = left; x < right; ++x) write(x, y, point(x, y));
         } else {
-            float scale = full ? 1.f : float(size.first) / s.fullWidth;
+            float scale = detail ? zoom : full ? 1.f : float(size.first) / s.fullWidth;
             int halo = fuji::detailHalo(edits, scale);
-            // Bound filter memory to a strip, with overlapping halos to avoid seams.
-            for (int top = 0; top < frame.height; top += 96) {
-                int bottom = std::min(top + 96, frame.height);
-                int first = std::max(0, top - halo), last = std::min(frame.height, bottom + halo);
-                std::vector<fuji::Rgb> strip(frame.width * (last - first));
-                for (int y = first; y < last; ++y) for (int x = 0; x < frame.width; ++x)
-                    strip[(y - first) * frame.width + x] = point(x, y);
-                fuji::applyDetails(strip, frame.width, last - first, edits, scale, airlight);
-                for (int y = top; y < bottom; ++y) for (int x = 0; x < frame.width; ++x)
-                    write(x, y, strip[(y - first) * frame.width + x]);
+            int firstX = std::max(0,left-halo), lastX = std::min(frame.width,right+halo);
+            int stripWidth = lastX-firstX;
+            // Include context on all sides so detail tiles match the full export without seams.
+            for (int row = top; row < bottom; row += 96) {
+                int end = std::min(row + 96, bottom);
+                int first = std::max(0, row - halo), last = std::min(frame.height, end + halo);
+                std::vector<fuji::Rgb> strip(stripWidth * (last - first));
+                for (int y = first; y < last; ++y) for (int x = firstX; x < lastX; ++x)
+                    strip[(y - first) * stripWidth + x-firstX] = point(x, y);
+                fuji::applyDetails(strip, stripWidth, last - first, edits, scale, airlight);
+                for (int y = row; y < end; ++y) for (int x = left; x < right; ++x)
+                    write(x, y, strip[(y - first) * stripWidth + x-firstX]);
             }
         }
         AndroidBitmap_unlockPixels(env, bitmap);
@@ -239,6 +257,23 @@ Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_render(JNIEnv* env, job
         if (pixels) AndroidBitmap_unlockPixels(env, bitmap);
         failure(env, e);
     }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_render(JNIEnv* env, jobject, jlong handle,
+    jobject bitmap, jfloatArray parameters, jboolean full, jboolean draft) {
+    render(env,handle,bitmap,parameters,full,draft);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_renderDetail(JNIEnv* env, jobject, jlong handle,
+    jobject bitmap, jfloatArray parameters, jint left, jint top, jfloat zoom) {
+    render(env,handle,bitmap,parameters,true,false,true,left,top,zoom);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_releaseDetail(JNIEnv*, jobject, jlong handle) {
+    reinterpret_cast<Session*>(handle)->detailRaw.reset();
 }
 
 extern "C" JNIEXPORT jfloatArray JNICALL
