@@ -55,7 +55,7 @@ import kotlin.math.roundToInt
 @Composable
 internal fun RawEditorPreview(
     state: RawEditorState, grid: Boolean, showComparison: Boolean, onShowComparison: (Boolean) -> Unit,
-    onViewport: (RawViewport?) -> Unit, modifier: Modifier = Modifier, onCrop: () -> Unit = {},
+    onViewport: (RawViewport?) -> Unit, modifier: Modifier = Modifier, onCrop: () -> Unit = {}, help: String? = null,
 ) {
     val image = IntSize(
         state.fullWidth.takeIf { it > 0 } ?: state.preview?.width ?: 1,
@@ -177,7 +177,6 @@ internal fun RawEditorPreview(
                 }
             }
         }
-        val loading = viewport != null && (state.detailLoading || state.detail?.viewport != viewport || state.detail.edits != state.adjustments)
         Surface(Modifier.align(Alignment.BottomEnd).padding(8.dp),
             shape = androidx.compose.foundation.shape.CircleShape,
             color = Color.Black.copy(alpha = .7f), contentColor = Color.White) {
@@ -191,13 +190,10 @@ internal fun RawEditorPreview(
             Text(stringResource(if (compareStarting) R.string.raw_editor_starting_note else R.string.raw_editor_comparison_note),
                 Modifier.padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.bodySmall, maxLines = 1)
         }
-        if (state.busy || (loading && !showComparison)) Surface(Modifier.align(Alignment.BottomCenter).padding(horizontal = 64.dp),
-            color = Color.Black.copy(alpha = .8f), contentColor = Color.White) {
-            Text(stringResource(when {
-                state.busy -> R.string.raw_editor_processing
-                state.error != null -> R.string.raw_editor_detail_failed
-                else -> R.string.raw_editor_detail_loading
-            }), Modifier.padding(8.dp), style = MaterialTheme.typography.bodySmall)
+        if (help != null && !showComparison) Surface(Modifier.align(Alignment.TopStart).padding(8.dp),
+            shape = androidx.compose.foundation.shape.CircleShape,
+            color = Color.Black.copy(alpha = .7f), contentColor = Color.White) {
+            RawEditorHelp(help, Modifier.testTag("raw-editor-optics-help"))
         }
     }
 }

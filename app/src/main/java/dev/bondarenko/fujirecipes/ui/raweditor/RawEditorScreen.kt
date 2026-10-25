@@ -44,6 +44,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
@@ -245,6 +246,11 @@ fun RawEditorScreen(
         confirmButton = { TextButton(onClick = { showInfo = false }) { Text(stringResource(R.string.action_back)) } },
     )
     Scaffold(
+        snackbarHost = {
+            if (state.cropPreview == null && !state.maskEditorOpen) state.error?.let {
+                Snackbar(Modifier.padding(16.dp)) { Text(it) }
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -294,12 +300,6 @@ fun RawEditorScreen(
             Box(Modifier.fillMaxWidth().height(4.dp)) {
                 if (state.busy || state.rendering || state.detailLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
             }
-            if (state.busy && state.preview == null) Text(
-                stringResource(R.string.raw_editor_processing),
-                Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            state.error?.let { Text(it, Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error) }
             if (state.preview == null) {
                 FujiIconPanel(
                     icon = FujiIcons.RawOn,
@@ -322,7 +322,8 @@ fun RawEditorScreen(
                     val wide = maxWidth >= 700.dp
                     val maxCurveSize = if (wide) maxWidth else maxHeight * .4f
                     val preview: @Composable (Modifier) -> Unit = { modifier ->
-                        RawEditorPreview(state, panel == 5, showComparison, { showComparison = it }, onViewport, modifier, onCrop)
+                        RawEditorPreview(state, panel == 5, showComparison, { showComparison = it }, onViewport, modifier, onCrop,
+                            help = if (panel == 5) stringResource(if (state.lensCorrectionApplied) R.string.raw_editor_optics_note else R.string.raw_editor_optics_unavailable) else null)
                     }
                     val controls: @Composable (Modifier) -> Unit = { modifier ->
                         val categories: @Composable () -> Unit = {
@@ -457,11 +458,6 @@ fun RawEditorScreen(
                                         verticalArrangement = Arrangement.spacedBy(if (wide) 16.dp else 6.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                     ) {
-                                        if (panel == 5) Text(
-                                            stringResource(if (state.lensCorrectionApplied) R.string.raw_editor_optics_note else R.string.raw_editor_optics_unavailable),
-                                            Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
                                         if (panel == 3) RawToneCurveEditor(state, onAdjust, maxGraphSize = maxCurveSize, enabled = editable)
 
                                         if (wide) {
