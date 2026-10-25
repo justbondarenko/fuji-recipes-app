@@ -18221,3 +18221,196 @@ public val FujiIcons.RawOn: ImageVector
 private var _rawOnW300: ImageVector? = null
 private var _rawOnW400: ImageVector? = null
 private var _rawOnW500: ImageVector? = null
+
+public val FujiIcons.Compare: ImageVector
+    get() = when (FujiIconConfig.weight) {
+        IconWeight.W300 -> _compareW300 ?: ImageVector.Builder(
+          name = "compare",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(10.6f, 20.32f)
+            horizontalLineTo(5.39f)
+            quadToRelative(-0.71f, 0f, -1.21f, -0.5f)
+            reflectiveQuadTo(3.68f, 18.61f)
+            verticalLineTo(5.39f)
+            quadToRelative(0f, -0.71f, 0.5f, -1.21f)
+            reflectiveQuadTo(5.39f, 3.68f)
+            horizontalLineTo(10.6f)
+            verticalLineTo(2.28f)
+            quadTo(10.6f, 2f, 10.81f, 1.79f)
+            reflectiveQuadTo(11.3f, 1.59f)
+            reflectiveQuadToRelative(0.49f, 0.21f)
+            reflectiveQuadTo(12f, 2.28f)
+            verticalLineTo(21.71f)
+            quadToRelative(0f, 0.29f, -0.21f, 0.5f)
+            reflectiveQuadTo(11.3f, 22.41f)
+            reflectiveQuadTo(10.81f, 22.21f)
+            reflectiveQuadTo(10.6f, 21.71f)
+            verticalLineTo(20.32f)
+            close()
+            moveTo(5.08f, 17.92f)
+            horizontalLineTo(10.6f)
+            verticalLineTo(11.3f)
+            lineTo(5.08f, 17.92f)
+            close()
+            moveToRelative(8.82f, 2.4f)
+            verticalLineToRelative(-8.4f)
+            lineToRelative(5.02f, 6f)
+            verticalLineTo(5.39f)
+            quadToRelative(0f, -0.12f, -0.1f, -0.21f)
+            reflectiveQuadTo(18.61f, 5.08f)
+            horizontalLineTo(13.9f)
+            verticalLineTo(3.68f)
+            horizontalLineToRelative(4.71f)
+            quadToRelative(0.71f, 0f, 1.21f, 0.5f)
+            reflectiveQuadToRelative(0.5f, 1.21f)
+            verticalLineTo(18.61f)
+            quadToRelative(0f, 0.71f, -0.5f, 1.21f)
+            reflectiveQuadToRelative(-1.21f, 0.5f)
+            horizontalLineTo(13.9f)
+            close()
+          }
+        }
+        .build().also { _compareW300 = it }
+        IconWeight.W400 -> _compareW400 ?: ImageVector.Builder(
+          name = "compare",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(10f, 21f)
+            horizontalLineTo(5f)
+            quadTo(4.18f, 21f, 3.59f, 20.41f)
+            reflectiveQuadTo(3f, 19f)
+            verticalLineTo(5f)
+            quadTo(3f, 4.17f, 3.59f, 3.59f)
+            reflectiveQuadTo(5f, 3f)
+            horizontalLineToRelative(5f)
+            verticalLineTo(2f)
+            quadTo(10f, 1.57f, 10.29f, 1.29f)
+            reflectiveQuadTo(11f, 1f)
+            reflectiveQuadToRelative(0.71f, 0.29f)
+            reflectiveQuadTo(12f, 2f)
+            verticalLineTo(22f)
+            quadToRelative(0f, 0.43f, -0.29f, 0.71f)
+            reflectiveQuadTo(11f, 23f)
+            reflectiveQuadTo(10.29f, 22.71f)
+            quadTo(10f, 22.43f, 10f, 22f)
+            verticalLineTo(21f)
+            close()
+            moveTo(5f, 18f)
+            horizontalLineToRelative(5f)
+            verticalLineTo(12f)
+            lineTo(5f, 18f)
+            close()
+            moveToRelative(9f, 3f)
+            verticalLineTo(12f)
+            lineToRelative(5f, 6f)
+            verticalLineTo(5f)
+            horizontalLineTo(14f)
+            verticalLineTo(3f)
+            horizontalLineToRelative(5f)
+            quadToRelative(0.83f, 0f, 1.41f, 0.59f)
+            reflectiveQuadTo(21f, 5f)
+            verticalLineTo(19f)
+            quadToRelative(0f, 0.82f, -0.59f, 1.41f)
+            reflectiveQuadTo(19f, 21f)
+            horizontalLineTo(14f)
+            close()
+          }
+        }
+        .build().also { _compareW400 = it }
+        IconWeight.W500 -> _compareW500 ?: ImageVector.Builder(
+          name = "compare",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(9.91f, 21.2f)
+            horizontalLineTo(5.07f)
+            quadToRelative(-0.94f, 0f, -1.61f, -0.67f)
+            reflectiveQuadTo(2.8f, 18.93f)
+            verticalLineTo(5.07f)
+            quadTo(2.8f, 4.13f, 3.46f, 3.46f)
+            reflectiveQuadTo(5.07f, 2.8f)
+            horizontalLineTo(9.91f)
+            verticalLineTo(1.86f)
+            quadToRelative(0f, -0.44f, 0.3f, -0.74f)
+            reflectiveQuadToRelative(0.75f, -0.3f)
+            reflectiveQuadToRelative(0.74f, 0.3f)
+            reflectiveQuadTo(12f, 1.86f)
+            verticalLineTo(22.14f)
+            quadToRelative(0f, 0.44f, -0.3f, 0.74f)
+            reflectiveQuadToRelative(-0.74f, 0.3f)
+            reflectiveQuadToRelative(-0.75f, -0.3f)
+            reflectiveQuadTo(9.91f, 22.14f)
+            verticalLineTo(21.2f)
+            close()
+            moveTo(5.07f, 17.93f)
+            horizontalLineTo(9.91f)
+            verticalLineTo(12.11f)
+            lineTo(5.07f, 17.93f)
+            close()
+            moveToRelative(9.02f, 3.28f)
+            verticalLineToRelative(-9.1f)
+            lineToRelative(4.84f, 5.8f)
+            verticalLineTo(5.07f)
+            horizontalLineTo(14.09f)
+            verticalLineTo(2.8f)
+            horizontalLineToRelative(4.84f)
+            quadToRelative(0.94f, 0f, 1.61f, 0.67f)
+            reflectiveQuadTo(21.2f, 5.07f)
+            verticalLineTo(18.93f)
+            quadToRelative(0f, 0.94f, -0.67f, 1.61f)
+            reflectiveQuadTo(18.93f, 21.2f)
+            horizontalLineTo(14.09f)
+            close()
+          }
+        }
+        .build().also { _compareW500 = it }
+    }
+
+private var _compareW300: ImageVector? = null
+private var _compareW400: ImageVector? = null
+private var _compareW500: ImageVector? = null

@@ -50,6 +50,7 @@ data class RawEditorState(
     val fullHeight: Int = 0,
     val preview: Bitmap? = null,
     val cameraImage: Bitmap? = null,
+    val startingImage: Bitmap? = null,
     val detail: RawDetail? = null,
     val detailLoading: Boolean = false,
     val cropPreview: Bitmap? = null,
@@ -144,6 +145,7 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
                         val nextState = try {
                             val dimensions = NativeRaw.outputDimensions(nextHandle, edits.nativeValues(), true)
                             val preview = renderBitmap(nextHandle, edits, false)
+                            val startingImage = if (edits == RawAdjustments()) preview else renderBitmap(nextHandle, RawAdjustments(), false)
                             val camera = ImageDecoder.decodeBitmap(ImageDecoder.createSource(ByteBuffer.wrap(cameraJpeg))) { decoder, info, _ ->
                                 val scale = minOf(1f, 1600f / maxOf(info.size.width, info.size.height))
                                 decoder.setTargetSize((info.size.width * scale).toInt(), (info.size.height * scale).toInt())
@@ -152,7 +154,7 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
                                 name = name, simulation = recipe!!.filmSimulationLabel.orEmpty(),
                                 fullWidth = dimensions[0], fullHeight = dimensions[1],
                                 lensCorrectionApplied = NativeRaw.dimensions(nextHandle)[4] == 1,
-                                preview = preview, cameraImage = camera, adjustments = edits,
+                                preview = preview, cameraImage = camera, startingImage = startingImage, adjustments = edits,
                             )
                         } catch (error: Throwable) {
                             NativeRaw.close(nextHandle)

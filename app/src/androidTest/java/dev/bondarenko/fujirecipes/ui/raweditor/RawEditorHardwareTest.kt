@@ -31,6 +31,51 @@ import kotlin.math.roundToInt
 /** Opt in with -e rawEditorProbe true and files/raw-editor-fixture.raf on the device. */
 class RawEditorHardwareTest {
     @Test
+    fun beforeEditsComparisonRetainsTheInitialRawRenderingAfterEditsAndReopen() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("rawEditorProbe") == "true")
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val app = instrumentation.targetContext.applicationContext as Application
+        val input = File(app.cacheDir, "export/raw-comparison-probe.raf").also {
+            it.parentFile!!.mkdirs()
+            File(app.filesDir, "raw-editor-fixture.raf").copyTo(it, overwrite = true)
+        }
+        val uri = FileProvider.getUriForFile(app, "${app.packageName}.fileprovider", input)
+        val store = ViewModelStore()
+        lateinit var model: RawEditorViewModel
+        instrumentation.runOnMainSync {
+            model = ViewModelProvider(object : ViewModelStoreOwner { override val viewModelStore = store }, object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T = RawEditorViewModel(app, SavedStateHandle()) as T
+            })[RawEditorViewModel::class.java]
+            model.open(uri)
+        }
+        fun ready() = runBlocking { withTimeout(180_000) {
+            model.state.first { !it.busy && !it.rendering && (it.preview != null || it.error != null) }
+        } }.also { assertNull(it.error, it.error) }
+        try {
+            val initial = ready()
+            assertSame(initial.preview, initial.startingImage)
+            assertTrue(initial.lensCorrectionApplied)
+            val reference = initial.startingImage!!.copy(Bitmap.Config.ARGB_8888, false)!!
+            val edits = RawAdjustments(exposure = 1f, crop = RawCrop(.1f, .1f, .8f, .8f))
+            instrumentation.runOnMainSync { model.adjust(edits) }
+            val edited = ready()
+            assertSame(initial.startingImage, edited.startingImage)
+            assertTrue(reference.sameAs(edited.startingImage))
+            assertFalse(reference.sameAs(edited.preview))
+            instrumentation.runOnMainSync { model.open(uri, edits) }
+            val reopened = ready()
+            assertEquals(edits, reopened.adjustments)
+            assertTrue(reference.sameAs(reopened.startingImage))
+            assertFalse(reference.sameAs(reopened.preview))
+            reference.recycle()
+        } finally {
+            instrumentation.runOnMainSync { store.clear() }
+            input.delete()
+        }
+    }
+
+    @Test
     fun embeddedLensDistortionIsAppliedBeforeTheFirstPreview() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("rawEditorProbe") == "true")
         val app = InstrumentationRegistry.getInstrumentation().targetContext

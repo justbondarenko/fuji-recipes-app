@@ -517,3 +517,29 @@ all seven pairs, equal half-width columns, matching vertical bounds, and
 unchanged preview bounds when switching from single to paired controls.
 Independent values and resets continue to pass in compact and wide layouts.
 The updated APK is installed.
+
+Comparison sources (2026-10-25):
+
+- [x] Add a circular comparison control at the preview's bottom left, matching
+  Crop at the bottom right. Choose Embedded JPEG or Before edits from its menu;
+  selecting a source displays it, and tapping the control again returns to the
+  edited RAW. Holding the preview compares against the last selected source.
+- [x] Show comparison status as a rounded indicator at the preview's top
+  center, labeled only Embedded JPG or Original for the selected source.
+- [x] Retain the initial RAW rendering before user adjustments, including the
+  film simulation color profile and automatic lens correction. Reuse the first
+  preview for a fresh session; recreate the neutral starting render when
+  reopening with saved adjustments. Editing and framing do not replace it.
+
+Verification: debug and instrumentation APK builds passed. The thirteen
+existing layout checks passed on SM-F976B; the new comparison check passed
+separately after allowing pixel rounding in opposite button insets. It checks
+compact/wide button placement, both menu sources, actual displayed pixels,
+hold/release behavior, unchanged edits, and stable preview bounds. A real
+DSCF3946.RAF check passed for initial-render sharing, retained pixels after
+exposure/crop edits, and recreating the neutral image when reopening with
+saved adjustments. The updated APK is installed.
+
+The shortened comparison indicator also passed the focused compact/wide UI
+check for its exact text, top inset, centered position, and disappearance on
+release. The existing rendering/comparison stability check passed as well.
