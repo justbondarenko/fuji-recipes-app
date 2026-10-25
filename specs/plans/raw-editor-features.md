@@ -428,3 +428,27 @@ sizes, checks boundary/busy behavior, preserves slider/curve editing and
 vertical scrolling, and measures square curve geometry including short wide
 windows. These are UI checks with an in-memory image, not a new RAF processing
 or export test. The updated debug APK is installed on the device.
+
+Navigation and RAW Editor identity (2026-10-25):
+
+- [x] Use the Material Symbols Rounded `raw_on` icon for RAW Editor in the
+  bottom bar, sidebar, More, pin chooser, and editor landing panel. All three
+  global icon weights use the official Google Fonts vector definitions.
+- [x] Reorder sidebar destinations vertically in navigation edit mode;
+  compact navigation retains horizontal reordering. Long-press More to edit.
+- [x] Save separate pin lists for compact navigation (up to four destinations)
+  and the sidebar (up to eight), with layout-specific counts and instructions.
+  The sidebar inherits existing pins until first customized. More and selected
+  destination handling use the pin list for the currently displayed layout.
+- [x] Keep sidebar destinations scrollable when height is limited and preserve
+  access to More and the camera footer. Short wide windows retain the compact
+  bar and its saved pins when the sidebar cannot fit.
+
+Verification: debug and instrumentation APK builds passed; all eight
+UiPreferencesTest checks passed, including persistence, migration fallback,
+independent pin orders, normalization, and four/eight limits. All 15 device UI
+checks passed on the connected SM-F976B: one navigation check, three camera
+placement checks, and eleven RAW Editor layout checks. Navigation coverage
+includes vertical and horizontal reordering, pin limits, More access, folding
+between sizes, and the scrolling sidebar at 840 × 600 dp. The updated APK is
+installed; user pin selections and photo data were preserved.

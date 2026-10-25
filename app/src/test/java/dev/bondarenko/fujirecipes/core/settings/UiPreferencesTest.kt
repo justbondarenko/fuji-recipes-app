@@ -114,4 +114,30 @@ class UiPreferencesTest {
         assertEquals(RecipeViewMode.GRID, RecipeViewMode.fromId("invalid"))
         assertEquals(RecipeViewMode.GRID, RecipeViewMode.fromId(null))
     }
+
+    @Test
+    fun `compact and sidebar pins preserve separate orders and limits`() = runTest(testDispatcher) {
+        val prefs = createPreferences()
+        val compact = listOf(NavDestinationId.RAW_EDITOR, NavDestinationId.LIBRARY)
+        prefs.setPinnedNavIds(compact)
+        assertEquals(compact, prefs.preferences.first().railPinnedNavIds)
+
+        val sidebar = NavDestinationId.entries.reversed().take(8)
+        prefs.setPinnedNavIds(sidebar + sidebar + NavDestinationId.LIBRARY, forRail = true)
+        assertEquals(sidebar, prefs.preferences.first().railPinnedNavIds)
+        assertEquals(compact, prefs.preferences.first().pinnedNavIds)
+
+        prefs.setPinnedNavIds(NavDestinationId.entries + NavDestinationId.entries)
+        assertEquals(NavDestinationId.entries.take(4), prefs.preferences.first().pinnedNavIds)
+        assertEquals(sidebar, prefs.preferences.first().railPinnedNavIds)
+        prefs.setPinnedNavIds(emptyList(), forRail = true)
+        prefs.setPinnedNavIds(emptyList())
+        assertEquals(sidebar, prefs.preferences.first().railPinnedNavIds)
+        assertEquals(NavDestinationId.entries.take(4), prefs.preferences.first().pinnedNavIds)
+
+        val stored = "unknown," + (sidebar + sidebar).joinToString(",") { it.id }
+        assertEquals(sidebar, NavDestinationId.fromStoredString(stored, 8))
+        assertEquals(sidebar.take(4), NavDestinationId.fromStoredString(stored))
+        assertEquals(NavDestinationId.DEFAULT_PINNED, NavDestinationId.fromStoredString("unknown"))
+    }
 }

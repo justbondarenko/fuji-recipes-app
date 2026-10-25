@@ -99,6 +99,7 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.Details
 import dev.bondarenko.fujirecipes.ui.theme.icons.Diamond
 import dev.bondarenko.fujirecipes.ui.theme.icons.Exposure
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
+import dev.bondarenko.fujirecipes.ui.theme.icons.RawOn
 import dev.bondarenko.fujirecipes.ui.theme.icons.Grain
 import dev.bondarenko.fujirecipes.ui.theme.icons.Palette
 import dev.bondarenko.fujirecipes.ui.theme.icons.ResetWrench
@@ -300,7 +301,7 @@ fun RawEditorScreen(
             state.error?.let { Text(it, Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error) }
             if (state.preview == null) {
                 FujiIconPanel(
-                    icon = FujiIcons.Tune,
+                    icon = FujiIcons.RawOn,
                     shape = MaterialShapes.Pill.toShape(),
                     title = stringResource(R.string.raw_editor_title),
                     body = stringResource(R.string.raw_editor_intro_body),

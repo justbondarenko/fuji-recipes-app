@@ -16,7 +16,8 @@
     <string name="nav_settings">Settings</string>
     <string name="nav_create">New recipe</string>
     <string name="nav_customize_title">Customize navigation</string>
-    <string name="nav_customize_subtitle">Pin up to 4 items to the bottom bar (%1$d/4 pinned). Everything else appears in More.</string>
+    <string name="nav_customize_subtitle">Bottom bar: %1$d/4 pinned. Drag icons to reorder. Sidebar pins are saved separately. Everything else appears in More.</string>
+    <string name="nav_customize_rail_subtitle">Sidebar: %1$d/8 pinned. Drag icons vertically to reorder. Bottom bar pins are saved separately. Everything else appears in More.</string>
     <string name="nav_section_features">Features</string>
 
     <!-- Library -->
