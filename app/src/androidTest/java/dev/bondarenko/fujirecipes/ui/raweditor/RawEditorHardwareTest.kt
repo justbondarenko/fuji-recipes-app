@@ -31,6 +31,93 @@ import kotlin.math.roundToInt
 /** Opt in with -e rawEditorProbe true and files/raw-editor-fixture.raf on the device. */
 class RawEditorHardwareTest {
     @Test
+    fun filmProfilesSwitchRestoreAndReachDetailAndFullResolutionExport() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("rawEditorProbe") == "true")
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val app = instrumentation.targetContext.applicationContext as Application
+        val directory = File(app.cacheDir, "export/profile-probe").also { it.mkdirs() }
+        val input = File(directory, "source.raf")
+        File(app.filesDir, "raw-editor-fixture.raf").copyTo(input, overwrite = true)
+        fun uri(file: File) = FileProvider.getUriForFile(app, "${app.packageName}.fileprovider", file)
+        val saved = SavedStateHandle()
+        val store = ViewModelStore()
+        fun model(key: String, state: SavedStateHandle): RawEditorViewModel {
+            lateinit var result: RawEditorViewModel
+            instrumentation.runOnMainSync {
+                result = ViewModelProvider(object : ViewModelStoreOwner { override val viewModelStore = store }, object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T = RawEditorViewModel(app, state) as T
+                })[key, RawEditorViewModel::class.java]
+            }
+            return result
+        }
+        fun ready(model: RawEditorViewModel) = runBlocking { withTimeout(180_000) {
+            model.state.first { !it.busy && !it.rendering && !it.detailLoading && (it.preview != null || it.error != null) }
+        } }.also { assertNull(it.error, it.error) }
+        val model = model("initial", saved)
+        var referenceHandle = 0L
+        try {
+            instrumentation.runOnMainSync { model.open(uri(input)) }
+            val initial = ready(model)
+            val original = initial.startingImage!!
+            val edits = RawAdjustments(exposure = .3f, shadows = .2f, crop = RawCrop(.2f, .2f, .3f, .3f))
+            var previous: Bitmap? = null
+            for (profile in rawColorProfileIds) {
+                instrumentation.runOnMainSync { model.adjust(edits.copy(filmSimulation = profile)) }
+                val changed = ready(model)
+                assertEquals(profile, changed.adjustments.filmSimulation)
+                assertEquals(edits, changed.adjustments.copy(filmSimulation = null))
+                assertSame(original, changed.startingImage)
+                assertTrue(changed.hasUnsavedChanges)
+                if (previous != null) assertFalse("Switching $profile must change the developed pixels", previous.sameAs(changed.preview))
+                previous = changed.preview
+            }
+            val selected = edits.copy(filmSimulation = "velvia")
+            instrumentation.runOnMainSync { model.adjust(selected) }
+            val chosen = ready(model)
+            val restoredSaved = SavedStateHandle(saved.keys().associateWith { saved.get<Any?>(it) })
+            val restored = model("restored", restoredSaved)
+            val restoredState = ready(restored)
+            assertEquals(selected, restoredState.adjustments)
+            assertTrue(chosen.preview!!.sameAs(restoredState.preview))
+            assertTrue(original.sameAs(restoredState.startingImage))
+
+            referenceHandle = NativeRaw.open(input.path, app.assets.open("raw-profiles/velvia.cube").use { it.readBytes() })
+            val size = NativeRaw.outputDimensions(referenceHandle, selected.nativeValues(), true)
+            val reference = Bitmap.createBitmap(size[0], size[1], Bitmap.Config.ARGB_8888)
+            NativeRaw.render(referenceHandle, reference, selected.nativeValues(), true)
+            instrumentation.runOnMainSync { model.detailViewport(RawViewport(0, 0, 64, 64, 1f)) }
+            val detail = ready(model).detail!!.bitmap
+            assertTrue(Bitmap.createBitmap(reference, 0, 0, 64, 64).sameAs(detail))
+
+            val output = File(directory, "selected.jpg")
+            instrumentation.runOnMainSync { model.prepareExport(); model.save(uri(output)) }
+            val exported = ready(model)
+            assertFalse(exported.hasUnsavedChanges)
+            val jpeg = BitmapFactory.decodeFile(output.path)!!
+            assertEquals(size[0], jpeg.width)
+            assertEquals(size[1], jpeg.height)
+            val compressed = java.io.ByteArrayOutputStream().also {
+                assertTrue(reference.compress(Bitmap.CompressFormat.JPEG, 97, it))
+            }.toByteArray()
+            val expectedJpeg = BitmapFactory.decodeByteArray(compressed, 0, compressed.size)!!
+            assertTrue("Export must match the selected profile at full resolution", expectedJpeg.sameAs(jpeg))
+            expectedJpeg.recycle()
+            jpeg.recycle()
+            reference.recycle()
+            instrumentation.runOnMainSync { model.adjust(RawAdjustments()) }
+            val reset = ready(model)
+            assertTrue(original.sameAs(reset.preview))
+            assertFalse(reset.hasUnsavedChanges)
+            Log.i("RawProfileProbe", "11 profiles switched; restored edits, original comparison, 100% detail and ${size[0]}x${size[1]} export verified")
+        } finally {
+            if (referenceHandle != 0L) NativeRaw.close(referenceHandle)
+            instrumentation.runOnMainSync { store.clear() }
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
     fun beforeEditsComparisonRetainsTheInitialRawRenderingAfterEditsAndReopen() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("rawEditorProbe") == "true")
         val instrumentation = InstrumentationRegistry.getInstrumentation()

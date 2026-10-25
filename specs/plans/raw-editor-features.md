@@ -92,9 +92,29 @@ brush points per photo bound edit data; brush coverage uses a 1600 px source gri
 Fine grain and very small brush edges require judging the full-resolution export.
 See [pipeline notes](raw-editor.md) for the limits.
 
+## Film simulation selector — item 1
+
+- [x] **1. Film simulation selector:** switch between the eleven bundled profiles.
+
+The Color group offers a shared Material menu in compact and wide layouts.
+The recorded simulation is initially selected and marked As shot. Selecting
+that entry restores the recorded profile while retaining every other edit;
+Reset restores the original profile together with the other parameters.
+Profile changes reuse decoded RAW data, apply to preview, framing, 100% detail,
+and full-resolution export, persist with the editing session, and participate
+in unsaved-change tracking. Original comparison remains the shot's initial
+profile and neutral edits. Monochrome profiles remain outside the supported set.
+
+Verification (2026-10-25): debug and instrumentation APKs built, all 735 local
+unit tests and native RAW color checks passed. All 18 RAW layout tests plus
+one real-RAF profile integration test passed on SM-F976B. The 41.5 MB X-T50 RAF
+was rendered with all eleven profiles; restored previews and the Original
+comparison matched, a 100% tile matched the selected-profile full-resolution
+render, and the exported JPEG matched an independently developed and compressed
+reference. The updated APK is installed.
+
 ## Remaining proposed controls
 
-- [ ] **1. Film simulation selector:** switch between the eleven bundled profiles.
 - [ ] **3. White balance eyedropper:** sample a neutral surface in the photo.
 - [ ] **9. Color mixer / HSL:** hue, saturation, and brightness by color range.
 - [ ] **10. Color grading:** shadows, midtones, and highlights, with balance/blending.

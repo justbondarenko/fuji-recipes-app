@@ -45,6 +45,7 @@ data class RawDetail(val viewport: RawViewport, val edits: RawAdjustments, val b
 data class RawEditorState(
     val name: String = "",
     val simulation: String = "",
+    val asShotProfile: String? = null,
     val lensCorrectionApplied: Boolean = false,
     val fullWidth: Int = 0,
     val fullHeight: Int = 0,
@@ -77,6 +78,8 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
     private val cache = RawDevelopmentCache(directory)
     private val mutex = Mutex()
     private var handle = 0L
+    private var profileHandle = 0L
+    private var activeProfile: String? = null
     private var sourceFile: File? = null
     private val closed = AtomicBoolean(false)
     private data class PreviewRequest(val edits: RawAdjustments, val mask: Int?, val generation: Int, val sequence: Int, val viewport: RawViewport?, val preview: Boolean, val framing: Boolean = false)
@@ -85,8 +88,9 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
     private var previewSequence = 0
     private var sourceGeneration = 0
     private var pendingExport: RawAdjustments? = null
-    private val initialEdits = saved.get<FloatArray>("adjustments")?.let(RawAdjustments::fromValues)
-        ?: RawAdjustments(saved["exposure"] ?: 0f, saved["shadows"] ?: 0f, saved["highlights"] ?: 0f)
+    private val initialEdits = (saved.get<FloatArray>("adjustments")?.let(RawAdjustments::fromValues)
+        ?: RawAdjustments(saved["exposure"] ?: 0f, saved["shadows"] ?: 0f, saved["highlights"] ?: 0f))
+        .copy(filmSimulation = saved["filmSimulation"])
     private val _state = MutableStateFlow(RawEditorState(adjustments = initialEdits))
     val state = _state.asStateFlow()
 
@@ -142,16 +146,19 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
                         // Android's asset packager expands .gz sources and drops that suffix.
                         val lut = context.assets.open("raw-profiles/$profile.cube").use { it.readBytes() }
                         val nextHandle = NativeRaw.open(file.absolutePath, lut)
+                        profileHandle = nextHandle
+                        activeProfile = profile
                         val nextState = try {
                             val dimensions = NativeRaw.outputDimensions(nextHandle, edits.nativeValues(), true)
-                            val preview = renderBitmap(nextHandle, edits, false)
-                            val startingImage = if (edits == RawAdjustments()) preview else renderBitmap(nextHandle, RawAdjustments(), false)
+                            val preview = renderBitmap(nextHandle, edits, false, profileId = edits.filmSimulation ?: profile)
+                            val startingImage = if (edits == RawAdjustments()) preview else renderBitmap(nextHandle, RawAdjustments(), false, profileId = profile)
                             val camera = ImageDecoder.decodeBitmap(ImageDecoder.createSource(ByteBuffer.wrap(cameraJpeg))) { decoder, info, _ ->
                                 val scale = minOf(1f, 1600f / maxOf(info.size.width, info.size.height))
                                 decoder.setTargetSize((info.size.width * scale).toInt(), (info.size.height * scale).toInt())
                             }
                             RawEditorState(
                                 name = name, simulation = recipe!!.filmSimulationLabel.orEmpty(),
+                                asShotProfile = profile,
                                 fullWidth = dimensions[0], fullHeight = dimensions[1],
                                 lensCorrectionApplied = NativeRaw.dimensions(nextHandle)[4] == 1,
                                 preview = preview, cameraImage = camera, startingImage = startingImage, adjustments = edits,
@@ -213,6 +220,7 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
                 }
                 val bitmap = Bitmap.createBitmap(viewport.width, viewport.height, Bitmap.Config.ARGB_8888)
                 try {
+                    useProfile(handle, request.edits.filmSimulation ?: _state.value.asShotProfile)
                     NativeRaw.renderDetail(handle, bitmap, request.edits.nativeValues(), viewport.left, viewport.top, viewport.scale)
                     RawDetail(viewport, request.edits, bitmap)
                 } catch (error: Throwable) { bitmap.recycle(); throw error }
@@ -380,7 +388,9 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
         }
     }
 
-    private fun renderBitmap(nativeHandle: Long, edits: RawAdjustments, full: Boolean, draft: Boolean = false): Bitmap {
+    private fun renderBitmap(nativeHandle: Long, edits: RawAdjustments, full: Boolean, draft: Boolean = false,
+        profileId: String? = edits.filmSimulation ?: _state.value.asShotProfile): Bitmap {
+        useProfile(nativeHandle, profileId)
         val parameters = edits.nativeValues()
         val dimensions = NativeRaw.outputDimensions(nativeHandle, parameters, full, draft)
         val bitmap = Bitmap.createBitmap(dimensions[0], dimensions[1], Bitmap.Config.ARGB_8888)
@@ -395,6 +405,17 @@ class RawEditorViewModel(application: Application, private val saved: SavedState
 
     private fun rememberEdits(edits: RawAdjustments) {
         saved["adjustments"] = edits.nativeValues()
+        saved["filmSimulation"] = edits.filmSimulation
+    }
+
+    /** Called under mutex for every preview, crop, detail tile, and export request. */
+    private fun useProfile(nativeHandle: Long, profileId: String?) {
+        require(profileId in rawColorProfileIds) { "Unsupported RAW color profile." }
+        if (profileHandle == nativeHandle && activeProfile == profileId) return
+        val lut = context.assets.open("raw-profiles/$profileId.cube").use { it.readBytes() }
+        NativeRaw.setProfile(nativeHandle, lut)
+        profileHandle = nativeHandle
+        activeProfile = profileId
     }
 
     private fun fail(error: Exception) {

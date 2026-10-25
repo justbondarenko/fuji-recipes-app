@@ -10,6 +10,22 @@ import java.nio.file.Files
 
 class RawEditorSourceTest {
     @Test
+    fun filmSimulationIsValidatedAndPreservesOtherEdits() {
+        val original = RawAdjustments(exposure = .7f, shadows = .2f)
+        for (profile in rawColorProfileIds) {
+            val edits = original.copy(filmSimulation = profile)
+            assertTrue(edits.isEdited)
+            assertArrayEquals(original.nativeValues(), edits.nativeValues(), 0f)
+            assertEquals(edits, RawAdjustments.fromValues(edits.nativeValues()).copy(filmSimulation = profile))
+            assertEquals(profile, edits.rotated(1).filmSimulation)
+            assertEquals(original, edits.copy(filmSimulation = null))
+        }
+        assertTrue(RawAdjustments(filmSimulation = "velvia").isEdited)
+        assertThrows(IllegalArgumentException::class.java) { RawAdjustments(filmSimulation = "acros") }
+        assertThrows(IllegalArgumentException::class.java) { RawAdjustments(filmSimulation = "../profile") }
+    }
+
+    @Test
     fun curvesGrainAndAllMaskTypesRoundTripAndRejectMalformedPayloads() {
         val curve = RawCurve(listOf(CurvePoint(0f,0f),CurvePoint(.3f,.15f),CurvePoint(.7f,.85f),CurvePoint(1f,1f)))
         val masks = RawMaskKind.entries.map { kind -> RawMask(kind, inverted = true, opacity = .7f,

@@ -332,12 +332,25 @@ Comparison and grouped parameter choices use the same `FujiAnchoredMenu` and
 `FujiSelectionMenuItem` as crop, including vibrant colors, checked leading
 icons, selected item shapes, and shared bounded scrolling.
 
+Color includes a film simulation menu limited to the eleven bundled profiles.
+The recorded profile is selected initially and marked As shot. Choosing it again
+clears the override without changing other edits. The native session swaps its
+validated LUT while retaining decoded sensor data; preview, framing, 100% detail,
+and full-resolution export select the requested LUT under the render mutex.
+The override belongs to RawAdjustments for reset, unsaved-change tracking, and
+frozen exports, and persists in SavedStateHandle beside the numeric adjustment
+vector. Older sessions default to the recorded profile. Original comparison
+always retains the neutral rendering with the recorded profile, including when
+restoring a session that uses a different simulation.
+
 Explanations do not occupy inline rows around the photo. Lens-correction
 status is available from a question-mark tooltip over the Optics preview;
 Curves and mask gesture guidance use the same native tooltip in their
 existing headers. The obvious crop caption and duplicate loading captions
 are omitted. Errors remain visible through overlay snackbars, and progress
 indicators reserve their height so state changes do not resize the preview.
+Only blocking file operations show the main progress bar; live edits and detail
+refinement remain unobstructed.
 
 Compact Curves uses a square graph over the photo, leaving Crop and Compare
 clear and tappable. Channels, help, and reset sit underneath it.
