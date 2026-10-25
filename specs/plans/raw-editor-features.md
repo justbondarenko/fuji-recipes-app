@@ -395,8 +395,8 @@ context in their titles. As shot stays available in Color; Curves and Masks
 remain accessible. Crop and zoom remain on the photo preview.
 
 Compact layouts retain the option carousel, paired sliders, and selectors.
-Resizing preserves the selected category and all adjustment values. Selecting
-a category starts its list at the top. Individual name double-tap resets,
+Resizing preserves the selected category and all adjustment values. Each
+category owns its list scroll state. Individual name double-tap resets,
 Material value indicators, and accessible slider actions continue to work.
 
 
@@ -452,3 +452,26 @@ placement checks, and eleven RAW Editor layout checks. Navigation coverage
 includes vertical and horizontal reordering, pin limits, More access, folding
 between sizes, and the scrolling sidebar at 840 × 600 dp. The updated APK is
 installed; user pin selections and photo data were preserved.
+
+Finger-following category transitions (2026-10-25):
+
+- [x] Replace release-only category switching with Compose HorizontalPager in
+  compact and wide layouts. The current page follows the finger while the
+  neighboring category slides into view; native paging handles velocity,
+  settling, short-drag snap-back, and the first/last page bounds.
+- [x] Animate category-tab taps through the same pager. The category row stays
+  fixed, and the photo preview retains comparison, zoom, and pan.
+- [x] Preserve slider and curve drags, vertical list scrolling, and option-row
+  scrolling. The option carousel consumes remaining horizontal scroll/fling
+  movement so it cannot hand a drag to the category pager at its boundary.
+- [x] Exclude cached off-screen page controls from the accessibility tree;
+  each category owns its parameter selection and list scroll state.
+
+Verification: debug and instrumentation APK builds passed, and all eleven
+RawEditorLayoutTest checks passed on the connected SM-F976B. The motion check
+measures outgoing and adjacent page positions with the finger held down,
+checks that category tabs stay fixed, verifies short-drag snap-back and
+animated tab taps, and navigates all categories in both directions at compact
+and wide sizes. Slider/curve editing, carousel scrolling, vertical scrolling,
+busy/end bounds, framing, zoom, comparison, and resets also pass. The updated
+APK is installed; image processing and export code are unchanged.

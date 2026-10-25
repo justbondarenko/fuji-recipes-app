@@ -167,6 +167,41 @@ class RawEditorLayoutTest {
         for (size in listOf(DpSize(840.dp, 800.dp), DpSize(393.dp, 800.dp))) {
             compose.runOnIdle { dimensions = size; state = state.copy(adjustments = original) }
             compose.onNodeWithText("Light").performScrollTo().performClick()
+            val pager = compose.onNodeWithTag("raw-editor-pager")
+            val pagerBounds = pager.getUnclippedBoundsInRoot()
+            val tabs = compose.onNodeWithTag("raw-editor-groups").getUnclippedBoundsInRoot()
+            val start = compose.onNodeWithTag("raw-editor-page-0").getUnclippedBoundsInRoot()
+            val exposure = compose.onNodeWithTag("raw-editor-slider-${R.string.raw_editor_exposure}").fetchSemanticsNode().boundsInRoot
+            val pagerTop = pager.fetchSemanticsNode().boundsInRoot.top
+            compose.mainClock.autoAdvance = false
+            pager.performTouchInput {
+                val y = exposure.bottom - pagerTop + 3.dp.toPx()
+                down(Offset(width * .8f, y))
+                moveTo(Offset(width * .7f, y), delayMillis = 100)
+            }
+            compose.mainClock.advanceTimeByFrame()
+            try {
+                val moving = compose.onNodeWithTag("raw-editor-page-0").getUnclippedBoundsInRoot()
+                val next = compose.onNodeWithTag("raw-editor-page-1").getUnclippedBoundsInRoot()
+                assertTrue(start.left - moving.left > 5.dp)
+                assertTrue(start.left - moving.left < (pagerBounds.right - pagerBounds.left) * .2f)
+                assertTrue(next.left < pagerBounds.right && next.left > pagerBounds.left)
+                assertEquals(moving.right.value, next.left.value, 1f)
+                assertEquals(tabs, compose.onNodeWithTag("raw-editor-groups").getUnclippedBoundsInRoot())
+            } finally {
+                pager.performTouchInput { advanceEventTime(200); up() }
+                compose.mainClock.autoAdvance = true
+            }
+            compose.onNodeWithText("Light").assertIsSelected()
+            assertEquals(start, compose.onNodeWithTag("raw-editor-page-0").getUnclippedBoundsInRoot())
+            compose.mainClock.autoAdvance = false
+            compose.onNodeWithText("Color").performScrollTo().performClick()
+            compose.mainClock.advanceTimeBy(48)
+            val animated = compose.onNodeWithTag("raw-editor-page-0").getUnclippedBoundsInRoot()
+            assertTrue(animated.left < start.left && animated.right > pagerBounds.left)
+            compose.mainClock.autoAdvance = true
+            compose.onNodeWithText("Color").assertIsSelected()
+            compose.onNodeWithText("Light").performScrollTo().performClick()
             swipeEmpty(0, false)
             compose.onNodeWithText("Light").assertIsSelected()
             for (index in 0..5) {
@@ -205,6 +240,14 @@ class RawEditorLayoutTest {
                 compose.onNodeWithText("Effects").assertIsSelected()
                 assertTrue(list.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value() > 0f)
                 compose.runOnIdle { assertEquals(before,state.adjustments) }
+            } else {
+                compose.onNodeWithText("Effects").performScrollTo().performClick()
+                val before = state.adjustments
+                compose.onNodeWithTag("raw-editor-options").performTouchInput {
+                    swipe(Offset(width * .8f, center.y), Offset(width * .2f, center.y), 200)
+                }
+                compose.onNodeWithText("Effects").assertIsSelected()
+                compose.runOnIdle { assertEquals(before, state.adjustments) }
             }
         }
         compose.runOnIdle { dimensions = DpSize(840.dp, 393.dp) }

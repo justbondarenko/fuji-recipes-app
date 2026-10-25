@@ -293,7 +293,13 @@ No processing, persisted adjustment, or export format changes are involved.
 
 RawToneCurveEditor sizes the graph with aspectRatio(1f); the parent editor
 bounds its maximum size on compact screens while the wide list can scroll.
-The controls container detects unconsumed horizontal drags and selects one
-adjacent category after release. Descendant sliders, curve editing, option
-carousels, and vertical scrolling consume their own gestures first. The photo
-preview is outside this gesture scope, retaining comparison, zoom, and pan.
+The controls body uses Compose HorizontalPager with rememberPagerState.
+Dragging reveals the adjacent category while the content follows the finger;
+the native pager handles release velocity, settling, snap-back, and end bounds.
+Category taps use animateScrollToPage, with the category row outside the pager.
+Each page owns its parameter selection and vertical scroll state. Cached
+off-screen pages keep rendering but their controls are excluded from the
+accessibility tree. The photo preview is outside the pager, retaining
+comparison, zoom, and pan; descendant editing controls keep their gestures.
+The option carousel uses a nested-scroll boundary to consume leftover
+horizontal scroll and fling movement before it reaches the category pager.
