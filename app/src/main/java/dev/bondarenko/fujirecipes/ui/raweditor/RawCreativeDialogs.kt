@@ -44,7 +44,7 @@ import kotlin.math.abs
 
 @Composable
 private fun CreativeDialog(
-    title: String, onDismiss: () -> Unit, preview: @Composable (Modifier) -> Unit,
+    title: String, help: String, onDismiss: () -> Unit, preview: @Composable (Modifier) -> Unit,
     controls: @Composable () -> Unit,
 ) {
     Dialog(onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -55,6 +55,7 @@ private fun CreativeDialog(
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                        RawEditorHelp(help, Modifier.testTag("raw-mask-help"))
                         TextButton(onDismiss) { Text(stringResource(R.string.raw_editor_done)) }
                     }
                     if (wide) Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -119,6 +120,7 @@ internal fun RawToneCurveEditor(state: RawEditorState, onAdjust: (RawAdjustments
             }
         }
         Spacer(Modifier.weight(1f))
+        RawEditorHelp(description, Modifier.testTag("raw-curve-help"))
         IconButton({ change(RawCurve()); selected = 0 }, enabled = editable && curve != RawCurve()) {
             Icon(FujiIcons.Refresh, actionLabels[4])
         }
@@ -195,7 +197,6 @@ internal fun RawToneCurveEditor(state: RawEditorState, onAdjust: (RawAdjustments
         drawPath(path,colors[channel],style = Stroke(2.dp.toPx()))
         curve.points.forEachIndexed { i,p -> drawCircle(colors[channel],if (i == index) 7.dp.toPx() else 4.dp.toPx(),Offset(p.x*size.width,(1-p.y)*size.height)) }
     }
-    Text(description, Modifier.padding(horizontal = 16.dp), style = MaterialTheme.typography.bodySmall)
 }
 
 @Composable
@@ -223,7 +224,7 @@ internal fun RawMaskDialog(
         RawMaskKind.LINEAR -> R.string.raw_editor_linear_hint
         else -> R.string.raw_editor_radial_hint
     })
-    CreativeDialog(stringResource(R.string.raw_editor_masks), onDismiss, preview = { modifier ->
+    CreativeDialog(stringResource(R.string.raw_editor_masks), if (mask == null) stringResource(R.string.raw_editor_mask_add_hint) else hint, onDismiss, preview = { modifier ->
                 Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
                     Image(state.preview!!.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                     if (overlay) state.maskOverlay?.let {
@@ -269,6 +270,7 @@ internal fun RawMaskDialog(
                             }
                         }
                     }
+                    state.error?.let { Snackbar(Modifier.align(Alignment.BottomCenter).padding(8.dp)) { Text(it) } }
                 }
     }) {
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -280,9 +282,7 @@ internal fun RawMaskDialog(
                         }, enabled = editable && masks.size < 8) { Text("+ ${stringResource(maskLabel(kind))}") }
                     }
                 }
-                if (state.rendering) LinearProgressIndicator(Modifier.fillMaxWidth())
-                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                Text(if (mask == null) stringResource(R.string.raw_editor_mask_add_hint) else hint, style = MaterialTheme.typography.bodySmall)
+                Box(Modifier.height(4.dp).fillMaxWidth()) { if (state.rendering) LinearProgressIndicator(Modifier.fillMaxWidth()) }
                 if (mask != null) {
                     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         FilterChip(mask.enabled, { update(mask.copy(enabled = !mask.enabled)) }, { Text(stringResource(R.string.raw_editor_mask_enabled)) }, enabled = editable)

@@ -543,3 +543,23 @@ saved adjustments. The updated APK is installed.
 The shortened comparison indicator also passed the focused compact/wide UI
 check for its exact text, top inset, centered position, and disappearance on
 release. The existing rendering/comparison stability check passed as well.
+
+Inline message cleanup (2026-10-25):
+
+- [x] Move embedded lens-correction status into a question-mark tooltip over
+  the preview. Optics no longer adds an explanatory row under the photo.
+- [x] Move Curves and mask gesture instructions into question-mark tooltips
+  in existing header rows. Remove the obvious crop-drag caption and duplicate
+  processing/detail-loading captions; the existing progress indicator remains.
+- [x] Show actual errors in overlay snackbars in the editor, crop, and masks,
+  preserving their visibility without changing preview or controls bounds.
+  Reserve the mask-rendering progress height instead of inserting a new row.
+
+Verification: debug and instrumentation builds passed on SM-F976B. Fourteen
+layout checks passed in the suite; the mask/Curves check passed on its focused
+rerun after changing test Back injection to target the focused tooltip.
+The compact/wide help-and-errors check also passed again. Checks cover native
+tooltip opening and Back dismissal, both lens-status messages, unchanged
+preview bounds across Light/Details/Optics, rendering/errors in main/crop/masks,
+and the existing comparison, framing, paging, wheel, and curve interactions.
+The updated APK is installed.

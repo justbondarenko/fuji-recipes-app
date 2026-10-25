@@ -625,6 +625,7 @@
     <string name="raw_editor_profile_info">About color profiles</string>
     <string name="raw_editor_profile_source">Profile source and attribution</string>
     <string name="raw_editor_attribution">Profiles: abpy/FujifilmCameraProfiles · CC BY-NC-SA 4.0. Decoder: LibRaw · CDDL 1.0. Sources and licenses are in the project README.</string>
+    <string name="raw_editor_help">Help</string>
     <string name="raw_editor_compare">Compare</string>
     <string name="raw_editor_embedded_jpeg">Embedded JPEG</string>
     <string name="raw_editor_before_edits">Before edits</string>

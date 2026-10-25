@@ -29,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -158,7 +159,6 @@ internal fun RawCropDialog(
                         Icon(FujiIcons.Refresh, stringResource(R.string.raw_editor_rotate_right))
                     }
                 }
-                Text(description, style = MaterialTheme.typography.bodySmall)
                 val photo: @Composable (Modifier) -> Unit = { modifier ->
                     Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
                         Image(bitmap.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
@@ -216,6 +216,7 @@ internal fun RawCropDialog(
                             }
                             for (point in listOf(rect.topLeft, rect.topRight, rect.bottomLeft, rect.bottomRight)) drawCircle(Color.White, 6.dp.toPx(), point)
                         }
+                        error?.let { Snackbar(Modifier.align(Alignment.BottomCenter).padding(8.dp)) { Text(it) } }
                     }
                 }
                 val straightenControl: @Composable () -> Unit = {
@@ -229,7 +230,6 @@ internal fun RawCropDialog(
                 }
                 val controls: @Composable (Modifier) -> Unit = { modifier ->
                     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
                             TextButton(onClick = { crop = RawCrop(); ratio = 0f; originalRatio = false; onAdjust(initial.rotated(0).copy(crop = RawCrop(), straighten = 0f)) }) { Text(stringResource(R.string.raw_editor_reset)) }

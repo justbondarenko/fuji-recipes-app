@@ -329,6 +329,13 @@ or framing. It shares the initial preview bitmap on a fresh open and renders
 the neutral settings separately when restoring saved adjustments. Comparison
 does not change adjustments or the export source.
 
+Explanations do not occupy inline rows around the photo. Lens-correction
+status is available from a question-mark tooltip over the Optics preview;
+Curves and mask gesture guidance use the same native tooltip in their
+existing headers. The obvious crop caption and duplicate loading captions
+are omitted. Errors remain visible through overlay snackbars, and progress
+indicators reserve their height so state changes do not resize the preview.
+
 Native behavior follows the official
 [snapping API](https://developer.android.com/reference/kotlin/androidx/compose/foundation/gestures/snapping/package-summary)
 and [LazyListState requests](https://developer.android.com/reference/kotlin/androidx/compose/foundation/lazy/LazyListState).

@@ -348,6 +348,10 @@ class RawEditorLayoutTest {
             compose.onNodeWithContentDescription("Rotation").assertDoesNotExist()
             compose.onNodeWithText("Crop and aspect ratio").assertDoesNotExist()
             val photo = compose.onNodeWithTag("raw-crop-preview").fetchSemanticsNode().boundsInRoot
+            compose.runOnIdle { state = state.copy(error = "Crop rendering failed") }
+            compose.onNodeWithText("Crop rendering failed").assertIsDisplayed()
+            assertEquals(photo, compose.onNodeWithTag("raw-crop-preview").fetchSemanticsNode().boundsInRoot)
+            compose.runOnIdle { state = state.copy(error = null) }
             val slider = compose.onNodeWithContentDescription("Straighten").fetchSemanticsNode().boundsInRoot
             assertTrue("Straighten stays below the photo in both layouts", slider.top >= photo.bottom)
             compose.onNodeWithTag("raw-crop-preview").performTouchInput { down(center); moveBy(Offset(80f,0f),200); up() }
@@ -417,7 +421,7 @@ class RawEditorLayoutTest {
         )
         pairs.forEach { (category, option, ids) ->
             compose.onNodeWithText(category).performScrollTo().performClick()
-            // Optics has its own information note; compare against a single wheel in that category.
+            // Compare against a single wheel in the same category.
             if (category == "Optics") compose.onNodeWithContentDescription("Distortion controls").performScrollTo().performClick()
             val before = compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot()
             compose.onNodeWithContentDescription("$option controls").performScrollTo().performClick()
@@ -430,7 +434,7 @@ class RawEditorLayoutTest {
             val page = compose.onNodeWithTag("raw-editor-pager").getUnclippedBoundsInRoot()
             assertEquals((page.right - page.left).value / 2 - 40f, (left.right - left.left).value, .5f)
             assertEquals(before, compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot())
-            if (category == "Light") assertEquals(photo, before)
+            assertEquals(photo, before)
         }
     }
 
@@ -642,6 +646,49 @@ class RawEditorLayoutTest {
         val capture = compose.onRoot().captureToImage().asAndroidBitmap()
         java.io.File(context.cacheDir, "raw-wheel-effects.png").outputStream().use {
             capture.compress(Bitmap.CompressFormat.PNG, 100, it)
+        }
+    }
+
+    @Test
+    fun helpAndErrorsDoNotResizeThePreview() {
+        val bitmap = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888)
+        var state by mutableStateOf(RawEditorState(preview = bitmap, lensCorrectionApplied = true))
+        var wide by mutableStateOf(false)
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(if (wide) 840.dp else 393.dp, 800.dp))) {
+                FujiTheme { RawEditorScreen(state, {}, {}, {}, {}) }
+            }
+        }
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        for (expanded in listOf(false, true)) {
+            compose.runOnIdle { wide = expanded; state = state.copy(lensCorrectionApplied = true) }
+            compose.onNodeWithText("Light").performScrollTo().performClick()
+            val photo = compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot()
+            compose.onNodeWithText("Optics").performScrollTo().performClick()
+            assertEquals(photo, compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot())
+            for (applied in listOf(true, false)) {
+                compose.runOnIdle { state = state.copy(lensCorrectionApplied = applied) }
+                val note = context.getString(if (applied) R.string.raw_editor_optics_note else R.string.raw_editor_optics_unavailable)
+                compose.onNodeWithText(note).assertDoesNotExist()
+                compose.onNodeWithContentDescription("Help", useUnmergedTree = true).performClick()
+                compose.onNodeWithText(note).assertIsDisplayed()
+                assertEquals(photo, compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot())
+                androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
+            }
+            compose.runOnIdle { state = state.copy(error = "RAW rendering failed") }
+            compose.onNodeWithText("RAW rendering failed").assertIsDisplayed()
+            assertEquals(photo, compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot())
+            compose.runOnIdle { state = state.copy(error = null, busy = true, detailLoading = true) }
+            assertEquals(photo, compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot())
+            compose.runOnIdle { state = state.copy(busy = false, detailLoading = false) }
+            compose.onNodeWithText("Curves").performScrollTo().performClick()
+            val graph = compose.onNodeWithTag("raw-tone-curve").getUnclippedBoundsInRoot()
+            val hint = context.getString(R.string.raw_editor_curve_hint)
+            compose.onNodeWithText(hint).assertDoesNotExist()
+            compose.onNodeWithContentDescription("Help", useUnmergedTree = true).performClick()
+            compose.onNodeWithText(hint).assertIsDisplayed()
+            assertEquals(graph, compose.onNodeWithTag("raw-tone-curve").getUnclippedBoundsInRoot())
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
         }
     }
 
@@ -989,6 +1036,17 @@ class RawEditorLayoutTest {
         compose.onNodeWithText("Masks").performScrollTo().performClick()
         compose.onNodeWithText("Edit masks (0)").performClick()
         compose.onNodeWithText("+ Brush").performScrollTo().performClick()
+        val maskPreview = compose.onNodeWithTag("raw-mask-preview").getUnclippedBoundsInRoot()
+        compose.runOnIdle { state = state.copy(rendering = true, error = "Mask rendering failed") }
+        compose.onNodeWithText("Mask rendering failed").assertIsDisplayed()
+        assertEquals(maskPreview, compose.onNodeWithTag("raw-mask-preview").getUnclippedBoundsInRoot())
+        compose.runOnIdle { state = state.copy(rendering = false, error = null) }
+        val brushHint = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.raw_editor_brush_hint)
+        compose.onNodeWithText(brushHint).assertDoesNotExist()
+        compose.onNodeWithContentDescription("Help", useUnmergedTree = true).performClick()
+        compose.onNodeWithText(brushHint).assertIsDisplayed()
+        assertEquals(maskPreview, compose.onNodeWithTag("raw-mask-preview").getUnclippedBoundsInRoot())
+        androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
         compose.onNodeWithTag("raw-mask-preview").performTouchInput { down(center); moveBy(Offset(30f,20f),200); up() }
         compose.runOnIdle { assertTrue(drawn.isNotEmpty()); assertTrue(drawn.first() != drawn.last()); assertTrue(drawn.all { it.x in 0f..1f && it.y in 0f..1f }) }
         set("Exposure",.8f)
