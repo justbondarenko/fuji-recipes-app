@@ -302,7 +302,7 @@ fun RawEditorScreen(
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             Box(Modifier.fillMaxWidth().height(4.dp)) {
-                if (state.busy || state.rendering || state.detailLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             }
             if (state.preview == null) {
                 FujiIconPanel(
