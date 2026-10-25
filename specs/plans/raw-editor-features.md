@@ -563,3 +563,51 @@ tooltip opening and Back dismissal, both lens-status messages, unchanged
 preview bounds across Light/Details/Optics, rendering/errors in main/crop/masks,
 and the existing comparison, framing, paging, wheel, and curve interactions.
 The updated APK is installed.
+
+Curves without preview resizing (2026-10-25):
+
+- [x] Place the compact square curve graph over the photo preview, clear
+  of Crop and Compare. Keep channels, help, and reset together beneath the graph.
+  The wide layout retains a square sidebar graph with channels below it.
+- [x] Use a shared 212 dp compact pager height and fixed two-line option label
+  space so category and option changes preserve the photo and controls bounds.
+- [x] Keep curve colors, point editing, channel resets, accessible actions,
+  and finger-following category motion. The compact graph slides with its page;
+  inactive cached graphs are excluded from accessibility and editing.
+
+Verification: debug and instrumentation builds passed. All sixteen
+RawEditorLayoutTest checks passed on SM-F976B. The new check verifies identical
+photo/control bounds across all seven categories in compact and wide layouts,
+a square graph above its channel selector, unobstructed Crop/Compare actions,
+comparison return, and channel editing/reset. Existing point gestures,
+accessibility actions, page swipes, wheels, framing, and tooltip checks pass.
+The app-only capture confirms the final placement; the updated APK is installed.
+
+Curve interaction transparency (2026-10-25):
+
+- [x] Reduce the idle curve background from 25% to 8% black opacity.
+- [x] Remove the background, grid, and border while pressing the line or
+  dragging a point; retain the editable curve and handles over the live image.
+  Restore the subtle background after release/cancellation, channel changes,
+  or disabling edits. Touching empty graph space does not clear the background.
+
+Verification: debug/instrumentation builds and three focused device UI checks
+passed on SM-F976B. Pixel capture verifies 8% idle dimming and zero dimming
+during a held line press or point drag, plus restoration on release, cancel,
+and disabling. Adjustments update before release. Existing curve/mask editing,
+channel actions, square geometry, and category gesture checks still pass.
+The updated APK is installed.
+
+Curve channel button group (2026-10-25):
+
+- [x] Use connected Material 3 ToggleButtons labeled Master, Red, Green, and
+  Blue, with native connected shapes/spacing and a single checked channel.
+- [x] Place question-mark help and a labeled Reset channel button in a separate
+  row below the selector. Keep the compact 212 dp controls height unchanged;
+  give the wide sidebar enough room for both rows.
+
+Verification: debug and instrumentation builds passed. Four focused UI checks
+passed on SM-F976B, including compact/wide channel labels and checked state,
+the separate action row below the group, independent channel edits/reset,
+fixed preview bounds, native category swipes, point gestures, and help dismissal.
+The app-only capture confirms the spacing; the updated APK is installed.

@@ -1,6 +1,7 @@
 package dev.bondarenko.fujirecipes.ui.raweditor
 
 import android.graphics.Bitmap
+import androidx.compose.foundation.background
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.platform.testTag
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
@@ -21,6 +23,8 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -161,7 +165,7 @@ class RawEditorLayoutTest {
             val controls = compose.onNodeWithTag("raw-editor-controls")
             val bounds = controls.fetchSemanticsNode().boundsInRoot
             val after = when (index) {
-                3 -> compose.onNodeWithTag("raw-tone-curve").fetchSemanticsNode().boundsInRoot
+                3 -> compose.onNodeWithTag("raw-curve-channels").fetchSemanticsNode().boundsInRoot
                 6 -> compose.onNodeWithTag("raw-editor-options").fetchSemanticsNode().boundsInRoot
                 else -> compose.onNodeWithTag("raw-editor-wheel-${firstWheels[index]}").fetchSemanticsNode().boundsInRoot
             }
@@ -650,6 +654,113 @@ class RawEditorLayoutTest {
     }
 
     @Test
+    fun curveBackgroundClearsDuringPressAndDragAndRestoresOnReleaseOrCancel() {
+        var state by mutableStateOf(RawEditorState())
+        var enabled by mutableStateOf(true)
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(393.dp, 800.dp))) {
+                FujiTheme {
+                    Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.White), contentAlignment = Alignment.Center) {
+                        RawToneCurveGraph(state, { state = state.copy(adjustments = it) }, 0, Modifier.size(300.dp), enabled)
+                    }
+                }
+            }
+        }
+        val graph = compose.onNodeWithTag("raw-tone-curve")
+        fun backgroundRed(): Int {
+            val bitmap = graph.captureToImage().asAndroidBitmap()
+            return (bitmap.getPixel((bitmap.width * .2f).toInt(), (bitmap.height * .4f).toInt()) shr 16) and 255
+        }
+        val idle = backgroundRed()
+        assertTrue("Idle background should only darken the image by 8%", idle in 232..238)
+        graph.performTouchInput { down(center) }
+        compose.mainClock.advanceTimeByFrame()
+        assertEquals(255, backgroundRed())
+        graph.performTouchInput { up() }
+        compose.mainClock.advanceTimeBy(400)
+        compose.runOnIdle { assertEquals(3, state.adjustments.curves.master.points.size) }
+        assertEquals(idle, backgroundRed())
+        graph.performTouchInput { down(center); moveTo(Offset(width * .6f, height * .3f), 200) }
+        assertEquals(255, backgroundRed())
+        compose.runOnIdle { assertTrue("Edits must update before release", state.adjustments.curves.master.points[1].y > .6f) }
+        graph.performTouchInput { up() }
+        assertEquals(idle, backgroundRed())
+        graph.performTouchInput { down(Offset(width * .6f, height * .3f)); moveTo(Offset(width * .65f, height * .2f), 200) }
+        assertEquals(255, backgroundRed())
+        graph.performTouchInput { cancel() }
+        assertEquals(idle, backgroundRed())
+        graph.performTouchInput { down(Offset(width * .65f, height * .2f)); moveTo(Offset(width * .7f, height * .15f), 200) }
+        assertEquals(255, backgroundRed())
+        compose.runOnIdle { enabled = false }
+        assertEquals(idle, backgroundRed())
+        graph.performTouchInput { up() }
+        compose.runOnIdle { enabled = true }
+        graph.performTouchInput { down(Offset(width * .1f, height * .1f)) }
+        assertEquals(idle, backgroundRed())
+        graph.performTouchInput { up() }
+    }
+
+    @Test
+    fun curvesKeepThePhotoSizeAndPlaceChannelsBelowTheSquareGraph() {
+        val bitmap = Bitmap.createBitmap(1200, 800, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.rgb(70, 110, 140)) }
+        var state by mutableStateOf(RawEditorState(preview = bitmap, cameraImage = bitmap, startingImage = bitmap))
+        var cropClicks = 0
+        var wide by mutableStateOf(false)
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(if (wide) 840.dp else 393.dp, 800.dp))) {
+                FujiTheme { RawEditorScreen(state, {}, {}, { state = state.copy(adjustments = it) }, {}, onCrop = { cropClicks++ }) }
+            }
+        }
+        for (expanded in listOf(false, true)) {
+            compose.runOnIdle { wide = expanded }
+            compose.onNodeWithText("Light").performScrollTo().performClick()
+            val photo = compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot()
+            val controls = compose.onNodeWithTag("raw-editor-controls").getUnclippedBoundsInRoot()
+            for (category in listOf("Color", "Details", "Curves", "Effects", "Optics", "Masks")) {
+                compose.onNodeWithText(category).performScrollTo().performClick()
+                assertEquals(photo, compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot())
+                assertEquals(controls, compose.onNodeWithTag("raw-editor-controls").getUnclippedBoundsInRoot())
+            }
+            compose.onNodeWithText("Curves").performScrollTo().performClick()
+            val graph = compose.onNodeWithTag("raw-tone-curve").assertIsDisplayed().getUnclippedBoundsInRoot()
+            val channels = compose.onNodeWithTag("raw-curve-channels").assertIsDisplayed().getUnclippedBoundsInRoot()
+            assertEquals((graph.right - graph.left).value, (graph.bottom - graph.top).value, 1f)
+            assertTrue(graph.bottom <= channels.top)
+            val actions = compose.onNodeWithTag("raw-curve-actions").assertIsDisplayed().getUnclippedBoundsInRoot()
+            assertTrue(actions.top >= channels.bottom)
+            listOf("Master", "Red", "Green", "Blue").forEach { compose.onNodeWithText(it).assertIsDisplayed() }
+            compose.onNodeWithText("Master").assertIsOn()
+            if (expanded) assertTrue(graph.left >= photo.right) else {
+                assertTrue(graph.top < photo.bottom)
+                assertTrue(graph.bottom <= photo.bottom)
+                assertTrue(graph.bottom <= compose.onNodeWithTag("raw-editor-crop").getUnclippedBoundsInRoot().top)
+                assertTrue(graph.bottom <= compose.onNodeWithTag("raw-editor-compare").getUnclippedBoundsInRoot().top)
+            }
+            compose.onNodeWithTag("raw-editor-crop").performClick()
+            compose.runOnIdle { assertEquals(if (expanded) 2 else 1, cropClicks) }
+            compose.onNodeWithTag("raw-editor-compare").performClick()
+            compose.onNodeWithText("Before edits").performClick()
+            if (!expanded) compose.onNodeWithTag("raw-tone-curve").assertDoesNotExist()
+            compose.onNodeWithTag("raw-editor-compare").performClick()
+            compose.onNodeWithContentDescription("Red").performClick()
+            compose.onNodeWithText("Red").assertIsOn()
+            compose.onNodeWithText("Master").assertIsOff()
+            compose.onNodeWithTag("raw-tone-curve").performTouchInput { click(center) }
+            compose.mainClock.advanceTimeBy(400)
+            compose.runOnIdle { assertEquals(3, state.adjustments.curves.red.points.size) }
+            compose.onNodeWithText("Reset channel").performClick()
+            compose.runOnIdle { assertTrue(state.adjustments.curves.red.isIdentity) }
+            compose.onNodeWithText("Master").performClick()
+        }
+        compose.runOnIdle { wide = false }
+        compose.onNodeWithText("Curves").performScrollTo().performClick()
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        java.io.File(context.cacheDir, "raw-curves-overlay.png").outputStream().use {
+            compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it)
+        }
+    }
+
+    @Test
     fun helpAndErrorsDoNotResizeThePreview() {
         val bitmap = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888)
         var state by mutableStateOf(RawEditorState(preview = bitmap, lensCorrectionApplied = true))
@@ -1017,7 +1128,7 @@ class RawEditorLayoutTest {
         compose.onNodeWithTag("raw-tone-curve").performTouchInput { down(center); moveTo(Offset(width*.5f,height*.3f),200); up() }
         compose.runOnIdle { assertEquals(.7f,state.adjustments.curves.master.points[1].y,.02f) }
         compose.onNodeWithContentDescription("Red").performClick()
-        compose.onNodeWithText("Red").assertDoesNotExist()
+        compose.onNodeWithText("Red").assertIsDisplayed()
         compose.onNodeWithTag("raw-tone-curve").performTouchInput { click(center) }
         compose.mainClock.advanceTimeBy(400)
         compose.onNodeWithTag("raw-tone-curve").performTouchInput { down(center); moveTo(Offset(width*.5f,height*.7f),200); up() }

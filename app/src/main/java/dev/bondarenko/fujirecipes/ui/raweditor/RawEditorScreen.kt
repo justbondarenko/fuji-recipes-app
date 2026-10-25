@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -67,6 +68,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
@@ -208,6 +211,7 @@ fun RawEditorScreen(
 ) {
     var showComparison by remember(state.name, state.busy, state.cameraImage, state.startingImage) { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
+    var curveChannel by rememberSaveable(state.name) { mutableIntStateOf(0) }
     val categoryLabels = listOf(
         R.string.raw_editor_light, R.string.raw_editor_color, R.string.raw_editor_detail,
         R.string.raw_editor_curves, R.string.raw_editor_effects, R.string.raw_editor_optics,
@@ -320,7 +324,6 @@ fun RawEditorScreen(
             } else {
                 BoxWithConstraints(Modifier.weight(1f)) {
                     val wide = maxWidth >= 700.dp
-                    val maxCurveSize = if (wide) maxWidth else maxHeight * .4f
                     val preview: @Composable (Modifier) -> Unit = { modifier ->
                         RawEditorPreview(state, panel == 5, showComparison, { showComparison = it }, onViewport, modifier, onCrop,
                             help = if (panel == 5) stringResource(if (state.lensCorrectionApplied) R.string.raw_editor_optics_note else R.string.raw_editor_optics_unavailable) else null)
@@ -352,7 +355,7 @@ fun RawEditorScreen(
                                 state = pagerState,
                                 userScrollEnabled = !state.busy,
                                 verticalAlignment = Alignment.Top,
-                                modifier = (if (wide) Modifier.weight(1f) else Modifier)
+                                modifier = (if (wide) Modifier.weight(1f) else Modifier.height(212.dp))
                                     .fillMaxWidth().testTag("raw-editor-pager"),
                             ) { panel ->
                                 var selectedParam by rememberSaveable { mutableIntStateOf(0) }
@@ -449,18 +452,21 @@ fun RawEditorScreen(
                                 val locale = LocalConfiguration.current.locales[0]
                                 val listScroll = rememberScrollState()
 
-                                Box(Modifier.testTag("raw-editor-page-$panel")
+                                Box(Modifier.fillMaxSize().testTag("raw-editor-page-$panel")
                                     .then(if (panel == pagerState.currentPage) Modifier else Modifier.clearAndSetSemantics {})) {
                                     Column(
                                         modifier = if (wide) Modifier.fillMaxSize()
                                             .verticalScroll(listScroll)
-                                            .testTag("raw-editor-wheel-list").padding(vertical = 12.dp) else Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                            .testTag("raw-editor-wheel-list").padding(vertical = 12.dp) else Modifier.fillMaxSize().padding(bottom = 8.dp),
                                         verticalArrangement = Arrangement.spacedBy(if (wide) 16.dp else 6.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                     ) {
-                                        if (panel == 3) RawToneCurveEditor(state, onAdjust, maxGraphSize = maxCurveSize, enabled = editable)
-
-                                        if (wide) {
+                                        if (panel == 3) {
+                                            if (wide) RawToneCurveGraph(state, onAdjust, curveChannel,
+                                                Modifier.padding(horizontal = 16.dp).fillMaxWidth().aspectRatio(1f), enabled = editable)
+                                            RawToneCurveControls(state, onAdjust, curveChannel, { curveChannel = it }, enabled = editable,
+                                                modifier = Modifier.fillMaxWidth().height(if (wide) 136.dp else 204.dp))
+                                        } else if (wide) {
                                             if (panel == 1) FilledTonalButton(
                                                 onClick = { onAdjust(edits.copy(temperature = 0f, tint = 0f)) }, enabled = editable,
                                                 modifier = Modifier.align(Alignment.Start).padding(horizontal = 20.dp),
@@ -555,7 +561,7 @@ fun RawEditorScreen(
                                                         modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)) {
                                                         Icon(FujiIcons.PhotoCamera, stringResource(R.string.raw_editor_as_shot))
                                                     }
-                                                    Text(stringResource(R.string.raw_editor_as_shot), style = MaterialTheme.typography.labelSmall)
+                                                    Text(stringResource(R.string.raw_editor_as_shot), Modifier.height(32.dp), style = MaterialTheme.typography.labelSmall)
                                                 }
                                             }
                                             params.forEachIndexed { index, param ->
@@ -577,9 +583,21 @@ fun RawEditorScreen(
                     if (wide) Row(Modifier.fillMaxSize()) {
                         preview(Modifier.weight(1f).fillMaxSize())
                         controls(Modifier.width(360.dp).fillMaxHeight())
-                    } else Column(Modifier.fillMaxSize()) {
-                        preview(Modifier.weight(1f).fillMaxWidth())
-                        controls(Modifier.fillMaxWidth().wrapContentHeight())
+                    } else Box(Modifier.fillMaxSize().clipToBounds()) {
+                        Column(Modifier.fillMaxSize()) {
+                            preview(Modifier.weight(1f).fillMaxWidth())
+                            controls(Modifier.fillMaxWidth().wrapContentHeight())
+                        }
+                        val curvePageOffset = 3 - pagerState.currentPage - pagerState.currentPageOffsetFraction
+                        if (kotlin.math.abs(curvePageOffset) <= 1f && !showComparison) BoxWithConstraints(
+                            // Bottom: controls 212 + top/gap/tabs 62 + preview buttons 64.
+                            Modifier.fillMaxSize().graphicsLayer { translationX = curvePageOffset * size.width }
+                                .then(if (panel == 3) Modifier else Modifier.clearAndSetSemantics {})
+                                .padding(start = 20.dp, end = 20.dp, top = 56.dp, bottom = 338.dp),
+                            contentAlignment = Alignment.BottomCenter,
+                        ) {
+                            RawToneCurveGraph(state, onAdjust, curveChannel, Modifier.size(minOf(maxWidth, maxHeight)), enabled = !state.busy && panel == 3)
+                        }
                     }
                 }
             }
@@ -695,6 +713,7 @@ internal fun RawParamCircle(
         }
         Text(
             text = label,
+            modifier = Modifier.height(32.dp),
             style = MaterialTheme.typography.labelSmall,
             color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 2,
