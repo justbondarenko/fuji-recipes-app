@@ -34,6 +34,9 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -73,12 +76,16 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import dev.bondarenko.fujirecipes.R
@@ -97,7 +104,7 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.Keep
 import dev.bondarenko.fujirecipes.ui.theme.icons.LinkedCamera
 import dev.bondarenko.fujirecipes.ui.theme.icons.MoreVert
 import dev.bondarenko.fujirecipes.ui.theme.icons.Science
-import dev.bondarenko.fujirecipes.ui.theme.icons.Tune
+import dev.bondarenko.fujirecipes.ui.theme.icons.RawOn
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -107,6 +114,9 @@ val LocalRailActionProvided = compositionLocalOf { false }
 
 private const val LONG_PRESS_EDIT_MS = 500L
 private val PinYellow = Color(0xFFFBC02D)
+
+internal fun usesNavigationRail(width: Dp, height: Dp, hasBottomAction: Boolean): Boolean =
+    width >= 600.dp && height >= if (hasBottomAction) 600.dp else 480.dp
 
 val NavDestinationId.navLabelRes: Int
     get() = when (this) {
@@ -153,7 +163,7 @@ val NavDestinationId.icon: ImageVector
         NavDestinationId.ANALYZE -> FujiIcons.ImageSearch
         NavDestinationId.LAB -> FujiIcons.Science
         NavDestinationId.PHOTOS -> FujiIcons.CameraRoll
-        NavDestinationId.RAW_EDITOR -> FujiIcons.Tune
+        NavDestinationId.RAW_EDITOR -> FujiIcons.RawOn
         NavDestinationId.CLEANUP -> FujiIcons.CleaningServices
         NavDestinationId.IMPORT_CAMERA -> FujiIcons.LinkedCamera
         NavDestinationId.IMPORT_FILE -> FujiIcons.FileSave
@@ -174,8 +184,8 @@ private data class BarEntry(
  *
  * Implements standard Material 3 navigation:
  * - Bottom navigation on narrow windows; a rail on wider windows with room for its controls.
- * - Long-pressing (3s+) on any navigation bar item enters Edit Mode: icons jiggle and a top
- *   sheet lets the user pin/unpin up to 4 destinations.
+ * - Long-pressing More enters Edit Mode: icons jiggle and a top
+ *   sheet lets the user pin/unpin up to 4 bottom-bar or 8 sidebar destinations.
  * - An [ExtendedFloatingActionButton] CTA in the bottom-right corner of the content.
  */
 @Composable
@@ -205,21 +215,14 @@ fun AppShell(
 ) {
     var isEditMode by rememberSaveable { mutableStateOf(false) }
     var suppressNextClick by remember { mutableStateOf(false) }
-    var localPinned by remember(pinnedDestinations) { mutableStateOf(pinnedDestinations) }
+    var localPinned by remember { mutableStateOf(pinnedDestinations) }
     var isDraggingBarItem by remember { mutableStateOf(false) }
     var draggingDest by remember { mutableStateOf<NavDestinationId?>(null) }
-    var dragFingerX by remember { mutableFloatStateOf(0f) }
+    var dragFingerPosition by remember { mutableFloatStateOf(0f) }
     var dragInitialGrabOffset by remember { mutableFloatStateOf(0f) }
-    var barWidthPx by remember { mutableFloatStateOf(0f) }
-    val currentPinned by rememberUpdatedState(localPinned)
+    var navigationExtentPx by remember { mutableFloatStateOf(0f) }
     val currentOnUpdatePinned by rememberUpdatedState(onUpdatePinnedDestinations)
     val haptic = LocalHapticFeedback.current
-
-    LaunchedEffect(pinnedDestinations) {
-        if (!isDraggingBarItem) {
-            localPinned = pinnedDestinations
-        }
-    }
 
     if (isEditMode) {
         BackHandler {
@@ -259,11 +262,15 @@ fun AppShell(
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val railMinHeight = if (railBottomAction != null) 600.dp else 480.dp
-        val useRail = maxWidth >= 600.dp && maxHeight >= railMinHeight
+        val useRail = usesNavigationRail(maxWidth, maxHeight, railBottomAction != null)
+        val maxPinned = if (useRail) NavDestinationId.MAX_RAIL_PINNED else NavDestinationId.MAX_PINNED
+
+        LaunchedEffect(pinnedDestinations, useRail, isDraggingBarItem) {
+            if (!isDraggingBarItem) localPinned = pinnedDestinations
+        }
 
         val entries: List<BarEntry> = buildList {
-            localPinned.take(NavDestinationId.MAX_PINNED).forEach { dest ->
+            localPinned.take(maxPinned).forEach { dest ->
                 val isSelected = if (onDestinationClick != null) {
                     selectedDestination == dest && !isMoreSelected
                 } else {
@@ -307,6 +314,81 @@ fun AppShell(
             )
         }
 
+        val editDragModifier = if (isEditMode) {
+            Modifier.pointerInput(useRail, entries.size) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    val count = entries.size
+                    val slotSize = if (count > 0) (if (useRail) size.height else size.width).toFloat() / count else 0f
+                    if (slotSize <= 0f) return@awaitEachGesture
+                    val startSlot = ((if (useRail) down.position.y else down.position.x) / slotSize).toInt().coerceIn(0, count - 1)
+                    if (startSlot >= localPinned.size) return@awaitEachGesture
+
+                    val dragged = localPinned[startSlot]
+                    val initialSlotCenter = (startSlot + 0.5f) * slotSize
+                    val grabOffset = (if (useRail) down.position.y else down.position.x) - initialSlotCenter
+                    var activeDrag = false
+                    var accumulatedDistance = 0f
+                    val slop = viewConfiguration.touchSlop * 0.5f
+
+                    try {
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val change = event.changes.firstOrNull { it.id == down.id }
+                                ?: event.changes.firstOrNull { it.pressed }
+                            if (change == null || !change.pressed) {
+                                if (activeDrag) {
+                                    event.changes.forEach { it.consume() }
+                                }
+                                break
+                            }
+                            val delta = if (useRail) change.position.y - change.previousPosition.y else change.position.x - change.previousPosition.x
+                            accumulatedDistance += delta
+                            if (!activeDrag && kotlin.math.abs(accumulatedDistance) > slop) {
+                                activeDrag = true
+                                isDraggingBarItem = true
+                                draggingDest = dragged
+                                dragFingerPosition = if (useRail) change.position.y else change.position.x
+                                dragInitialGrabOffset = grabOffset
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }
+                            if (activeDrag) {
+                                change.consume()
+                                dragFingerPosition = if (useRail) change.position.y else change.position.x
+                                val targetCenter = dragFingerPosition - dragInitialGrabOffset
+                                val hysteresis = slotSize * 0.15f
+                                val curIdx = localPinned.indexOf(dragged)
+                                if (curIdx >= 0) {
+                                    if (targetCenter > (curIdx + 1) * slotSize + hysteresis && curIdx < localPinned.lastIndex) {
+                                        val mutable = localPinned.toMutableList()
+                                        val nextIdx = curIdx + 1
+                                        mutable[curIdx] = mutable[nextIdx]
+                                        mutable[nextIdx] = dragged
+                                        localPinned = mutable
+                                        currentOnUpdatePinned(mutable)
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    } else if (targetCenter < curIdx * slotSize - hysteresis && curIdx > 0) {
+                                        val mutable = localPinned.toMutableList()
+                                        val prevIdx = curIdx - 1
+                                        mutable[curIdx] = mutable[prevIdx]
+                                        mutable[prevIdx] = dragged
+                                        localPinned = mutable
+                                        currentOnUpdatePinned(mutable)
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    }
+                                }
+                            }
+                        }
+                    } finally {
+                        draggingDest = null
+                        isDraggingBarItem = false
+                    }
+                }
+            }
+        } else {
+            Modifier
+        }
+
         val moreLongPressModifier = Modifier.pointerInput(Unit) {
             awaitEachGesture {
                 awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
@@ -334,12 +416,35 @@ fun AppShell(
             }
         }
 
+        val itemModifier: (Int, BarEntry) -> Modifier = { index, entry ->
+            val dest = entry.destination
+            val dragging = isEditMode && dest != null && draggingDest == dest
+            Modifier.testTag("nav-item-${dest?.id ?: "more"}").then(when {
+                entry.isMore -> moreLongPressModifier
+                isEditMode && dest != null -> Modifier.zIndex(if (dragging) 2f else 0f)
+                    .graphicsLayer {
+                        if (dragging && navigationExtentPx > 0f) {
+                            val slotSize = navigationExtentPx / entries.size
+                            val offset = dragFingerPosition - dragInitialGrabOffset - (index + .5f) * slotSize
+                            if (useRail) translationY = offset else translationX = offset
+                            scaleX = 1.08f
+                            scaleY = 1.08f
+                        }
+                    }
+                else -> Modifier
+            })
+        }
+
         Row(Modifier.fillMaxSize()) {
             if (showChrome && useRail) {
                 NavigationRail(modifier = Modifier.fillMaxHeight()) {
-                    Box(Modifier.fillMaxHeight()) {
+                    BoxWithConstraints(Modifier.fillMaxHeight()) {
                         Column(
-                            modifier = Modifier.align(Alignment.Center),
+                            modifier = Modifier.align(Alignment.Center)
+                                .heightIn(max = (maxHeight - if (railBottomAction != null) 128.dp else 0.dp).coerceAtLeast(0.dp))
+                                .verticalScroll(rememberScrollState())
+                                .onSizeChanged { navigationExtentPx = it.height.toFloat() }
+                                .then(editDragModifier).testTag("nav-rail-items"),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
@@ -376,7 +481,7 @@ fun AppShell(
                                             entry.onClick()
                                         }
                                     },
-                                    modifier = if (entry.isMore) moreLongPressModifier else Modifier,
+                                    modifier = itemModifier(index, entry),
                                     interactionSource = interactionSource,
                                     icon = {
                                         Icon(
@@ -428,94 +533,14 @@ fun AppShell(
                 },
                 bottomBar = {
                     if (showChrome && !useRail && !hideBottomNavigation) {
-                        val barEditDragModifier = if (isEditMode) {
-                            Modifier.pointerInput(Unit) {
-                                awaitEachGesture {
-                                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                                    val count = localPinned.size + 1
-                                    val slotW = if (count > 0) size.width.toFloat() / count else 0f
-                                    if (slotW <= 0f) return@awaitEachGesture
-                                    val startSlot = (down.position.x / slotW).toInt().coerceIn(0, count - 1)
-                                    if (startSlot >= localPinned.size) return@awaitEachGesture
-
-                                    val dragged = localPinned[startSlot]
-                                    val initialSlotCenter = (startSlot + 0.5f) * slotW
-                                    val grabOffset = down.position.x - initialSlotCenter
-                                    var activeDrag = false
-                                    var accumDx = 0f
-                                    val slop = viewConfiguration.touchSlop * 0.5f
-
-                                    try {
-                                        while (true) {
-                                            val event = awaitPointerEvent(PointerEventPass.Initial)
-                                            val change = event.changes.firstOrNull { it.id == down.id }
-                                                ?: event.changes.firstOrNull { it.pressed }
-                                            if (change == null || !change.pressed) {
-                                                if (activeDrag) {
-                                                    event.changes.forEach { it.consume() }
-                                                }
-                                                break
-                                            }
-                                            val dx = change.position.x - change.previousPosition.x
-                                            accumDx += dx
-                                            if (!activeDrag && kotlin.math.abs(accumDx) > slop) {
-                                                activeDrag = true
-                                                isDraggingBarItem = true
-                                                draggingDest = dragged
-                                                dragFingerX = change.position.x
-                                                dragInitialGrabOffset = grabOffset
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            }
-                                            if (activeDrag) {
-                                                change.consume()
-                                                dragFingerX = change.position.x
-                                                val targetCenterX = dragFingerX - dragInitialGrabOffset
-                                                val hysteresis = slotW * 0.15f
-                                                val curIdx = localPinned.indexOf(dragged)
-                                                if (curIdx >= 0) {
-                                                    if (targetCenterX > (curIdx + 1) * slotW + hysteresis && curIdx < localPinned.lastIndex) {
-                                                        val mutable = localPinned.toMutableList()
-                                                        val nextIdx = curIdx + 1
-                                                        mutable[curIdx] = mutable[nextIdx]
-                                                        mutable[nextIdx] = dragged
-                                                        localPinned = mutable
-                                                        currentOnUpdatePinned(mutable)
-                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                    } else if (targetCenterX < curIdx * slotW - hysteresis && curIdx > 0) {
-                                                        val mutable = localPinned.toMutableList()
-                                                        val prevIdx = curIdx - 1
-                                                        mutable[curIdx] = mutable[prevIdx]
-                                                        mutable[prevIdx] = dragged
-                                                        localPinned = mutable
-                                                        currentOnUpdatePinned(mutable)
-                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    } finally {
-                                        if (activeDrag) {
-                                            currentOnUpdatePinned(localPinned)
-                                        }
-                                        draggingDest = null
-                                        isDraggingBarItem = false
-                                    }
-                                }
-                            }
-                        } else {
-                            Modifier
-                        }
                         NavigationBar(
                             modifier = Modifier
-                                .onSizeChanged { barWidthPx = it.width.toFloat() }
-                                .then(barEditDragModifier),
+                                .onSizeChanged { navigationExtentPx = it.width.toFloat() }
+                                .then(editDragModifier).testTag("nav-bottom-bar"),
                         ) {
-                            val count = entries.size
-                            val slotW = if (count > 0 && barWidthPx > 0f) barWidthPx / count else 0f
                             entries.forEachIndexed { index, entry ->
                                 val direction = if (index % 2 == 0) 1f else -1f
                                 val dest = entry.destination
-                                val isDraggingThis = isEditMode && dest != null && draggingDest == dest
                                 val interactionSource = remember(dest ?: "more") { MutableInteractionSource() }
                                 if (entry.isMore) {
                                     LaunchedEffect(interactionSource) {
@@ -538,21 +563,6 @@ fun AppShell(
                                         }
                                     }
                                 }
-                                val itemModifier = when {
-                                    entry.isMore -> moreLongPressModifier
-                                    isEditMode && dest != null -> Modifier
-                                        .zIndex(if (isDraggingThis) 2f else 0f)
-                                        .graphicsLayer {
-                                            if (isDraggingThis && slotW > 0f) {
-                                                val curSlotCenter = (index + 0.5f) * slotW
-                                                val targetCenterX = dragFingerX - dragInitialGrabOffset
-                                                translationX = targetCenterX - curSlotCenter
-                                                scaleX = 1.08f
-                                                scaleY = 1.08f
-                                            }
-                                        }
-                                    else -> Modifier
-                                }
                                 NavigationBarItem(
                                     selected = entry.selected,
                                     onClick = {
@@ -562,7 +572,7 @@ fun AppShell(
                                             entry.onClick()
                                         }
                                     },
-                                    modifier = itemModifier,
+                                    modifier = itemModifier(index, entry),
                                     interactionSource = interactionSource,
                                     icon = {
                                         Icon(
@@ -653,6 +663,8 @@ fun AppShell(
                     ) {
                         CustomizeNavigationTopSheet(
                             pinnedDestinations = localPinned,
+                            useRail = useRail,
+                            maxPinned = maxPinned,
                             onTogglePin = { dest ->
                                 val current = localPinned.toMutableList()
                                 if (dest in current) {
@@ -661,13 +673,13 @@ fun AppShell(
                                         localPinned = current
                                         onUpdatePinnedDestinations(current)
                                     }
-                                } else if (current.size < NavDestinationId.MAX_PINNED) {
+                                } else if (current.size < maxPinned) {
                                     current.add(dest)
                                     localPinned = current
                                     onUpdatePinnedDestinations(current)
                                 }
                             },
-                            onDone = { isEditMode = false },
+                            onDone = { isEditMode = false; suppressNextClick = false },
                         )
                     }
                 }
@@ -679,6 +691,8 @@ fun AppShell(
 @Composable
 private fun CustomizeNavigationTopSheet(
     pinnedDestinations: List<NavDestinationId>,
+    useRail: Boolean,
+    maxPinned: Int,
     onTogglePin: (NavDestinationId) -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
@@ -719,7 +733,7 @@ private fun CustomizeNavigationTopSheet(
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Text(
-                        text = stringResource(R.string.nav_customize_subtitle, pinnedDestinations.size),
+                        text = stringResource(if (useRail) R.string.nav_customize_rail_subtitle else R.string.nav_customize_subtitle, pinnedDestinations.size),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -740,7 +754,7 @@ private fun CustomizeNavigationTopSheet(
                         rowItems.forEach { dest ->
                             val isPinned = dest in pinnedDestinations
                             val canToggle = isPinned && pinnedDestinations.size > 1 ||
-                                !isPinned && pinnedDestinations.size < NavDestinationId.MAX_PINNED
+                                !isPinned && pinnedDestinations.size < maxPinned
                             PinnableOptionTile(
                                 destination = dest,
                                 isPinned = isPinned,
@@ -783,6 +797,8 @@ private fun PinnableOptionTile(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier
+            .testTag("nav-pin-${destination.id}")
+            .semantics { selected = isPinned }
             .height(92.dp)
             .alpha(if (isDisabled) 0.38f else 1f),
         shape = RoundedCornerShape(18.dp),

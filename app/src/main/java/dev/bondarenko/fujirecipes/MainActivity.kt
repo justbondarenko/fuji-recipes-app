@@ -17,6 +17,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -47,6 +49,7 @@ import dev.bondarenko.fujirecipes.ui.nav.RecipeEditorRoute
 import dev.bondarenko.fujirecipes.ui.nav.RecipeViewRoute
 import dev.bondarenko.fujirecipes.ui.nav.SettingsRoute
 import dev.bondarenko.fujirecipes.ui.shell.AppShell
+import dev.bondarenko.fujirecipes.ui.shell.usesNavigationRail
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 
 import android.net.Uri
@@ -208,7 +211,11 @@ private fun FujiApp(
          */
         val container = (LocalContext.current.applicationContext as FujiRecipesApp).container
         val uiPrefs by container.uiPreferences.preferences.collectAsStateWithLifecycle(initialValue = StoredUiPreferences())
-        val pinnedDestinations = uiPrefs.pinnedNavIds
+        val windowSize = LocalWindowInfo.current.containerSize
+        val useRail = with(LocalDensity.current) {
+            usesNavigationRail(windowSize.width.toDp(), windowSize.height.toDp(), hasBottomAction = true)
+        }
+        val pinnedDestinations = if (useRail) uiPrefs.railPinnedNavIds else uiPrefs.pinnedNavIds
         val coroutineScope = rememberCoroutineScope()
 
         val onEditor = destination?.hasRoute<RecipeEditorRoute>() == true
@@ -301,7 +308,7 @@ private fun FujiApp(
                     onDestinationClick = navigateToDestination,
                     onUpdatePinnedDestinations = { updated ->
                         coroutineScope.launch {
-                            container.uiPreferences.setPinnedNavIds(updated)
+                            container.uiPreferences.setPinnedNavIds(updated, forRail = useRail)
                         }
                     },
                     onCreateClick = { creating = true },

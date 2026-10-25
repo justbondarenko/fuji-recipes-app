@@ -24,8 +24,8 @@ enum class RecipeViewMode(val id: String) {
 }
 
 /**
- * Customizable navigation destinations that can be pinned to the bottom bar (up to 4)
- * or shown in the More screen when unpinned.
+ * Destinations pinned independently to the bottom bar (4) and sidebar (8).
+ * Unpinned destinations appear in More for the current layout.
  */
 enum class NavDestinationId(val id: String) {
     LIBRARY("library"),
@@ -41,16 +41,17 @@ enum class NavDestinationId(val id: String) {
     companion object {
         val DEFAULT_PINNED: List<NavDestinationId> = listOf(LIBRARY, ANALYZE, LAB, PHOTOS)
         const val MAX_PINNED = 4
+        const val MAX_RAIL_PINNED = 8
 
         fun fromId(id: String?): NavDestinationId? =
             entries.firstOrNull { it.id == id }
 
-        fun fromStoredString(raw: String?): List<NavDestinationId> {
+        fun fromStoredString(raw: String?, maxPinned: Int = MAX_PINNED): List<NavDestinationId> {
             if (raw.isNullOrBlank()) return DEFAULT_PINNED
             val parsed = raw.split(",")
                 .mapNotNull { fromId(it.trim()) }
                 .distinct()
-                .take(MAX_PINNED)
+                .take(maxPinned)
             return parsed.ifEmpty { DEFAULT_PINNED }
         }
     }
@@ -66,6 +67,7 @@ data class StoredUiPreferences(
     val showFilmSimulation: Boolean = true,
     val showRating: Boolean = true,
     val pinnedNavIds: List<NavDestinationId> = NavDestinationId.DEFAULT_PINNED,
+    val railPinnedNavIds: List<NavDestinationId> = pinnedNavIds,
 )
 
 private val Context.uiDataStore: DataStore<Preferences> by
@@ -83,6 +85,7 @@ class UiPreferences(
         val ShowFilmSimulation = booleanPreferencesKey("ui.show_film_simulation")
         val ShowRating = booleanPreferencesKey("ui.show_rating")
         val PinnedNavIds = stringPreferencesKey("ui.pinned_nav_ids")
+        val RailPinnedNavIds = stringPreferencesKey("ui.rail_pinned_nav_ids")
     }
 
     val preferences: Flow<StoredUiPreferences> = dataStore.data.map { prefs ->
@@ -93,14 +96,17 @@ class UiPreferences(
             showFilmSimulation = prefs[Keys.ShowFilmSimulation] ?: true,
             showRating = prefs[Keys.ShowRating] ?: true,
             pinnedNavIds = NavDestinationId.fromStoredString(prefs[Keys.PinnedNavIds]),
+            railPinnedNavIds = NavDestinationId.fromStoredString(
+                prefs[Keys.RailPinnedNavIds] ?: prefs[Keys.PinnedNavIds], NavDestinationId.MAX_RAIL_PINNED,
+            ),
         )
     }
 
-    suspend fun setPinnedNavIds(ids: List<NavDestinationId>) {
-        val normalized = ids.distinct().take(NavDestinationId.MAX_PINNED)
+    suspend fun setPinnedNavIds(ids: List<NavDestinationId>, forRail: Boolean = false) {
+        val normalized = ids.distinct().take(if (forRail) NavDestinationId.MAX_RAIL_PINNED else NavDestinationId.MAX_PINNED)
         if (normalized.isEmpty()) return
         dataStore.edit { prefs ->
-            prefs[Keys.PinnedNavIds] = normalized.joinToString(",") { it.id }
+            prefs[if (forRail) Keys.RailPinnedNavIds else Keys.PinnedNavIds] = normalized.joinToString(",") { it.id }
         }
     }
 
