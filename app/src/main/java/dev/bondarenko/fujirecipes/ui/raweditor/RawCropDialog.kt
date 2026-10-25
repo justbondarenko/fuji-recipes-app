@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
@@ -220,9 +221,9 @@ internal fun RawCropDialog(
                 val straightenControl: @Composable () -> Unit = {
                     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("$straightenLabel  ${straighten.formatValue(java.util.Locale.getDefault())}",
-                            Modifier.pointerInput(Unit) { detectTapGestures(onDoubleTap = { currentStraighten.onChange(0f) }) },
+                            Modifier.height(48.dp).wrapContentHeight(Alignment.CenterVertically).pointerInput(Unit) { detectTapGestures(onDoubleTap = { currentStraighten.onChange(0f) }) },
                             style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                        RawParameterSlider(straighten, Modifier.fillMaxWidth())
+                        RawParameterWheel(straighten, Modifier.fillMaxWidth())
                         Box(Modifier.height(4.dp).fillMaxWidth()) { if (rendering) LinearProgressIndicator(Modifier.fillMaxWidth()) }
                     }
                 }

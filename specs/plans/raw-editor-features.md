@@ -475,3 +475,45 @@ animated tab taps, and navigates all categories in both directions at compact
 and wide sizes. Slider/curve editing, carousel scrolling, vertical scrolling,
 busy/end bounds, framing, zoom, comparison, and resets also pass. The updated
 APK is installed; image processing and export code are unchanged.
+
+Horizontal wheels and stable parameter titles (2026-10-25):
+
+- [x] Give parameter titles and selectors the same fixed 48 dp title area.
+  Switching between Grain/Vignette selectors and single-parameter Effects
+  options keeps the preview bounds unchanged. Each parameter remains
+  independently adjustable, including the paired controls.
+- [x] Replace Material XS sliders with the shared RawParameterWheel in the
+  compact editor, wide lists, framing, and mask controls. A stationary center
+  marker selects from a horizontally scrolling ruler; dragging left increases
+  the value. Ticks and major-value labels move underneath the marker.
+- [x] Use native LazyRow scrolling with deceleration and center snapping.
+  Repeated small movements retain their fraction until they cross a parameter
+  step. Tapping does not jump to an absolute position. Values keep the existing
+  precision and range limits.
+- [x] Keep name double-tap resets and accessible range/reset actions. External
+  resets stop an active fling, disabled controls do not edit, and keyboard
+  arrows/Home/End adjust the focused wheel. Shared horizontal scroll boundaries
+  keep wheel and option-row movement from switching categories at range ends.
+
+Verification: debug and instrumentation APK builds passed. All twelve
+RawEditorLayoutTest checks passed on the connected SM-F976B, covering compact
+and wide layouts, unchanged Effects preview bounds, independent paired
+controls, wheel precision, momentum, reset during a fling, disabled input,
+keyboard/accessibility actions, and category gesture ownership. The app-only
+capture confirms the fixed center marker and labeled ruler. The updated APK
+is installed; image processing and export code are unchanged.
+
+Paired wheel layout (2026-10-25):
+
+- [x] Place compact two-parameter options in one row, with equal half-width
+  columns and independent titles, wheels, values, and resets. Applies to
+  Highlights/Whites, Shadows/Blacks, Sharpening/Radius, Color/Luminance noise,
+  Perspective, Defringe, and Color alignment. Single parameters and selectors
+  retain the same title/wheel height; the wide scrolling list is unchanged.
+
+Verification: debug and instrumentation APK builds passed, and all thirteen
+RawEditorLayoutTest checks passed on SM-F976B. The paired-layout check covers
+all seven pairs, equal half-width columns, matching vertical bounds, and
+unchanged preview bounds when switching from single to paired controls.
+Independent values and resets continue to pass in compact and wide layouts.
+The updated APK is installed.

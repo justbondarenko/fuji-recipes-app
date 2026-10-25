@@ -274,7 +274,7 @@ from fixed presets with the same numerical ratio; all crop fitting and locking
 continue to use the existing sensor/output mapping.
 
 
-All RAW parameter inputs now use RawParameterSlider, a shared Material 3 Slider
+The earlier RAW parameter inputs used RawParameterSlider, a shared Material 3 Slider
 with default XS dimensions and the library Label/PlainTooltip on its thumb.
 Positive/negative ranges use CenteredTrack; unipolar ranges use Track. Steps
 are derived from the existing displayed precision and rounding keeps exact
@@ -303,3 +303,21 @@ accessibility tree. The photo preview is outside the pager, retaining
 comparison, zoom, and pan; descendant editing controls keep their gestures.
 The option carousel uses a nested-scroll boundary to consume leftover
 horizontal scroll and fling movement before it reaches the category pager.
+
+Current parameter inputs use RawParameterWheel, replacing the Material XS
+sliders above. Its custom ruler drawing sits in a native LazyRow with fixed
+8 dp tick spacing, a stationary center marker, and native center-snapping
+flings. Value steps use RawParam's existing display precision. The nearest
+center tick updates the adjustment during drag and deceleration; external
+values and resets use requestScrollToItem so synchronization schedules a
+remeasure rather than forcing nested layout work. Parameter titles and
+selectors share a fixed 48 dp header, eliminating the Effects preview jump.
+The same wheel serves framing and mask parameters; accessible progress/reset
+actions and keyboard input operate on the existing parameter callbacks.
+Compact options with two parameters place their independently adjustable
+wheels in equal-width columns in one row, keeping the same height as a single
+parameter. The wide layout retains its vertical list of individual controls.
+
+Native behavior follows the official
+[snapping API](https://developer.android.com/reference/kotlin/androidx/compose/foundation/gestures/snapping/package-summary)
+and [LazyListState requests](https://developer.android.com/reference/kotlin/androidx/compose/foundation/lazy/LazyListState).

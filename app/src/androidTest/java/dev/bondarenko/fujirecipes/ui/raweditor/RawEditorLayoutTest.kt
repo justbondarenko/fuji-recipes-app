@@ -32,6 +32,12 @@ import androidx.compose.ui.test.isPopup
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
 import androidx.compose.ui.test.performScrollTo
@@ -149,7 +155,7 @@ class RawEditorLayoutTest {
             }
         }
         val categories = listOf("Light", "Color", "Details", "Curves", "Effects", "Optics", "Masks")
-        val firstSliders = listOf(R.string.raw_editor_exposure, R.string.raw_editor_temperature, R.string.raw_editor_sharpening,
+        val firstWheels = listOf(R.string.raw_editor_exposure, R.string.raw_editor_temperature, R.string.raw_editor_sharpening,
             null, R.string.raw_editor_grain_amount, R.string.raw_editor_distortion, null)
         fun swipeEmpty(index: Int, left: Boolean) {
             val controls = compose.onNodeWithTag("raw-editor-controls")
@@ -157,7 +163,7 @@ class RawEditorLayoutTest {
             val after = when (index) {
                 3 -> compose.onNodeWithTag("raw-tone-curve").fetchSemanticsNode().boundsInRoot
                 6 -> compose.onNodeWithTag("raw-editor-options").fetchSemanticsNode().boundsInRoot
-                else -> compose.onNodeWithTag("raw-editor-slider-${firstSliders[index]}").fetchSemanticsNode().boundsInRoot
+                else -> compose.onNodeWithTag("raw-editor-wheel-${firstWheels[index]}").fetchSemanticsNode().boundsInRoot
             }
             controls.performTouchInput {
                 val y = after.bottom - bounds.top + 3.dp.toPx()
@@ -171,7 +177,7 @@ class RawEditorLayoutTest {
             val pagerBounds = pager.getUnclippedBoundsInRoot()
             val tabs = compose.onNodeWithTag("raw-editor-groups").getUnclippedBoundsInRoot()
             val start = compose.onNodeWithTag("raw-editor-page-0").getUnclippedBoundsInRoot()
-            val exposure = compose.onNodeWithTag("raw-editor-slider-${R.string.raw_editor_exposure}").fetchSemanticsNode().boundsInRoot
+            val exposure = compose.onNodeWithTag("raw-editor-wheel-${R.string.raw_editor_exposure}").fetchSemanticsNode().boundsInRoot
             val pagerTop = pager.fetchSemanticsNode().boundsInRoot.top
             compose.mainClock.autoAdvance = false
             pager.performTouchInput {
@@ -218,8 +224,8 @@ class RawEditorLayoutTest {
             swipeEmpty(0, true)
             compose.onNodeWithText("Light").assertIsSelected()
             compose.runOnIdle { state = state.copy(busy = false) }
-            compose.onNodeWithTag("raw-editor-slider-${R.string.raw_editor_exposure}").performTouchInput {
-                swipe(center, Offset(width * .8f, center.y), 200)
+            compose.onNodeWithTag("raw-editor-wheel-${R.string.raw_editor_exposure}").performTouchInput {
+                swipe(center, Offset(width * .2f, center.y), 200)
             }
             compose.onNodeWithText("Light").assertIsSelected()
             compose.runOnIdle { assertTrue(state.adjustments.exposure > 0f) }
@@ -235,7 +241,7 @@ class RawEditorLayoutTest {
             if (size.width >= 700.dp) {
                 compose.onNodeWithText("Effects").performScrollTo().performClick()
                 val before = state.adjustments
-                val list = compose.onNodeWithTag("raw-editor-slider-list")
+                val list = compose.onNodeWithTag("raw-editor-wheel-list")
                 list.performTouchInput { swipeUp() }
                 compose.onNodeWithText("Effects").assertIsSelected()
                 assertTrue(list.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value() > 0f)
@@ -257,7 +263,7 @@ class RawEditorLayoutTest {
     }
 
     @Test
-    fun widePanelListsAllSlidersBelowFixedTabsAndPreservesEditsWhenResized() {
+    fun widePanelListsAllWheelsBelowFixedTabsAndPreservesEditsWhenResized() {
         val bitmap = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888)
         val original = RawAdjustments(exposure = .6f, grainAmount = .4f, vignette = -.3f)
         var state by mutableStateOf(RawEditorState(preview = bitmap, cameraImage = bitmap, adjustments = original))
@@ -274,13 +280,13 @@ class RawEditorLayoutTest {
             "Effects" to listOf(R.string.raw_editor_grain_amount, R.string.raw_editor_grain_size, R.string.raw_editor_grain_roughness, R.string.raw_editor_clarity, R.string.raw_editor_texture, R.string.raw_editor_dehaze, R.string.raw_editor_vignette, R.string.raw_editor_vignette_midpoint, R.string.raw_editor_vignette_roundness, R.string.raw_editor_vignette_feather),
             "Optics" to listOf(R.string.raw_editor_distortion, R.string.raw_editor_perspective_vertical, R.string.raw_editor_perspective_horizontal, R.string.raw_editor_defringe_green, R.string.raw_editor_defringe_purple, R.string.raw_editor_chromatic_red, R.string.raw_editor_chromatic_blue),
         )
-        fun sliderTags(node: androidx.compose.ui.semantics.SemanticsNode): List<String> =
-            listOfNotNull(node.config.getOrElse(SemanticsProperties.TestTag) { "" }.takeIf { it.startsWith("raw-editor-slider-") && node.config.contains(SemanticsProperties.ProgressBarRangeInfo) }) + node.children.flatMap(::sliderTags)
+        fun wheelTags(node: androidx.compose.ui.semantics.SemanticsNode): List<String> =
+            listOfNotNull(node.config.getOrElse(SemanticsProperties.TestTag) { "" }.takeIf { it.startsWith("raw-editor-wheel-") && node.config.contains(SemanticsProperties.ProgressBarRangeInfo) }) + node.children.flatMap(::wheelTags)
         expected.forEach { (category, ids) ->
             compose.onNodeWithText(category).performScrollTo().performClick()
             compose.onNodeWithTag("raw-editor-options").assertDoesNotExist()
             compose.onNodeWithTag("raw-editor-parameter-selector", useUnmergedTree = true).assertDoesNotExist()
-            assertEquals(ids.map { "raw-editor-slider-$it" }, sliderTags(compose.onNodeWithTag("raw-editor-slider-list").fetchSemanticsNode()))
+            assertEquals(ids.map { "raw-editor-wheel-$it" }, wheelTags(compose.onNodeWithTag("raw-editor-wheel-list").fetchSemanticsNode()))
         }
         compose.onNodeWithText("Curves").performScrollTo().performClick()
         compose.onNodeWithTag("raw-tone-curve").performScrollTo().assertIsDisplayed()
@@ -298,7 +304,7 @@ class RawEditorLayoutTest {
             assertTrue("The slider list stays beside the photo",preview.right <= icon.left)
             compose.onNodeWithText("Effects").performScrollTo().performClick()
             val fixedTabs = compose.onNodeWithTag("raw-editor-groups").fetchSemanticsNode().boundsInRoot
-            val feather = compose.onNodeWithTag("raw-editor-slider-${R.string.raw_editor_vignette_feather}")
+            val feather = compose.onNodeWithTag("raw-editor-wheel-${R.string.raw_editor_vignette_feather}")
             feather.performScrollTo().assertIsDisplayed().performSemanticsAction(SemanticsActions.SetProgress) { it(.7f) }
             compose.runOnIdle { assertEquals(original.copy(vignetteFeather = .7f),state.adjustments) }
             assertEquals(fixedTabs,compose.onNodeWithTag("raw-editor-groups").fetchSemanticsNode().boundsInRoot)
@@ -309,7 +315,7 @@ class RawEditorLayoutTest {
             compose.onNodeWithTag("raw-editor-crop").assertIsDisplayed()
             compose.runOnIdle { size = DpSize(393.dp, 800.dp) }
             compose.onNodeWithText("Effects").assertIsSelected()
-            compose.onNodeWithTag("raw-editor-slider-list").assertDoesNotExist()
+            compose.onNodeWithTag("raw-editor-wheel-list").assertDoesNotExist()
             compose.onNodeWithTag("raw-editor-options").assertIsDisplayed()
             compose.runOnIdle { assertEquals(original,state.adjustments) }
         }
@@ -392,7 +398,44 @@ class RawEditorLayoutTest {
     }
 
     @Test
-    fun groupedToneSlidersKeepEveryParameterIndependent() {
+    fun pairedWheelsShareOneRowAndKeepPreviewStill() {
+        val bitmap = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888)
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(393.dp, 800.dp))) {
+                FujiTheme { RawEditorScreen(RawEditorState(preview = bitmap), {}, {}, {}, {}) }
+            }
+        }
+        val photo = compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot()
+        val pairs = listOf(
+            Triple("Light", "Highlights", R.string.raw_editor_highlights to R.string.raw_editor_whites),
+            Triple("Light", "Shadows", R.string.raw_editor_shadows to R.string.raw_editor_blacks),
+            Triple("Details", "Sharpening", R.string.raw_editor_sharpening to R.string.raw_editor_radius),
+            Triple("Details", "Noise Reduction", R.string.raw_editor_color_noise to R.string.raw_editor_luminance_noise),
+            Triple("Optics", "Perspective", R.string.raw_editor_perspective_vertical to R.string.raw_editor_perspective_horizontal),
+            Triple("Optics", "Defringe", R.string.raw_editor_defringe_green to R.string.raw_editor_defringe_purple),
+            Triple("Optics", "Color alignment", R.string.raw_editor_chromatic_red to R.string.raw_editor_chromatic_blue),
+        )
+        pairs.forEach { (category, option, ids) ->
+            compose.onNodeWithText(category).performScrollTo().performClick()
+            // Optics has its own information note; compare against a single wheel in that category.
+            if (category == "Optics") compose.onNodeWithContentDescription("Distortion controls").performScrollTo().performClick()
+            val before = compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot()
+            compose.onNodeWithContentDescription("$option controls").performScrollTo().performClick()
+            val left = compose.onNodeWithTag("raw-editor-wheel-${ids.first}").assertIsDisplayed().getUnclippedBoundsInRoot()
+            val right = compose.onNodeWithTag("raw-editor-wheel-${ids.second}").assertIsDisplayed().getUnclippedBoundsInRoot()
+            assertEquals(left.top.value, right.top.value, .5f)
+            assertEquals(left.bottom.value, right.bottom.value, .5f)
+            assertEquals((left.right - left.left).value, (right.right - right.left).value, .5f)
+            assertTrue(left.right <= right.left)
+            val page = compose.onNodeWithTag("raw-editor-pager").getUnclippedBoundsInRoot()
+            assertEquals((page.right - page.left).value / 2 - 40f, (left.right - left.left).value, .5f)
+            assertEquals(before, compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot())
+            if (category == "Light") assertEquals(photo, before)
+        }
+    }
+
+    @Test
+    fun groupedToneWheelsKeepEveryParameterIndependent() {
         val bitmap = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888)
         val original = RawAdjustments(exposure = .6f, highlights = -.3f, whites = .4f, shadows = .5f, blacks = -.2f)
         var state by mutableStateOf(RawEditorState(name = "sample.RAF", preview = bitmap, adjustments = original))
@@ -406,17 +449,16 @@ class RawEditorLayoutTest {
                 ) }
             }
         }
-        fun slider(id: Int) = compose.onNodeWithTag("raw-editor-slider-$id")
+        fun wheel(id: Int) = compose.onNodeWithTag("raw-editor-wheel-$id").also { if (wide) it.performScrollTo() }
         fun set(id: Int, value: Float) {
-            val control = slider(id)
-            if (wide) control.performScrollTo()
+            val control = wheel(id)
             control.performSemanticsAction(SemanticsActions.SetProgress) { it(value) }
         }
         for (expanded in listOf(false, true)) {
             compose.runOnIdle { wide = expanded; state = state.copy(adjustments = original) }
             if (!expanded) compose.onNodeWithContentDescription("Highlights controls").performClick()
-            slider(R.string.raw_editor_highlights).assertIsDisplayed()
-            slider(R.string.raw_editor_whites).assertIsDisplayed()
+            wheel(R.string.raw_editor_highlights).assertIsDisplayed()
+            wheel(R.string.raw_editor_whites).assertIsDisplayed()
             if (!expanded) compose.onNodeWithContentDescription("Shadows").assertDoesNotExist()
             compose.runOnIdle { assertEquals(original, state.adjustments) }
             set(R.string.raw_editor_highlights, -.6f)
@@ -429,8 +471,8 @@ class RawEditorLayoutTest {
             if (!expanded) compose.onNodeWithContentDescription("Highlights controls").performTouchInput { doubleClick() }
             compose.runOnIdle { assertEquals(original.copy(highlights = 0f, whites = .2f), state.adjustments) }
             if (!expanded) compose.onNodeWithContentDescription("Shadows controls").performClick()
-            slider(R.string.raw_editor_shadows).assertIsDisplayed()
-            slider(R.string.raw_editor_blacks).assertIsDisplayed()
+            wheel(R.string.raw_editor_shadows).assertIsDisplayed()
+            wheel(R.string.raw_editor_blacks).assertIsDisplayed()
             if (!expanded) compose.onNodeWithContentDescription("Whites").assertDoesNotExist()
             set(R.string.raw_editor_shadows, .3f)
             set(R.string.raw_editor_blacks, -.6f)
@@ -486,7 +528,7 @@ class RawEditorLayoutTest {
     }
 
     @Test
-    fun materialSliderHasStepsValueIndicatorAndFineDragging() {
+    fun wheelHasFineStepsInertiaResetAndDisabledSemantics() {
         var value by mutableStateOf(0f)
         var enabled by mutableStateOf(true)
         val exposure = RawParam(R.string.raw_editor_exposure, FujiIcons.Exposure, 0f, -3f..3f, true, 1f, 1, " EV") {}
@@ -496,30 +538,111 @@ class RawEditorLayoutTest {
         assertEquals(24, exposure.copy(range = .5f..3f).steps)
         assertEquals(99, exposure.copy(range = 0f..1f, displayScale = 100f, decimals = 0).steps)
         compose.setContent {
-            FujiTheme {
-                Box(Modifier.fillMaxSize().safeDrawingPadding(),contentAlignment=Alignment.Center) {
-                    RawParameterSlider(exposure.copy(value = value, enabled = enabled, onChange = { value = it }), Modifier.fillMaxWidth())
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(393.dp, 800.dp))) {
+                FujiTheme {
+                    Box(Modifier.fillMaxSize().safeDrawingPadding(), contentAlignment = Alignment.Center) {
+                        RawParameterWheel(exposure.copy(value = value, enabled = enabled, onChange = { value = it }), Modifier.fillMaxWidth())
+                    }
                 }
             }
         }
-        val slider = compose.onNodeWithTag("raw-editor-slider-${R.string.raw_editor_exposure}")
-        assertEquals(59, slider.fetchSemanticsNode().config[SemanticsProperties.ProgressBarRangeInfo].steps)
-        compose.onNodeWithTag("raw-editor-slider-value", useUnmergedTree = true).assertDoesNotExist()
-        slider.performTouchInput { down(center); moveBy(Offset(width*.1f,0f),200) }
+        val wheel = compose.onNodeWithTag("raw-editor-wheel-${R.string.raw_editor_exposure}")
+        assertEquals(59, wheel.fetchSemanticsNode().config[SemanticsProperties.ProgressBarRangeInfo].steps)
+        wheel.performSemanticsAction(SemanticsActions.SetProgress) {
+            assertEquals(false, it(Float.NaN))
+            assertEquals(false, it(Float.POSITIVE_INFINITY))
+        }
+        wheel.performTouchInput { click(centerRight) }
+        compose.runOnIdle { assertEquals(0f, value) }
+        wheel.performTouchInput { down(center); moveBy(Offset(-width * .1f, 0f), 200) }
         compose.mainClock.advanceTimeBy(300)
-        compose.onNodeWithTag("raw-editor-slider-value", useUnmergedTree = true).assertIsDisplayed()
         var before = 0f
-        compose.runOnIdle { before = value }
-        slider.performTouchInput {
-            repeat(30) { moveBy(Offset(width/600f,0f),16) }
+        compose.runOnIdle { before = value; assertTrue(value > 0f) }
+        wheel.performTouchInput {
+            repeat(30) { moveBy(Offset(-width / 600f, 0f), 16) }
+            advanceEventTime(200)
             up()
         }
-        compose.runOnIdle { assertTrue("Fine drag must retain sub-step movement",value >= before+.2f) }
-        compose.mainClock.advanceTimeBy(500)
-        compose.onNodeWithTag("raw-editor-slider-value", useUnmergedTree = true).assertDoesNotExist()
+        compose.runOnIdle { assertTrue("Fine drag must retain sub-step movement", value >= before + .2f) }
+        wheel.performCustomAccessibilityActionWithLabel("Reset Exposure")
+        compose.runOnIdle { assertEquals(0f, value) }
+        compose.mainClock.autoAdvance = false
+        wheel.performTouchInput {
+            down(center)
+            repeat(6) { moveBy(Offset(-width * .04f, 0f), delayMillis = 10) }
+        }
+        compose.mainClock.advanceTimeByFrame()
+        compose.runOnIdle { before = value }
+        wheel.performTouchInput { up() }
+        compose.mainClock.advanceTimeBy(200)
+        compose.runOnIdle { assertTrue("The wheel must coast after release: $before → $value", value > before) }
+        compose.runOnIdle { value = 0f }
+        compose.mainClock.advanceTimeBy(2000)
+        compose.mainClock.autoAdvance = true
+        compose.runOnIdle { assertEquals("External reset must stop the fling", 0f, value) }
+        wheel.performSemanticsAction(SemanticsActions.SetProgress) { it(100f) }
+        compose.runOnIdle { assertEquals(3f, value) }
+        wheel.performTouchInput { swipe(center, centerLeft, 200) }
+        compose.runOnIdle { assertEquals(3f, value) }
+        wheel.performCustomAccessibilityActionWithLabel("Reset Exposure")
+        wheel.performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+        wheel.performKeyInput { pressKey(Key.DirectionRight) }
+        compose.runOnIdle { assertEquals(.1f, value) }
+        wheel.performKeyInput { pressKey(Key.DirectionLeft) }
+        compose.runOnIdle { assertEquals(0f, value) }
+        wheel.performKeyInput { pressKey(Key.MoveEnd) }
+        compose.runOnIdle { assertEquals(3f, value) }
+        wheel.performKeyInput { pressKey(Key.MoveHome) }
+        compose.runOnIdle { assertEquals(-3f, value) }
+        wheel.performCustomAccessibilityActionWithLabel("Reset Exposure")
         compose.runOnIdle { enabled = false; before = value }
-        slider.assertIsNotEnabled().performTouchInput { click(centerRight) }
-        compose.runOnIdle { assertEquals(before,value) }
+        wheel.assertIsNotEnabled().performTouchInput { swipe(center, centerLeft, 200) }
+        compose.runOnIdle { assertEquals(before, value) }
+    }
+
+    @Test
+    fun fixedTitleAndSelectorHeightKeepsEffectsPreviewStill() {
+        val bitmap = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888)
+        var state by mutableStateOf(RawEditorState(preview = bitmap, adjustments = RawAdjustments(grainAmount = .4f, vignette = -.3f)))
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(393.dp, 800.dp))) {
+                FujiTheme { RawEditorScreen(state, {}, {}, { state = state.copy(adjustments = it) }, {}) }
+            }
+        }
+        compose.onNodeWithText("Effects").performScrollTo().performClick()
+        val photo = compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot()
+        fun check(id: Int) {
+            val title = compose.onNodeWithTag("raw-editor-title-$id").getUnclippedBoundsInRoot()
+            assertEquals(48f, (title.bottom - title.top).value, .5f)
+            compose.onNodeWithTag("raw-editor-wheel-$id").assertIsDisplayed()
+            assertEquals(photo, compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot())
+        }
+        check(R.string.raw_editor_grain_amount)
+        listOf("Clarity" to R.string.raw_editor_clarity, "Texture" to R.string.raw_editor_texture,
+            "Dehaze" to R.string.raw_editor_dehaze).forEach { (name,id) ->
+            compose.onNodeWithContentDescription("$name controls").performScrollTo().performClick()
+            check(id)
+        }
+        compose.onNodeWithContentDescription("Grain controls").performScrollTo().performClick()
+        check(R.string.raw_editor_grain_amount)
+        listOf("Size" to R.string.raw_editor_grain_size, "Roughness" to R.string.raw_editor_grain_roughness).forEach { (name,id) ->
+            compose.onNodeWithTag("raw-editor-parameter-selector", useUnmergedTree = true).performClick()
+            compose.onNodeWithText(name).performClick()
+            check(id)
+        }
+        compose.onNodeWithContentDescription("Vignette controls").performScrollTo().performClick()
+        check(R.string.raw_editor_vignette)
+        listOf("Midpoints" to R.string.raw_editor_vignette_midpoint, "Roundness" to R.string.raw_editor_vignette_roundness,
+            "Feather" to R.string.raw_editor_vignette_feather).forEach { (name,id) ->
+            compose.onNodeWithTag("raw-editor-parameter-selector", useUnmergedTree = true).performClick()
+            compose.onNodeWithText(name).performClick()
+            check(id)
+        }
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        val capture = compose.onRoot().captureToImage().asAndroidBitmap()
+        java.io.File(context.cacheDir, "raw-wheel-effects.png").outputStream().use {
+            capture.compress(Bitmap.CompressFormat.PNG, 100, it)
+        }
     }
 
     @Test

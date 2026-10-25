@@ -76,8 +76,8 @@ private fun CreativeParameters(params: List<RawParam>) {
     val index = selected.coerceIn(0, params.lastIndex)
     val active = params[index]
     Text("${stringResource(active.labelRes)}  ${active.formatValue(LocalConfiguration.current.locales[0])}",
-        style = MaterialTheme.typography.labelLarge, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp))
-    RawParameterSlider(active, Modifier.fillMaxWidth().padding(horizontal = 16.dp))
+        style = MaterialTheme.typography.labelLarge, modifier = Modifier.fillMaxWidth().height(48.dp).wrapContentHeight(Alignment.CenterVertically).padding(horizontal = 16.dp), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+    RawParameterWheel(active, Modifier.fillMaxWidth().padding(horizontal = 16.dp))
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         params.forEachIndexed { i, param -> RawParamCircle(param, i == index, { selected = i }) }
