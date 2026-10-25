@@ -336,6 +336,21 @@ existing headers. The obvious crop caption and duplicate loading captions
 are omitted. Errors remain visible through overlay snackbars, and progress
 indicators reserve their height so state changes do not resize the preview.
 
+Compact Curves uses a square graph over the photo, leaving Crop and Compare
+clear and tappable. Channels, help, and reset sit underneath it.
+The compact pager is 212 dp tall for every category, including two-line option
+labels, so the preview does not resize when entering or leaving Curves. The
+overlay follows the native pager offset and hides its inactive semantics.
+Wide layouts keep the graph in the sidebar and place channels beneath it.
+Channel selection uses connected Material 3 ToggleButtons labeled Master,
+Red, Green, and Blue. Question-mark help and Reset channel occupy a separate
+row below the selector, within the existing compact control-area height.
+Point editing and rendering still use the same curve adjustments.
+The graph's idle background is 8% black. Pressing its line or dragging a point
+makes the background, border, and grid fully transparent, leaving the curve
+and handles visible over the live edit. Release or cancellation restores the
+idle appearance; channel/disabled changes clear transient interaction state.
+
 Native behavior follows the official
 [snapping API](https://developer.android.com/reference/kotlin/androidx/compose/foundation/gestures/snapping/package-summary)
 and [LazyListState requests](https://developer.android.com/reference/kotlin/androidx/compose/foundation/lazy/LazyListState).

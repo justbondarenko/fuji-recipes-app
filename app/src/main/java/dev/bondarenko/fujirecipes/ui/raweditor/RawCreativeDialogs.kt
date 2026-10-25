@@ -4,7 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -33,7 +33,8 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -85,20 +86,63 @@ private fun CreativeParameters(params: List<RawParam>) {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun RawToneCurveEditor(state: RawEditorState, onAdjust: (RawAdjustments) -> Unit, maxGraphSize: Dp, enabled: Boolean = true) {
-    var channel by rememberSaveable(state.name) { mutableIntStateOf(0) }
+internal fun RawToneCurveControls(
+    state: RawEditorState, onAdjust: (RawAdjustments) -> Unit, channel: Int, onChannel: (Int) -> Unit,
+    enabled: Boolean, modifier: Modifier,
+) {
+    val curve = state.adjustments.curves.channels[channel]
+    val labels = listOf(R.string.raw_editor_master, R.string.raw_editor_red, R.string.raw_editor_green, R.string.raw_editor_blue)
+    Column(modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth().height(48.dp).testTag("raw-curve-channels").selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
+            labels.forEachIndexed { index, labelRes ->
+                val label = stringResource(labelRes)
+                ToggleButton(
+                    checked = channel == index,
+                    onCheckedChange = { onChannel(index) },
+                    enabled = enabled,
+                    modifier = Modifier.weight(1f).semantics { contentDescription = label; role = Role.RadioButton },
+                    shapes = when (index) {
+                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                        labels.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                    },
+                    contentPadding = PaddingValues(horizontal = 8.dp),
+                ) { Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1) }
+            }
+        }
+        Row(Modifier.fillMaxWidth().height(48.dp).testTag("raw-curve-actions"),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+            RawEditorHelp(stringResource(R.string.raw_editor_curve_hint), Modifier.testTag("raw-curve-help"))
+            OutlinedButton({ onAdjust(state.adjustments.copy(curves = state.adjustments.curves.updated(channel, RawCurve()))) },
+                enabled = enabled && curve != RawCurve()) {
+                Icon(FujiIcons.Refresh, null, Modifier.size(ButtonDefaults.IconSize))
+                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                Text(stringResource(R.string.raw_editor_reset_curve))
+            }
+        }
+        Spacer(Modifier.weight(1f))
+    }
+}
+
+@Composable
+internal fun RawToneCurveGraph(state: RawEditorState, onAdjust: (RawAdjustments) -> Unit, channel: Int, modifier: Modifier, enabled: Boolean) {
     var selected by rememberSaveable(state.name, channel) { mutableIntStateOf(0) }
     val curves = state.adjustments.curves
     val curve = curves.channels[channel]
     val index = selected.coerceIn(0, curve.points.lastIndex)
     val point = curve.points[index]
     val editable = enabled && !state.busy
+    var pressedOnCurve by remember(state.name, channel, editable) { mutableStateOf(false) }
+    var draggingPoint by remember(state.name, channel, editable) { mutableStateOf(false) }
+    val interacting = pressedOnCurve || draggingPoint
     val change: (RawCurve) -> Unit = { onAdjust(state.adjustments.copy(curves = curves.updated(channel, it))) }
     val currentCurve by rememberUpdatedState(curve)
     val currentChange by rememberUpdatedState(change)
-    val grid = MaterialTheme.colorScheme.outlineVariant
-    val colors = listOf(Color.Gray, Color(0xffef6c6c), Color(0xff66bb6a), Color(0xff64a6f0))
+    val grid = Color.White.copy(alpha = if (interacting) 0f else .3f)
+    val colors = listOf(Color.LightGray, Color(0xffef6c6c), Color(0xff66bb6a), Color(0xff64a6f0))
     val description = stringResource(R.string.raw_editor_curve_hint)
     val actionLabels = listOf(R.string.raw_editor_previous_point, R.string.raw_editor_next_point,
         R.string.raw_editor_add_point, R.string.raw_editor_remove_point, R.string.raw_editor_reset_curve,
@@ -110,22 +154,7 @@ internal fun RawToneCurveEditor(state: RawEditorState, onAdjust: (RawAdjustments
             selected = (i-1).coerceAtLeast(0)
         } else currentChange(currentCurve.moved(i,currentCurve.points[i].x,currentCurve.points[i].x))
     }
-    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        FilterChip(channel == 0, { channel = 0 }, { Text(stringResource(R.string.raw_editor_master)) })
-        listOf(R.string.raw_editor_red, R.string.raw_editor_green, R.string.raw_editor_blue).forEachIndexed { i,label ->
-            val channelLabel = stringResource(label)
-            IconToggleButton(channel == i+1, { channel = i+1 }, modifier = Modifier.semantics { contentDescription = channelLabel }) {
-                Box(Modifier.size(24.dp).background(colors[i+1], CircleShape)
-                    .then(if (channel == i+1) Modifier.border(3.dp,MaterialTheme.colorScheme.onSurface,CircleShape) else Modifier))
-            }
-        }
-        Spacer(Modifier.weight(1f))
-        RawEditorHelp(description, Modifier.testTag("raw-curve-help"))
-        IconButton({ change(RawCurve()); selected = 0 }, enabled = editable && curve != RawCurve()) {
-            Icon(FujiIcons.Refresh, actionLabels[4])
-        }
-    }
-    Canvas(Modifier.padding(horizontal = 16.dp).widthIn(max = maxGraphSize).fillMaxWidth().aspectRatio(1f).testTag("raw-tone-curve").semantics {
+    Canvas(modifier.background(Color.Black.copy(alpha = if (interacting) 0f else .08f)).border(1.dp, grid).testTag("raw-tone-curve").semantics {
         contentDescription = description
         stateDescription = "${index+1}/${curve.points.size}: ${(point.x*100).toInt()}%, ${(point.y*100).toInt()}%"
         if (editable) customActions = buildList {
@@ -153,7 +182,11 @@ internal fun RawToneCurveEditor(state: RawEditorState, onAdjust: (RawAdjustments
         }.takeIf { i ->
             val p = currentCurve.points[i]; Offset(p.x*size.width-position.x,(1-p.y)*size.height-position.y).getDistance() <= 24.dp.toPx()
         }
-        detectTapGestures(onTap = { position ->
+        detectTapGestures(onPress = { position ->
+            val x = (position.x / size.width).coerceIn(0f, 1f)
+            pressedOnCurve = nearest(position) != null || abs(position.y - (1 - currentCurve.sample(x)) * size.height) <= 24.dp.toPx()
+            try { tryAwaitRelease() } finally { pressedOnCurve = false }
+        }, onTap = { position ->
             val existing = nearest(position)
             if (existing != null) selected = existing
             else {
@@ -175,7 +208,12 @@ internal fun RawToneCurveEditor(state: RawEditorState, onAdjust: (RawAdjustments
             }.takeIf { i ->
                 val p = currentCurve.points[i]; Offset(p.x*size.width-position.x,(1-p.y)*size.height-position.y).getDistance() <= 24.dp.toPx()
             } ?: -1
+            draggingPoint = dragged >= 0
             if (dragged >= 0) selected = dragged
+        }, onDragEnd = {
+            draggingPoint = false
+        }, onDragCancel = {
+            draggingPoint = false
         }, onDrag = { pointer,_ ->
             if (dragged in currentCurve.points.indices) {
                 pointer.consume()
