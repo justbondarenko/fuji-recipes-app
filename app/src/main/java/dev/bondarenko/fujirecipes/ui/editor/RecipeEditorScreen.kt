@@ -1,5 +1,7 @@
 package dev.bondarenko.fujirecipes.ui.editor
 
+import dev.bondarenko.fujirecipes.ui.common.FujiMenuItem
+import dev.bondarenko.fujirecipes.ui.common.FujiAnchoredMenu
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,11 +28,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SplitButtonDefaults
 import androidx.compose.material3.SplitButtonLayout
 import androidx.compose.material3.OutlinedTextField
@@ -460,30 +459,17 @@ private fun EditorActions(
             },
         )
 
-        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-            // 💡 SECONDARY ACTION STYLE — each item's icon and colours are set here.
-            //    `MenuDefaults.itemColors` colours the label and the icon together, so a
-            //    destructive item reads as destructive before it is read at all.
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_duplicate)) },
-                leadingIcon = {
-                    Icon(imageVector = FujiIcons.ContentCopy, contentDescription = null)
-                },
+        FujiAnchoredMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, groups = listOf({
+            FujiMenuItem(
+                text = stringResource(R.string.action_duplicate), icon = FujiIcons.ContentCopy,
                 onClick = { menuOpen = false; onDuplicate() },
             )
-            // Last, and in the error colour: the one item here that cannot be undone.
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.action_delete)) },
-                leadingIcon = {
-                    Icon(imageVector = FujiIcons.Delete, contentDescription = null)
-                },
-                colors = MenuDefaults.itemColors(
-                    textColor = MaterialTheme.colorScheme.error,
-                    leadingIconColor = MaterialTheme.colorScheme.error,
-                ),
+        }, {
+            FujiMenuItem(
+                text = stringResource(R.string.action_delete), icon = FujiIcons.Delete, destructive = true,
                 onClick = { menuOpen = false; onDelete() },
             )
-        }
+        }))
     }
 }
 

@@ -328,6 +328,9 @@ film profile and automatic lens correction, independently of current edits
 or framing. It shares the initial preview bitmap on a fresh open and renders
 the neutral settings separately when restoring saved adjustments. Comparison
 does not change adjustments or the export source.
+Comparison and grouped parameter choices use the same `FujiAnchoredMenu` and
+`FujiSelectionMenuItem` as crop, including vibrant colors, checked leading
+icons, selected item shapes, and shared bounded scrolling.
 
 Explanations do not occupy inline rows around the photo. Lens-correction
 status is available from a question-mark tooltip over the Optics preview;

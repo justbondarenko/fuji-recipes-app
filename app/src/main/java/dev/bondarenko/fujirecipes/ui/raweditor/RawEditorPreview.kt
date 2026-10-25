@@ -1,5 +1,7 @@
 package dev.bondarenko.fujirecipes.ui.raweditor
 
+import dev.bondarenko.fujirecipes.ui.common.FujiSelectionMenuItem
+import dev.bondarenko.fujirecipes.ui.common.FujiAnchoredMenu
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -8,9 +10,6 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -166,16 +165,16 @@ internal fun RawEditorPreview(
                     modifier = Modifier.testTag("raw-editor-compare"),
                 ) { Icon(FujiIcons.Compare, stringResource(if (showComparison) R.string.raw_editor_show_raw else R.string.raw_editor_compare)) }
             }
-            DropdownMenu(expanded = comparisonMenu && !state.busy, onDismissRequest = { comparisonMenu = false }) {
-                listOf(false, true).forEach { starting ->
-                    DropdownMenuItem(
-                        text = { Text(stringResource(if (starting) R.string.raw_editor_before_edits else R.string.raw_editor_embedded_jpeg)) },
-                        leadingIcon = { RadioButton(selected = compareStarting == starting, onClick = null) },
+            FujiAnchoredMenu(expanded = comparisonMenu && !state.busy, onDismissRequest = { comparisonMenu = false }, groups = listOf({
+                listOf(false, true).forEachIndexed { index, starting ->
+                    FujiSelectionMenuItem(
+                        text = stringResource(if (starting) R.string.raw_editor_before_edits else R.string.raw_editor_embedded_jpeg),
+                        selected = compareStarting == starting, index = index, count = 2,
                         enabled = (if (starting) state.startingImage else state.cameraImage) != null,
                         onClick = { compareStarting = starting; comparisonMenu = false; compare(true) },
                     )
                 }
-            }
+            }))
         }
         Surface(Modifier.align(Alignment.BottomEnd).padding(8.dp),
             shape = androidx.compose.foundation.shape.CircleShape,

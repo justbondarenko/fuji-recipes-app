@@ -1,5 +1,7 @@
 package dev.bondarenko.fujirecipes.ui.raweditor
 
+import dev.bondarenko.fujirecipes.ui.common.FujiSelectionMenuItem
+import dev.bondarenko.fujirecipes.ui.common.FujiAnchoredMenu
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -36,8 +38,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -526,14 +526,15 @@ fun RawEditorScreen(
                                                                     color = MaterialTheme.colorScheme.onSurface,
                                                                 )
                                                             }
-                                                            DropdownMenu(expanded = useSelector && selectorOpen, onDismissRequest = { selectorOpen = false }) {
+                                                            FujiAnchoredMenu(expanded = useSelector && selectorOpen, onDismissRequest = { selectorOpen = false }, groups = listOf({
                                                                 activeControls.forEachIndexed { index, parameter ->
-                                                                    DropdownMenuItem(
-                                                                        text = { Text(stringResource(if (parameter.labelRes == R.string.raw_editor_vignette) R.string.raw_editor_amount else parameter.labelRes)) },
+                                                                    FujiSelectionMenuItem(
+                                                                        text = stringResource(if (parameter.labelRes == R.string.raw_editor_vignette) R.string.raw_editor_amount else parameter.labelRes),
+                                                                        selected = selectedControl == index, index = index, count = activeControls.size,
                                                                         onClick = { selectedControl = index; selectorOpen = false },
                                                                     )
                                                                 }
-                                                            }
+                                                            }))
                                                         }
                                                         RawParameterWheel(control, Modifier.fillMaxWidth().padding(horizontal = 20.dp), label)
                                                     }

@@ -1,5 +1,6 @@
 package dev.bondarenko.fujirecipes.ui.raweditor
 
+import dev.bondarenko.fujirecipes.ui.common.FujiSelectionMenuItem
 import android.graphics.Bitmap
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -20,10 +21,8 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -131,10 +130,10 @@ internal fun RawCropDialog(
                         FujiAnchoredMenu(
                             expanded = ratioMenuOpen,
                             onDismissRequest = { ratioMenuOpen = false },
-                            modifier = Modifier.verticalScroll(rememberScrollState()),
                             groups = listOf({
                                 ratios.forEachIndexed { index, (name, value) ->
-                                    DropdownMenuItem(
+                                    FujiSelectionMenuItem(
+                                        text = name, index = index, count = ratios.size,
                                         selected = index == selectedRatio,
                                         enabled = geometryReady,
                                         onClick = {
@@ -143,10 +142,6 @@ internal fun RawCropDialog(
                                             if (value > 0) crop = crop.fitAspect(value, imageAspect)
                                             ratioMenuOpen = false
                                         },
-                                        text = { Text(name) },
-                                        shapes = MenuDefaults.itemShape(index, ratios.size),
-                                        selectedLeadingIcon = { Icon(FujiIcons.Check, null) },
-                                        colors = MenuDefaults.selectableItemVibrantColors(),
                                     )
                                 }
                             }),
