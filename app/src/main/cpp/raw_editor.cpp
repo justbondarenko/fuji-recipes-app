@@ -18,7 +18,7 @@ struct Session {
     std::vector<fuji::Rgb> preview, draftPreview, detailDraft;
     // ponytail: one full decode uses hundreds of MB; use tiled decoding on low-memory devices.
     std::unique_ptr<LibRaw> detailRaw;
-    Session(std::string p, std::string profile) : path(std::move(p)), lut(profile) {}
+    Session(std::string p, fuji::Lut profile) : path(std::move(p)), lut(std::move(profile)) {}
 };
 
 std::pair<int,int> previewDimensions(const Session& session, bool draft, bool details = false) {
@@ -121,16 +121,20 @@ fuji::Adjustments adjustments(JNIEnv* env, jfloatArray parameters) {
     env->GetFloatArrayRegion(parameters, 0, count, values.data());
     return fuji::Adjustments::read(values.data(), count);
 }
+
+fuji::Lut colorProfile(JNIEnv* env, jbyteArray profile) {
+    int length = env->GetArrayLength(profile);
+    if (length > 2 * 1024 * 1024) throw std::runtime_error("Color profile is too large.");
+    std::string text(length, '\0');
+    env->GetByteArrayRegion(profile, 0, length, reinterpret_cast<jbyte*>(text.data()));
+    return fuji::Lut(text);
+}
 }
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_open(JNIEnv* env, jobject, jstring path, jbyteArray profile) {
     try {
-        int length = env->GetArrayLength(profile);
-        if (length > 2 * 1024 * 1024) throw std::runtime_error("Color profile is too large.");
-        std::string text(length, '\0');
-        env->GetByteArrayRegion(profile, 0, length, reinterpret_cast<jbyte*>(text.data()));
-        auto session = std::make_unique<Session>(stringValue(env, path), text);
+        auto session = std::make_unique<Session>(stringValue(env, path), colorProfile(env, profile));
         std::pair<int, int> fullSize;
         auto raw = decodeRaf(session->path, true, &fullSize, &session->lens);
         auto [width, height] = dimensions(*raw);
@@ -154,6 +158,14 @@ Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_open(JNIEnv* env, jobje
             [&](int x,int y) { return session->draftPreview[y*draftWidth+x]; });
         return reinterpret_cast<jlong>(session.release());
     } catch (const std::exception& e) { failure(env, e); return 0; }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_dev_bondarenko_fujirecipes_data_raweditor_NativeRaw_setProfile(JNIEnv* env, jobject, jlong handle, jbyteArray profile) {
+    try {
+        // Parse before replacing the current LUT; a bad profile leaves the session usable.
+        reinterpret_cast<Session*>(handle)->lut = colorProfile(env, profile);
+    } catch (const std::exception& e) { failure(env, e); }
 }
 
 extern "C" JNIEXPORT jintArray JNICALL

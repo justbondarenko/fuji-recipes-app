@@ -94,6 +94,8 @@ import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.data.raweditor.RawAdjustments
 import dev.bondarenko.fujirecipes.data.raweditor.MaskPoint
 import dev.bondarenko.fujirecipes.data.raweditor.RawCrop
+import dev.bondarenko.fujirecipes.data.raweditor.rawColorProfileIds
+import dev.bondarenko.fujirecipes.data.fields.FilmSimulations
 import dev.bondarenko.fujirecipes.ui.common.FujiIconPanel
 import dev.bondarenko.fujirecipes.ui.theme.icons.ArrowBack
 import dev.bondarenko.fujirecipes.ui.theme.icons.Colors
@@ -467,6 +469,7 @@ fun RawEditorScreen(
                                             RawToneCurveControls(state, onAdjust, curveChannel, { curveChannel = it }, enabled = editable,
                                                 modifier = Modifier.fillMaxWidth().height(if (wide) 136.dp else 204.dp))
                                         } else if (wide) {
+                                            if (panel == 1) RawFilmSimulationSelector(state, onAdjust, editable, compact = false)
                                             if (panel == 1) FilledTonalButton(
                                                 onClick = { onAdjust(edits.copy(temperature = 0f, tint = 0f)) }, enabled = editable,
                                                 modifier = Modifier.align(Alignment.Start).padding(horizontal = 20.dp),
@@ -557,6 +560,7 @@ fun RawEditorScreen(
                                                 FilledTonalButton(onClick = { onMasks(true) }, enabled = editable && !state.rendering) { Text(stringResource(R.string.raw_editor_edit_masks, edits.masks.size)) }
                                             }
                                             if (panel == 1) {
+                                                RawFilmSimulationSelector(state, onAdjust, editable, compact = true)
                                                 Column(Modifier.widthIn(min = 56.dp, max = 76.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                                     IconButton(onClick = { onAdjust(edits.copy(temperature = 0f, tint = 0f)) }, enabled = editable,
                                                         modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)) {
@@ -603,6 +607,47 @@ fun RawEditorScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RawFilmSimulationSelector(state: RawEditorState, onAdjust: (RawAdjustments) -> Unit, enabled: Boolean, compact: Boolean) {
+    var expanded by remember { mutableStateOf(false) }
+    val currentEdits by rememberUpdatedState(state.adjustments)
+    val selected = state.adjustments.filmSimulation ?: state.asShotProfile
+    val label = stringResource(R.string.field_film_simulation)
+    val profiles = FilmSimulations.all.filter { it.id in rawColorProfileIds }
+    val reset = Modifier.pointerInput(enabled) {
+        detectTapGestures(onTap = { if (enabled) expanded = true },
+            onDoubleTap = { if (enabled) onAdjust(currentEdits.copy(filmSimulation = null)) })
+    }
+    Box(if (compact) Modifier else Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        if (compact) Column(Modifier.widthIn(min = 56.dp, max = 76.dp), horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            IconButton(onClick = { expanded = true }, enabled = enabled, modifier = Modifier
+                .testTag("raw-editor-film-simulation")
+                .background(if (state.adjustments.filmSimulation != null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)) {
+                Icon(FujiIcons.Palette, label)
+            }
+            Text(label, reset.height(32.dp), style = MaterialTheme.typography.labelSmall, maxLines = 2,
+                overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+        } else FilledTonalButton(onClick = { expanded = true }, enabled = enabled,
+            modifier = Modifier.fillMaxWidth().testTag("raw-editor-film-simulation")) {
+            Icon(FujiIcons.Palette, label, Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(FilmSimulations.labelFor(selected), Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Icon(FujiIcons.UnfoldMore, null, Modifier.size(20.dp))
+        }
+        FujiAnchoredMenu(expanded = expanded && enabled, onDismissRequest = { expanded = false }, groups = listOf({
+            profiles.forEachIndexed { index, profile ->
+                FujiSelectionMenuItem(text = profile.label, selected = selected == profile.id, index = index, count = profiles.size,
+                    supportingText = if (profile.id == state.asShotProfile) stringResource(R.string.raw_editor_as_shot) else null,
+                    onClick = {
+                        expanded = false
+                        onAdjust(currentEdits.copy(filmSimulation = profile.id.takeUnless { it == state.asShotProfile }))
+                    })
+            }
+        }))
     }
 }
 

@@ -7,6 +7,7 @@ internal object NativeRaw {
     init { System.loadLibrary("fuji_raw") }
 
     external fun open(path: String, profile: ByteArray): Long
+    external fun setProfile(handle: Long, profile: ByteArray)
     /** Preview width/height, full width/height, embedded distortion applied (0/1). */
     external fun dimensions(handle: Long): IntArray
     external fun outputDimensions(handle: Long, adjustments: FloatArray, full: Boolean, draft: Boolean = false): IntArray

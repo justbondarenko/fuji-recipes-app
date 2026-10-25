@@ -69,7 +69,11 @@ data class RawAdjustments(
     val grainRoughness: Float = .5f,
     val curves: RawCurves = RawCurves(),
     val masks: List<RawMask> = emptyList(),
+    /** Null keeps the recorded simulation. Stored separately from the native adjustment vector. */
+    val filmSimulation: String? = null,
 ) {
+    init { require(filmSimulation == null || filmSimulation in rawColorProfileIds) { "Unsupported RAW color profile." } }
+
     val isEdited: Boolean get() = this != RawAdjustments()
 
     fun rotated(turns: Int): RawAdjustments {
@@ -86,7 +90,7 @@ data class RawAdjustments(
         return copy(quarterTurns = turns, crop = nextCrop, perspectiveVertical = vertical, perspectiveHorizontal = horizontal)
     }
 
-    /** Wire order shared with Adjustments::read in raw_color.h; also the saved-session shape. */
+    /** Wire order shared with Adjustments::read in raw_color.h; numeric saved-session data. */
     fun nativeValues(): FloatArray = floatArrayOf(
         exposure, shadows, highlights, temperature, tint, contrast, whites, blacks,
         saturation, vibrance, sharpening, sharpenRadius, sharpenThreshold,
