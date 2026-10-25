@@ -318,6 +318,17 @@ Compact options with two parameters place their independently adjustable
 wheels in equal-width columns in one row, keeping the same height as a single
 parameter. The wide layout retains its vertical list of individual controls.
 
+The preview's bottom-left comparison control offers Embedded JPEG and Before
+edits. Selecting a source shows it; tapping the control again returns to the
+edited RAW. Holding the photo temporarily shows the selected source, and
+release/cancellation returns to the edit. Both comparison images are fitted
+in the preview. A rounded top-center indicator reads Embedded JPG or Original
+while comparing. Before edits retains the neutral RAW render with the applied
+film profile and automatic lens correction, independently of current edits
+or framing. It shares the initial preview bitmap on a fresh open and renders
+the neutral settings separately when restoring saved adjustments. Comparison
+does not change adjustments or the export source.
+
 Native behavior follows the official
 [snapping API](https://developer.android.com/reference/kotlin/androidx/compose/foundation/gestures/snapping/package-summary)
 and [LazyListState requests](https://developer.android.com/reference/kotlin/androidx/compose/foundation/lazy/LazyListState).

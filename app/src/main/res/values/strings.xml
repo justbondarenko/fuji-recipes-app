@@ -625,9 +625,15 @@
     <string name="raw_editor_profile_info">About color profiles</string>
     <string name="raw_editor_profile_source">Profile source and attribution</string>
     <string name="raw_editor_attribution">Profiles: abpy/FujifilmCameraProfiles · CC BY-NC-SA 4.0. Decoder: LibRaw · CDDL 1.0. Sources and licenses are in the project README.</string>
+    <string name="raw_editor_compare">Compare</string>
+    <string name="raw_editor_embedded_jpeg">Embedded JPEG</string>
+    <string name="raw_editor_before_edits">Before edits</string>
+    <string name="raw_editor_show_starting">Compare before edits</string>
+    <string name="raw_editor_starting_image">RAW before edits</string>
+    <string name="raw_editor_starting_note">Original</string>
     <string name="raw_editor_show_camera">Compare camera JPEG</string>
     <string name="raw_editor_show_raw">Back to edited RAW</string>
-    <string name="raw_editor_comparison_note">Original embedded camera JPEG, for comparison only. Save exports the edited RAW rendering.</string>
+    <string name="raw_editor_comparison_note">Embedded JPG</string>
     <string name="raw_editor_camera_image">Original camera JPEG</string>
     <string name="raw_editor_raw_image">RAW with film simulation color profile</string>
     <string name="raw_editor_exposure">Exposure</string>

@@ -205,7 +205,7 @@ fun RawEditorScreen(
     onViewport: (RawViewport?) -> Unit = {},
     contentPadding: PaddingValues = PaddingValues(0.dp),
 ) {
-    var showCamera by remember(state.name, state.busy, state.cameraImage) { mutableStateOf(false) }
+    var showComparison by remember(state.name, state.busy, state.cameraImage, state.startingImage) { mutableStateOf(false) }
     var showInfo by remember { mutableStateOf(false) }
     val categoryLabels = listOf(
         R.string.raw_editor_light, R.string.raw_editor_color, R.string.raw_editor_detail,
@@ -322,7 +322,7 @@ fun RawEditorScreen(
                     val wide = maxWidth >= 700.dp
                     val maxCurveSize = if (wide) maxWidth else maxHeight * .4f
                     val preview: @Composable (Modifier) -> Unit = { modifier ->
-                        RawEditorPreview(state, panel == 5, showCamera, { showCamera = it }, onViewport, modifier, onCrop)
+                        RawEditorPreview(state, panel == 5, showComparison, { showComparison = it }, onViewport, modifier, onCrop)
                     }
                     val controls: @Composable (Modifier) -> Unit = { modifier ->
                         val categories: @Composable () -> Unit = {
@@ -356,7 +356,7 @@ fun RawEditorScreen(
                             ) { panel ->
                                 var selectedParam by rememberSaveable { mutableIntStateOf(0) }
                                 val edits = state.adjustments
-                                val editable = !state.busy && !showCamera
+                                val editable = !state.busy && !showComparison
                                 val params = when (panel) {
                                     0 -> listOf(
                                         RawParam(R.string.raw_editor_exposure, FujiIcons.Exposure, edits.exposure, -3f..3f, editable, 1f, 1, " EV") { onAdjust(edits.copy(exposure = it)) },

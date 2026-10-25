@@ -646,6 +646,59 @@ class RawEditorLayoutTest {
     }
 
     @Test
+    fun comparisonMenuUsesBothSourcesOppositeCropInCompactAndWideLayouts() {
+        fun solid(color: Int) = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888).apply { eraseColor(color) }
+        val original = RawAdjustments(exposure = .7f)
+        val state = RawEditorState(name = "sample.RAF", preview = solid(android.graphics.Color.RED),
+            cameraImage = solid(android.graphics.Color.BLUE), startingImage = solid(android.graphics.Color.GREEN), adjustments = original)
+        var wide by mutableStateOf(false)
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(if (wide) 840.dp else 393.dp, 800.dp))) {
+                FujiTheme { RawEditorScreen(state, {}, {}, {}, {}) }
+            }
+        }
+        fun source(label: String, color: Int) {
+            compose.onNodeWithContentDescription(label).assertIsDisplayed()
+            if (label == "RAW with film simulation color profile") {
+                compose.onNodeWithTag("raw-editor-comparison-indicator", useUnmergedTree = true).assertDoesNotExist()
+            } else {
+                compose.onNodeWithText(if (label == "RAW before edits") "Original" else "Embedded JPG").assertIsDisplayed()
+                val indicator = compose.onNodeWithTag("raw-editor-comparison-indicator", useUnmergedTree = true).getUnclippedBoundsInRoot()
+                val preview = compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot()
+                assertEquals((preview.left + preview.right).value / 2, (indicator.left + indicator.right).value / 2, 1f)
+                assertEquals(8f, (indicator.top - preview.top).value, 1f)
+            }
+            val image = compose.onNodeWithTag("raw-editor-preview").captureToImage().asAndroidBitmap()
+            assertEquals(color, image.getPixel(image.width / 2, image.height / 2))
+        }
+        for (expanded in listOf(false, true)) {
+            compose.runOnIdle { wide = expanded }
+            val preview = compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot()
+            val compare = compose.onNodeWithTag("raw-editor-compare").getUnclippedBoundsInRoot()
+            val crop = compose.onNodeWithTag("raw-editor-crop").getUnclippedBoundsInRoot()
+            assertEquals(crop.top, compare.top)
+            assertEquals(crop.bottom, compare.bottom)
+            assertEquals((crop.right - crop.left).value, (compare.right - compare.left).value, .5f)
+            assertEquals((preview.right - crop.right).value, (compare.left - preview.left).value, 1f)
+            for ((name, label, color) in listOf(Triple("Embedded JPEG", "Original camera JPEG", android.graphics.Color.BLUE),
+                Triple("Before edits", "RAW before edits", android.graphics.Color.GREEN))) {
+                compose.onNodeWithTag("raw-editor-compare").performClick()
+                compose.onNodeWithText(name).performClick()
+                source(label, color)
+                compose.onNodeWithTag("raw-editor-compare").performClick()
+                source("RAW with film simulation color profile", android.graphics.Color.RED)
+                compose.onNodeWithTag("raw-editor-preview").performTouchInput { down(center); advanceEventTime(600) }
+                compose.mainClock.advanceTimeBy(650)
+                source(label, color)
+                compose.onNodeWithTag("raw-editor-preview").performTouchInput { up() }
+                source("RAW with film simulation color profile", android.graphics.Color.RED)
+                assertEquals(preview, compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot())
+            }
+            assertEquals(original, state.adjustments)
+        }
+    }
+
+    @Test
     fun previewControlsAndSaveStayInPlaceDuringRenderingAndComparison() {
         val bitmap = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888)
         var state by mutableStateOf(RawEditorState(
