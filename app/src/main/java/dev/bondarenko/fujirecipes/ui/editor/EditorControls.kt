@@ -1,5 +1,7 @@
 package dev.bondarenko.fujirecipes.ui.editor
 
+import dev.bondarenko.fujirecipes.ui.common.FujiSelectionMenuItem
+import dev.bondarenko.fujirecipes.ui.common.FujiAnchoredMenu
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -41,11 +43,6 @@ import coil.compose.AsyncImage
 import dev.bondarenko.fujirecipes.core.store.ImageStore
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ButtonGroupDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuGroup
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.DropdownMenuPopup
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -254,46 +251,7 @@ fun EnumDropdown(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // 💡 FIELD LABEL (Dropdown fields):
-        // - Change font style/size: `style = MaterialTheme.typography.bodyMedium` (or add `fontSize = 14.sp`)
-        // - Change font weight: add `fontWeight = FontWeight.SemiBold`
-        Text(
-            text = field.label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-        )
-
-        Box {
-            TextButton(onClick = { expanded = true }) {
-                Text(field.labelFor(value ?: field.defaultValue as? String))
-            }
-
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                val current = value ?: field.defaultValue as? String
-                field.options.forEach { option ->
-                    DropdownMenuItem(
-                        text = { Text(option.label) },
-                        trailingIcon = {
-                            if (option.id == current) {
-                                Icon(imageVector = FujiIcons.Check, contentDescription = null)
-                            }
-                        },
-                        onClick = {
-                            onValueChange(option.id)
-                            expanded = false
-                        },
-                    )
-                }
-            }
-        }
-    }
+    EnumMenu(field, value, onValueChange, modifier)
 }
 
 /**
@@ -339,33 +297,18 @@ fun EnumMenu(
                 }
             }
 
-            DropdownMenuPopup(
+            FujiAnchoredMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-            ) {
-                groups.forEachIndexed { groupIndex, options ->
-                    DropdownMenuGroup(shapes = MenuDefaults.groupShape(groupIndex, groups.size)) {
-                        options.forEachIndexed { index, option ->
-                            DropdownMenuItem(
-                                selected = option.id == current,
-                                onClick = {
-                                    onValueChange(option.id)
-                                    expanded = false
-                                },
-                                text = { Text(option.label) },
-                                shapes = MenuDefaults.itemShape(index, options.size),
-                                selectedLeadingIcon = {
-                                    Icon(imageVector = FujiIcons.Check, contentDescription = null)
-                                },
-                            )
-                        }
+                groups = groups.map { options -> {
+                    options.forEachIndexed { index, option ->
+                        FujiSelectionMenuItem(
+                            text = option.label, selected = option.id == current, index = index, count = options.size,
+                            onClick = { onValueChange(option.id); expanded = false },
+                        )
                     }
-                    if (groupIndex < groups.lastIndex) {
-                        Spacer(Modifier.height(MenuDefaults.GroupSpacing))
-                    }
-                }
-            }
+                } },
+            )
         }
     }
 }
@@ -464,22 +407,14 @@ fun FilmSimulationPicker(
                 Text(FilmSimulations.labelFor(value))
             }
 
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                FilmSimulations.all.forEach { simulation ->
-                    DropdownMenuItem(
-                        text = { Text(simulation.label) },
-                        trailingIcon = {
-                            if (simulation.id == value) {
-                                Icon(imageVector = FujiIcons.Check, contentDescription = null)
-                            }
-                        },
-                        onClick = {
-                            onValueChange(simulation.id)
-                            expanded = false
-                        },
+            FujiAnchoredMenu(expanded = expanded, onDismissRequest = { expanded = false }, groups = listOf({
+                FilmSimulations.all.forEachIndexed { index, simulation ->
+                    FujiSelectionMenuItem(
+                        text = simulation.label, selected = simulation.id == value, index = index, count = FilmSimulations.all.size,
+                        onClick = { onValueChange(simulation.id); expanded = false },
                     )
                 }
-            }
+            }))
         }
     }
 }

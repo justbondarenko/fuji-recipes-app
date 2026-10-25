@@ -611,3 +611,15 @@ passed on SM-F976B, including compact/wide channel labels and checked state,
 the separate action row below the group, independent channel edits/reset,
 fixed preview bounds, native category swipes, point gestures, and help dismissal.
 The app-only capture confirms the spacing; the updated APK is installed.
+
+Consistent Material menus (2026-10-25):
+
+- [x] Give preview comparison and Grain/Vignette parameter selection the same
+  vibrant rounded Material menu, selected fill, and leading check as crop.
+- [x] Share menu and choice-row rendering with crop and the rest of the app,
+  including bounded scrolling for long lists. See [the app-wide menu audit](material-menu-audit.md)
+  for the other migrated and already-conforming cases.
+
+Verification: all 734 local unit tests and 23 device UI checks passed on
+SM-F976B, including the complete 17-check RAW Editor layout suite. The popup
+capture confirms the shared crop-style menu. The updated APK is installed.

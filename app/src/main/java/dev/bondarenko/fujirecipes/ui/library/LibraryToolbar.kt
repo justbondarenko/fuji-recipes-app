@@ -1,5 +1,7 @@
 package dev.bondarenko.fujirecipes.ui.library
 
+import dev.bondarenko.fujirecipes.ui.common.FujiSelectionMenuItem
+import dev.bondarenko.fujirecipes.ui.common.FujiAnchoredMenu
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -40,13 +42,10 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.Sort
 import dev.bondarenko.fujirecipes.ui.theme.icons.SortByAlpha
 import dev.bondarenko.fujirecipes.ui.theme.icons.StarRate
 import dev.bondarenko.fujirecipes.ui.theme.icons.Tune
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Badge
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -258,100 +257,36 @@ private fun SortControls(
             )
         }
 
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            shape = RoundedCornerShape(12.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.sort_by),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-            )
-            SortId.entries.forEach { option ->
-                DropdownMenuItem(
-                    leadingIcon = {
-                        val iconModifier = Modifier.size(20.dp)
-                        when (option) {
-                            SortId.NAME -> Icon(
-                                imageVector = FujiIcons.SortByAlpha,
-                                contentDescription = null,
-                                modifier = iconModifier,
-                            )
-                            SortId.RATING -> Icon(
-                                imageVector = FujiIcons.StarRate,
-                                contentDescription = null,
-                                modifier = iconModifier,
-                            )
-                            SortId.UPDATED -> Icon(
-                                imageVector = FujiIcons.Schedule,
-                                contentDescription = null,
-                                modifier = iconModifier,
-                            )
-                        }
+        FujiAnchoredMenu(expanded = expanded, onDismissRequest = { expanded = false }, groups = listOf({
+            Text(stringResource(R.string.sort_by), style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+            SortId.entries.forEachIndexed { index, option ->
+                FujiSelectionMenuItem(
+                    text = stringResource(option.labelRes()), selected = option == sort, index = index, count = SortId.entries.size,
+                    icon = when (option) {
+                        SortId.NAME -> FujiIcons.SortByAlpha
+                        SortId.RATING -> FujiIcons.StarRate
+                        SortId.UPDATED -> FujiIcons.Schedule
                     },
-                    text = { Text(stringResource(option.labelRes())) },
-                    trailingIcon = {
-                        if (option == sort) {
-                            Icon(
-                                imageVector = FujiIcons.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    },
-                    onClick = {
-                        onSortChange(option)
-                        expanded = false
-                    },
+                    onClick = { onSortChange(option); expanded = false },
                 )
             }
-
-            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-            Text(
-                text = stringResource(R.string.sort_order),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-            )
-            SortDirection.entries.forEach { direction ->
-                val isSelected = direction == sortDirection
-                DropdownMenuItem(
-                    leadingIcon = {
-                        Icon(
-                            imageVector = if (direction == SortDirection.ASCENDING) FujiIcons.ArrowUpwardAlt else FujiIcons.ArrowDownwardAlt,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    },
-                    text = {
-                        val labelRes = when (sort) {
-                            SortId.NAME -> if (direction == SortDirection.ASCENDING) R.string.sort_name_asc else R.string.sort_name_desc
-                            SortId.RATING -> if (direction == SortDirection.DESCENDING) R.string.sort_rating_desc else R.string.sort_rating_asc
-                            SortId.UPDATED -> if (direction == SortDirection.DESCENDING) R.string.sort_updated_desc else R.string.sort_updated_asc
-                        }
-                        Text(stringResource(labelRes))
-                    },
-                    trailingIcon = {
-                        if (isSelected) {
-                            Icon(
-                                imageVector = FujiIcons.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    },
-                    onClick = {
-                        onSortDirectionChange(direction)
-                        expanded = false
-                    },
+        }, {
+            Text(stringResource(R.string.sort_order), style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+            SortDirection.entries.forEachIndexed { index, direction ->
+                val labelRes = when (sort) {
+                    SortId.NAME -> if (direction == SortDirection.ASCENDING) R.string.sort_name_asc else R.string.sort_name_desc
+                    SortId.RATING -> if (direction == SortDirection.DESCENDING) R.string.sort_rating_desc else R.string.sort_rating_asc
+                    SortId.UPDATED -> if (direction == SortDirection.DESCENDING) R.string.sort_updated_desc else R.string.sort_updated_asc
+                }
+                FujiSelectionMenuItem(
+                    text = stringResource(labelRes), selected = direction == sortDirection, index = index, count = SortDirection.entries.size,
+                    icon = if (direction == SortDirection.ASCENDING) FujiIcons.ArrowUpwardAlt else FujiIcons.ArrowDownwardAlt,
+                    onClick = { onSortDirectionChange(direction); expanded = false },
                 )
             }
-        }
+        }))
     }
 }
 

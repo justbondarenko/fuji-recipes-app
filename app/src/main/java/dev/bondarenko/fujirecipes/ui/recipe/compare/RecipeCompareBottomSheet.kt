@@ -1,5 +1,7 @@
 package dev.bondarenko.fujirecipes.ui.recipe.compare
 
+import dev.bondarenko.fujirecipes.ui.common.FujiSelectionMenuItem
+import dev.bondarenko.fujirecipes.ui.common.FujiAnchoredMenu
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -44,8 +46,6 @@ import dev.bondarenko.fujirecipes.ui.theme.icons.WbAuto
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
@@ -541,46 +541,15 @@ private fun RecipeCompareHeaderCards(
                 }
             }
 
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false },
-                modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest),
-            ) {
-                candidates.forEach { candidate ->
-                    val isSelected = candidate.id == targetRecipe.id
-                    DropdownMenuItem(
-                        text = {
-                            Column {
-                                Text(
-                                    text = candidate.name,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                )
-                                Text(
-                                    text = candidate.filmSimulationLabel,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        },
-                        trailingIcon = {
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = FujiIcons.Check,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            }
-                        },
-                        onClick = {
-                            onSelectTargetRecipe(candidate.id)
-                            menuExpanded = false
-                        },
+            FujiAnchoredMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }, groups = listOf({
+                candidates.forEachIndexed { index, candidate ->
+                    FujiSelectionMenuItem(
+                        text = candidate.name, supportingText = candidate.filmSimulationLabel,
+                        selected = candidate.id == targetRecipe.id, index = index, count = candidates.size,
+                        onClick = { onSelectTargetRecipe(candidate.id); menuExpanded = false },
                     )
                 }
-            }
+            }))
         }
     }
 }
