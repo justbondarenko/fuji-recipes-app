@@ -22,15 +22,11 @@ import androidx.compose.foundation.verticalScroll
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.Battery5Bar
 import dev.bondarenko.fujirecipes.ui.theme.icons.Cable
-import dev.bondarenko.fujirecipes.ui.theme.icons.Check
+import dev.bondarenko.fujirecipes.ui.theme.icons.Eject
 import dev.bondarenko.fujirecipes.ui.theme.icons.CodeXml
 import dev.bondarenko.fujirecipes.ui.theme.icons.PhotoCamera
 import dev.bondarenko.fujirecipes.ui.theme.icons.Refresh
 import androidx.compose.material3.Button
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import dev.bondarenko.fujirecipes.camera.CameraTransport
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -39,12 +35,10 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -87,7 +81,6 @@ import java.text.NumberFormat
  * showing the M3 shape-morphing loading indicator while reading slots, followed by a Bento grid
  * (arranged 2-2-2-1 with C7 centered) of the camera's custom slots.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CameraScreen(
     state: CameraState,
@@ -104,7 +97,6 @@ fun CameraScreen(
     onShareReport: () -> Unit = {},
     modifier: Modifier = Modifier,
     transport: CameraTransport = CameraTransport.USB,
-    onSelectTransport: (CameraTransport) -> Unit = {},
 ) {
     if (state is CameraState.Connected) {
         CameraConnectedContent(
@@ -122,29 +114,14 @@ fun CameraScreen(
                 .padding(contentPadding),
         )
     } else {
-        Column(modifier = modifier.fillMaxSize().padding(contentPadding)) {
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
-                CameraTransport.entries.forEachIndexed { index, mode ->
-                    SegmentedButton(
-                        selected = transport == mode,
-                        onClick = { onSelectTransport(mode) },
-                        enabled = state != CameraState.Connecting && state !is CameraState.Writing,
-                        shape = SegmentedButtonDefaults.itemShape(index, CameraTransport.entries.size),
-                        icon = { if (transport == mode) Icon(FujiIcons.Check, contentDescription = null) },
-                    ) {
-                        Text(stringResource(if (mode == CameraTransport.USB) R.string.camera_transport_usb else R.string.camera_transport_bluetooth))
-                    }
-                }
-            }
-            CameraStatusContent(
-                state = state,
-                transport = transport,
-                isCameraAttached = isCameraAttached,
-                onConnect = onConnect,
-                onDisconnect = onDisconnect,
-                modifier = Modifier.fillMaxWidth().weight(1f),
-            )
-        }
+        CameraStatusContent(
+            state = state,
+            transport = transport,
+            isCameraAttached = isCameraAttached,
+            onConnect = onConnect,
+            onDisconnect = onDisconnect,
+            modifier = modifier.fillMaxSize().padding(contentPadding),
+        )
     }
 }
 
@@ -196,7 +173,7 @@ fun CameraConnectedContent(
             Box(
                 modifier = Modifier
                     .size(88.dp)
-                    .clip(MaterialShapes.Pentagon.toShape())
+                    .clip(CircleShape)
                     .background(greenAccent)
                     .clickable(enabled = !reportRevealed && state.transport == CameraTransport.USB) {
                         reportTaps++
@@ -265,6 +242,8 @@ fun CameraConnectedContent(
                     onClick = onDisconnect,
                     shape = RoundedCornerShape(12.dp),
                 ) {
+                    Icon(FujiIcons.Eject, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
                     Text(stringResource(R.string.camera_action_disconnect))
                 }
             }
@@ -576,7 +555,7 @@ fun CameraStatusContent(
 
     FujiIconPanel(
         icon = if (transport == CameraTransport.BLUETOOTH && state == CameraState.Disconnected) FujiIcons.PhotoCamera else look.icon.imageVector(),
-        shape = MaterialShapes.Pentagon.toShape(),
+        shape = CircleShape,
         title = title(state),
         body = if (transport == CameraTransport.BLUETOOTH && state == CameraState.Disconnected) {
             stringResource(R.string.camera_bluetooth_help)
@@ -864,10 +843,14 @@ private val previewConnectedSlots = slotStates(
 @Composable
 private fun CameraBluetoothDisconnectedPreview() {
     FujiTheme {
-        CameraScreen(
-            state = CameraState.Disconnected, transport = CameraTransport.BLUETOOTH,
-            isCameraAttached = false, onConnect = {}, onDisconnect = {}, contentPadding = PaddingValues(),
-        )
+        Column(Modifier.fillMaxSize()) {
+            CameraSheetHeader(CameraState.Disconnected, CameraTransport.BLUETOOTH, {}, {})
+            CameraScreen(
+                state = CameraState.Disconnected, transport = CameraTransport.BLUETOOTH,
+                isCameraAttached = false, onConnect = {}, onDisconnect = {}, contentPadding = PaddingValues(),
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 
@@ -875,12 +858,15 @@ private fun CameraBluetoothDisconnectedPreview() {
 @Composable
 private fun CameraBluetoothConnectedPreview() {
     FujiTheme {
-        CameraConnectedContent(
-            state = CameraState.Connected(CameraModels.identify("X-T50").copy(writable = false),
-                transport = CameraTransport.BLUETOOTH),
-            slots = previewConnectedSlots, isLoadingSlots = false, slotsError = null,
-            onRefresh = {}, onDisconnect = {},
-        )
+        val state = CameraState.Connected(CameraModels.identify("X-T50").copy(writable = false),
+            transport = CameraTransport.BLUETOOTH)
+        Column(Modifier.fillMaxSize()) {
+            CameraSheetHeader(state, CameraTransport.BLUETOOTH, {}, {})
+            CameraConnectedContent(
+                state = state, slots = previewConnectedSlots, isLoadingSlots = false, slotsError = null,
+                onRefresh = {}, onDisconnect = {}, modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 

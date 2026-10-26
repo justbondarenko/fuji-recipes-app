@@ -10,13 +10,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -45,7 +45,8 @@ fun FujiModalSideSheet(
 ) {
     BackHandler(enabled = visible, onBack = onDismissRequest)
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val sheetWidth = minOf(maxWidth * 0.88f, 400.dp)
         AnimatedVisibility(
             visible = visible,
             enter = fadeIn(),
@@ -81,8 +82,7 @@ fun FujiModalSideSheet(
                     .fillMaxHeight()
                     // Never the whole screen: a modal sheet has to leave enough scrim showing
                     // that the page behind it is still visibly there.
-                    .fillMaxWidth(0.88f)
-                    .widthIn(max = 400.dp),
+                    .width(sheetWidth),
             ) {
                 content()
             }

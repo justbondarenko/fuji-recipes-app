@@ -14,10 +14,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -42,6 +47,8 @@ import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.core.share.ShareFile
 import dev.bondarenko.fujirecipes.ui.common.FujiModalSideSheet
 import dev.bondarenko.fujirecipes.ui.theme.icons.Close
+import dev.bondarenko.fujirecipes.ui.theme.icons.Bluetooth
+import dev.bondarenko.fujirecipes.ui.theme.icons.Usb
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -76,26 +83,12 @@ fun CameraSheetButtonHost(modifier: Modifier = Modifier) {
  */
 @Composable
 fun CameraSheetHost(visible: Boolean, onDismiss: () -> Unit) {
+    val controller = cameraController()
+    val state by controller.state.collectAsStateWithLifecycle()
+    val transport by controller.transport.collectAsStateWithLifecycle()
     FujiModalSideSheet(visible = visible, onDismissRequest = onDismiss) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 20.dp, end = 8.dp, top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.camera_sheet_title),
-                    style = MaterialTheme.typography.titleLarge,
-                )
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        imageVector = FujiIcons.Close,
-                        contentDescription = stringResource(R.string.action_close),
-                    )
-                }
-            }
+            CameraSheetHeader(state, transport, controller::selectTransport, onDismiss)
 
             // Rendered only while the sheet is up: the slot read talks to the camera, and it
             // has no business running behind a closed sheet.
@@ -104,6 +97,58 @@ fun CameraSheetHost(visible: Boolean, onDismiss: () -> Unit) {
                     contentPadding = PaddingValues(bottom = 16.dp),
                     modifier = Modifier.weight(1f),
                 )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+internal fun CameraSheetHeader(
+    state: CameraState,
+    transport: CameraTransport,
+    onSelectTransport: (CameraTransport) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.camera_sheet_title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onDismiss) {
+                Icon(FujiIcons.Close, contentDescription = stringResource(R.string.action_close))
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 8.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            Row(
+                modifier = Modifier.selectableGroup(),
+                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+            ) {
+                CameraTransport.entries.forEachIndexed { index, mode ->
+                    ToggleButton(
+                        checked = transport == mode,
+                        onCheckedChange = { onSelectTransport(mode) },
+                        enabled = state != CameraState.Connecting && state !is CameraState.Writing,
+                        shapes = if (index == 0) ButtonGroupDefaults.connectedLeadingButtonShapes()
+                            else ButtonGroupDefaults.connectedTrailingButtonShapes(),
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.size(48.dp),
+                    ) {
+                        Icon(
+                            imageVector = if (mode == CameraTransport.USB) FujiIcons.Usb else FujiIcons.Bluetooth,
+                            contentDescription = stringResource(if (mode == CameraTransport.USB) R.string.camera_transport_usb else R.string.camera_transport_bluetooth),
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                }
             }
         }
     }
@@ -171,7 +216,6 @@ fun CameraSheetContent(
         state = state,
         isCameraAttached = controller.isCameraAttached,
         transport = transport,
-        onSelectTransport = controller::selectTransport,
         slots = slots,
         isLoadingSlots = isLoadingSlots,
         slotsError = slotsError,
