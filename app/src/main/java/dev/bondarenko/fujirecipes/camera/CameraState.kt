@@ -35,6 +35,7 @@ sealed interface CameraState {
         val identity: ModelIdentity,
         val usbMode: UsbMode = UsbMode.UNREPORTED,
         val details: CameraDetails = CameraDetails(),
+        val transport: CameraTransport = CameraTransport.USB,
     ) : CameraState
 
     /** Held during a write (FEAT-006). [current] is the property being written right now. */
@@ -56,4 +57,6 @@ sealed interface CameraState {
 
 /** Whether a write can be offered at all — connected, to a body with custom slots (WR-01). */
 val CameraState.canWrite: Boolean
-    get() = this is CameraState.Connected && identity.writable
+    get() = this is CameraState.Connected && transport == CameraTransport.USB && identity.writable
+
+enum class CameraTransport { USB, BLUETOOTH }

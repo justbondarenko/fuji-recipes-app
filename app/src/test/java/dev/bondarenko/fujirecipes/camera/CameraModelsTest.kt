@@ -21,6 +21,13 @@ import kotlin.test.assertTrue
 class CameraModelsTest {
 
     @Test
+    fun `Bluetooth refuses writes even for a USB writable camera`() {
+        val usb = CameraState.Connected(CameraModels.identify("X-T50"))
+        assertTrue(usb.canWrite)
+        assertFalse(usb.copy(transport = CameraTransport.BLUETOOTH).canWrite)
+    }
+
+    @Test
     fun `no two known model names normalise to the same key`() {
         assertEquals(
             CameraModels.MODEL_GENERATIONS.size,

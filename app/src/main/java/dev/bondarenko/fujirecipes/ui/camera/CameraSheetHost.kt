@@ -1,5 +1,12 @@
 package dev.bondarenko.fujirecipes.ui.camera
 
+import android.Manifest
+import android.os.Build
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import dev.bondarenko.fujirecipes.camera.CameraTransport
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -109,6 +116,10 @@ fun CameraSheetContent(
 ) {
     val controller = cameraController()
     val state by controller.state.collectAsStateWithLifecycle()
+    val transport by controller.transport.collectAsStateWithLifecycle()
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        if (controller.transport.value == CameraTransport.BLUETOOTH) controller.connect()
+    }
 
     var slotReadings by remember(state) { mutableStateOf<List<SlotNameReading>?>(null) }
     var isLoadingSlots by remember(state) { mutableStateOf(state is CameraState.Connected) }
@@ -159,12 +170,19 @@ fun CameraSheetContent(
         modifier = modifier,
         state = state,
         isCameraAttached = controller.isCameraAttached,
+        transport = transport,
+        onSelectTransport = controller::selectTransport,
         slots = slots,
         isLoadingSlots = isLoadingSlots,
         slotsError = slotsError,
         onRefreshSlots = { refreshCounter++ },
         onSelectSlot = { slot -> selectedSlotForDetail = slot },
-        onConnect = controller::connect,
+        onConnect = {
+            if (transport == CameraTransport.BLUETOOTH && Build.VERSION.SDK_INT >= 31 &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                permission.launch(Manifest.permission.BLUETOOTH_CONNECT)
+            } else controller.connect()
+        },
         onDisconnect = controller::disconnect,
         contentPadding = contentPadding,
         isReportRunning = isReportRunning,

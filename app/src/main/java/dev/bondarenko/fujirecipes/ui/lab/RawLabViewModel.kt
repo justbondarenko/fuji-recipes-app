@@ -130,7 +130,7 @@ class RawLabViewModel(
         // A camera arriving after the RAF is what lets the first picture render.
         viewModelScope.launch {
             controller.state
-                .map { it is CameraState.Connected }
+                .map { it is CameraState.Connected && it.transport == dev.bondarenko.fujirecipes.camera.CameraTransport.USB }
                 .distinctUntilChanged()
                 .collect { connected -> if (connected) maybeAutoRender() }
         }
@@ -138,7 +138,7 @@ class RawLabViewModel(
 
     private fun maybeAutoRender() {
         // No camera, no attempt: a render that cannot start would only count as a failure.
-        if (controller.state.value is CameraState.Connected && workspace.current.shouldAutoRender()) {
+        if ((controller.state.value as? CameraState.Connected)?.transport == dev.bondarenko.fujirecipes.camera.CameraTransport.USB && workspace.current.shouldAutoRender()) {
             render(RawRenderQuality.PREVIEW)
         }
     }

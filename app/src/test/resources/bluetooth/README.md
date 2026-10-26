@@ -1,0 +1,1 @@
+Synthetic X-T50 1.32 backup built from measured wire-code vectors. Unknown and private data are cleared; names are generic. Expected settings were decoded by the independently hardware-checked research decoder. This file is for parser tests only and must never be uploaded to a camera.

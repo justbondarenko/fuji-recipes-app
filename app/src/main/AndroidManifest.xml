@@ -39,13 +39,11 @@
     -->
     <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
 
-    <!--
-      FEAT-005. Declared required: a device without USB host cannot do the thing the app
-      exists for (`steering/tech-stack.md` §4).
-    -->
-    <uses-feature
-        android:name="android.hardware.usb.host"
-        android:required="true" />
+    <!-- Camera transports are optional; the recipe library works without either. -->
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
     <application
         android:name=".FujiRecipesApp"

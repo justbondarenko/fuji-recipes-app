@@ -85,6 +85,9 @@ class WriteViewModel(
             ?: return WritePlan(slot = slot, refusal = "That recipe is no longer in the library.")
 
         val camera = controller.state.value as? CameraState.Connected
+        if (camera?.transport == dev.bondarenko.fujirecipes.camera.CameraTransport.BLUETOOTH) {
+            return WritePlan(slot = slot, refusal = camera.identity.note)
+        }
 
         return buildWritePlan(
             slot = slot,

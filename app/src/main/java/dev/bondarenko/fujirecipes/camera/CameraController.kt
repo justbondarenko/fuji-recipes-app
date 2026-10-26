@@ -1,5 +1,12 @@
 package dev.bondarenko.fujirecipes.camera
 
+import android.Manifest
+import android.bluetooth.BluetoothManager
+import android.os.Build
+import dev.bondarenko.fujirecipes.R
+import dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothCamera
+import dev.bondarenko.fujirecipes.camera.plan.CameraDetails
+import kotlinx.coroutines.CancellationException
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -91,6 +98,56 @@ class CameraController(
     private val lock = Mutex()
 
     private var session: PtpSession? = null
+    private var bluetooth: BluetoothCamera? = null
+    private var bluetoothSlots: List<SlotRecipe>? = null
+    private val _transport = MutableStateFlow(CameraTransport.USB)
+    val transport: StateFlow<CameraTransport> = _transport.asStateFlow()
+
+    fun selectTransport(value: CameraTransport) {
+        scope.launch {
+            lock.withLock {
+                if (_transport.value == value) return@withLock
+                closeSession(CameraState.Disconnected)
+                _transport.value = value
+                if (value == CameraTransport.USB && !hasHostSupport) _state.value = CameraState.NoUsbHost
+            }
+        }
+    }
+
+    private suspend fun connectBluetoothNow() = lock.withLock {
+        if (_transport.value != CameraTransport.BLUETOOTH || _state.value is CameraState.Connected) return@withLock
+        closeSession(CameraState.Connecting)
+        try {
+            check(Build.VERSION.SDK_INT < 31 || ContextCompat.checkSelfPermission(appContext, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+                appContext.getString(R.string.camera_bluetooth_permission)
+            }
+            val adapter = requireNotNull(appContext.getSystemService(BluetoothManager::class.java)?.adapter) {
+                appContext.getString(R.string.camera_bluetooth_unavailable)
+            }
+            check(adapter.isEnabled) { appContext.getString(R.string.camera_bluetooth_off) }
+            val device = requireNotNull(adapter.bondedDevices.singleOrNull { it.name == "X-T50" }) {
+                appContext.getString(R.string.camera_bluetooth_pair_first)
+            }
+            lateinit var opened: BluetoothCamera
+            opened = BluetoothCamera(appContext) {
+                scope.launch {
+                    lock.withLock {
+                        if (bluetooth === opened) closeSession(CameraState.Error(appContext.getString(R.string.camera_bluetooth_disconnected)))
+                    }
+                }
+            }
+            bluetooth = opened
+            opened.connect(device)
+            _state.value = CameraState.Connected(
+                identity = CameraModels.identify("X-T50").copy(writable = false, note = appContext.getString(R.string.camera_bluetooth_read_only)),
+                details = CameraDetails(firmware = "1.32"),
+                transport = CameraTransport.BLUETOOTH,
+            )
+            CameraTransferService.start(appContext)
+        } catch (error: Exception) {
+            closeSession(CameraState.Error(appContext.getString(R.string.camera_bluetooth_failure, error.message.orEmpty())))
+        }
+    }
 
     /**
      * What the camera is holding for the lab, for as long as this session lasts.
@@ -118,6 +175,10 @@ class CameraController(
      * reconnection, because tapping the chip twice should not drop a working session.
      */
     fun connect() {
+        if (_transport.value == CameraTransport.BLUETOOTH) {
+            scope.launch { connectBluetoothNow() }
+            return
+        }
         if (!hasHostSupport) return
         scope.launch { connectNow(UsbBulkChannel.findCamera(usbManager)) }
     }
@@ -130,12 +191,13 @@ class CameraController(
      * feature that justifies going native.
      */
     fun onDeviceAttached(device: UsbDevice?) {
-        if (!hasHostSupport) return
+        if (!hasHostSupport || _transport.value != CameraTransport.USB) return
         scope.launch { connectNow(device ?: UsbBulkChannel.findCamera(usbManager)) }
     }
 
     private suspend fun connectNow(device: UsbDevice?) {
         lock.withLock {
+            if (_transport.value != CameraTransport.USB) return@withLock
             if (_state.value is CameraState.Connected || _state.value is CameraState.Writing) return@withLock
 
             if (device == null) {
@@ -213,6 +275,7 @@ class CameraController(
         if (!hasHostSupport) return
         scope.launch {
             lock.withLock {
+                if (session == null) return@withLock
                 // A write in progress is a partial slot, and the sheet says so rather
                 // than the state quietly reading "disconnected" as if nothing was
                 // underway.
@@ -243,14 +306,17 @@ class CameraController(
      * explicit refresh while connected in another mode.
      */
     fun reconnect() {
-        if (!hasHostSupport) return
         scope.launch {
             lock.withLock { closeSession(CameraState.Disconnected) }
-            connectNow(UsbBulkChannel.findCamera(usbManager))
+            if (_transport.value == CameraTransport.BLUETOOTH) connectBluetoothNow()
+            else if (hasHostSupport) connectNow(UsbBulkChannel.findCamera(usbManager))
         }
     }
 
     private fun closeSession(next: CameraState, abort: Boolean = false) {
+        bluetooth?.let { runCatching { it.close() } }
+        bluetooth = null
+        bluetoothSlots = null
         session?.let { runCatching { if (abort) it.abort() else it.close() } }
         session = null
         labSession = null
@@ -262,7 +328,10 @@ class CameraController(
         try {
             block()
         } catch (error: Exception) {
-            if (error is PtpTransportError) {
+            if (error is CancellationException) throw error
+            if (bluetooth != null) {
+                closeSession(CameraState.Error(appContext.getString(R.string.camera_bluetooth_failure, error.message.orEmpty())))
+            } else if (error is PtpTransportError) {
                 closeSession(error.toCameraError(), abort = true)
             }
             throw error
@@ -290,6 +359,7 @@ class CameraController(
             when (intent.action) {
                 ACTION_USB_PERMISSION -> scope.launch {
                     lock.withLock {
+                        if (_transport.value != CameraTransport.USB) return@withLock
                         val device = UsbBulkChannel.findCamera(usbManager)
                         when {
                             device == null -> _state.value = CameraState.Disconnected
@@ -350,6 +420,13 @@ class CameraController(
      * seven slots it never asked about.
      */
     suspend fun readSlots(): List<SlotNameReading> = withConnection {
+        bluetooth?.let { camera ->
+            return withContext(Dispatchers.IO) {
+                val slots = camera.readRecipes()
+                bluetoothSlots = slots
+                slots.map { SlotNameReading(it.slot, it.name.takeIf(String::isNotBlank), true) }
+            }
+        }
         val open = session ?: return emptyList()
 
         return withContext(Dispatchers.IO) { readSlotNames(open) }
@@ -368,6 +445,16 @@ class CameraController(
     suspend fun readSlotRecipes(
         onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
     ): List<SlotRecipe> = withConnection {
+        bluetooth?.let { camera ->
+            return withContext(Dispatchers.IO) {
+                val slots = camera.readRecipes()
+                bluetoothSlots = slots
+                slots.mapIndexed { index, slot ->
+                    onProgress(index + 1, slots.size)
+                    slot.copy(name = slot.name.ifBlank { "Slot C${slot.slot}" })
+                }
+            }
+        }
         val open = session ?: return emptyList()
 
         return withContext(Dispatchers.IO) { readSlotRecipes(open, onProgress) }
@@ -377,6 +464,13 @@ class CameraController(
      * Reads a single slot as a recipe.
      */
     suspend fun readSlotRecipe(slot: Int): SlotRecipe? = withConnection {
+        require(slot in 1..7) { "Invalid custom slot." }
+        bluetooth?.let { camera ->
+            return withContext(Dispatchers.IO) {
+                val slots = bluetoothSlots ?: camera.readRecipes().also { bluetoothSlots = it }
+                slots.single { it.slot == slot }.let { it.copy(name = it.name.ifBlank { "Slot C$slot" }) }
+            }
+        }
         val open = session ?: return null
 
         return withContext(Dispatchers.IO) { readSlotRecipe(open, slot) }
@@ -449,6 +543,7 @@ class CameraController(
     }
 
     private fun mediaSession(): PtpSession {
+        check(bluetooth == null) { appContext.getString(R.string.camera_bluetooth_usb_feature) }
         val open = session ?: throw IllegalStateException(
             "Connect the camera before choosing photos from it.",
         )
@@ -529,6 +624,7 @@ class CameraController(
     }
 
     private fun rawDevelopmentSession(): PtpSession {
+        check(bluetooth == null) { appContext.getString(R.string.camera_bluetooth_usb_feature) }
         val open = session ?: throw IllegalStateException(
             "Connect the camera before developing a RAW file.",
         )
@@ -566,6 +662,9 @@ class CameraController(
         val open = session
         val connected = _state.value as? CameraState.Connected
 
+        if (connected?.transport == CameraTransport.BLUETOOTH) {
+            return WriteResult.Failure(appContext.getString(R.string.camera_bluetooth_read_only))
+        }
         if (open == null || connected == null) {
             return WriteResult.Failure(
                 "The camera is not connected, so there is nothing to write to.",

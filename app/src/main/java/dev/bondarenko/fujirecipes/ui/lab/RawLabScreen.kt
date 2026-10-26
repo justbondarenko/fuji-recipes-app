@@ -607,7 +607,9 @@ private data class CameraReadiness(
 @Composable
 private fun CameraState.readiness(): CameraReadiness = when (this) {
     is CameraState.Connected ->
-        if (usbMode == UsbMode.RAW_CONVERSION || usbMode == UsbMode.UNREPORTED) {
+        if (transport == dev.bondarenko.fujirecipes.camera.CameraTransport.BLUETOOTH) {
+            CameraReadiness(canRender = false, message = stringResource(R.string.camera_bluetooth_usb_feature))
+        } else if (usbMode == UsbMode.RAW_CONVERSION || usbMode == UsbMode.UNREPORTED) {
             CameraReadiness(
                 canRender = true,
                 message = stringResource(R.string.raw_camera_ready, identity.model),

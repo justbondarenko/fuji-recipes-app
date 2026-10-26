@@ -40,6 +40,23 @@ import org.junit.Test
  */
 @SuppressLint("MissingPermission")
 class CameraBluetoothHardwareTest {
+    /** Exercises the shipping reader, including refresh on the same GATT connection. */
+    @Test
+    fun readRecipesWithAppTransport() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("bluetoothAppRead") == "true")
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        checkXAppStopped()
+        val device = requireNotNull(context.getSystemService(BluetoothManager::class.java)
+            .adapter.bondedDevices.singleOrNull { it.name == "X-T50" })
+        dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothCamera(context) {}.use { camera ->
+            camera.connect(device)
+            val first = camera.readRecipes()
+            check(first.map { it.slot } == (1..7).toList() && first.all { it.settings.size == 16 })
+            check(camera.readRecipes() == first) { "Refreshed recipes differ from the initial read." }
+        }
+        checkXAppStopped()
+    }
+
     @Test
     @RequiresApi(37)
     fun downloadSettingsBackup() {

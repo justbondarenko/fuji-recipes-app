@@ -113,6 +113,7 @@ fun CameraPhotosScreen(
     if (!cameraState.usbMode.allowsCardBrowsing) {
         CameraPhotosCardReaderState(
             onRefresh = onRefreshConnection,
+            bluetooth = cameraState.transport == dev.bondarenko.fujirecipes.camera.CameraTransport.BLUETOOTH,
             modifier = modifier.fillMaxSize().padding(contentPadding),
         )
         return
@@ -384,14 +385,15 @@ internal fun CameraPhotoDayHeader(
 private fun CameraPhotosCardReaderState(
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier,
+    bluetooth: Boolean = false,
 ) {
     FujiIconPanel(
         icon = FujiIcons.CameraRoll,
         shape = MaterialShapes.Pill.toShape(),
         title = stringResource(R.string.camera_photos_card_reader_title),
-        body = stringResource(R.string.camera_photos_card_reader_body),
-        actionLabel = stringResource(R.string.camera_photos_refresh_connection),
-        onAction = onRefresh,
+        body = stringResource(if (bluetooth) R.string.camera_bluetooth_usb_feature else R.string.camera_photos_card_reader_body),
+        actionLabel = if (bluetooth) null else stringResource(R.string.camera_photos_refresh_connection),
+        onAction = if (bluetooth) null else onRefresh,
         modifier = modifier.padding(24.dp),
     )
 }

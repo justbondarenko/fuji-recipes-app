@@ -1,0 +1,156 @@
+[
+  {
+    "slot": 1,
+    "name": "Daylight sample",
+    "settings": {
+      "filmSimulation": "provia",
+      "dynamicRange": "dr100",
+      "whiteBalance": "auto",
+      "color": 0,
+      "sharpness": 0,
+      "highIsoNR": 0,
+      "clarity": 0,
+      "highlightTone": 0.0,
+      "shadowTone": 0.0,
+      "colorChromeEffect": "off",
+      "colorChromeFxBlue": "off",
+      "grainEffect": "off",
+      "grainSize": "small",
+      "colorTemperature": 5600,
+      "wbShiftRed": 0,
+      "wbShiftBlue": 0
+    }
+  },
+  {
+    "slot": 2,
+    "name": "Kelvin sample",
+    "settings": {
+      "filmSimulation": "reala-ace",
+      "dynamicRange": "dr200",
+      "whiteBalance": "color-temp",
+      "color": 4,
+      "sharpness": -4,
+      "highIsoNR": -4,
+      "clarity": -5,
+      "highlightTone": -2.0,
+      "shadowTone": 4.0,
+      "colorChromeEffect": "weak",
+      "colorChromeFxBlue": "strong",
+      "grainEffect": "strong",
+      "grainSize": "large",
+      "colorTemperature": 6700,
+      "wbShiftRed": 4,
+      "wbShiftBlue": -7
+    }
+  },
+  {
+    "slot": 3,
+    "name": "",
+    "settings": {
+      "filmSimulation": "acros-ye",
+      "dynamicRange": "dr400",
+      "whiteBalance": "daylight",
+      "color": -4,
+      "sharpness": 4,
+      "highIsoNR": 4,
+      "clarity": 5,
+      "highlightTone": -1.5,
+      "shadowTone": 3.5,
+      "colorChromeEffect": "strong",
+      "colorChromeFxBlue": "weak",
+      "grainEffect": "weak",
+      "grainSize": "small",
+      "colorTemperature": 5600,
+      "wbShiftRed": 9,
+      "wbShiftBlue": -9
+    }
+  },
+  {
+    "slot": 4,
+    "name": "Fluorescent sample",
+    "settings": {
+      "filmSimulation": "pro-neg-hi",
+      "dynamicRange": "dr100",
+      "whiteBalance": "fluorescent-2",
+      "color": -2,
+      "sharpness": -1,
+      "highIsoNR": -2,
+      "clarity": -2,
+      "highlightTone": -1.0,
+      "shadowTone": 3.0,
+      "colorChromeEffect": "off",
+      "colorChromeFxBlue": "strong",
+      "grainEffect": "strong",
+      "grainSize": "small",
+      "colorTemperature": 5600,
+      "wbShiftRed": -3,
+      "wbShiftBlue": 5
+    }
+  },
+  {
+    "slot": 5,
+    "name": "Ambience sample",
+    "settings": {
+      "filmSimulation": "classic-chrome",
+      "dynamicRange": "dr200",
+      "whiteBalance": "auto-ambience-priority",
+      "color": -1,
+      "sharpness": -2,
+      "highIsoNR": -1,
+      "clarity": -1,
+      "highlightTone": -0.5,
+      "shadowTone": 2.5,
+      "colorChromeEffect": "weak",
+      "colorChromeFxBlue": "off",
+      "grainEffect": "weak",
+      "grainSize": "large",
+      "colorTemperature": 5600,
+      "wbShiftRed": 2,
+      "wbShiftBlue": 0
+    }
+  },
+  {
+    "slot": 6,
+    "name": "Warm sample",
+    "settings": {
+      "filmSimulation": "eterna",
+      "dynamicRange": "dr400",
+      "whiteBalance": "incandescent",
+      "color": 1,
+      "sharpness": 1,
+      "highIsoNR": 1,
+      "clarity": 1,
+      "highlightTone": 0.5,
+      "shadowTone": 1.5,
+      "colorChromeEffect": "strong",
+      "colorChromeFxBlue": "strong",
+      "grainEffect": "off",
+      "grainSize": "large",
+      "colorTemperature": 5600,
+      "wbShiftRed": -9,
+      "wbShiftBlue": 9
+    }
+  },
+  {
+    "slot": 7,
+    "name": "Mono sample",
+    "settings": {
+      "filmSimulation": "monochrome-g",
+      "dynamicRange": "dr100",
+      "whiteBalance": "underwater",
+      "color": -3,
+      "sharpness": -3,
+      "highIsoNR": 3,
+      "clarity": 4,
+      "highlightTone": 1.5,
+      "shadowTone": 0.5,
+      "colorChromeEffect": "off",
+      "colorChromeFxBlue": "weak",
+      "grainEffect": "strong",
+      "grainSize": "large",
+      "colorTemperature": 5600,
+      "wbShiftRed": -1,
+      "wbShiftBlue": 1
+    }
+  }
+]

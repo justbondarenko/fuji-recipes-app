@@ -1,10 +1,10 @@
 # Bluetooth recipe connection
 
-Hardware investigation completed on 26 October 2026 on branch `bluetooth-connection`. The debug probe can connect to the paired X-T50 1.32 after a normal camera restart, download its settings over Bluetooth, change a complete measured C7 recipe, verify persistence, and restore the original recipe. The production app still uses USB; Bluetooth UI and backend integration are the next delivery stage.
+Hardware investigation completed on 26 October 2026 on branch `bluetooth-connection`. The debug probe can connect to the paired X-T50 1.32 after a normal camera restart, download its settings over Bluetooth, change a complete measured C7 recipe, verify persistence, and restore the original recipe. The app now includes read-only Bluetooth connection, C1–C7 views and library import; product recipe writes still require USB.
 
 ## Verified scope
 
-The tested combination is Fujifilm X-T50 firmware 1.32 and Pixel 10 Pro XL on Android 17 / API 37, with an existing XApp-created Bluetooth bond. Phone Wi-Fi was disabled and XApp was stopped before and after native operations. Camera USB was disconnected for Bluetooth transfers. This does not establish native initial pairing, other phones/Android versions, other camera models/firmware or writes to C1–C6.
+The investigation used Fujifilm X-T50 firmware 1.32 and Pixel 10 Pro XL on Android 17 / API 37, with an existing XApp-created Bluetooth bond. Phone Wi-Fi was disabled and XApp was stopped before and after native operations. Camera USB was disconnected for Bluetooth transfers. The read-only app was subsequently tested on that Pixel and Samsung SM-F976B, also API 37. This does not establish native initial pairing, older Android versions, other camera models/firmware or writes to C1–C6.
 
 | Check | Result |
 |---|---|
@@ -55,6 +55,18 @@ Immediate operation switches were refused; the probe currently uses measured thr
 
 ## Integration delivery plan
 
+### Read-only app stage delivered
+
+`BluetoothBackup` is a pure Kotlin decoder with a synthetic 70,524-byte fixture and an independently decoded golden result. It checks the complete layout and all seven slots before returning recipes. The shipping `BluetoothCamera` retains checksum, zlib EOF, size/model/firmware gates and bounded, serial GATT operations. It has no settings-upload entry point and saves no raw backups. Transfer subscriptions are enabled for each download, so Refresh and bulk import work on an existing connection.
+
+The existing Camera sheet now offers USB/Bluetooth selection and the Android Nearby devices permission request. Bluetooth uses one already bonded X-T50 and displays a read-only label. Slot details reuse the validated snapshot from the most recent complete read; Refresh or reopening the Camera sheet obtains a fresh snapshot. Bulk import always reads afresh. USB writes, Photos and RAW Lab retain their USB paths, with Bluetooth refusals in both UI and controller. USB host support is optional for installation and does not suppress the Bluetooth choice.
+
+Both phones passed the actual app flow: connect with XApp stopped, read seven slot names, view C7, save C7, refresh, release/reconnect, review and import all seven slots. Persisted imports matched across phones for all seven names and 112 field values. Both imported sets also matched the independent research decoder of the previously restored camera backup. Existing recipes were unchanged; all temporary imports were then removed and both original library files restored byte-for-byte. Pixel Wi-Fi was off; Samsung Wi-Fi remained on. The app has no Internet permission and this transport uses only Android BLE APIs. Camera recipes were not written during this stage.
+
+The compatibility ceiling remains X-T50 1.32 with an existing bond. Older Android callback/write APIs are implemented but untested on hardware; both available phones run API 37. Unsupported backup layouts, field codes and non-ASCII names fail the whole read. Auto White Priority/custom WB, monochromatic color and D-Range Priority remain unmapped. Native pairing and general Bluetooth writes are separate stages.
+
+The remaining steps below describe the wider write-capable delivery; they do not enable product Bluetooth writes in this stage.
+
 1. Finish the format boundary before enabling general writes. Produce sanitized, checked-in examples from the measured layout, retaining unknown bytes without personal names/identities. Verify C1–C6 changes and restoration before advertising writes to every slot. Refuse unsupported model/firmware/layout and unsupported requested values. Unknown/global data must be preserved from a fresh snapshot, never copied from an old complete backup.
 
 2. Move the proven transport into the app with native Android BLE APIs. Keep serialized GATT requests, bounded queues/timeouts, disconnect handling and all integrity checks. The API-37 encryption-status diagnostic needs an explicitly implemented/tested compatibility path before claiming older Android support. Initial delivery may use the existing bond, with clear pairing help; native initial pairing needs a separate hardware proof. Keep pairing data private and never log credentials.
@@ -65,13 +77,15 @@ Immediate operation switches were refused; the probe currently uses measured thr
 
 5. Verify the user-facing flow on the connected Pixel and X-T50: cold connect without XApp, all-slot import, recipe selection, supported-field preflight, controlled write, independent verification, disconnect/reconnect and restoration. Include unsupported values, camera sleep/menu state, cancellation, interrupted transfer and stale-snapshot refusal. Run the relevant camera/recipe JVM tests and debug build once integration changes land. Current private capture checks are hardware research evidence, not checked-in CI fixtures.
 
-6. Deliver in coherent stages: diagnostic proof, read-only app import, controlled write support, then connection UI/help and broader compatibility. Review the full diff at each stage. Do not enable writes beyond hardware-verified scope or declare unobserved devices compatible. This diagnostic stage does not ship production Bluetooth UI or general recipe writing.
+6. Deliver in coherent stages: diagnostic proof, read-only app import, controlled write support, then broader compatibility. Review the full diff at each stage. Do not enable writes beyond hardware-verified scope or declare unobserved devices compatible. The first two stages are delivered; general recipe writing remains disabled over Bluetooth.
 
 ## Local verification and recovery
 
 Private captures, backups, helpers and complete checkpoints remain under the ignored `captures/bluetooth/xt50-132-pixel/`. The standard-library research checks are `decode_slots.py --check`, `check_extraction.py` and `read_usb_slots.py --check`; they require those private research files. The USB helper's normal modes only change/restore the selector; explicit bounded calibration modes temporarily measured C7 fields and verified restoration.
 
 Build the diagnostics with `./gradlew :app:assembleDebug :app:assembleDebugAndroidTest`. With the debug app/test APK installed, Bluetooth permission granted and XApp closed, run the hardware test using `bluetoothProbe=true`; without this opt-in it skips. `bluetoothRoundTrip`, `bluetoothColorProof` and `bluetoothRecipeProof` are separate, mutually exclusive restore opt-ins. Edited proofs require app-private, independently checked reference files; those files have been removed after restoration. A failed run deletes its old result, so only retrieve a backup after `OK (1 test)`.
+
+For the shipping reader regression, run `CameraBluetoothHardwareTest#readRecipesWithAppTransport` with `-e bluetoothAppRead true`. It reads all seven slots twice on one connection and requires the results to match, without writing settings or a backup file. Run phones sequentially so the camera has only one client. `CameraTransportTest` checks the Bluetooth choice on a state without USB host support, disabled transport changes while connecting and the read-only label; it needs no camera. Parser and write-capability checks run in `:app:testDebugUnitTest`. The final build passed 737 JVM tests and both device checks on each phone (four instrumentation checks). Samsung also displayed the native Nearby devices prompt, handled denial with actionable guidance and reconnected after its original permission was restored.
 
 Every product write must start with a fresh validated backup, patch only supported fields in the selected slot and measured metadata, preserve all other fresh bytes, then reconnect and verify. On interruption, read actual camera state before deciding recovery; do not replay a whole-settings restore blindly. Retain original recipe data and report whether the transfer was accepted, the recipe read back correctly, and the complete snapshot matched. Disable Bluetooth writes when format/integrity validation fails; USB remains the established recovery route. No server, account, migration or external radio sniffer is required for this path.
 

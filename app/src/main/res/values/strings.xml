@@ -770,4 +770,17 @@
     <string name="raw_editor_grain">Grain</string>
     <string name="raw_editor_amount">Amount</string>
     <string name="raw_editor_select_parameter">Select parameter</string>
+    <string name="camera_transport_usb">USB</string>
+    <string name="camera_transport_bluetooth">Bluetooth</string>
+    <string name="camera_bluetooth_help">Pair your X-T50 with Fujifilm XApp once, then close XApp. Keep the camera awake on the shooting display, with its USB cable unplugged.</string>
+    <string name="camera_bluetooth_connecting">Connecting to the paired X-T50…</string>
+    <string name="camera_bluetooth_connected">Bluetooth · Read-only</string>
+    <string name="camera_bluetooth_read_only">Bluetooth reads recipes in this version. Use USB to write recipes, browse photos or use RAW Lab.</string>
+    <string name="camera_bluetooth_permission">Allow Nearby devices access to connect by Bluetooth. If the permission prompt no longer appears, allow it in Android app settings.</string>
+    <string name="camera_bluetooth_unavailable">This phone does not have Bluetooth support.</string>
+    <string name="camera_bluetooth_off">Turn on Bluetooth on the phone, then tap Connect.</string>
+    <string name="camera_bluetooth_pair_first">This version connects to one paired X-T50. Pair the camera with Fujifilm XApp, close XApp, then try again.</string>
+    <string name="camera_bluetooth_disconnected">The Bluetooth camera disconnected. Wake the camera and connect again.</string>
+    <string name="camera_bluetooth_failure">Bluetooth could not read the camera: %1$s Keep the camera awake on the shooting display and close XApp before retrying.</string>
+    <string name="camera_bluetooth_usb_feature">Use a USB connection for this feature. Bluetooth currently reads recipes only.</string>
 </resources>
