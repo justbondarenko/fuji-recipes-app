@@ -1,10 +1,18 @@
 package dev.bondarenko.fujirecipes.camera.bluetooth
 
 import dev.bondarenko.fujirecipes.camera.ptp.unpackU16
+import dev.bondarenko.fujirecipes.camera.ptp.unpackU32
+import dev.bondarenko.fujirecipes.camera.ptp.packU16
+import dev.bondarenko.fujirecipes.camera.ptp.packU32
 import dev.bondarenko.fujirecipes.camera.usb.SlotRecipe
+import dev.bondarenko.fujirecipes.data.fields.RecipeFields
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.doubleOrNull
 import java.util.zip.Inflater
 
-/** Measured X-T50 1.32 layout; see specs/plans/bluetooth-recipes.md. No camera I/O or encoder. */
+/** Measured X-T50 1.32 layout; see specs/plans/bluetooth-recipes.md. No camera I/O. */
 object BluetoothBackup {
     const val SIZE = 70524
     private const val START = 63356
@@ -24,6 +32,103 @@ object BluetoothBackup {
     private val wbBanks = mapOf(0 to 116, 2 to 124, 3 to 144, 4 to 148, 5 to 152,
         6 to 156, 7 to 160, 8 to 164, 9 to 168, 10 to 140)
     private val colors = mapOf(0 to 0, 3 to 4, 4 to 3, 5 to 2, 6 to 1, 7 to -2, 8 to -1, 9 to -3, 10 to -4)
+    private val fields = mapOf(
+        "filmSimulation" to (229 to simulations),
+        "dynamicRange" to (245 to mapOf(1 to "dr100", 2 to "dr200", 3 to "dr400")),
+        "whiteBalance" to (114 to wbModes), "color" to (248 to colors),
+        "sharpness" to (250 to (0..8).associateWith { 4 - it }),
+        "highIsoNR" to (172 to (0..8).associateWith { it - 4 }),
+        "clarity" to (175 to (1..11).associateWith { it - 6 }),
+        "highlightTone" to (252 to (0..12).associateWith { it / 2.0 - 2 }),
+        "shadowTone" to (254 to (0..12).associateWith { it / 2.0 - 2 }),
+        "colorChromeEffect" to (256 to mapOf(0 to "off", 1 to "weak", 2 to "strong")),
+        "colorChromeFxBlue" to (257 to mapOf(0 to "off", 1 to "weak", 2 to "strong")),
+        "grainEffect" to (258 to mapOf(0 to "strong", 1 to "weak", 2 to "off")),
+        "grainSize" to (259 to mapOf(0 to "small", 1 to "large")),
+    )
+
+    /** Preflight is also used before showing the overwrite action, without a camera snapshot. */
+    fun validateRecipe(name: String?, settings: JsonObject) {
+        require(name == null || name.length in 1..25 && name.all { it.code in 32..126 }) {
+            "Bluetooth camera names must contain 1–25 printable ASCII characters."
+        }
+        settings.forEach { (id, value) ->
+            if (value == JsonNull || RecipeFields.byId(id)?.advisory == true) return@forEach
+            val primitive = value as? JsonPrimitive
+            require(primitive != null) { "Unsupported Bluetooth value for $id." }
+            val field = fields[id]
+            when {
+                field != null -> encoded(id, primitive)
+                id == "colorTemperature" -> {
+                    // A remembered Kelvin value is not part of a non-Kelvin recipe.
+                    if (settings["whiteBalance"] != JsonPrimitive("color-temp")) return@forEach
+                    val number = primitive.doubleOrNull
+                    require(!primitive.isString && number != null && number in 2500.0..10000.0 && number % 100 == 0.0) {
+                        "Bluetooth color temperature must be 2500–10000K in 100K steps."
+                    }
+                }
+                id == "wbShiftRed" || id == "wbShiftBlue" -> {
+                    val number = primitive.doubleOrNull
+                    require(!primitive.isString && number != null && number in -9.0..9.0 && number % 1 == 0.0) {
+                        "Bluetooth white balance shifts must be integers from −9 to +9."
+                    }
+                }
+                else -> error("Bluetooth writing does not yet support $id. Use USB for this recipe.")
+            }
+        }
+    }
+
+    private fun encoded(id: String, value: JsonPrimitive): Int =
+        requireNotNull(fields.getValue(id).second.entries.singleOrNull { (_, supported) ->
+            if (supported is Number) !value.isString && value.doubleOrNull == supported.toDouble()
+            else value.isString && value.content == supported
+        }?.key) { "Unsupported Bluetooth $id value: $value." }
+
+    fun requireResolvedWrite(current: ByteArray, original: ByteArray, target: ByteArray) {
+        require(current.contentEquals(original) || current.contentEquals(target)) {
+            "The previous Bluetooth write is unresolved. Current settings match neither saved snapshot. " +
+                "No new write was sent; use USB to inspect or recover the camera."
+        }
+    }
+
+    /** Only C7 has independent write measurements. Preserve every other fresh backup byte. */
+    fun patchC7(raw: ByteArray, settings: JsonObject, name: String? = null): ByteArray {
+        decode(raw)
+        validateRecipe(name, settings)
+        val start = START + 6 * STRIDE
+        val target = raw.copyOf()
+        fields.forEach { (id, field) ->
+            val value = settings[id] as? JsonPrimitive ?: return@forEach
+            if (value == JsonNull) return@forEach
+            val code = encoded(id, value)
+            target[start + field.first] = code.toByte()
+            if (id == "filmSimulation") {
+                if (code in 9..12) target[start + 235] = code.toByte()
+                if (code in 22..25) target[start + 232] = code.toByte()
+            }
+        }
+        val bank = wbBanks.getValue(target[start + 114].toInt() and 0xff)
+        for ((id, offset) in listOf("wbShiftRed" to bank, "wbShiftBlue" to bank + 2)) {
+            val value = (settings[id] as? JsonPrimitive)?.doubleOrNull ?: continue
+            target[start + offset] = (9 - value.toInt()).toByte()
+        }
+        if (settings["whiteBalance"] == JsonPrimitive("color-temp")) {
+            (settings["colorTemperature"] as? JsonPrimitive)?.doubleOrNull?.let {
+                packU16(it.toInt()).copyInto(target, start + 16)
+            }
+        }
+        if (name != null) {
+            target.fill(0, start + 622, start + 648)
+            name.toByteArray(Charsets.US_ASCII).copyInto(target, start + 622)
+        }
+        val delta = (start until SIZE).sumOf { (target[it].toInt() and 0xff) - (raw[it].toInt() and 0xff) }
+        // ponytail: measured relative C7 metadata update; do not generalize to other slots.
+        val metadata = unpackU32(raw, 264) + delta
+        require(metadata in 0..0xffffffffL) { "Bluetooth backup metadata update overflow." }
+        packU32(metadata.toInt()).copyInto(target, 264)
+        decode(target)
+        return target
+    }
 
     /** Names remain blank here so the slot grid can distinguish an unnamed slot. */
     fun decode(raw: ByteArray): List<SlotRecipe> {

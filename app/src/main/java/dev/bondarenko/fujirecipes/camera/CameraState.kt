@@ -44,6 +44,7 @@ sealed interface CameraState {
         val done: Int,
         val total: Int,
         val current: String,
+        val cancellable: Boolean = true,
     ) : CameraState
 
     /**
@@ -57,6 +58,7 @@ sealed interface CameraState {
 
 /** Whether a write can be offered at all — connected, to a body with custom slots (WR-01). */
 val CameraState.canWrite: Boolean
-    get() = this is CameraState.Connected && transport == CameraTransport.USB && identity.writable
+    get() = this is CameraState.Connected && identity.writable &&
+        (transport == CameraTransport.USB || identity.model == "X-T50" && details.firmware == "1.32")
 
 enum class CameraTransport { USB, BLUETOOTH }

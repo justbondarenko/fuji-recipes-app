@@ -150,7 +150,7 @@ fun WriteSheetContent(
     modifier: Modifier = Modifier,
 ) {
     // Back during a write asks first, for the same reason the sheet will not be dismissed.
-    BackHandler(enabled = state.isWriting) { onRequestCancel() }
+    BackHandler(enabled = state.isWriting) { if (state.canCancel) onRequestCancel() }
 
     Column(
         modifier = modifier
@@ -162,7 +162,7 @@ fun WriteSheetContent(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         when (val stage = state.stage) {
-            WriteStage.Connect -> ConnectStage(state.recipeName, onConnect)
+            WriteStage.Connect -> ConnectStage(state.recipeName, state.connectionError, onConnect)
 
             is WriteStage.Compatibility -> CompatibilityStage(
                 plan = stage.plan,
@@ -200,7 +200,7 @@ fun WriteSheetContent(
         }
     }
 
-    if (state.confirmingCancel) {
+    if (state.confirmingCancel && state.canCancel) {
         AlertDialog(
             onDismissRequest = onDismissCancel,
             title = { Text(stringResource(R.string.write_cancel_title)) },
@@ -222,9 +222,10 @@ fun WriteSheetContent(
 // ─── Stage 1 ────────────────────────────────────────────────────────────────
 
 @Composable
-private fun ConnectStage(recipeName: String, onConnect: () -> Unit) {
+private fun ConnectStage(recipeName: String, error: String?, onConnect: () -> Unit) {
     StageHeader(stringResource(R.string.write_title))
     Body(stringResource(R.string.write_connect_body, recipeName))
+    error?.let { Panel(it, alert = true) }
     Button(onClick = onConnect, modifier = Modifier.fillMaxWidth()) {
         Text(stringResource(R.string.camera_action_connect))
     }
@@ -531,7 +532,8 @@ private fun ProgressStage(stage: WriteStage.Progress) {
 @Composable
 private fun DoneStage(outcome: WriteOutcome, onDone: () -> Unit) {
     StageHeader(stringResource(R.string.write_done_title, outcome.slot))
-    Body(stringResource(R.string.write_done_body, outcome.written, outcome.total))
+    Body(if (outcome.wholeBackupVerified) stringResource(R.string.camera_bluetooth_write_done)
+        else stringResource(R.string.write_done_body, outcome.written, outcome.total))
 
     // A refused setting or a value the body adjusted did not stop the write, and the user
     // should still know about it.
@@ -551,8 +553,10 @@ private fun FailedStage(stage: WriteStage.Failed, onRetry: () -> Unit, onDone: (
     // untouched slot is a false alarm.
     stage.warning?.let { Panel(it, alert = true) }
 
-    Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
-        Text(stringResource(R.string.camera_action_retry))
+    if (stage.retryable) {
+        Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.camera_action_retry))
+        }
     }
     OutlinedButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
         Text(stringResource(R.string.action_done))

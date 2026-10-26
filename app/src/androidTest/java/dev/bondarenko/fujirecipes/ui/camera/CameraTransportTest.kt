@@ -21,6 +21,8 @@ import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.camera.CameraModels
 import dev.bondarenko.fujirecipes.camera.CameraState
 import dev.bondarenko.fujirecipes.camera.CameraTransport
+import dev.bondarenko.fujirecipes.camera.plan.CameraDetails
+import dev.bondarenko.fujirecipes.camera.usb.WriteOutcome
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.common.FujiModalSideSheet
 import org.junit.Assert.assertEquals
@@ -32,7 +34,7 @@ import java.io.File
 class CameraTransportTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun BluetoothRemainsAvailableWithoutUsbHostAndNamesItsReadOnlyConnection() {
+    @Test fun BluetoothRemainsAvailableWithoutUsbHostAndNamesItsC7Connection() {
         val state = mutableStateOf<CameraState>(CameraState.NoUsbHost)
         val transport = mutableStateOf(CameraTransport.USB)
         var connects = 0
@@ -68,7 +70,8 @@ class CameraTransportTest {
         compose.runOnIdle { assertEquals(1, connects); state.value = CameraState.Connecting }
         usb.assertIsNotEnabled()
         compose.runOnIdle {
-            state.value = CameraState.Connected(CameraModels.identify("X-T50"), transport = CameraTransport.BLUETOOTH)
+            state.value = CameraState.Connected(CameraModels.identify("X-T50"), details = CameraDetails(firmware = "1.32"),
+                transport = CameraTransport.BLUETOOTH)
         }
         compose.onNodeWithText(label(R.string.camera_bluetooth_connected)).assertExists()
         bluetooth.assertIsOn()
@@ -76,6 +79,37 @@ class CameraTransportTest {
         snapshot.outputStream().use { compose.onNode(isDialog()).captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it) }
         usb.performClick()
         compose.onNodeWithText(label(R.string.camera_state_disconnected_body)).assertExists()
+    }
+
+    @Test fun bluetoothWriteReportsVerifiedBackupAndHidesBlindRetry() {
+        val state = mutableStateOf(WriteUiState(
+            stage = WriteStage.Done(WriteOutcome(slot = 7, wholeBackupVerified = true)),
+        ))
+        compose.setContent {
+            FujiTheme {
+                WriteSheetContent(state.value, onConnect = {}, onAcceptCompatibility = {},
+                    onChooseSlot = {}, onSelectSlot = {}, onRefreshSlots = {}, onBackToPicker = {},
+                    onConfirm = {}, onRetry = {}, onRequestCancel = {}, onDismissCancel = {},
+                    onConfirmCancel = {}, onDone = {})
+            }
+        }
+        compose.onNodeWithText(label(R.string.camera_bluetooth_write_done)).assertExists()
+        compose.runOnIdle {
+            state.value = state.value.copy(stage = WriteStage.Failed(
+                message = "C7 has not been verified", slot = 7, retryable = false))
+        }
+        compose.onNodeWithText("C7 has not been verified").assertExists()
+        compose.onNodeWithText(label(R.string.camera_action_retry)).assertDoesNotExist()
+    }
+
+    @Test fun foregroundServiceSurvivesDisconnectedStartupWithoutCrashing() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val controller = (context.applicationContext as dev.bondarenko.fujirecipes.FujiRecipesApp).container.cameraController
+        assertEquals(CameraState.Disconnected, controller.state.value)
+        dev.bondarenko.fujirecipes.camera.CameraTransferService.start(context)
+        // Android raises ForegroundServiceDidNotStartInTimeException asynchronously after 5s.
+        android.os.SystemClock.sleep(6_000)
+        assertEquals(CameraState.Disconnected, controller.state.value)
     }
 
     private fun label(id: Int) = InstrumentationRegistry.getInstrumentation().targetContext.getString(id)

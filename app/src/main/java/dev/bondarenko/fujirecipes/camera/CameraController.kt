@@ -2,9 +2,12 @@ package dev.bondarenko.fujirecipes.camera
 
 import android.Manifest
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothDevice
+import android.util.AtomicFile
 import android.os.Build
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothCamera
+import dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothBackup
 import dev.bondarenko.fujirecipes.camera.plan.CameraDetails
 import kotlinx.coroutines.CancellationException
 import android.app.PendingIntent
@@ -60,6 +63,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -128,18 +133,9 @@ class CameraController(
             val device = requireNotNull(adapter.bondedDevices.singleOrNull { it.name == "X-T50" }) {
                 appContext.getString(R.string.camera_bluetooth_pair_first)
             }
-            lateinit var opened: BluetoothCamera
-            opened = BluetoothCamera(appContext) {
-                scope.launch {
-                    lock.withLock {
-                        if (bluetooth === opened) closeSession(CameraState.Error(appContext.getString(R.string.camera_bluetooth_disconnected)))
-                    }
-                }
-            }
-            bluetooth = opened
-            opened.connect(device)
+            openBluetooth(device)
             _state.value = CameraState.Connected(
-                identity = CameraModels.identify("X-T50").copy(writable = false, note = appContext.getString(R.string.camera_bluetooth_read_only)),
+                identity = CameraModels.identify("X-T50").copy(note = appContext.getString(R.string.camera_bluetooth_c7_only)),
                 details = CameraDetails(firmware = "1.32"),
                 transport = CameraTransport.BLUETOOTH,
             )
@@ -147,6 +143,20 @@ class CameraController(
         } catch (error: Exception) {
             closeSession(CameraState.Error(appContext.getString(R.string.camera_bluetooth_failure, error.message.orEmpty())))
         }
+    }
+
+    private fun openBluetooth(device: BluetoothDevice): BluetoothCamera {
+        lateinit var opened: BluetoothCamera
+        opened = BluetoothCamera(appContext) {
+            scope.launch {
+                lock.withLock {
+                    if (bluetooth === opened) closeSession(CameraState.Error(appContext.getString(R.string.camera_bluetooth_disconnected)))
+                }
+            }
+        }
+        bluetooth = opened
+        opened.connect(device)
+        return opened
     }
 
     /**
@@ -174,13 +184,12 @@ class CameraController(
      * Safe to call in any state; a call while already connected is a no-op rather than a
      * reconnection, because tapping the chip twice should not drop a working session.
      */
-    fun connect() {
+    fun connect(): Job? {
         if (_transport.value == CameraTransport.BLUETOOTH) {
-            scope.launch { connectBluetoothNow() }
-            return
+            return scope.launch { connectBluetoothNow() }
         }
-        if (!hasHostSupport) return
-        scope.launch { connectNow(UsbBulkChannel.findCamera(usbManager)) }
+        if (!hasHostSupport) return null
+        return scope.launch { connectNow(UsbBulkChannel.findCamera(usbManager)) }
     }
 
     /**
@@ -644,6 +653,84 @@ class CameraController(
 
     // ─── Writing (FEAT-006) ─────────────────────────────────────────────────
 
+    /** BLE transfers whole settings, so it must never execute the USB property WritePlan. */
+    suspend fun writeBluetoothC7(
+        name: String,
+        settings: JsonObject,
+        isCancelled: () -> Boolean = { false },
+    ): WriteResult = withConnection {
+        val connected = _state.value as? CameraState.Connected
+        val camera = bluetooth
+        if (connected?.transport != CameraTransport.BLUETOOTH || camera == null) {
+            return WriteResult.Failure("Connect the X-T50 over Bluetooth before writing C7.", retryable = false)
+        }
+        // Keep the operation alive once the upload starts; cancelling is safe only beforehand.
+        withContext(Dispatchers.IO + NonCancellable) {
+            var uploadStarted = false
+            val directory = File(appContext.noBackupFilesDir, "bluetooth-c7-recovery")
+            val pending = AtomicFile(File(directory, "pending"))
+            val originalFile = AtomicFile(File(directory, "original.dat"))
+            val targetFile = AtomicFile(File(directory, "target.dat"))
+            fun save(file: AtomicFile, data: ByteArray) {
+                val stream = file.startWrite()
+                try {
+                    stream.write(data)
+                    file.finishWrite(stream)
+                } catch (error: Exception) {
+                    file.failWrite(stream)
+                    throw error
+                }
+            }
+            try {
+                underRawWakeLock {
+                    _state.value = CameraState.Writing(7, 0, 3, appContext.getString(R.string.camera_bluetooth_write_backup))
+                    val target = camera.writeC7(settings, name,
+                        saveBackup = { original, expected ->
+                            if (pending.baseFile.exists()) {
+                                BluetoothBackup.requireResolvedWrite(original, originalFile.readFully(), targetFile.readFully())
+                                pending.delete()
+                            }
+                            check(directory.isDirectory || directory.mkdirs()) { "Could not create the private camera backup folder." }
+                            save(originalFile, original)
+                            save(targetFile, expected)
+                        },
+                        onUploadStarted = {
+                            save(pending, byteArrayOf(1))
+                            uploadStarted = true
+                            _state.value = CameraState.Writing(7, 1, 3,
+                                appContext.getString(R.string.camera_bluetooth_write_upload), cancellable = false)
+                        },
+                        isCancelled = isCancelled,
+                    )
+                    _state.value = CameraState.Writing(7, 2, 3,
+                        appContext.getString(R.string.camera_bluetooth_write_verify), cancellable = false)
+                    // A separate GATT connection verifies camera state, rather than trusting its acknowledgement.
+                    camera.close()
+                    bluetooth = null
+                    bluetoothSlots = null
+                    Thread.sleep(3_000)
+                    val adapter = requireNotNull(appContext.getSystemService(BluetoothManager::class.java).adapter)
+                    val device = requireNotNull(adapter.bondedDevices.singleOrNull { it.name == "X-T50" })
+                    val verified = openBluetooth(device).readBackup()
+                    check(verified.contentEquals(target)) {
+                        "The camera accepted the transfer, but its settings do not match the complete uploaded backup. " +
+                            "The original and intended settings are retained on this phone; inspect the camera before another write."
+                    }
+                    bluetoothSlots = BluetoothBackup.decode(verified)
+                    pending.delete()
+                    _state.value = connected
+                    WriteResult.Success(WriteOutcome(slot = 7, slotTouched = true, wholeBackupVerified = true))
+                }
+            } catch (error: Exception) {
+                closeSession(CameraState.Error(appContext.getString(R.string.camera_bluetooth_failure, error.message.orEmpty())))
+                WriteResult.Failure(error.message.orEmpty(), warning = if (uploadStarted) {
+                    "C7 has not been verified. The original camera backup is retained on this phone. " +
+                        "Reconnect and inspect the camera before writing again."
+                } else null, retryable = false)
+            }
+        }
+    }
+
     /**
      * Executes a plan against the open session.
      *
@@ -778,6 +865,7 @@ sealed interface WriteResult {
         /** What the slot now holds, when anything was written before this stopped. */
         val warning: String? = null,
         val outcome: WriteOutcome? = null,
+        val retryable: Boolean = true,
     ) : WriteResult
 }
 

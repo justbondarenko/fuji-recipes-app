@@ -21,10 +21,15 @@ import kotlin.test.assertTrue
 class CameraModelsTest {
 
     @Test
-    fun `Bluetooth refuses writes even for a USB writable camera`() {
+    fun `Bluetooth writing requires the measured model and firmware`() {
         val usb = CameraState.Connected(CameraModels.identify("X-T50"))
         assertTrue(usb.canWrite)
         assertFalse(usb.copy(transport = CameraTransport.BLUETOOTH).canWrite)
+        val bluetooth = usb.copy(transport = CameraTransport.BLUETOOTH,
+            details = dev.bondarenko.fujirecipes.camera.plan.CameraDetails(firmware = "1.32"))
+        assertTrue(bluetooth.canWrite)
+        assertFalse(bluetooth.copy(details = bluetooth.details.copy(firmware = "1.33")).canWrite)
+        assertFalse(bluetooth.copy(identity = CameraModels.identify("X-T5")).canWrite)
     }
 
     @Test

@@ -6,11 +6,65 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.int
+import dev.bondarenko.fujirecipes.camera.ptp.packU32
+import dev.bondarenko.fujirecipes.camera.ptp.unpackU32
 import org.junit.Assert.*
 import org.junit.Test
 
 class BluetoothBackupTest {
     private fun fixture() = javaClass.getResourceAsStream("/bluetooth/xt50-132-sanitized.dat")!!.use { it.readBytes() }
+
+    @Test fun c7EncoderMatchesIndependentMeasurementsAndPreservesEveryOtherByte() {
+        val measured = javaClass.getResourceAsStream("/bluetooth/xt50-132-c7-measured.json")!!.bufferedReader().use {
+            Json.parseToJsonElement(it.readText()).jsonObject
+        }
+        val cases = measured.getValue("cases").jsonArray
+        assertEquals(566, cases.size)
+        cases.forEachIndexed { index, element ->
+            val trial = element.jsonObject
+            val raw = fixture()
+            packU32(100_000).copyInto(raw, 264)
+            measured.getValue("sources").jsonArray[trial.getValue("source").jsonPrimitive.int].jsonObject.forEach { (offset, value) ->
+                raw[69500 + offset.toInt()] = value.jsonPrimitive.int.toByte()
+            }
+            val expected = raw.copyOf()
+            trial.getValue("changes").jsonObject.forEach { (offset, value) ->
+                expected[69500 + offset.toInt()] = value.jsonPrimitive.int.toByte()
+            }
+            packU32(100_000 + trial.getValue("delta").jsonPrimitive.int).copyInto(expected, 264)
+            assertArrayEquals("Measured case $index", expected,
+                BluetoothBackup.patchC7(raw, trial.getValue("settings").jsonObject))
+        }
+        val raw = fixture().also { packU32(100_000).copyInto(it, 264) }
+        val named = BluetoothBackup.patchC7(raw, buildJsonObject {}, "Fuji BLE TEST")
+        BluetoothBackup.requireResolvedWrite(raw, raw, named)
+        BluetoothBackup.requireResolvedWrite(named, raw, named)
+        for (offset in listOf(264, 63164, 63356, 69748)) {
+            val unrelated = named.copyOf().also { it[offset] = (it[offset].toInt() xor 1).toByte() }
+            assertThrows(IllegalArgumentException::class.java) {
+                BluetoothBackup.requireResolvedWrite(unrelated, raw, named)
+            }
+        }
+        assertEquals("Fuji BLE TEST", BluetoothBackup.decode(named)[6].name)
+        val delta = (69500 until raw.size).sumOf { (named[it].toInt() and 255) - (raw[it].toInt() and 255) }
+        assertEquals(unpackU32(raw, 264) + delta, unpackU32(named, 264))
+        assertArrayEquals(raw, BluetoothBackup.patchC7(raw, buildJsonObject {}))
+        for ((settings, name) in listOf(
+            "{\"color\":true}" to null, "{\"color\":\"4\"}" to null,
+            "{\"wbShiftRed\":9.5}" to null, "{\"whiteBalance\":\"custom-1\"}" to null,
+            "{\"whiteBalance\":\"color-temp\",\"colorTemperature\":5550}" to null,
+            "{\"unknown\":0}" to null, "{\"monochromaticColorWc\":1}" to null,
+            "{}" to "x".repeat(26), "{}" to "Тест", "{}" to "",
+        )) {
+            assertThrows("Accepted $settings / $name", Exception::class.java) {
+                BluetoothBackup.patchC7(raw, Json.parseToJsonElement(settings).jsonObject, name)
+            }
+        }
+    }
 
     @Test fun completeBackupMatchesIndependentGoldenAndRejectsInvalidData() {
         val raw = fixture()

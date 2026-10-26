@@ -28,6 +28,14 @@ import java.util.zip.DeflaterOutputStream
 import java.util.zip.Inflater
 import org.junit.Assume.assumeTrue
 import org.junit.Test
+import dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothBackup
+import dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothCamera
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 /**
  * Opt in with -e bluetoothProbe true after pairing the X-T50 1.32 through XApp.
@@ -48,13 +56,117 @@ class CameraBluetoothHardwareTest {
         checkXAppStopped()
         val device = requireNotNull(context.getSystemService(BluetoothManager::class.java)
             .adapter.bondedDevices.singleOrNull { it.name == "X-T50" })
-        dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothCamera(context) {}.use { camera ->
-            camera.connect(device)
-            val first = camera.readRecipes()
-            check(first.map { it.slot } == (1..7).toList() && first.all { it.settings.size == 16 })
-            check(camera.readRecipes() == first) { "Refreshed recipes differ from the initial read." }
+        var baseline: List<dev.bondarenko.fujirecipes.camera.usb.SlotRecipe>? = null
+        repeat(3) { cycle ->
+            if (cycle > 0) Thread.sleep(3_000)
+            BluetoothCamera(context) {}.use { camera ->
+                camera.connect(device)
+                val first = camera.readRecipes()
+                check(first.map { it.slot } == (1..7).toList() && first.all { it.settings.size == 16 })
+                check(camera.readRecipes() == first) { "Refreshed recipes differ from the initial read." }
+                check(baseline == null || first == baseline) { "Recipes differ after reconnecting." }
+                baseline = first
+            }
         }
         checkXAppStopped()
+    }
+
+    /** Separate opt-in: exercise the shipping C7 writer, verify independently, then restore. */
+    @Test
+    @RequiresApi(37)
+    fun writeC7WithAppTransportAndRestore() = runBlocking {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("bluetoothAppWrite") == "true")
+        assumeTrue(Build.VERSION.SDK_INT >= 37)
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        checkXAppStopped()
+        val device = requireNotNull(context.getSystemService(BluetoothManager::class.java)
+            .adapter.bondedDevices.singleOrNull { it.name == "X-T50" })
+        fun independentBackup() = BleBackupProbe(context).use { probe -> probe.connect(device); probe.download() }
+        val original = independentBackup()
+        val c7 = BluetoothBackup.decode(original).single { it.slot == 7 }
+        check(c7.name.isNotBlank()) { "This bounded proof requires an existing named C7." }
+        File(context.noBackupFilesDir, "bluetooth-c7-hardware-original.dat").writeBytes(original)
+        val controller = (context.applicationContext as dev.bondarenko.fujirecipes.FujiRecipesApp).container.cameraController
+        suspend fun disconnect() {
+            controller.disconnect()
+            withTimeout(20_000) { controller.state.first { it == CameraState.Disconnected } }
+            delay(3_000)
+        }
+        suspend fun connect() {
+            controller.connect()
+            val state = withTimeout(30_000) { controller.state.first { it is CameraState.Connected || it is CameraState.Error } }
+            check(state is CameraState.Connected && state.canWrite) { "C7 writer could not connect: $state" }
+        }
+        val color = (c7.settings.getValue("color") as Number).toInt()
+        val changedColor = if (color == 0) 1 else 0
+        var changed = false
+        try {
+            controller.selectTransport(CameraTransport.BLUETOOTH)
+            withTimeout(5_000) { controller.transport.first { it == CameraTransport.BLUETOOTH } }
+            delay(3_000)
+            connect()
+            try {
+                val result = controller.writeBluetoothC7(c7.name, buildJsonObject { put("color", changedColor) })
+                check(result is WriteResult.Success && result.outcome.wholeBackupVerified) { "Forward write unverified: $result" }
+                changed = true
+                disconnect()
+                val actual = independentBackup()
+                val expected = File(context.noBackupFilesDir, "bluetooth-c7-recovery/target.dat").readBytes()
+                check(actual.contentEquals(expected)) { "Independent read differs from the app's verified target." }
+                check(BluetoothBackup.decode(actual)[6].settings["color"] == changedColor)
+            } finally {
+                // Only a verified forward write is automatically reversed; uncertain uploads require inspection.
+                if (changed) {
+                    disconnect()
+                    connect()
+                    val result = controller.writeBluetoothC7(c7.name, buildJsonObject { put("color", color) })
+                    check(result is WriteResult.Success && result.outcome.wholeBackupVerified) { "Original C7 restoration unverified: $result" }
+                    changed = false
+                    disconnect()
+                    val restored = independentBackup()
+                    check(restored.contentEquals(original)) { "Original whole backup differs after restoration." }
+                    File(context.noBackupFilesDir, "bluetooth-c7-hardware-original.dat").delete()
+                }
+            }
+        } finally {
+            controller.disconnect()
+            withTimeout(20_000) { controller.state.first { it == CameraState.Disconnected } }
+            checkXAppStopped()
+        }
+    }
+
+    /** Cancel after the fresh backup is saved, while no restore data has been sent. */
+    @Test
+    @RequiresApi(37)
+    fun cancelC7BeforeUploadLeavesCameraUnchanged() = runBlocking {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("bluetoothAppCancel") == "true")
+        assumeTrue(Build.VERSION.SDK_INT >= 37)
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        checkXAppStopped()
+        val device = requireNotNull(context.getSystemService(BluetoothManager::class.java)
+            .adapter.bondedDevices.singleOrNull { it.name == "X-T50" })
+        fun independentBackup() = BleBackupProbe(context).use { it.connect(device); it.download() }
+        val original = independentBackup()
+        val c7 = BluetoothBackup.decode(original)[6]
+        val controller = (context.applicationContext as dev.bondarenko.fujirecipes.FujiRecipesApp).container.cameraController
+        try {
+            controller.selectTransport(CameraTransport.BLUETOOTH)
+            withTimeout(5_000) { controller.transport.first { it == CameraTransport.BLUETOOTH } }
+            delay(3_000)
+            controller.connect()
+            val state = withTimeout(30_000) { controller.state.first { it is CameraState.Connected || it is CameraState.Error } }
+            check(state is CameraState.Connected) { "Cancellation proof could not connect: $state" }
+            var checks = 0
+            val result = controller.writeBluetoothC7(c7.name, buildJsonObject { put("color", 0) }) { ++checks >= 2 }
+            check(checks == 2 && result is WriteResult.Failure && result.warning == null) { "Cancellation failed: $result" }
+            check(!File(context.noBackupFilesDir, "bluetooth-c7-recovery/pending").exists()) { "An upload was started despite cancellation." }
+            delay(3_000)
+            check(independentBackup().contentEquals(original)) { "Camera settings changed after cancellation." }
+        } finally {
+            controller.disconnect()
+            withTimeout(20_000) { controller.state.first { it == CameraState.Disconnected } }
+            checkXAppStopped()
+        }
     }
 
     @Test

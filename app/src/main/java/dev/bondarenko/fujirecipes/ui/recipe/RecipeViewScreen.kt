@@ -970,6 +970,7 @@ fun RecipeViewRouteContent(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     val camera by container.cameraController.state.collectAsStateWithLifecycle()
+    val transport by container.cameraController.transport.collectAsStateWithLifecycle()
     var writeOpen by remember { mutableStateOf(false) }
     var compareOpen by remember { mutableStateOf(false) }
 
@@ -983,7 +984,9 @@ fun RecipeViewRouteContent(
         onRatingChange = viewModel::onRatingChange,
         onTagsChange = viewModel::onTagsChange,
         onWriteToCamera = { writeOpen = true },
-        canWriteToCamera = camera.canWrite,
+        canWriteToCamera = camera.canWrite ||
+            (transport == dev.bondarenko.fujirecipes.camera.CameraTransport.BLUETOOTH &&
+                (camera is dev.bondarenko.fujirecipes.camera.CameraState.Disconnected || camera is dev.bondarenko.fujirecipes.camera.CameraState.Error)),
         onExportRecipe = {
             viewModel.buildExport { filename, content ->
                 ShareFile.share(context, filename, content)

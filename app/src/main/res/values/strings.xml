@@ -59,7 +59,7 @@
     <string name="action_clear_search">Clear search</string>
     <string name="action_write_to_camera">Write to camera</string>
     <string name="action_write">Write</string>
-    <string name="camera_not_connected_tooltip">Connect camera via USB to write recipes</string>
+    <string name="camera_not_connected_tooltip">Connect a camera to upload recipes</string>
     <string name="rating_of_five">Rated %1$d out of 5</string>
     <plurals name="count_total">
         <item quantity="one">%1$d recipe</item>
@@ -774,8 +774,13 @@
     <string name="camera_transport_bluetooth">Bluetooth</string>
     <string name="camera_bluetooth_help">Pair your X-T50 with Fujifilm XApp once, then close XApp. Keep the camera awake on the shooting display, with its USB cable unplugged.</string>
     <string name="camera_bluetooth_connecting">Connecting to the paired X-T50…</string>
-    <string name="camera_bluetooth_connected">Bluetooth · Read-only</string>
-    <string name="camera_bluetooth_read_only">Bluetooth reads recipes in this version. Use USB to write recipes, browse photos or use RAW Lab.</string>
+    <string name="camera_bluetooth_connected">Bluetooth · C7 writing</string>
+    <string name="camera_bluetooth_read_only">Use the Bluetooth C7 write action. Other slots, photos and RAW Lab require USB.</string>
+    <string name="camera_bluetooth_c7_only">Bluetooth reads C1–C7 and writes C7 on X-T50 firmware 1.32. Use USB for other slots, photos or RAW Lab.</string>
+    <string name="camera_bluetooth_write_backup">Saving a fresh camera backup…</string>
+    <string name="camera_bluetooth_write_upload">Writing C7. Keep the camera on; cancellation is unavailable during transfer.</string>
+    <string name="camera_bluetooth_write_verify">Reconnecting to verify all camera settings…</string>
+    <string name="camera_bluetooth_write_done">C7 was written. The complete camera backup was read back over a new connection and matched the intended settings.</string>
     <string name="camera_bluetooth_permission">Allow Nearby devices access to connect by Bluetooth. If the permission prompt no longer appears, allow it in Android app settings.</string>
     <string name="camera_bluetooth_unavailable">This phone does not have Bluetooth support.</string>
     <string name="camera_bluetooth_off">Turn on Bluetooth on the phone, then tap Connect.</string>
