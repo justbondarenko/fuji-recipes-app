@@ -13,7 +13,7 @@ import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.performClick
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.compose.ui.unit.dp
@@ -38,7 +38,7 @@ class CameraTransportTest {
         var connects = 0
         compose.setContent {
             FujiTheme {
-                FujiModalSideSheet(visible = true, onDismissRequest = {}) {
+                FujiModalSideSheet(visible = true, title = label(R.string.camera_sheet_title), onDismissRequest = {}) {
                     Column(Modifier.fillMaxSize()) {
                         CameraSheetHeader(state.value, transport.value,
                             { transport.value = it; state.value = CameraState.Disconnected }, {})
@@ -58,7 +58,8 @@ class CameraTransportTest {
         val close = compose.onNodeWithContentDescription(label(R.string.action_close)).fetchSemanticsNode().boundsInRoot
         assertTrue(usb.fetchSemanticsNode().boundsInRoot.left < btBounds.left && btBounds.right < close.right)
         assertTrue(btBounds.top > close.bottom)
-        with(compose.density) { assertTrue(close.right - title.left + 28.dp.toPx() <= 400.dp.toPx() + 1) }
+        compose.onNode(isDialog()).assertExists()
+        with(compose.density) { assertTrue(close.right - title.left + 36.dp.toPx() <= 400.dp.toPx() + 1) }
         compose.onNodeWithText(label(R.string.camera_transport_usb)).assertDoesNotExist()
         compose.onNodeWithText(label(R.string.camera_transport_bluetooth)).assertDoesNotExist()
         bluetooth.performClick().assertIsOn()
@@ -72,7 +73,7 @@ class CameraTransportTest {
         compose.onNodeWithText(label(R.string.camera_bluetooth_connected)).assertExists()
         bluetooth.assertIsOn()
         val snapshot = File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir, "camera-sheet-connected.png")
-        snapshot.outputStream().use { compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it) }
+        snapshot.outputStream().use { compose.onNode(isDialog()).captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it) }
         usb.performClick()
         compose.onNodeWithText(label(R.string.camera_state_disconnected_body)).assertExists()
     }

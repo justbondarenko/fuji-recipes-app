@@ -86,7 +86,7 @@ fun CameraSheetHost(visible: Boolean, onDismiss: () -> Unit) {
     val controller = cameraController()
     val state by controller.state.collectAsStateWithLifecycle()
     val transport by controller.transport.collectAsStateWithLifecycle()
-    FujiModalSideSheet(visible = visible, onDismissRequest = onDismiss) {
+    FujiModalSideSheet(visible = visible, title = stringResource(R.string.camera_sheet_title), onDismissRequest = onDismiss) {
         Column(modifier = Modifier.fillMaxSize()) {
             CameraSheetHeader(state, transport, controller::selectTransport, onDismiss)
 
@@ -112,20 +112,21 @@ internal fun CameraSheetHeader(
 ) {
     Column {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, top = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = stringResource(R.string.camera_sheet_title),
                 style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f),
             )
             IconButton(onClick = onDismiss) {
-                Icon(FujiIcons.Close, contentDescription = stringResource(R.string.action_close))
+                Icon(FujiIcons.Close, contentDescription = stringResource(R.string.action_close), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 8.dp),
             horizontalArrangement = Arrangement.End,
         ) {
             Row(
