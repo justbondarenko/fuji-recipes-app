@@ -1,10 +1,22 @@
 package dev.bondarenko.fujirecipes.ui.camera
 
 import android.Manifest
+import android.app.Activity
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
+import android.bluetooth.le.ScanResult
+import android.companion.AssociationInfo
+import android.companion.AssociationRequest
+import android.companion.BluetoothLeDeviceFilter
+import android.companion.CompanionDeviceManager
+import android.content.IntentSender
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.IntentSenderRequest
 import androidx.core.content.ContextCompat
 import dev.bondarenko.fujirecipes.camera.CameraTransport
 import androidx.compose.foundation.layout.Arrangement
@@ -54,6 +66,8 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.regex.Pattern
+import java.util.Locale
 
 /**
  * The button, the side sheet it opens, and the screen inside it, wired to the controller.
@@ -163,8 +177,21 @@ fun CameraSheetContent(
     val controller = cameraController()
     val state by controller.state.collectAsStateWithLifecycle()
     val transport by controller.transport.collectAsStateWithLifecycle()
-    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-        if (controller.transport.value == CameraTransport.BLUETOOTH) controller.connect()
+    val context = LocalContext.current
+    var pairingError by remember { mutableStateOf<String?>(null) }
+    var pairingAfterPermission by remember { mutableStateOf(false) }
+    val pairCamera = rememberCameraPairing(
+        onSelected = { device ->
+            pairingError = null
+            if (controller.transport.value == CameraTransport.BLUETOOTH) controller.pairBluetooth(device)
+        },
+        onFailure = { pairingError = it },
+    )
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (controller.transport.value == CameraTransport.BLUETOOTH) {
+            if (!granted) pairingError = context.getString(R.string.camera_bluetooth_permission)
+            else if (pairingAfterPermission) pairCamera() else controller.connect()
+        }
     }
 
     var slotReadings by remember(state) { mutableStateOf<List<SlotNameReading>?>(null) }
@@ -208,7 +235,6 @@ fun CameraSheetContent(
     // Held here rather than in a ViewModel for the same reason the rest of this screen is:
     // `CameraController` already outlives every screen. Resetting on `state` releases the
     // button the moment the cable is pulled.
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var isReportRunning by remember(state) { mutableStateOf(false) }
 
@@ -223,11 +249,22 @@ fun CameraSheetContent(
         onRefreshSlots = { refreshCounter++ },
         onSelectSlot = { slot -> selectedSlotForDetail = slot },
         onConnect = {
+            pairingAfterPermission = false
+            pairingError = null
             if (transport == CameraTransport.BLUETOOTH && Build.VERSION.SDK_INT >= 31 &&
                 ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
                 permission.launch(Manifest.permission.BLUETOOTH_CONNECT)
             } else controller.connect()
         },
+        onPair = {
+            pairingAfterPermission = true
+            pairingError = null
+            if (Build.VERSION.SDK_INT >= 31 &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                permission.launch(Manifest.permission.BLUETOOTH_CONNECT)
+            } else pairCamera()
+        },
+        pairingError = pairingError,
         onDisconnect = controller::disconnect,
         contentPadding = contentPadding,
         isReportRunning = isReportRunning,
@@ -266,6 +303,65 @@ fun CameraSheetContent(
 @Composable
 private fun cameraController() =
     (LocalContext.current.applicationContext as FujiRecipesApp).container.cameraController
+
+/** Android owns discovery and consent; the app never scans for location or accepts pairing codes. */
+@Suppress("DEPRECATION")
+@Composable
+private fun rememberCameraPairing(
+    onSelected: (BluetoothDevice) -> Unit,
+    onFailure: (String) -> Unit,
+): () -> Unit {
+    val context = LocalContext.current
+    val result = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { response ->
+        if (response.resultCode != Activity.RESULT_OK) {
+            onFailure(context.getString(R.string.camera_bluetooth_pair_cancelled))
+        } else {
+            runCatching {
+                val device = if (Build.VERSION.SDK_INT >= 33) {
+                    val association = response.data?.getParcelableExtra(CompanionDeviceManager.EXTRA_ASSOCIATION, AssociationInfo::class.java)
+                    val address = requireNotNull(association?.deviceMacAddress) { "Android did not return the selected camera." }
+                    context.getSystemService(BluetoothManager::class.java).adapter.getRemoteDevice(address.toString().uppercase(Locale.ROOT))
+                } else {
+                    response.data?.getParcelableExtra<ScanResult>(CompanionDeviceManager.EXTRA_DEVICE)?.device
+                }
+                onSelected(requireNotNull(device) { "Android did not return the selected camera." })
+            }.onFailure { onFailure(it.message ?: context.getString(R.string.camera_bluetooth_pair_unavailable)) }
+        }
+    }
+    return {
+        runCatching {
+            check(context.getSystemService(BluetoothManager::class.java)?.adapter?.isEnabled == true) {
+                context.getString(R.string.camera_bluetooth_off)
+            }
+            val manager = requireNotNull(context.getSystemService(CompanionDeviceManager::class.java)) {
+                context.getString(R.string.camera_bluetooth_pair_unavailable)
+            }
+            val request = AssociationRequest.Builder()
+                .addDeviceFilter(BluetoothLeDeviceFilter.Builder().setNamePattern(Pattern.compile("^X-T50$")).build())
+                .build()
+            var chooserLaunched = false
+            manager.associate(request, object : CompanionDeviceManager.Callback() {
+                override fun onDeviceFound(chooserLauncher: IntentSender) {
+                    chooserLaunched = true
+                    runCatching { result.launch(IntentSenderRequest.Builder(chooserLauncher).build()) }
+                        .onFailure { onFailure(it.message ?: context.getString(R.string.camera_bluetooth_pair_unavailable)) }
+                }
+                override fun onAssociationCreated(association: AssociationInfo) {
+                    // Android may reuse approval without launching a chooser/result activity.
+                    if (!chooserLaunched && Build.VERSION.SDK_INT >= 33) {
+                        runCatching {
+                            val address = requireNotNull(association.deviceMacAddress) { "Android did not return the selected camera." }
+                            onSelected(context.getSystemService(BluetoothManager::class.java).adapter.getRemoteDevice(address.toString().uppercase(Locale.ROOT)))
+                        }.onFailure { onFailure(it.message ?: context.getString(R.string.camera_bluetooth_pair_unavailable)) }
+                    }
+                }
+                override fun onFailure(error: CharSequence?) {
+                    onFailure(error?.toString() ?: context.getString(R.string.camera_bluetooth_pair_unavailable))
+                }
+            }, Handler(Looper.getMainLooper()))
+        }.onFailure { onFailure(it.message ?: context.getString(R.string.camera_bluetooth_pair_unavailable)) }
+    }
+}
 
 /** UTC, because a report read by someone else should not be in the reader's guess at a zone. */
 private fun timestamp(): String = DateTimeFormatter.ISO_INSTANT.format(Instant.now())

@@ -88,8 +88,10 @@ class WriteViewModel(
 
         val camera = controller.state.value as? CameraState.Connected
         if (camera?.transport == CameraTransport.BLUETOOTH) {
-            val refusal = if (slot != 7) "Bluetooth writing currently supports C7 only." else
-                runCatching { BluetoothBackup.validateRecipe(loaded.name, loaded.settings) }.exceptionOrNull()?.message
+            val refusal = runCatching {
+                require(slot in 1..7) { "Choose a Bluetooth slot from C1–C7." }
+                BluetoothBackup.validateRecipe(loaded.name, loaded.settings)
+            }.exceptionOrNull()?.message
             return WritePlan(slot = slot, refusal = refusal)
         }
 
@@ -105,7 +107,7 @@ class WriteViewModel(
         )
     }
 
-    private fun openingPlan() = planFor(if ((controller.state.value as? CameraState.Connected)?.transport == CameraTransport.BLUETOOTH) 7 else FIRST_SLOT)
+    private fun openingPlan() = planFor(FIRST_SLOT)
 
     private fun isBluetooth() = (controller.state.value as? CameraState.Connected)?.transport == CameraTransport.BLUETOOTH
 
@@ -140,9 +142,8 @@ class WriteViewModel(
      * one.
      */
     fun refreshSlots() {
-        val bluetooth = isBluetooth()
         _state.value = _state.value.copy(
-            slots = slotStates(emptyList(), loading = true).filter { !bluetooth || it.slot == 7 },
+            slots = slotStates(emptyList(), loading = true),
             slotsError = null,
             selectedSlot = null,
         )
@@ -150,7 +151,7 @@ class WriteViewModel(
         viewModelScope.launch {
             runCatching { controller.readSlots() }
                 .onSuccess { readings ->
-                    val newSlots = slotStates(readings).filter { !bluetooth || it.slot == 7 }
+                    val newSlots = slotStates(readings)
                     val firstEmptySlot = newSlots.firstOrNull { it.status == SlotStatus.UNNAMED }?.slot
                     _state.value = _state.value.copy(
                         slots = newSlots,
@@ -161,7 +162,7 @@ class WriteViewModel(
                     // The read failed as a whole. Seven slots showing "Unknown" is the honest
                     // rendering, and the message says why they are unknown.
                     _state.value = _state.value.copy(
-                        slots = slotStates(emptyList()).filter { !bluetooth || it.slot == 7 },
+                        slots = slotStates(emptyList()),
                         slotsError = error.message
                             ?: "The camera did not answer when asked what its slots hold.",
                         selectedSlot = null,
@@ -178,7 +179,6 @@ class WriteViewModel(
      * a confirmation in front of all seven slots of an untouched camera is one nobody reads.
      */
     fun chooseSlot(slot: Int) {
-        if (isBluetooth() && slot != 7) return
         val state = _state.value.slots.firstOrNull { it.slot == slot }
 
         // A slot still being read is not a choice anyone can make yet, and it must not fall
@@ -207,7 +207,6 @@ class WriteViewModel(
      * aimed at one would start with no warning about what it is replacing.
      */
     fun selectSlot(slot: Int) {
-        if (isBluetooth() && slot != 7) return
         val state = _state.value.slots.firstOrNull { it.slot == slot } ?: return
         if (state.status == SlotStatus.READING) return
 
@@ -258,7 +257,7 @@ class WriteViewModel(
 
             val loaded = recipe
             val result = if (isBluetooth() && loaded != null) {
-                controller.writeBluetoothC7(loaded.name, loaded.settings) { cancelRequested }
+                controller.writeBluetoothRecipe(slot, loaded.name, loaded.settings) { cancelRequested }
             } else controller.write(plan) { cancelRequested }
             mirror.cancel()
 

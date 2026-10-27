@@ -52,13 +52,17 @@ class CameraBluetoothHardwareTest {
     @Test
     fun readRecipesWithAppTransport() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("bluetoothAppRead") == "true")
+        val reconnectPause = InstrumentationRegistry.getArguments()
+            .getString("bluetoothReconnectPauseMs", "3000").toLong()
+        require(reconnectPause in 3_000..300_000) { "Reconnect pause must be 3000–300000 ms." }
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         checkXAppStopped()
         val device = requireNotNull(context.getSystemService(BluetoothManager::class.java)
             .adapter.bondedDevices.singleOrNull { it.name == "X-T50" })
         var baseline: List<dev.bondarenko.fujirecipes.camera.usb.SlotRecipe>? = null
         repeat(3) { cycle ->
-            if (cycle > 0) Thread.sleep(3_000)
+            if (cycle > 0) Thread.sleep(reconnectPause)
+            Log.i(TAG, "Shipping reader connection ${cycle + 1}/3; reconnect pause=${reconnectPause}ms")
             BluetoothCamera(context) {}.use { camera ->
                 camera.connect(device)
                 val first = camera.readRecipes()
@@ -67,25 +71,30 @@ class CameraBluetoothHardwareTest {
                 check(baseline == null || first == baseline) { "Recipes differ after reconnecting." }
                 baseline = first
             }
+            Log.i(TAG, "Shipping reader connection ${cycle + 1}/3: both reads verified and GATT client closed")
         }
         checkXAppStopped()
     }
 
-    /** Separate opt-in: exercise the shipping C7 writer, verify independently, then restore. */
+    /** Separate opt-in: exercise the shipping slot writer, verify independently, then restore. */
     @Test
     @RequiresApi(37)
-    fun writeC7WithAppTransportAndRestore() = runBlocking {
+    fun writeSlotWithAppTransportAndRestore() = runBlocking {
         assumeTrue(InstrumentationRegistry.getArguments().getString("bluetoothAppWrite") == "true")
         assumeTrue(Build.VERSION.SDK_INT >= 37)
+        val slot = InstrumentationRegistry.getArguments().getString("bluetoothWriteSlot", "7").toInt()
+        require(slot in 1..7)
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         checkXAppStopped()
         val device = requireNotNull(context.getSystemService(BluetoothManager::class.java)
             .adapter.bondedDevices.singleOrNull { it.name == "X-T50" })
         fun independentBackup() = BleBackupProbe(context).use { probe -> probe.connect(device); probe.download() }
         val original = independentBackup()
-        val c7 = BluetoothBackup.decode(original).single { it.slot == 7 }
-        check(c7.name.isNotBlank()) { "This bounded proof requires an existing named C7." }
-        File(context.noBackupFilesDir, "bluetooth-c7-hardware-original.dat").writeBytes(original)
+        val recipe = BluetoothBackup.decode(original).single { it.slot == slot }
+        val name = recipe.name.takeIf { it.isNotBlank() }
+        val originalFile = File(context.noBackupFilesDir, "bluetooth-slot-$slot-hardware-original.dat")
+        check(!originalFile.exists()) { "A previous slot proof is unresolved; inspect its saved original before retrying." }
+        originalFile.writeBytes(original)
         val controller = (context.applicationContext as dev.bondarenko.fujirecipes.FujiRecipesApp).container.cameraController
         suspend fun disconnect() {
             controller.disconnect()
@@ -95,9 +104,9 @@ class CameraBluetoothHardwareTest {
         suspend fun connect() {
             controller.connect()
             val state = withTimeout(30_000) { controller.state.first { it is CameraState.Connected || it is CameraState.Error } }
-            check(state is CameraState.Connected && state.canWrite) { "C7 writer could not connect: $state" }
+            check(state is CameraState.Connected && state.canWrite) { "C$slot writer could not connect: $state" }
         }
-        val color = (c7.settings.getValue("color") as Number).toInt()
+        val color = (recipe.settings.getValue("color") as Number).toInt()
         val changedColor = if (color == 0) 1 else 0
         var changed = false
         try {
@@ -106,26 +115,31 @@ class CameraBluetoothHardwareTest {
             delay(3_000)
             connect()
             try {
-                val result = controller.writeBluetoothC7(c7.name, buildJsonObject { put("color", changedColor) })
+                val result = controller.writeBluetoothRecipe(slot, name, buildJsonObject { put("color", changedColor) })
                 check(result is WriteResult.Success && result.outcome.wholeBackupVerified) { "Forward write unverified: $result" }
                 changed = true
                 disconnect()
                 val actual = independentBackup()
                 val expected = File(context.noBackupFilesDir, "bluetooth-c7-recovery/target.dat").readBytes()
                 check(actual.contentEquals(expected)) { "Independent read differs from the app's verified target." }
-                check(BluetoothBackup.decode(actual)[6].settings["color"] == changedColor)
+                check(BluetoothBackup.decode(actual)[slot - 1].settings["color"] == changedColor)
+                val expectedRecipes = original.copyOfRange(63356, original.size)
+                expectedRecipes[(slot - 1) * 1024 + 248] = if (changedColor == 0) 0 else 6
+                check(actual.copyOfRange(63356, actual.size).contentEquals(expectedRecipes)) {
+                    "Independent read found recipe changes beyond the selected Color byte."
+                }
             } finally {
                 // Only a verified forward write is automatically reversed; uncertain uploads require inspection.
                 if (changed) {
                     disconnect()
                     connect()
-                    val result = controller.writeBluetoothC7(c7.name, buildJsonObject { put("color", color) })
-                    check(result is WriteResult.Success && result.outcome.wholeBackupVerified) { "Original C7 restoration unverified: $result" }
+                    val result = controller.writeBluetoothRecipe(slot, name, buildJsonObject { put("color", color) })
+                    check(result is WriteResult.Success && result.outcome.wholeBackupVerified) { "Original C$slot restoration unverified: $result" }
                     changed = false
                     disconnect()
                     val restored = independentBackup()
                     check(restored.contentEquals(original)) { "Original whole backup differs after restoration." }
-                    File(context.noBackupFilesDir, "bluetooth-c7-hardware-original.dat").delete()
+                    originalFile.delete()
                 }
             }
         } finally {
@@ -157,12 +171,71 @@ class CameraBluetoothHardwareTest {
             val state = withTimeout(30_000) { controller.state.first { it is CameraState.Connected || it is CameraState.Error } }
             check(state is CameraState.Connected) { "Cancellation proof could not connect: $state" }
             var checks = 0
-            val result = controller.writeBluetoothC7(c7.name, buildJsonObject { put("color", 0) }) { ++checks >= 2 }
+            val result = controller.writeBluetoothRecipe(7, c7.name, buildJsonObject { put("color", 0) }) { ++checks >= 2 }
             check(checks == 2 && result is WriteResult.Failure && result.warning == null) { "Cancellation failed: $result" }
             check(!File(context.noBackupFilesDir, "bluetooth-c7-recovery/pending").exists()) { "An upload was started despite cancellation." }
             delay(3_000)
             check(independentBackup().contentEquals(original)) { "Camera settings changed after cancellation." }
         } finally {
+            controller.disconnect()
+            withTimeout(20_000) { controller.state.first { it == CameraState.Disconnected } }
+            checkXAppStopped()
+        }
+    }
+
+    /** Simulate a lost acknowledgement against a real checkpoint, without uploading settings. */
+    @Test
+    @RequiresApi(37)
+    fun unresolvedWriteRefusesChangedCameraBeforeUpload(): Unit = runBlocking {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("bluetoothPendingGuard") == "true")
+        assumeTrue(Build.VERSION.SDK_INT >= 37)
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        checkXAppStopped()
+        val directory = File(context.noBackupFilesDir, "bluetooth-c7-recovery")
+        val pending = File(directory, "pending")
+        check(!pending.exists()) { "A real pending write must be inspected before this diagnostic." }
+        val original = File(directory, "original.dat").readBytes()
+        val target = File(directory, "target.dat").readBytes()
+        val device = requireNotNull(context.getSystemService(BluetoothManager::class.java)
+            .adapter.bondedDevices.singleOrNull { it.name == "X-T50" })
+        fun independentBackup() = BleBackupProbe(context).use { it.connect(device); it.download() }
+        val before = independentBackup()
+        check(!before.contentEquals(original) && !before.contentEquals(target)) {
+            "This check requires camera settings changed since the last completed checkpoint."
+        }
+        val controller = (context.applicationContext as dev.bondarenko.fujirecipes.FujiRecipesApp).container.cameraController
+        controller.selectTransport(CameraTransport.BLUETOOTH)
+        withTimeout(5_000) { controller.transport.first { it == CameraTransport.BLUETOOTH } }
+        delay(3_000)
+        controller.connect()
+        val state = withTimeout(30_000) { controller.state.first { it is CameraState.Connected || it is CameraState.Error } }
+        check(state is CameraState.Connected) { "Pending-write diagnostic could not connect: $state" }
+        try {
+            // Only the marker is simulated. Retain the real original/intended checkpoint.
+            pending.outputStream().use { it.write(1); it.fd.sync() }
+            var cancellationChecks = 0
+            val result = controller.writeBluetoothRecipe(1, null, buildJsonObject {}) {
+                // A second boundary is before restore preparation, even if the guard regresses.
+                ++cancellationChecks >= 2
+            }
+            check(result is WriteResult.Failure && !result.retryable && result.warning == null &&
+                result.message.contains("previous Bluetooth write is unresolved")) {
+                "An unresolved checkpoint was not refused: $result"
+            }
+            check(cancellationChecks == 1) { "The writer passed the unresolved-checkpoint boundary." }
+            check(pending.exists()) { "The unresolved marker was discarded." }
+            check(File(directory, "original.dat").readBytes().contentEquals(original))
+            check(File(directory, "target.dat").readBytes().contentEquals(target))
+            delay(3_000)
+            val after = independentBackup()
+            check(after.copyOfRange(63356, after.size).contentEquals(before.copyOfRange(63356, before.size))) {
+                "Recipe records changed during the refusal check."
+            }
+            // Read-only downloads can change nonrecipe bytes; production write verification remains exact.
+            Log.i(TAG, "Refusal check nonrecipe differences: ${(0 until 63356).filter { before[it] != after[it] }}")
+        } finally {
+            // Remove only this diagnostic's marker; it never represented a settings upload.
+            check(pending.delete() || !pending.exists()) { "Could not remove the diagnostic marker." }
             controller.disconnect()
             withTimeout(20_000) { controller.state.first { it == CameraState.Disconnected } }
             checkXAppStopped()

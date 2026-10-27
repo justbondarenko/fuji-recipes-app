@@ -37,8 +37,8 @@ private val FILE_INFO = UUID.fromString("c922ac69-9480-4348-8f4b-9ee29bc30d1d")
 
 internal fun bluetoothLinkFailure(status: Int): String =
     if (status == BluetoothGatt.GATT_CONNECTION_TIMEOUT) {
-        "The Bluetooth link to the camera timed out (status $status). Wake the camera, " +
-            "exit its menus, close XApp and keep other phones disconnected, then reconnect. " +
+        "The Bluetooth link to the camera timed out (status $status). Half-press the camera shutter " +
+            "to wake it, exit its menus, close XApp and keep other phones disconnected, then reconnect. " +
             "If it still times out, switch your phone's Bluetooth off and on."
     } else {
         "The Bluetooth link closed (status $status). Wake the camera and close XApp, then reconnect."
@@ -46,7 +46,7 @@ internal fun bluetoothLinkFailure(status: Int): String =
 
 /** X-T50 1.32 BLE transport, measured by CameraBluetoothHardwareTest.
  * Secure reconnect follows petabyt/libfuji (MIT); transfer framing comes from our HCI captures.
- * Call serially on Dispatchers.IO. Writes always patch a freshly downloaded C7 snapshot.
+ * Call serially on Dispatchers.IO. Writes always patch a freshly downloaded snapshot.
  */
 @SuppressLint("MissingPermission")
 class BluetoothCamera(private val context: Context, private val onDisconnected: () -> Unit) : AutoCloseable {
@@ -167,17 +167,19 @@ class BluetoothCamera(private val context: Context, private val onDisconnected: 
     internal fun readBackup(): ByteArray = download().also { BluetoothBackup.decode(it) }
 
     /** The callback must durably save both snapshots before any settings upload can start. */
-    internal fun writeC7(
+    internal fun writeRecipe(
+        slot: Int,
         settings: JsonObject,
-        name: String,
+        name: String?,
         saveBackup: (original: ByteArray, target: ByteArray) -> Unit,
         onUploadStarted: () -> Unit,
         isCancelled: () -> Boolean,
     ): ByteArray {
+        require(slot in 1..7) { "Bluetooth recipe slots must be C1–C7." }
         BluetoothBackup.validateRecipe(name, settings)
         check(!isCancelled()) { "Cancelled before changing the camera." }
         val original = readBackup()
-        val target = BluetoothBackup.patchC7(original, settings, name)
+        val target = BluetoothBackup.patchSlot(original, slot, settings, name)
         saveBackup(original, target)
         check(!isCancelled()) { "Cancelled before changing the camera." }
         val compressed = ByteArrayOutputStream().also { out -> DeflaterOutputStream(out).use { it.write(target) } }.toByteArray()

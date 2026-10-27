@@ -97,6 +97,8 @@ fun CameraScreen(
     onShareReport: () -> Unit = {},
     modifier: Modifier = Modifier,
     transport: CameraTransport = CameraTransport.USB,
+    onPair: (() -> Unit)? = null,
+    pairingError: String? = null,
 ) {
     if (state is CameraState.Connected) {
         CameraConnectedContent(
@@ -120,6 +122,8 @@ fun CameraScreen(
             isCameraAttached = isCameraAttached,
             onConnect = onConnect,
             onDisconnect = onDisconnect,
+            onPair = onPair,
+            pairingError = pairingError,
             modifier = modifier.fillMaxSize().padding(contentPadding),
         )
     }
@@ -548,6 +552,8 @@ fun CameraStatusContent(
     onDisconnect: () -> Unit,
     modifier: Modifier = Modifier,
     transport: CameraTransport = CameraTransport.USB,
+    onPair: (() -> Unit)? = null,
+    pairingError: String? = null,
 ) {
     val look = cameraChipLook(state)
     val accent = look.tone.accent()
@@ -573,6 +579,13 @@ fun CameraStatusContent(
         actionIsPrimary = action?.kind != ActionKind.DISCONNECT,
         modifier = modifier,
         extra = {
+            if (transport == CameraTransport.BLUETOOTH &&
+                (state == CameraState.Disconnected || state is CameraState.Error)) {
+                onPair?.let { pair ->
+                    OutlinedButton(onClick = pair) { Text(stringResource(R.string.camera_bluetooth_pair)) }
+                }
+                pairingError?.let { Note(it) }
+            }
             if (state is CameraState.Error && state.ptpCode != null) {
                 Note(stringResource(R.string.camera_ptp_code, responseName(state.ptpCode)))
             }

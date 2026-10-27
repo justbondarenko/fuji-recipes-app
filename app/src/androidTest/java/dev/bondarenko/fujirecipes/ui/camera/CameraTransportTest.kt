@@ -34,10 +34,11 @@ import java.io.File
 class CameraTransportTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun BluetoothRemainsAvailableWithoutUsbHostAndNamesItsC7Connection() {
+    @Test fun BluetoothRemainsAvailableWithoutUsbHostAndNamesItsConnection() {
         val state = mutableStateOf<CameraState>(CameraState.NoUsbHost)
         val transport = mutableStateOf(CameraTransport.USB)
         var connects = 0
+        var pairs = 0
         compose.setContent {
             FujiTheme {
                 FujiModalSideSheet(visible = true, title = label(R.string.camera_sheet_title), onDismissRequest = {}) {
@@ -47,7 +48,7 @@ class CameraTransportTest {
                         CameraScreen(
                             state = state.value, transport = transport.value,
                             isCameraAttached = false, contentPadding = PaddingValues(),
-                            onConnect = { connects++ }, onDisconnect = {}, modifier = Modifier.weight(1f),
+                            onConnect = { connects++ }, onPair = { pairs++ }, onDisconnect = {}, modifier = Modifier.weight(1f),
                         )
                     }
                 }
@@ -64,11 +65,15 @@ class CameraTransportTest {
         with(compose.density) { assertTrue(close.right - title.left + 36.dp.toPx() <= 400.dp.toPx() + 1) }
         compose.onNodeWithText(label(R.string.camera_transport_usb)).assertDoesNotExist()
         compose.onNodeWithText(label(R.string.camera_transport_bluetooth)).assertDoesNotExist()
+        compose.onNodeWithText(label(R.string.camera_bluetooth_pair)).assertDoesNotExist()
         bluetooth.performClick().assertIsOn()
         compose.onNodeWithText(label(R.string.camera_bluetooth_help)).assertExists()
+        compose.onNodeWithText(label(R.string.camera_bluetooth_pair)).performClick()
+        compose.runOnIdle { assertEquals(1, pairs) }
         compose.onNodeWithText(label(R.string.camera_action_connect)).performClick()
         compose.runOnIdle { assertEquals(1, connects); state.value = CameraState.Connecting }
         usb.assertIsNotEnabled()
+        compose.onNodeWithText(label(R.string.camera_bluetooth_pair)).assertDoesNotExist()
         compose.runOnIdle {
             state.value = CameraState.Connected(CameraModels.identify("X-T50"), details = CameraDetails(firmware = "1.32"),
                 transport = CameraTransport.BLUETOOTH)
@@ -83,7 +88,7 @@ class CameraTransportTest {
 
     @Test fun bluetoothWriteReportsVerifiedBackupAndHidesBlindRetry() {
         val state = mutableStateOf(WriteUiState(
-            stage = WriteStage.Done(WriteOutcome(slot = 7, wholeBackupVerified = true)),
+            stage = WriteStage.Done(WriteOutcome(slot = 1, wholeBackupVerified = true)),
         ))
         compose.setContent {
             FujiTheme {
@@ -93,7 +98,9 @@ class CameraTransportTest {
                     onConfirmCancel = {}, onDone = {})
             }
         }
-        compose.onNodeWithText(label(R.string.camera_bluetooth_write_done)).assertExists()
+        compose.onNodeWithText(label(R.string.camera_bluetooth_write_done, 1)).assertExists()
+        compose.runOnIdle { state.value = state.value.copy(stage = WriteStage.Done(WriteOutcome(slot = 7, wholeBackupVerified = true))) }
+        compose.onNodeWithText(label(R.string.camera_bluetooth_write_done, 7)).assertExists()
         compose.runOnIdle {
             state.value = state.value.copy(stage = WriteStage.Failed(
                 message = "C7 has not been verified", slot = 7, retryable = false))
@@ -112,5 +119,5 @@ class CameraTransportTest {
         assertEquals(CameraState.Disconnected, controller.state.value)
     }
 
-    private fun label(id: Int) = InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
+    private fun label(id: Int, vararg args: Any) = InstrumentationRegistry.getInstrumentation().targetContext.getString(id, *args)
 }

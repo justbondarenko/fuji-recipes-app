@@ -532,7 +532,7 @@ private fun ProgressStage(stage: WriteStage.Progress) {
 @Composable
 private fun DoneStage(outcome: WriteOutcome, onDone: () -> Unit) {
     StageHeader(stringResource(R.string.write_done_title, outcome.slot))
-    Body(if (outcome.wholeBackupVerified) stringResource(R.string.camera_bluetooth_write_done)
+    Body(if (outcome.wholeBackupVerified) stringResource(R.string.camera_bluetooth_write_done, outcome.slot)
         else stringResource(R.string.write_done_body, outcome.written, outcome.total))
 
     // A refused setting or a value the body adjusted did not stop the write, and the user

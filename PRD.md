@@ -11,7 +11,7 @@
 
 ## 1. Summary
 
-A native Android app that stores Fujifilm film simulation recipes, reads C1–C7 over USB-C or Bluetooth, and writes custom slots over USB-C. Bluetooth supports C7 writing on an already paired X-T50 running firmware 1.32, alongside all-slot views and library import; see [Bluetooth delivery scope](specs/plans/bluetooth-recipes.md). Local-first: the phone holds the truth, the cloud is a backup.
+A native Android app that stores Fujifilm film simulation recipes, reads and writes C1–C7 over USB-C or Bluetooth. Bluetooth supports native pairing, slot views, library import and recipe writing on X-T50 firmware 1.32; see [Bluetooth delivery scope](specs/plans/bluetooth-recipes.md). Local-first: the phone holds the truth, the cloud is a backup.
 
 **Why native:** the phone is the field device. It goes in the bag with the camera. A native app gets a USB attach intent — plug the camera in, the app opens already connected — works with no signal, survives being backgrounded mid-write, and depends on no browser being installed or configured a particular way.
 

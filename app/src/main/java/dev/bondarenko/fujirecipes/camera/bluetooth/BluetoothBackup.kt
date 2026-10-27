@@ -91,11 +91,12 @@ object BluetoothBackup {
         }
     }
 
-    /** Only C7 has independent write measurements. Preserve every other fresh backup byte. */
-    fun patchC7(raw: ByteArray, settings: JsonObject, name: String? = null): ByteArray {
-        decode(raw)
+    /** Slot offsets and metadata are measured independently; preserve every other fresh byte. */
+    fun patchSlot(raw: ByteArray, slot: Int, settings: JsonObject, name: String? = null): ByteArray {
+        require(slot in 1..7) { "Bluetooth recipe slots must be C1–C7." }
+        val current = decode(raw)
         validateRecipe(name, settings)
-        val start = START + 6 * STRIDE
+        val start = START + (slot - 1) * STRIDE
         val target = raw.copyOf()
         fields.forEach { (id, field) ->
             val value = settings[id] as? JsonPrimitive ?: return@forEach
@@ -117,12 +118,12 @@ object BluetoothBackup {
                 packU16(it.toInt()).copyInto(target, start + 16)
             }
         }
-        if (name != null) {
+        if (name != null && name != current[slot - 1].name) {
             target.fill(0, start + 622, start + 648)
             name.toByteArray(Charsets.US_ASCII).copyInto(target, start + 622)
         }
-        val delta = (start until SIZE).sumOf { (target[it].toInt() and 0xff) - (raw[it].toInt() and 0xff) }
-        // ponytail: measured relative C7 metadata update; do not generalize to other slots.
+        val delta = (start until start + STRIDE).sumOf { (target[it].toInt() and 0xff) - (raw[it].toInt() and 0xff) }
+        // ponytail: measured relative recipe metadata update, not a general backup checksum.
         val metadata = unpackU32(raw, 264) + delta
         require(metadata in 0..0xffffffffL) { "Bluetooth backup metadata update overflow." }
         packU32(metadata.toInt()).copyInto(target, 264)
