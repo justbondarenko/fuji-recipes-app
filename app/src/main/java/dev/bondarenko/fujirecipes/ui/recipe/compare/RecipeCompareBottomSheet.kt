@@ -123,7 +123,6 @@ fun RecipeCompareBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = { BottomSheetDefaults.DragHandle() },
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         modifier = modifier,
     ) {
         RecipeCompareContent(

@@ -198,7 +198,6 @@ fun LibraryFiltersSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
     ) {
         FiltersSheet(
             state = state,
