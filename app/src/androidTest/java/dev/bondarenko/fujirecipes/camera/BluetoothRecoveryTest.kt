@@ -10,6 +10,8 @@ import java.util.zip.ZipInputStream
 import android.net.Uri
 import dev.bondarenko.fujirecipes.FujiRecipesApp
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeout
 import org.junit.Assume.assumeTrue
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -17,6 +19,41 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class BluetoothRecoveryTest {
+    /** Opt-in live download only. Never calls the writer or replays a saved backup. */
+    @Test fun inspectExistingCheckpointWithoutUploading() = runBlocking {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("recoveryInspection") == "true")
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val directory = File(context.noBackupFilesDir, "bluetooth-c7-recovery")
+        val store = BluetoothRecoveryStore(directory)
+        check(store.pending) { "This check requires an existing unresolved write; never create one for this test." }
+        val protected = listOf(File(directory, "original.dat"), File(directory, "target.dat"), File(context.filesDir, "library.json"))
+        val before = protected.associateWith { it.readBytes() }
+        val pending = File(directory, "pending")
+        val marker = pending.readBytes()
+        val controller = (context.applicationContext as FujiRecipesApp).container.cameraController
+        controller.selectTransport(CameraTransport.BLUETOOTH)
+        withTimeout(5_000) { controller.transport.first { it == CameraTransport.BLUETOOTH } }
+        try {
+            controller.connect()?.join()
+            check(controller.state.value is CameraState.Connected) { "Recovery inspection could not connect: ${controller.state.value}" }
+            val resolved = controller.inspectBluetoothRecovery()
+            val actual = File(directory, "inspection.dat").readBytes()
+            val original = BluetoothBackup.compare(actual, before.getValue(File(directory, "original.dat")))
+            val target = BluetoothBackup.compare(actual, before.getValue(File(directory, "target.dat")))
+            assertEquals(original == BluetoothBackup.Match.COMPLETE || target == BluetoothBackup.Match.COMPLETE, resolved)
+            assertEquals(!resolved, store.pending)
+            if (!resolved) {
+                assertArrayEquals(marker, pending.readBytes())
+                assertEquals(original, controller.recovery.value!!.original)
+                assertEquals(target, controller.recovery.value!!.target)
+            } else assertNull(controller.recovery.value)
+        } finally {
+            protected.forEach { assertArrayEquals(before.getValue(it), it.readBytes()) }
+            controller.disconnect()
+            withTimeout(20_000) { controller.state.first { it == CameraState.Disconnected } }
+        }
+    }
+
     /** Opt in only on a phone already carrying a genuine checkpoint; never create/delete it. */
     @Test fun existingCheckpointBlocksUploadsAndExportsWithoutChangingProtectedFiles() = runBlocking {
         assumeTrue(InstrumentationRegistry.getArguments().getString("recoveryCheckpoint") == "true")
