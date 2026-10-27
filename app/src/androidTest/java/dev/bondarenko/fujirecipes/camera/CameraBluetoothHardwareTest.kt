@@ -193,7 +193,9 @@ class CameraBluetoothHardwareTest {
         checkXAppStopped()
         val directory = File(context.noBackupFilesDir, "bluetooth-c7-recovery")
         val pending = File(directory, "pending")
-        check(!pending.exists()) { "A real pending write must be inspected before this diagnostic." }
+        check(!dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothRecoveryStore(directory).pending) {
+            "A real pending write must be inspected before this diagnostic."
+        }
         val original = File(directory, "original.dat").readBytes()
         val target = File(directory, "target.dat").readBytes()
         val device = requireNotNull(context.getSystemService(BluetoothManager::class.java)
@@ -218,11 +220,10 @@ class CameraBluetoothHardwareTest {
                 // A second boundary is before restore preparation, even if the guard regresses.
                 ++cancellationChecks >= 2
             }
-            check(result is WriteResult.Failure && !result.retryable && result.warning == null &&
-                result.message.contains("previous Bluetooth write is unresolved")) {
+            check(result is WriteResult.Failure && !result.retryable && result.warning == null && result.recoveryRequired) {
                 "An unresolved checkpoint was not refused: $result"
             }
-            check(cancellationChecks == 1) { "The writer passed the unresolved-checkpoint boundary." }
+            check(cancellationChecks == 0) { "The writer passed the unresolved-checkpoint preflight." }
             check(pending.exists()) { "The unresolved marker was discarded." }
             check(File(directory, "original.dat").readBytes().contentEquals(original))
             check(File(directory, "target.dat").readBytes().contentEquals(target))
@@ -236,6 +237,7 @@ class CameraBluetoothHardwareTest {
         } finally {
             // Remove only this diagnostic's marker; it never represented a settings upload.
             check(pending.delete() || !pending.exists()) { "Could not remove the diagnostic marker." }
+            controller.refreshBluetoothRecovery()
             controller.disconnect()
             withTimeout(20_000) { controller.state.first { it == CameraState.Disconnected } }
             checkXAppStopped()

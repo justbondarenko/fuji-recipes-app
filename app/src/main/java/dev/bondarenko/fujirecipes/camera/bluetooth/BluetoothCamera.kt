@@ -164,7 +164,11 @@ class BluetoothCamera(private val context: Context, private val onDisconnected: 
 
     fun readRecipes(): List<SlotRecipe> = BluetoothBackup.decode(download())
 
-    internal fun readBackup(): ByteArray = download().also { BluetoothBackup.decode(it) }
+    internal fun readBackup(saveDownloaded: (ByteArray) -> Unit = {}): ByteArray = download().also {
+        // Retain received evidence even if its recipe format fails validation.
+        saveDownloaded(it)
+        BluetoothBackup.decode(it)
+    }
 
     /** The callback must durably save both snapshots before any settings upload can start. */
     internal fun writeRecipe(
@@ -223,7 +227,7 @@ class BluetoothCamera(private val context: Context, private val onDisconnected: 
         fileNotice(5, 0xffff)
         subscribe(FILE_STATUS, false, false)
         subscribe(RESTORE_STATUS, true, false)
-        Log.i("FujiBluetooth", "C7 transfer accepted; independent reconnect verification required")
+        Log.i("FujiBluetooth", "C$slot transfer accepted; independent reconnect verification required")
         return target
     }
 

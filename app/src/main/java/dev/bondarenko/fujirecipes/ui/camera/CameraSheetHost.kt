@@ -13,6 +13,7 @@ import android.content.IntentSender
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.widget.Toast
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -237,6 +238,23 @@ fun CameraSheetContent(
     // button the moment the cable is pulled.
     val scope = rememberCoroutineScope()
     var isReportRunning by remember(state) { mutableStateOf(false) }
+    val recovery by controller.recovery.collectAsStateWithLifecycle()
+    var recoveryBusy by remember { mutableStateOf(false) }
+    var recoveryMessage by remember { mutableStateOf<String?>(null) }
+    val exportRecovery = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null) {
+            recoveryBusy = true
+            scope.launch {
+                runCatching { controller.exportBluetoothRecovery(uri) }
+                    .onSuccess {
+                        recoveryMessage = context.getString(R.string.camera_recovery_exported)
+                        Toast.makeText(context, recoveryMessage, Toast.LENGTH_LONG).show()
+                    }
+                    .onFailure { recoveryMessage = context.getString(R.string.camera_recovery_export_error, it.message.orEmpty()) }
+                recoveryBusy = false
+            }
+        }
+    }
 
     CameraScreen(
         modifier = modifier,
@@ -265,6 +283,29 @@ fun CameraSheetContent(
             } else pairCamera()
         },
         pairingError = pairingError,
+        recoveryContent = recovery?.let { saved -> {
+            BluetoothRecoveryCard(
+                status = saved,
+                canInspect = state is CameraState.Connected && transport == CameraTransport.BLUETOOTH,
+                busy = recoveryBusy,
+                message = recoveryMessage,
+                onInspect = {
+                    recoveryBusy = true
+                    recoveryMessage = null
+                    scope.launch {
+                        runCatching { controller.inspectBluetoothRecovery() }
+                            .onSuccess { resolved ->
+                                recoveryMessage = context.getString(if (resolved) R.string.camera_recovery_resolved else R.string.camera_recovery_still_pending)
+                                if (resolved) Toast.makeText(context, recoveryMessage, Toast.LENGTH_LONG).show()
+                                refreshCounter++
+                            }
+                            .onFailure { recoveryMessage = context.getString(R.string.camera_recovery_check_error, it.message.orEmpty()) }
+                        recoveryBusy = false
+                    }
+                },
+                onExport = { exportRecovery.launch("fuji-bluetooth-recovery.zip") },
+            )
+        } },
         onDisconnect = controller::disconnect,
         contentPadding = contentPadding,
         isReportRunning = isReportRunning,

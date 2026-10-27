@@ -84,10 +84,16 @@ object BluetoothBackup {
             else value.isString && value.content == supported
         }?.key) { "Unsupported Bluetooth $id value: $value." }
 
-    fun requireResolvedWrite(current: ByteArray, original: ByteArray, target: ByteArray) {
-        require(current.contentEquals(original) || current.contentEquals(target)) {
-            "The previous Bluetooth write is unresolved. Current settings match neither saved snapshot. " +
-                "No new write was sent; use USB to inspect or recover the camera."
+    enum class Match { COMPLETE, RECIPES_ONLY, DIFFERENT_RECIPES }
+
+    /** Compare every byte of all seven records, including fields we have not decoded. */
+    fun compare(actual: ByteArray, expected: ByteArray): Match {
+        decode(actual)
+        decode(expected)
+        return when {
+            actual.contentEquals(expected) -> Match.COMPLETE
+            (START until START + 7 * STRIDE).all { actual[it] == expected[it] } -> Match.RECIPES_ONLY
+            else -> Match.DIFFERENT_RECIPES
         }
     }
 

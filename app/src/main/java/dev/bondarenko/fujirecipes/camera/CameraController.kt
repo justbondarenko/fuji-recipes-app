@@ -3,11 +3,13 @@ package dev.bondarenko.fujirecipes.camera
 import android.Manifest
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothDevice
-import android.util.AtomicFile
+import android.net.Uri
 import android.os.Build
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothCamera
 import dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothBackup
+import dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothRecoveryStore
+import dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothRecoveryStatus
 import dev.bondarenko.fujirecipes.camera.plan.CameraDetails
 import kotlinx.coroutines.CancellationException
 import android.app.PendingIntent
@@ -109,6 +111,42 @@ class CameraController(
     private var bluetoothSlots: List<SlotRecipe>? = null
     private val _transport = MutableStateFlow(CameraTransport.USB)
     val transport: StateFlow<CameraTransport> = _transport.asStateFlow()
+    private val recoveryStore = BluetoothRecoveryStore(File(appContext.noBackupFilesDir, "bluetooth-c7-recovery"))
+    private val _recovery = MutableStateFlow<BluetoothRecoveryStatus?>(null)
+    val recovery: StateFlow<BluetoothRecoveryStatus?> = _recovery.asStateFlow()
+
+    suspend fun refreshBluetoothRecovery() = lock.withLock {
+        withContext(Dispatchers.IO) { _recovery.value = recoveryStore.status() }
+    }
+
+    /** Download only; matching recipe records alone can never clear the write lock. */
+    suspend fun inspectBluetoothRecovery(): Boolean = withConnection {
+        withContext(Dispatchers.IO + NonCancellable) {
+            check(_state.value is CameraState.Connected && bluetooth != null) {
+                appContext.getString(R.string.camera_recovery_connect)
+            }
+            try {
+                underRawWakeLock {
+                    var resolved = false
+                    val raw = requireNotNull(bluetooth).readBackup { resolved = recoveryStore.inspect(it) }
+                    bluetoothSlots = BluetoothBackup.decode(raw)
+                    resolved
+                }
+            } finally {
+                _recovery.value = recoveryStore.status()
+            }
+        }
+    }
+
+    suspend fun exportBluetoothRecovery(destination: Uri) = lock.withLock {
+        withContext(Dispatchers.IO) {
+            val bytes = recoveryStore.archive()
+            val stream = checkNotNull(appContext.contentResolver.openOutputStream(destination, "wt")) {
+                appContext.getString(R.string.camera_recovery_export_failed)
+            }
+            stream.use { it.write(bytes) }
+        }
+    }
 
     fun selectTransport(value: CameraTransport) {
         scope.launch {
@@ -196,6 +234,7 @@ class CameraController(
 
     init {
         if (hasHostSupport) registerReceivers()
+        scope.launch { refreshBluetoothRecovery() }
     }
 
     // ─── Connecting ─────────────────────────────────────────────────────────
@@ -682,6 +721,11 @@ class CameraController(
         settings: JsonObject,
         isCancelled: () -> Boolean = { false },
     ): WriteResult = withConnection {
+        if (withContext(Dispatchers.IO) { recoveryStore.pending }) {
+            _recovery.value = withContext(Dispatchers.IO) { recoveryStore.status() }
+            return WriteResult.Failure(appContext.getString(R.string.camera_recovery_blocked),
+                retryable = false, recoveryRequired = true)
+        }
         if (slot !in 1..7) return WriteResult.Failure("Choose a Bluetooth slot from C1–C7.", retryable = false)
         val connected = _state.value as? CameraState.Connected
         val camera = bluetooth
@@ -690,42 +734,22 @@ class CameraController(
         }
         // Keep the operation alive once the upload starts; cancelling is safe only beforehand.
         withContext(Dispatchers.IO + NonCancellable) {
-            var uploadStarted = false
-            val directory = File(appContext.noBackupFilesDir, "bluetooth-c7-recovery")
-            val pending = AtomicFile(File(directory, "pending"))
-            val originalFile = AtomicFile(File(directory, "original.dat"))
-            val targetFile = AtomicFile(File(directory, "target.dat"))
-            fun save(file: AtomicFile, data: ByteArray) {
-                val stream = file.startWrite()
-                try {
-                    stream.write(data)
-                    file.finishWrite(stream)
-                } catch (error: Exception) {
-                    file.failWrite(stream)
-                    throw error
-                }
-            }
             try {
                 underRawWakeLock {
                     _state.value = CameraState.Writing(slot, 0, 3, appContext.getString(R.string.camera_bluetooth_write_backup))
                     val target = camera.writeRecipe(slot, settings, name,
                         saveBackup = { original, expected ->
-                            if (pending.baseFile.exists()) {
-                                BluetoothBackup.requireResolvedWrite(original, originalFile.readFully(), targetFile.readFully())
-                                pending.delete()
-                            }
-                            check(directory.isDirectory || directory.mkdirs()) { "Could not create the private camera backup folder." }
-                            save(originalFile, original)
-                            save(targetFile, expected)
+                            recoveryStore.prepare(original, expected)
                         },
                         onUploadStarted = {
-                            save(pending, byteArrayOf(1))
-                            uploadStarted = true
+                            recoveryStore.markUploadStarted()
+                            _recovery.value = recoveryStore.status()
                             _state.value = CameraState.Writing(slot, 1, 3,
                                 appContext.getString(R.string.camera_bluetooth_write_upload), cancellable = false)
                         },
                         isCancelled = isCancelled,
                     )
+                    recoveryStore.markAccepted()
                     _state.value = CameraState.Writing(slot, 2, 3,
                         appContext.getString(R.string.camera_bluetooth_write_verify), cancellable = false)
                     // A separate GATT connection verifies camera state, rather than trusting its acknowledgement.
@@ -735,22 +759,22 @@ class CameraController(
                     Thread.sleep(3_000)
                     val adapter = requireNotNull(appContext.getSystemService(BluetoothManager::class.java).adapter)
                     val device = requireNotNull(adapter.bondedDevices.singleOrNull { it.name == "X-T50" })
-                    val verified = openBluetooth(device).readBackup()
-                    check(verified.contentEquals(target)) {
-                        "The camera accepted the transfer, but its settings do not match the complete uploaded backup. " +
-                            "The original and intended settings are retained on this phone; inspect the camera before another write."
+                    val verified = openBluetooth(device).readBackup(recoveryStore::saveReadback)
+                    val match = BluetoothBackup.compare(verified, target)
+                    check(match == BluetoothBackup.Match.COMPLETE) {
+                        appContext.getString(if (match == BluetoothBackup.Match.RECIPES_ONLY)
+                            R.string.camera_recovery_recipe_match else R.string.camera_recovery_recipe_mismatch)
                     }
+                    check(recoveryStore.resolve(verified))
                     bluetoothSlots = BluetoothBackup.decode(verified)
-                    pending.delete()
                     _state.value = connected
                     WriteResult.Success(WriteOutcome(slot = slot, slotTouched = true, wholeBackupVerified = true))
                 }
             } catch (error: Exception) {
                 closeSession(CameraState.Error(appContext.getString(R.string.camera_bluetooth_failure, error.message.orEmpty())))
-                WriteResult.Failure(error.message.orEmpty(), warning = if (uploadStarted) {
-                    "C$slot has not been verified. The original camera backup is retained on this phone. " +
-                        "Reconnect and inspect the camera before writing again."
-                } else null, retryable = false)
+                WriteResult.Failure(error.message.orEmpty(), retryable = false, recoveryRequired = recoveryStore.pending)
+            } finally {
+                _recovery.value = recoveryStore.status()
             }
         }
     }
@@ -890,6 +914,7 @@ sealed interface WriteResult {
         val warning: String? = null,
         val outcome: WriteOutcome? = null,
         val retryable: Boolean = true,
+        val recoveryRequired: Boolean = false,
     ) : WriteResult
 }
 

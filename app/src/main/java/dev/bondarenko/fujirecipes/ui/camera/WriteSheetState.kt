@@ -55,6 +55,8 @@ sealed interface WriteStage {
     /** Stage 6, the good half. */
     data class Done(val outcome: WriteOutcome) : WriteStage
 
+    data class RecoveryRequired(val reason: String? = null) : WriteStage
+
     /**
      * Stage 6, the other half.
      *

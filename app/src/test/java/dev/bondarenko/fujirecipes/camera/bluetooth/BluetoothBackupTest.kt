@@ -18,6 +18,24 @@ import org.junit.Test
 class BluetoothBackupTest {
     private fun fixture() = javaClass.getResourceAsStream("/bluetooth/xt50-132-sanitized.dat")!!.use { it.readBytes() }
 
+    @Test fun verificationDistinguishesWholeBackupFromAllRecipeRecords() {
+        val raw = fixture()
+        assertEquals(BluetoothBackup.Match.COMPLETE, BluetoothBackup.compare(raw.copyOf(), raw))
+        for (offset in listOf(264, 63164, 63170, 63171, 63172, 63173)) {
+            val drift = raw.copyOf().also { it[offset] = (it[offset].toInt() xor 1).toByte() }
+            assertEquals(BluetoothBackup.Match.RECIPES_ONLY, BluetoothBackup.compare(drift, raw))
+        }
+        // Include undecoded bytes and every slot: matching mapped fields is insufficient.
+        for (slot in 0..6) {
+            val changed = raw.copyOf().also { it[63356 + slot * 1024] = (it[63356 + slot * 1024].toInt() xor 1).toByte() }
+            assertEquals(BluetoothBackup.Match.DIFFERENT_RECIPES, BluetoothBackup.compare(changed, raw))
+        }
+        for (bad in listOf(raw.copyOf(raw.size - 1), raw.copyOf().also { it[63356 + 229] = -1 })) {
+            assertThrows(IllegalArgumentException::class.java) { BluetoothBackup.compare(bad, raw) }
+            assertThrows(IllegalArgumentException::class.java) { BluetoothBackup.compare(raw, bad) }
+        }
+    }
+
     @Test fun slotEncoderMatchesIndependentUsbColorChanges() {
         val measured = javaClass.getResourceAsStream("/bluetooth/xt50-132-slot-colors-measured.json")!!.bufferedReader().use {
             Json.parseToJsonElement(it.readText()).jsonArray
@@ -72,14 +90,6 @@ class BluetoothBackupTest {
         }
         val raw = fixture().also { packU32(100_000).copyInto(it, 264) }
         val named = BluetoothBackup.patchSlot(raw, 7, buildJsonObject {}, "Fuji BLE TEST")
-        BluetoothBackup.requireResolvedWrite(raw, raw, named)
-        BluetoothBackup.requireResolvedWrite(named, raw, named)
-        for (offset in listOf(264, 63164, 63356, 69748)) {
-            val unrelated = named.copyOf().also { it[offset] = (it[offset].toInt() xor 1).toByte() }
-            assertThrows(IllegalArgumentException::class.java) {
-                BluetoothBackup.requireResolvedWrite(unrelated, raw, named)
-            }
-        }
         assertEquals("Fuji BLE TEST", BluetoothBackup.decode(named)[6].name)
         val delta = (69500 until raw.size).sumOf { (named[it].toInt() and 255) - (raw[it].toInt() and 255) }
         assertEquals(unpackU32(raw, 264) + delta, unpackU32(named, 264))

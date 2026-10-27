@@ -92,6 +92,7 @@ fun WriteSheetHost(recipeId: String, onDismiss: () -> Unit) {
         factory = WriteViewModel.factory(container, recipeId),
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val openCameraSheet = LocalCameraSheetOpener.current
     val haptics = LocalHapticFeedback.current
 
     /**
@@ -103,7 +104,7 @@ fun WriteSheetHost(recipeId: String, onDismiss: () -> Unit) {
     LaunchedEffect(state.stage) {
         when (state.stage) {
             is WriteStage.Done -> haptics.performHapticFeedback(HapticFeedbackType.Confirm)
-            is WriteStage.Failed -> haptics.performHapticFeedback(HapticFeedbackType.Reject)
+            is WriteStage.Failed, is WriteStage.RecoveryRequired -> haptics.performHapticFeedback(HapticFeedbackType.Reject)
             else -> Unit
         }
     }
@@ -128,6 +129,7 @@ fun WriteSheetHost(recipeId: String, onDismiss: () -> Unit) {
             onDismissCancel = viewModel::dismissCancel,
             onConfirmCancel = viewModel::confirmCancel,
             onDone = onDismiss,
+            onReviewRecovery = { onDismiss(); openCameraSheet() },
         )
     }
 }
@@ -148,6 +150,7 @@ fun WriteSheetContent(
     onConfirmCancel: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
+    onReviewRecovery: () -> Unit = {},
 ) {
     // Back during a write asks first, for the same reason the sheet will not be dismissed.
     BackHandler(enabled = state.isWriting) { if (state.canCancel) onRequestCancel() }
@@ -191,6 +194,18 @@ fun WriteSheetContent(
             is WriteStage.Progress -> ProgressStage(stage)
 
             is WriteStage.Done -> DoneStage(stage.outcome, onDone)
+
+            is WriteStage.RecoveryRequired -> {
+                StageHeader(stringResource(R.string.camera_recovery_title))
+                Body(stringResource(R.string.camera_recovery_blocked))
+                stage.reason?.let { Panel(it, alert = true) }
+                Button(onClick = onReviewRecovery, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.camera_recovery_review))
+                }
+                OutlinedButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.action_done))
+                }
+            }
 
             is WriteStage.Failed -> FailedStage(
                 stage = stage,
@@ -662,6 +677,10 @@ private fun PreviewSheet(state: WriteUiState) {
 @Preview(name = "Write — connect", showBackground = true)
 @Composable
 private fun WriteConnectPreview() = PreviewSheet(previewState(WriteStage.Connect))
+
+@Preview(name = "Write — recovery required", showBackground = true)
+@Composable
+private fun WriteRecoveryPreview() = PreviewSheet(previewState(WriteStage.RecoveryRequired()))
 
 @Preview(name = "Write — refused (WR-01)", showBackground = true)
 @Composable

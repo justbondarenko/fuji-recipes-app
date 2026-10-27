@@ -99,6 +99,7 @@ fun CameraScreen(
     transport: CameraTransport = CameraTransport.USB,
     onPair: (() -> Unit)? = null,
     pairingError: String? = null,
+    recoveryContent: (@Composable () -> Unit)? = null,
 ) {
     if (state is CameraState.Connected) {
         CameraConnectedContent(
@@ -111,6 +112,7 @@ fun CameraScreen(
             onDisconnect = onDisconnect,
             isReportRunning = isReportRunning,
             onShareReport = onShareReport,
+            recoveryContent = recoveryContent,
             modifier = modifier
                 .fillMaxSize()
                 .padding(contentPadding),
@@ -124,7 +126,9 @@ fun CameraScreen(
             onDisconnect = onDisconnect,
             onPair = onPair,
             pairingError = pairingError,
-            modifier = modifier.fillMaxSize().padding(contentPadding),
+            recoveryContent = recoveryContent,
+            modifier = (if (recoveryContent != null) modifier.verticalScroll(rememberScrollState()) else modifier)
+                .fillMaxSize().padding(contentPadding),
         )
     }
 }
@@ -145,6 +149,7 @@ fun CameraConnectedContent(
     isReportRunning: Boolean = false,
     onShareReport: () -> Unit = {},
     modifier: Modifier = Modifier,
+    recoveryContent: (@Composable () -> Unit)? = null,
 ) {
     val dark = isSystemInDarkTheme()
     val greenAccent = if (dark) Color(0xFF6ABF69) else Color(0xFF2E7D32)
@@ -165,6 +170,7 @@ fun CameraConnectedContent(
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
+        recoveryContent?.invoke()
         // ─── 1. The body, in the shape-and-icon panel the empty screens use ─────
         //
         // Same pattern as `FujiIconPanel` at a smaller shape size: this page has content under
@@ -554,6 +560,7 @@ fun CameraStatusContent(
     transport: CameraTransport = CameraTransport.USB,
     onPair: (() -> Unit)? = null,
     pairingError: String? = null,
+    recoveryContent: (@Composable () -> Unit)? = null,
 ) {
     val look = cameraChipLook(state)
     val accent = look.tone.accent()
@@ -579,6 +586,7 @@ fun CameraStatusContent(
         actionIsPrimary = action?.kind != ActionKind.DISCONNECT,
         modifier = modifier,
         extra = {
+            recoveryContent?.invoke()
             if (transport == CameraTransport.BLUETOOTH &&
                 (state == CameraState.Disconnected || state is CameraState.Error)) {
                 onPair?.let { pair ->

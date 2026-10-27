@@ -15,6 +15,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.compose.ui.unit.dp
 import dev.bondarenko.fujirecipes.R
@@ -87,6 +88,7 @@ class CameraTransportTest {
     }
 
     @Test fun bluetoothWriteReportsVerifiedBackupAndHidesBlindRetry() {
+        var reviews = 0
         val state = mutableStateOf(WriteUiState(
             stage = WriteStage.Done(WriteOutcome(slot = 1, wholeBackupVerified = true)),
         ))
@@ -95,7 +97,7 @@ class CameraTransportTest {
                 WriteSheetContent(state.value, onConnect = {}, onAcceptCompatibility = {},
                     onChooseSlot = {}, onSelectSlot = {}, onRefreshSlots = {}, onBackToPicker = {},
                     onConfirm = {}, onRetry = {}, onRequestCancel = {}, onDismissCancel = {},
-                    onConfirmCancel = {}, onDone = {})
+                    onConfirmCancel = {}, onDone = {}, onReviewRecovery = { reviews++ })
             }
         }
         compose.onNodeWithText(label(R.string.camera_bluetooth_write_done, 1)).assertExists()
@@ -107,6 +109,33 @@ class CameraTransportTest {
         }
         compose.onNodeWithText("C7 has not been verified").assertExists()
         compose.onNodeWithText(label(R.string.camera_action_retry)).assertDoesNotExist()
+        compose.runOnIdle { state.value = state.value.copy(stage = WriteStage.RecoveryRequired()) }
+        compose.onNodeWithText(label(R.string.camera_recovery_blocked)).assertExists()
+        compose.onNodeWithText(label(R.string.camera_action_retry)).assertDoesNotExist()
+        compose.onNodeWithText(label(R.string.camera_recovery_review)).performClick()
+        assertEquals(1, reviews)
+    }
+
+    @Test fun recoveryRemainsScrollableAndExportableWithoutAConnection() {
+        val saved = mutableStateOf(dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothRecoveryStatus())
+        var exports = 0
+        compose.setContent {
+            FujiTheme {
+                CameraScreen(CameraState.Disconnected, false, onConnect = {}, onDisconnect = {},
+                    transport = CameraTransport.BLUETOOTH, contentPadding = PaddingValues(), recoveryContent = {
+                        BluetoothRecoveryCard(saved.value, false, false, null, {}, { exports++ })
+                    })
+            }
+        }
+        compose.onNodeWithText(label(R.string.camera_recovery_no_readback)).performScrollTo().assertExists()
+        compose.onNodeWithText(label(R.string.camera_recovery_check)).performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithText(label(R.string.camera_recovery_export)).performScrollTo().performClick()
+        assertEquals(1, exports)
+        compose.runOnIdle { saved.value = saved.value.copy(damaged = true) }
+        compose.onNodeWithText(label(R.string.camera_recovery_damaged)).performScrollTo().assertExists()
+        compose.runOnIdle { saved.value = saved.value.copy(damaged = false,
+            original = dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothBackup.Match.RECIPES_ONLY) }
+        compose.onNodeWithText(label(R.string.camera_recovery_saved_original_recipes)).performScrollTo().assertExists()
     }
 
     @Test fun foregroundServiceSurvivesDisconnectedStartupWithoutCrashing() {

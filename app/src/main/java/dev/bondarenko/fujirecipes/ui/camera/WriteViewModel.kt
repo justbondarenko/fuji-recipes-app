@@ -54,8 +54,10 @@ class WriteViewModel(
                 .recipes.firstOrNull { it.id == recipeId }
 
             recipe = loaded
+            controller.refreshBluetoothRecovery()
             val stage = openingStage(controller.state.value, openingPlan())
             _state.value = WriteUiState(stage = stage, recipeName = loaded?.name.orEmpty())
+            if (requiresRecovery()) return@launch
 
             // The ordinary case opens straight on the picker, so the read starts here rather
             // than only on the compatibility stage's way out.
@@ -70,8 +72,15 @@ class WriteViewModel(
      * says why the selection resets; [refreshSlots] says why the names are re-read.
      */
     private fun enterPicker() {
+        if (requiresRecovery()) return
         _state.value = _state.value.enteringPicker()
         refreshSlots()
+    }
+
+    private fun requiresRecovery(): Boolean {
+        if (controller.transport.value != CameraTransport.BLUETOOTH || controller.recovery.value == null) return false
+        _state.value = _state.value.copy(stage = WriteStage.RecoveryRequired())
+        return true
     }
 
     /**
@@ -113,6 +122,7 @@ class WriteViewModel(
 
     /** Stage 1 → the camera connects, and the sheet moves on when it does. */
     fun connect() {
+        if (requiresRecovery()) return
         _state.value = _state.value.copy(connectionError = null)
         viewModelScope.launch {
             controller.connect()?.join()
@@ -216,6 +226,7 @@ class WriteViewModel(
     /** Stage 4 → the write runs. */
     fun confirm(slot: Int) {
         if (_state.value.isWriting) return
+        if (requiresRecovery()) return
         // The same guard as [selectSlot], on the path that actually sends bytes. The picker
         // disables the button too; this is the half that has to hold, because the other half
         // is a rendering decision.
@@ -264,7 +275,8 @@ class WriteViewModel(
             _state.value = _state.value.copy(
                 stage = when (result) {
                     is WriteResult.Success -> WriteStage.Done(result.outcome)
-                    is WriteResult.Failure -> WriteStage.Failed(
+                    is WriteResult.Failure -> if (result.recoveryRequired) WriteStage.RecoveryRequired(result.message)
+                    else WriteStage.Failed(
                         message = result.message,
                         warning = result.warning,
                         outcome = result.outcome,

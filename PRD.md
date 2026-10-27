@@ -400,6 +400,8 @@ A `ModalBottomSheet`, expanding through stages rather than a stack of dialogs.
 
 **Stage 6 — result.** Success: the wavy bar collapses into a check with a shape morph, `headlineMediumEmphasized` "Written to C3", haptic confirm. Failure: the failing property name and PTP response code, plus a Retry button.
 
+For Bluetooth, only an exact complete backup read-back reports success. An uncertain upload instead opens a recovery-required result with a link to the camera sheet and no direct Retry. The sheet retains the original, intended and received backups, distinguishes matching recipe records from a complete match, and offers a read-only camera check and local ZIP export. A pending checkpoint blocks further Bluetooth uploads before connection or overwrite actions. Only a fresh complete match to its original or intended snapshot clears that checkpoint; matching recipes alone never does. USB remains the recovery route for other states.
+
 **Haptics:** `HapticFeedbackType.Confirm` on success, `Reject` on failure. This matters more than it sounds — you will often be looking at the camera, not the phone, when the write lands.
 
 ### 7.5 `more`
