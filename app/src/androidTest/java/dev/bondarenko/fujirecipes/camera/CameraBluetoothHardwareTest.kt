@@ -246,6 +246,47 @@ class CameraBluetoothHardwareTest {
 
     @Test
     @RequiresApi(37)
+    fun compareBackupWithReadOnlyDeviceInformation() {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("bluetoothDeviceInfo") == "true")
+        assumeTrue(Build.VERSION.SDK_INT >= 37)
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        checkXAppStopped()
+        val recovery = File(context.noBackupFilesDir, "bluetooth-c7-recovery")
+        val protected = listOf("original.dat", "target.dat", "pending").map { File(recovery, it) } +
+            File(context.filesDir, "library.json")
+        val saved = protected.associateWith { it.readBytes() }
+        val directory = File(context.cacheDir, "camera-ble-info-probe")
+        check(!directory.exists() || directory.deleteRecursively()) { "Could not clear old device-info probe results." }
+        check(directory.mkdirs())
+        val device = requireNotNull(context.getSystemService(BluetoothManager::class.java).adapter
+            .bondedDevices.singleOrNull { it.name == "X-T50" })
+        try {
+            BleBackupProbe(context).use { probe ->
+                probe.connect(device)
+                val before = probe.download()
+                File(directory, "before.dat").writeBytes(before)
+                val info = probe.readDeviceInformation()
+                info.forEach { (name, bytes) -> File(directory, "$name.dat").writeBytes(bytes) }
+                // No identities or raw characteristic values in logs; private files retain the evidence.
+                Log.i(TAG, "Read-only device information: ${info.mapValues { it.value.size }}")
+                Thread.sleep(3_000)
+                val after = probe.download()
+                File(directory, "after.dat").writeBytes(after)
+                for (raw in listOf(before, after)) {
+                    BluetoothBackup.decode(raw)
+                    check(raw.copyOfRange(63356, raw.size).contentEquals(saved.getValue(File(recovery, "original.dat"))
+                        .copyOfRange(63356, raw.size))) { "The camera recipe records differ from the retained original." }
+                }
+                Log.i(TAG, "Device-info probe backup differences: ${before.indices.filter { before[it] != after[it] }}")
+            }
+            checkXAppStopped()
+        } finally {
+            protected.forEach { check(it.readBytes().contentEquals(saved.getValue(it))) { "Protected file changed: ${it.name}" } }
+        }
+    }
+
+    @Test
+    @RequiresApi(37)
     fun downloadSettingsBackup() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("bluetoothProbe") == "true")
         assumeTrue(Build.VERSION.SDK_INT >= 37)
@@ -412,11 +453,11 @@ private class BleBackupProbe(private val context: Context) : AutoCloseable {
         // A failed previous transfer can leave the bonded camera's CCCDs enabled.
         subscribe(FILE_STATUS, false, false)
         subscribe(OPERATION_STATUS, true, false)
-        subscribe(FILE_STATUS, false)
-        subscribe(OPERATION_STATUS, true)
     }
 
     fun download(): ByteArray {
+        subscribe(FILE_STATUS, false)
+        subscribe(OPERATION_STATUS, true)
         val availability = read(UUID.fromString("a68e3f66-0fcc-4395-8d4c-aa980b5877fa"))
         check(availability.size == 2) { "Invalid camera availability response." }
         Log.i(TAG, "Camera availability: 0x${unpackU16(availability).toString(16)}")
@@ -606,6 +647,25 @@ private class BleBackupProbe(private val context: Context) : AutoCloseable {
         subscribe(FILE_STATUS, false, false)
         subscribe(RESTORE_STATUS, true, false)
         Log.i(TAG, "Settings restore transfer acknowledged; reconnecting for verification")
+    }
+
+    /** Standard Device Information and the two lens read characteristics documented by libfuji. */
+    fun readDeviceInformation(): Map<String, ByteArray> {
+        val identifiers = linkedMapOf(
+            "manufacturer" to "00002a29-0000-1000-8000-00805f9b34fb",
+            "model" to "00002a24-0000-1000-8000-00805f9b34fb",
+            "serial" to "00002a25-0000-1000-8000-00805f9b34fb",
+            "hardware" to "00002a27-0000-1000-8000-00805f9b34fb",
+            "firmware" to "00002a26-0000-1000-8000-00805f9b34fb",
+            "software" to "00002a28-0000-1000-8000-00805f9b34fb",
+            "lens-name" to "68887a7a-10a7-4a4a-aadd-6f9db1abaa0e",
+            "lens-firmware" to "621a98d8-6314-4c3e-a683-eea1d6166606",
+        )
+        return identifiers.mapNotNull { (name, value) ->
+            val uuid = UUID.fromString(value)
+            if (gatt.services.none { ((it.getCharacteristic(uuid)?.properties ?: 0) and BluetoothGattCharacteristic.PROPERTY_READ) != 0 }) null
+            else name to read(uuid).also { check(it.size <= 512) { "Device information exceeds the GATT value limit." } }
+        }.toMap()
     }
 
     private fun characteristic(uuid: UUID): BluetoothGattCharacteristic =

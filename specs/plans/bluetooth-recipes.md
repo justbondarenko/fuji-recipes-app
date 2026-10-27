@@ -219,3 +219,41 @@ Recovery UI and evidence retention are committed in `eb28f6d`. The next normal P
 `BluetoothRecoveryTest#inspectExistingCheckpointWithoutUploading` is a separate opt-in hardware check (`-e recoveryInspection true`). It requires a genuine existing pending checkpoint, connects through the production controller, performs only its read-only inspection, compares the saved inspection with both retained snapshots, and verifies exact-match-only marker resolution plus unchanged original/target/library files. It never creates a diagnostic pending marker, invokes the writer, or replays a backup. After the user confirmed a shutter wake, the live check passed in 5.007 seconds. It saved a validated 70,524-byte inspection: all 7,168 original recipe-record bytes match, the C1 Color=0 target does not, and 26 byte positions outside the records differ from the historical original. These differences include the known unresolved positions 63170–63173; the broader historical snapshot comparison does not isolate their cause. The pending marker correctly remains, and all five protected file fingerprints still match. The private live backup is retained under ignored `captures/bluetooth/c7-app/recovery-inspection/`. The test disconnected cleanly; no recipe upload or phone radio reset occurred.
 
 A subsequent app force-stop/restart, without reconnecting the camera, displayed “Last saved camera check: all seven recipe records match the original backup; other backup bytes differ.” The recovery lock remained visible and the five protected fingerprints still matched. This verifies the real saved inspection survives process restart, rather than only the synthetic persistence check.
+
+### Read-only device and lens metadata comparison
+
+The opt-in `CameraBluetoothHardwareTest#compareBackupWithReadOnlyDeviceInformation`
+(`-e bluetoothDeviceInfo true`) brackets eight readable device/lens characteristics
+with two backups. It uses the existing diagnostic transport, validates both
+backups and compares every recipe-record byte with the retained original.
+Completed reads are retained immediately in private cache; logs contain only
+lengths and changed offsets. The original, target, genuine pending marker and
+library must remain byte-for-byte unchanged. No restore path is invoked.
+
+Two initial attempts failed before encryption with status 147. After a
+user-controlled camera restart, the first backup and metadata reads completed,
+but the second download exposed a diagnostic-only notification lifecycle bug:
+the probe disabled file/operation notifications after each download and enabled
+them only at connection. Their enablement now belongs to each download, as in
+the production reader. The corrected Pixel hardware check passed in 9.831
+seconds. All eight metadata reads completed, both 70,524-byte backups validated,
+and all 7,168 original recipe bytes matched. The five independently protected
+file fingerprints also remained unchanged.
+
+Raw, padding-trimmed, printable-string and ASCII-to-UTF-16LE comparisons found
+no metadata match in the region around offsets 63170–63173. The sole complete
+text match was the manufacturer at the backup header. Before/after backups
+differed only at offset 63268; offsets 63170–63173 were unchanged in this run.
+This excludes a direct string match for these eight reads, not another encoding
+or a different field. The field remains unidentified. A prior phone-name
+comparison also did not match, so registration data is not an established
+explanation. No production verification rule, camera setting, bond or genuine
+recovery marker was changed. Private evidence is under ignored
+`captures/bluetooth/c7-app/device-info-probe/`.
+
+The lens characteristic identifiers come from the pinned
+[libfuji Bluetooth source](https://github.com/petabyt/libfuji/blob/3328efc51f74d754f8fa76af70c6becdde62271f/lib/bluetooth.c).
+Static inspection of the installed Fujifilm USB SDK exposed an opaque backup
+transfer path, without an identified backup parser. These sources supply
+protocol leads, not meanings for the unexplained bytes or permission to ignore
+them during write verification.
