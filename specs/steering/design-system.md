@@ -223,7 +223,10 @@ of the editing form, delete last, where they cannot be caught on the way to some
 | **Menus** | The current selection carries a trailing check. A menu that lists options without saying which one is active makes the reader open it twice. |
 | **Filter chips** | Selected chips carry a leading check. Absent rather than invisible when unselected, so the chip does not change width and the row does not reflow as you tap. |
 | **Filters** | A modal bottom sheet of chips, opened from the badged Filters button. |
+| **Bottom sheets** | Use Material3 `ModalBottomSheet` with its default scrim, rounded top corners, drag handle and surface color. Keep compact-window sheets full width; larger-window sheets are centered with a 640dp maximum width. Modality does not imply side or bottom insets. Background content is dimmed and cannot receive input. Keep native outside-tap, Back and swipe dismissal, subject to the existing in-progress-write guard. |
 | **Loading** | Always `FujiLoadingIndicator` — see below. |
+
+Bottom-sheet sizing follows the [Material 3 specs](https://m3.material.io/components/bottom-sheets/specs) and [responsive layout guidance](https://m3.material.io/components/bottom-sheets/guidelines): mobile sheets fill the screen width; larger screens constrain the width. Do not add floating-card margins to every modal bottom sheet.
 
 **Swipe, not `SwipeToDismissBox`.** That component commits an action past a threshold, which
 suits one destructive gesture and not a menu of three. The rows hold open at an anchor so

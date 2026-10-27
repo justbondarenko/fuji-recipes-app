@@ -122,7 +122,6 @@ fun SlotDetailBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         dragHandle = { BottomSheetDefaults.DragHandle() },
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         modifier = modifier,
     ) {
         SlotDetailContent(
