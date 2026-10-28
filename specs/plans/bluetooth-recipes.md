@@ -1,5 +1,9 @@
 # Bluetooth recipe connection
 
+For the current resumable checkpoint, safety constraints, evidence inventory and
+ordered next steps, read the [27 October handover](bluetooth-handover-2026-10-27.md)
+before the historical stages below.
+
 Hardware investigation completed on 26 October 2026 on branch `bluetooth-connection`. The debug probe can connect to the paired X-T50 1.32 after a normal camera restart, download its settings over Bluetooth, change a complete measured C7 recipe, verify persistence, and restore the original recipe. The app now includes Bluetooth connection, C1–C7 views, library import and controlled C1–C7 writing on the verified Pixel/X-T50 combination. See the slot expansion stage below for the measured field coverage.
 
 **Current recovery checkpoint:** C1 Color was restored to its original +3 through a single USB property write on 27 October 2026. Independent USB reads verify all 168 recipe properties and all 7,168 original recipe-record bytes across C1–C7; 15 subsequent successful Bluetooth downloads preserve the same recipe bytes. The genuine pending marker and original/target snapshots remain protected on Pixel because strict Bluetooth verification differed at nonrecipe offsets 63170–63173. Do not clear the marker, retry the Bluetooth write or replay a whole old backup; read-only Bluetooth captures now reproduce changes at exactly those four unknown offsets without an upload. Their meaning remains unestablished, so full verification and the recovery guard are unchanged.
