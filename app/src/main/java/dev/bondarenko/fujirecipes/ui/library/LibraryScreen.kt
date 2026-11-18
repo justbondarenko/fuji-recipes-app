@@ -123,7 +123,7 @@ fun LibraryScreen(
     var deleteSelectionPending by remember { mutableStateOf(false) }
     val selecting = selectedIds.isNotEmpty()
     val showFiltersFab = state.hasLoaded && !state.isEmptyLibrary && !state.isBlockingError && !selecting
-    // The shell's New recipe FAB shares this corner until the detail pane is open.
+    // The shell's New recipe FAB shares this corner until a recipe is selected.
     val reducedMotion = LocalReducedMotion.current
     val filtersBottomOffset by animateDpAsState(
         targetValue = if (activeRecipeId == null) 88.dp else 16.dp,
@@ -145,9 +145,9 @@ fun LibraryScreen(
 
     // No pull-to-refresh: there is nowhere to refresh *from*. The library is a file on this
     // phone, and the flow that feeds this screen already republishes on every change.
-    Box(modifier = modifier.fillMaxSize().readableWidth()) {
+    Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().readableWidth(),
             // The shell's inset already reserves the floating bar's height, so the list
             // scrolls under it and the last card can still clear it.
             contentPadding = PaddingValues(

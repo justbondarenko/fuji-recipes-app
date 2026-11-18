@@ -21,6 +21,8 @@
     <string name="nav_section_features">Features</string>
 
     <!-- Library -->
+    <string name="library_select_recipe">Select a recipe</string>
+    <string name="library_resize_panes">Resize recipe panes</string>
     <string name="search_placeholder">Search names and tags</string>
     <plurals name="filters_fab_description">
         <item quantity="one">Filters, %1$d active filter</item>
