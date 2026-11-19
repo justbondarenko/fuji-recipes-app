@@ -56,15 +56,17 @@ class LibraryDetailLayoutTest {
     }
 
     @Test
-    fun draggingResizesBothPanesAndSelectingARecipeKeepsTheSplit() {
+    fun unfoldedPortraitShowsBothPanesAndKeepsTheSplitWhenOpeningARecipe() {
         val open = mutableStateOf(false)
         compose.setContent {
-            ShellAtWidth(840.dp) { split ->
+            ShellAtWidth(660.dp, height = 820.dp, detailOpen = open.value) { split ->
                 TestPanes(split, detailOpen = open.value)
             }
         }
 
+        compose.onNodeWithTag("nav-rail-items").assertIsDisplayed()
         val start = bounds("detail").left
+        assertEquals(bounds("shell").center.x, start, 1f)
         val createStart = createButtonRight()
         val distance = 0.1f * bounds("shell").width
         divider().performTouchInput { swipe(center, center + Offset(distance, 0f)) }
@@ -143,6 +145,7 @@ class LibraryDetailLayoutTest {
                     onReadClick = {},
                     onMoreClick = {},
                     onCreateClick = {},
+                    railBottomAction = {},
                     hideBottomNavigation = detailOpen,
                     modifier = Modifier.testTag("shell"),
                 ) {

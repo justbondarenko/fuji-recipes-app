@@ -25,6 +25,16 @@ class LibraryPaneSplitTest {
     }
 
     @Test
+    fun narrowWindowWithRailCanResizeInBothDirectionsFromCenter() {
+        val split = LibraryPaneSplit(600, 520, 300, mutableFloatStateOf(0.5f))
+        assertEquals(220, split.listWidth)
+        split.resizeBy(-20f)
+        assertEquals(200, split.listWidth)
+        split.resizeBy(40f)
+        assertEquals(240, split.listWidth)
+    }
+
+    @Test
     fun temporaryWindowConstraintsDoNotOverwriteThePreferredSplit() {
         val fraction = mutableFloatStateOf(0.5f)
         val wide = LibraryPaneSplit(1200, 1120, 300, fraction)
