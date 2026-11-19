@@ -9,7 +9,7 @@ have less space than a regular phone. All dimensions below are density-independe
 | Area | Compact window | Wider window |
 | --- | --- | --- |
 | Main navigation | Existing bottom bar | Vertically centered navigation rail items and a camera footer at 600dp width and height |
-| Library | Recipe opens full screen | Resizable list and detail panes when at least 720dp remains after navigation |
+| Library | Recipe opens full screen | Resizable list and detail panes when the navigation rail is visible or the window is at least 720dp wide |
 | Standalone recipe details, recipe editor, camera photo list | Existing single column | Centered body, at most 720dp wide |
 | Other page content | Available width | Centered, at most 1200dp wide |
 | Loaded RAW Lab | Existing stacked preview and controls | Existing 60/40 split at 720dp width, also retained for landscape windows |
@@ -70,9 +70,8 @@ recreation and a trip into the editor. Each detail model is cleared on replaceme
 
 Folding into a compact window keeps the selected recipe full screen and retains
 the list's composition for unfolding. The list is not placed or accessible while
-hidden. The compact detail hides bottom navigation; a rail in a medium-width
-window stays visible. A recipe opened initially on a compact phone continues to
-use the existing standalone navigation route.
+hidden. The compact detail hides bottom navigation. A recipe opened initially on
+a compact phone continues to use the existing standalone navigation route.
 
 ## Further layout ideas
 
@@ -97,8 +96,9 @@ and JVM tests do not verify their appearance.
   to a rail, all five destinations navigate and show the correct selection.
 - At 840 × 900dp: rail navigation and centered list/form bodies; open the Lab
   with a RAF and check its side-by-side preview and controls.
-- With at least 720dp left after the rail: check that the divider starts at the
-  center of the window. Drag the handle in both directions with an empty detail
+- With the rail visible in unfolded portrait and landscape: check that tapping a
+  recipe opens it beside the list and the divider starts at the center of the
+  window. Drag the handle in both directions with an empty detail
   and with a recipe selected. Confirm the search stays on one line and both panes
   remain usable at each limit. Switch and close recipes and verify the split stays in place.
 - On phone and foldable, check the bottom-right Filters FAB, its active-count

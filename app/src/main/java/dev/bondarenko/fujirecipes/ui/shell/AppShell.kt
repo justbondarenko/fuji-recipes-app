@@ -273,8 +273,9 @@ fun AppShell(
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val shellWidth = constraints.maxWidth
         val useRail = usesNavigationRail(maxWidth, maxHeight, railBottomAction != null)
+        val showRail = showChrome && useRail
         val minPaneWidth = with(LocalDensity.current) { LibraryPaneMinWidth.roundToPx() }
-        val splitWithoutRail = if ((!showChrome || !useRail) && maxWidth >= LibraryTwoPaneMinWidth) {
+        val splitWithoutRail = if (!showRail && maxWidth >= LibraryTwoPaneMinWidth) {
             remember(shellWidth, minPaneWidth) {
                 LibraryPaneSplit(shellWidth, shellWidth, minPaneWidth, libraryPaneFraction)
             }
@@ -454,7 +455,7 @@ fun AppShell(
         }
 
         Row(Modifier.fillMaxSize()) {
-            if (showChrome && useRail) {
+            if (showRail) {
                 NavigationRail(modifier = Modifier.fillMaxHeight()) {
                     BoxWithConstraints(Modifier.fillMaxHeight()) {
                         Column(
@@ -631,7 +632,8 @@ fun AppShell(
             ) { innerPadding ->
                 BoxWithConstraints(Modifier.fillMaxSize()) {
                     val contentWidth = constraints.maxWidth
-                    val split = splitWithoutRail ?: if (maxWidth >= LibraryTwoPaneMinWidth) {
+                    // Portrait foldables can show the rail with much less room beside it.
+                    val split = splitWithoutRail ?: if (showRail) {
                         remember(shellWidth, contentWidth, minPaneWidth) {
                             LibraryPaneSplit(shellWidth, contentWidth, minPaneWidth, libraryPaneFraction)
                         }
@@ -641,7 +643,7 @@ fun AppShell(
                     val contentModifier = if (isLibrarySelected) Modifier else Modifier.readableWidth(1200.dp)
                     Box(Modifier.fillMaxSize().then(contentModifier)) {
                         CompositionLocalProvider(
-                            LocalRailActionProvided provides (showChrome && useRail && railBottomAction != null),
+                            LocalRailActionProvided provides (showRail && railBottomAction != null),
                             LocalLibraryPaneSplit provides split,
                         ) {
                             content(innerPadding)

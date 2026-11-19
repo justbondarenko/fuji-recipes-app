@@ -43,6 +43,7 @@ import kotlin.math.roundToInt
 internal val LocalLibraryPaneSplit = compositionLocalOf<LibraryPaneSplit?> { null }
 internal val LibraryTwoPaneMinWidth = 720.dp
 internal val LibraryPaneMinWidth = 300.dp
+private const val MIN_WIDTH_FRACTION_OF_DEFAULT = 0.85f
 
 internal class LibraryPaneSplit(
     private val windowWidth: Int,
@@ -51,9 +52,16 @@ internal class LibraryPaneSplit(
     private val preferredFraction: MutableFloatState,
 ) {
     private val railWidth = windowWidth - contentWidth
-    // Keep the center available even if a display inset makes the rail unusually wide.
-    private val minListWidth = minOf(minPaneWidth, (windowWidth / 2 - railWidth).coerceAtLeast(0))
-    val range = (railWidth + minListWidth).toFloat() / windowWidth..1f - minPaneWidth.toFloat() / windowWidth
+    // Leave travel in both directions from the center, even when a pane starts under 300dp.
+    private val minListWidth = minOf(
+        minPaneWidth,
+        ((windowWidth / 2 - railWidth).coerceAtLeast(0) * MIN_WIDTH_FRACTION_OF_DEFAULT).roundToInt(),
+    )
+    private val minDetailWidth = minOf(
+        minPaneWidth,
+        (windowWidth / 2 * MIN_WIDTH_FRACTION_OF_DEFAULT).roundToInt(),
+    )
+    val range = (railWidth + minListWidth).toFloat() / windowWidth..1f - minDetailWidth.toFloat() / windowWidth
     val fraction: Float get() = preferredFraction.floatValue.coerceIn(range)
     val listWidth: Int get() = (windowWidth * fraction).roundToInt() - railWidth
 
