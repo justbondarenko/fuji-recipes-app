@@ -9,7 +9,7 @@ have less space than a regular phone. All dimensions below are density-independe
 | Area | Compact window | Wider window |
 | --- | --- | --- |
 | Main navigation | Existing bottom bar | Vertically centered navigation rail items and a camera footer at 600dp width and height |
-| Library | Recipe opens full screen | List and selected recipe share the window when at least 720dp remains after navigation |
+| Library | Recipe opens full screen | Resizable list and detail panes when the navigation rail is visible or the window is at least 720dp wide |
 | Standalone recipe details, recipe editor, camera photo list | Existing single column | Centered body, at most 720dp wide |
 | Other page content | Available width | Centered, at most 1200dp wide |
 | Loaded RAW Lab | Existing stacked preview and controls | Existing 60/40 split at 720dp width, also retained for landscape windows |
@@ -22,16 +22,16 @@ use a long-press menu on every screen size rather than horizontal swipe gestures
 
 ## Library list/detail navigation
 
-The library starts at its normal width. Selecting a recipe animates the list down
-to 40% of the content width (between 300dp and 360dp), while revealing the recipe
-at the same moving boundary. The detail is measured at its final width throughout
-the 400ms transition, so its controls do not compress during the reveal. Closing
-the recipe reverses this animation. Reduced-motion mode skips the transition.
+The divider starts at the center of the window. The navigation rail and list
+together occupy the start half, and the detail occupies the other half. Drag the
+handle horizontally to resize both panes. The chosen split survives folding,
+unfolding and activity recreation. The detail prompts for a recipe until one is
+selected. Selecting or closing a recipe keeps the divider in place.
 
 The centered navigation rail stays visible. The open recipe is highlighted in the
 list; selecting another recipe changes the right pane without rebuilding the list
 or losing its scroll/search state. Sorting and counts wrap safely in narrow panes.
-The create FAB hides while a recipe is open to avoid covering its actions.
+The create FAB sits inside the list pane and hides while a recipe is open.
 
 Search keeps its own stable row and remains single-line for both the query and
 placeholder while the pane resizes. The controls below it put sort and recipe count
@@ -40,8 +40,8 @@ on the left, with view settings fixed at the right edge.
 Filters is a circular floating action button at the bottom-right of the recipe
 list on phones and wider windows. It belongs to the list pane, so opening a recipe
 keeps it in that pane. When New recipe is visible, Filters sits above it; once a
-recipe is open, it moves down to the bottom corner. This clearance animates with
-the pane transition and respects reduced motion. The badge reports active filter
+recipe is open, it moves down to the bottom corner. This clearance animates and
+respects reduced motion. The badge reports active filter
 axes. The filter sheet is hosted outside the lazy header, allowing the button to
 work after the header has scrolled away. List bottom padding leaves the final
 items reachable above the floating controls. Selection mode replaces Filters
@@ -52,8 +52,9 @@ sheet and displays the existing connection badge. Page headers omit their camera
 trigger, leaving search the full pane width. The navigation group stays centered
 against the full rail independently of the footer. A minimum height of 600dp keeps
 the footer clear of the five centered destinations. Shorter windows use bottom
-navigation and restore the page's camera trigger; on phones the library camera
-button is beside search. A loaded Lab keeps its own header trigger because its
+navigation and restore the page's camera trigger. When the Library still has
+room for two panes, its bottom bar sits below the list. On phones the library
+camera button is beside search. A loaded Lab keeps its own header trigger because its
 full-screen workspace hides the rail.
 
 On all screen sizes, long-press a recipe for Edit, Write to camera, Select, and
@@ -62,16 +63,15 @@ Write is disabled with a connection explanation when the camera cannot accept it
 Delete still requires confirmation. Select enters the existing batch selection
 mode; taps and long presses can then add recipes to that selection.
 
-Back and the detail's Close action close the pane. Editing and saving a recipe
+Back and the detail's Close action clear the selection. Editing and saving a recipe
 returns to the selected pane. Comparison can select another recipe in that pane.
 The selected id lives on the library's saved back-stack entry, so it survives
 recreation and a trip into the editor. Each detail model is cleared on replacement.
 
 Folding into a compact window keeps the selected recipe full screen and retains
 the list's composition for unfolding. The list is not placed or accessible while
-hidden. The compact detail hides bottom navigation; a rail in a medium-width
-window stays visible. A recipe opened initially on a compact phone continues to
-use the existing standalone navigation route.
+hidden. The compact detail hides bottom navigation. A recipe opened initially on
+a compact phone continues to use the existing standalone navigation route.
 
 ## Further layout ideas
 
@@ -96,10 +96,11 @@ and JVM tests do not verify their appearance.
   to a rail, all five destinations navigate and show the correct selection.
 - At 840 × 900dp: rail navigation and centered list/form bodies; open the Lab
   with a RAF and check its side-by-side preview and controls.
-- With at least 720dp left after the rail: tap a recipe and watch the list narrow
-  while the right pane is revealed. Confirm the narrow search remains one line
-  with view settings at the right of sort/count and the camera button at the rail bottom. Scroll/search the list, switch recipes, use
-  comparison, then close the detail and check that the list expands in place.
+- With the rail visible in unfolded portrait and landscape: check that tapping a
+  recipe opens it beside the list and the divider starts at the center of the
+  window. Drag the handle in both directions with an empty detail
+  and with a recipe selected. Confirm the search stays on one line and both panes
+  remain usable at each limit. Switch and close recipes and verify the split stays in place.
 - On phone and foldable, check the bottom-right Filters FAB, its active-count
   badge, and clearance above New recipe. Scroll the header off-screen, then open
   Filters and verify the same sheet still works.

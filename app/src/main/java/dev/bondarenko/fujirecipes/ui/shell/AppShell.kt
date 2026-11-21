@@ -1,7 +1,6 @@
 package dev.bondarenko.fujirecipes.ui.shell
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
@@ -30,11 +29,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
@@ -43,7 +44,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -75,22 +75,30 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.core.settings.NavDestinationId
 import dev.bondarenko.fujirecipes.ui.common.readableWidth
+import dev.bondarenko.fujirecipes.ui.library.LibraryPaneMinWidth
+import dev.bondarenko.fujirecipes.ui.library.LibraryPaneSplit
+import dev.bondarenko.fujirecipes.ui.library.LibraryTwoPaneMinWidth
+import dev.bondarenko.fujirecipes.ui.library.LocalLibraryPaneSplit
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
 import dev.bondarenko.fujirecipes.ui.theme.icons.Add
 import dev.bondarenko.fujirecipes.ui.theme.icons.BookmarkStacks
@@ -221,6 +229,7 @@ fun AppShell(
     var dragFingerPosition by remember { mutableFloatStateOf(0f) }
     var dragInitialGrabOffset by remember { mutableFloatStateOf(0f) }
     var navigationExtentPx by remember { mutableFloatStateOf(0f) }
+    val libraryPaneFraction = rememberSaveable { mutableFloatStateOf(0.5f) }
     val currentOnUpdatePinned by rememberUpdatedState(onUpdatePinnedDestinations)
     val haptic = LocalHapticFeedback.current
 
@@ -262,7 +271,17 @@ fun AppShell(
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val shellWidth = constraints.maxWidth
         val useRail = usesNavigationRail(maxWidth, maxHeight, railBottomAction != null)
+        val showRail = showChrome && useRail
+        val minPaneWidth = with(LocalDensity.current) { LibraryPaneMinWidth.roundToPx() }
+        val splitWithoutRail = if (!showRail && maxWidth >= LibraryTwoPaneMinWidth) {
+            remember(shellWidth, minPaneWidth) {
+                LibraryPaneSplit(shellWidth, shellWidth, minPaneWidth, libraryPaneFraction)
+            }
+        } else {
+            null
+        }
         val maxPinned = if (useRail) NavDestinationId.MAX_RAIL_PINNED else NavDestinationId.MAX_PINNED
 
         LaunchedEffect(pinnedDestinations, useRail, isDraggingBarItem) {
@@ -436,7 +455,7 @@ fun AppShell(
         }
 
         Row(Modifier.fillMaxSize()) {
-            if (showChrome && useRail) {
+            if (showRail) {
                 NavigationRail(modifier = Modifier.fillMaxHeight()) {
                     BoxWithConstraints(Modifier.fillMaxHeight()) {
                         Column(
@@ -532,9 +551,19 @@ fun AppShell(
                     }
                 },
                 bottomBar = {
-                    if (showChrome && !useRail && !hideBottomNavigation) {
+                    val bottomBarSplit = splitWithoutRail.takeIf { isLibrarySelected }
+                    if (showChrome && !useRail && (!hideBottomNavigation || bottomBarSplit != null)) {
+                        val barWidthModifier = if (bottomBarSplit != null) {
+                            Modifier.layout { measurable, constraints ->
+                                val barWidth = bottomBarSplit.listWidth.coerceIn(0, constraints.maxWidth)
+                                val bar = measurable.measure(constraints.copy(minWidth = barWidth, maxWidth = barWidth))
+                                layout(constraints.maxWidth, bar.height) { bar.placeRelative(0, 0) }
+                            }
+                        } else {
+                            Modifier
+                        }
                         NavigationBar(
-                            modifier = Modifier
+                            modifier = barWidthModifier
                                 .onSizeChanged { navigationExtentPx = it.width.toFloat() }
                                 .then(editDragModifier).testTag("nav-bottom-bar"),
                         ) {
@@ -600,9 +629,34 @@ fun AppShell(
                         }
                     }
                 },
-                floatingActionButton = {
-                    AnimatedVisibility(
+            ) { innerPadding ->
+                BoxWithConstraints(Modifier.fillMaxSize()) {
+                    val contentWidth = constraints.maxWidth
+                    // Portrait foldables can show the rail with much less room beside it.
+                    val split = splitWithoutRail ?: if (showRail) {
+                        remember(shellWidth, contentWidth, minPaneWidth) {
+                            LibraryPaneSplit(shellWidth, contentWidth, minPaneWidth, libraryPaneFraction)
+                        }
+                    } else {
+                        null
+                    }
+                    val contentModifier = if (isLibrarySelected) Modifier else Modifier.readableWidth(1200.dp)
+                    Box(Modifier.fillMaxSize().then(contentModifier)) {
+                        CompositionLocalProvider(
+                            LocalRailActionProvided provides (showRail && railBottomAction != null),
+                            LocalLibraryPaneSplit provides split,
+                        ) {
+                            content(innerPadding)
+                        }
+                    }
+
+                    val endInset = if (split == null) innerPadding.calculateEndPadding(LocalLayoutDirection.current) else 0.dp
+                    androidx.compose.animation.AnimatedVisibility(
                         visible = showChrome && isLibrarySelected && !isSelecting && !isEditMode,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .offset { IntOffset(split?.let { it.listWidth - contentWidth } ?: 0, 0) }
+                            .padding(end = 16.dp + endInset, bottom = 16.dp + innerPadding.calculateBottomPadding()),
                         enter = slideInHorizontally(
                             initialOffsetX = { fullWidth -> fullWidth * 2 },
                             animationSpec = spring(
@@ -612,28 +666,14 @@ fun AppShell(
                         ) + fadeIn(animationSpec = tween(durationMillis = 150)),
                         exit = slideOutHorizontally(
                             targetOffsetX = { fullWidth -> fullWidth * 2 },
-                            animationSpec = spring(
-                                stiffness = Spring.StiffnessMediumLow,
-                            ),
+                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
                         ) + fadeOut(animationSpec = tween(durationMillis = 150)),
                     ) {
                         ExtendedFloatingActionButton(
                             onClick = onCreateClick,
-                            icon = {
-                                Icon(
-                                    imageVector = FujiIcons.Add,
-                                    contentDescription = null,
-                                )
-                            },
+                            icon = { Icon(FujiIcons.Add, contentDescription = null) },
                             text = { Text(stringResource(R.string.nav_create)) },
                         )
-                    }
-                },
-                floatingActionButtonPosition = FabPosition.End,
-            ) { innerPadding ->
-                Box(Modifier.fillMaxSize().readableWidth(1200.dp)) {
-                    CompositionLocalProvider(LocalRailActionProvided provides (showChrome && useRail && railBottomAction != null)) {
-                        content(innerPadding)
                     }
 
                     // Top sheet overlay when customizing navigation
@@ -645,6 +685,7 @@ fun AppShell(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
+                                .readableWidth(1200.dp)
                                 .padding(bottom = innerPadding.calculateBottomPadding())
                                 .background(Color.Black.copy(alpha = 0.45f))
                                 .clickable(
@@ -659,7 +700,7 @@ fun AppShell(
                         visible = isEditMode,
                         enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(tween(220)),
                         exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(tween(180)),
-                        modifier = Modifier.align(Alignment.TopCenter),
+                        modifier = Modifier.align(Alignment.TopCenter).readableWidth(1200.dp),
                     ) {
                         CustomizeNavigationTopSheet(
                             pinnedDestinations = localPinned,
