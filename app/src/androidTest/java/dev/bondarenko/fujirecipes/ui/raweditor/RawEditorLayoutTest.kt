@@ -26,6 +26,8 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.swipe
@@ -51,6 +53,7 @@ import androidx.compose.ui.test.click
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
@@ -66,6 +69,37 @@ import org.junit.Test
 @OptIn(ExperimentalTestApi::class)
 class RawEditorLayoutTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test
+    fun filmSimulationSelectorPreservesEditsAndPreviewInCompactAndWideLayouts() {
+        val bitmap = Bitmap.createBitmap(120, 80, Bitmap.Config.ARGB_8888)
+        val original = RawAdjustments(exposure = .7f, shadows = .2f)
+        var state by mutableStateOf(RawEditorState(name = "sample.RAF", asShotProfile = "classic-chrome",
+            preview = bitmap, startingImage = bitmap, adjustments = original))
+        var wide by mutableStateOf(false)
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(if (wide) 840.dp else 393.dp, 800.dp))) {
+                FujiTheme { RawEditorScreen(state, {}, {}, { state = state.copy(adjustments = it) }, {}) }
+            }
+        }
+        fun choice(label: String) = compose.onNode(hasText(label) and hasAnyAncestor(isPopup()))
+        repeat(2) {
+            compose.onNodeWithText("Color").performScrollTo().performClick()
+            val bounds = compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot()
+            compose.onNodeWithTag("raw-editor-film-simulation").performScrollTo().performClick()
+            choice("Classic Chrome").performScrollTo().assertIsSelected()
+            choice("ACROS").assertDoesNotExist()
+            choice("Velvia / Vivid").performScrollTo().performClick()
+            compose.runOnIdle { assertEquals(original.copy(filmSimulation = "velvia"), state.adjustments) }
+            assertEquals(bounds, compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot())
+            compose.onNodeWithTag("raw-editor-film-simulation").performScrollTo().performClick()
+            choice("Velvia / Vivid").performScrollTo().assertIsSelected()
+            choice("Classic Chrome").performScrollTo().performClick()
+            compose.runOnIdle { assertEquals(original, state.adjustments) }
+            assertEquals(bounds, compose.onNodeWithTag("raw-editor-preview").getUnclippedBoundsInRoot())
+            compose.runOnIdle { wide = true }
+        }
+    }
 
     private fun selectGroupedControl(label: String): Int? {
         val group = when (label) {
@@ -130,7 +164,7 @@ class RawEditorLayoutTest {
         assertEquals(groups, tabLabels(tabs))
         val expectedOptions = mapOf(
             "Light" to listOf("Exposure controls", "Contrast controls", "Shadows controls", "Highlights controls"),
-            "Color" to listOf("As shot", "Temperature controls", "Tint controls", "Saturation controls", "Vibrance controls"),
+            "Color" to listOf("Film simulation", "As shot", "Temperature controls", "Tint controls", "Saturation controls", "Vibrance controls"),
             "Details" to listOf("Sharpening controls", "Noise Reduction controls", "Preserve Detail controls"),
             "Effects" to listOf("Grain controls", "Clarity controls", "Texture controls", "Dehaze controls", "Vignette controls"),
             "Optics" to listOf("Distortion controls", "Perspective controls", "Defringe controls", "Color alignment controls"),
@@ -883,10 +917,15 @@ class RawEditorLayoutTest {
             val save = bounds("Save")
             val shadows = bounds("Shadows")
             val image = compose.onNodeWithContentDescription("RAW with film simulation color profile").fetchSemanticsNode().boundsInRoot
-            compose.runOnIdle { state = state.copy(rendering = true) }
+            compose.runOnIdle { state = state.copy(rendering = true, detailLoading = true) }
+            val loading = SemanticsMatcher.expectValue(SemanticsProperties.ProgressBarRangeInfo, ProgressBarRangeInfo.Indeterminate)
+            compose.onAllNodes(loading).assertCountEquals(0)
             assertEquals(save, bounds("Save"))
             assertEquals(shadows, bounds("Shadows"))
-            compose.runOnIdle { state = state.copy(rendering = false) }
+            compose.runOnIdle { state = state.copy(busy = true, rendering = false, detailLoading = false) }
+            compose.onAllNodes(loading).assertCountEquals(1)
+            assertEquals(image, compose.onNodeWithContentDescription("RAW with film simulation color profile").fetchSemanticsNode().boundsInRoot)
+            compose.runOnIdle { state = state.copy(busy = false) }
             compose.onNodeWithText("Compare camera JPEG").assertDoesNotExist()
             compose.onNodeWithTag("raw-editor-preview").performTouchInput { down(center); advanceEventTime(600) }
             compose.mainClock.advanceTimeBy(650)
