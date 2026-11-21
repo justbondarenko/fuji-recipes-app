@@ -752,13 +752,12 @@ class CameraController(
                     recoveryStore.markAccepted()
                     _state.value = CameraState.Writing(slot, 2, 3,
                         appContext.getString(R.string.camera_bluetooth_write_verify), cancellable = false)
-                    // A separate GATT connection verifies camera state, rather than trusting its acknowledgement.
+                    // Read back from the same device over a separate GATT connection.
+                    val device = camera.device
                     camera.close()
                     bluetooth = null
                     bluetoothSlots = null
                     Thread.sleep(3_000)
-                    val adapter = requireNotNull(appContext.getSystemService(BluetoothManager::class.java).adapter)
-                    val device = requireNotNull(adapter.bondedDevices.singleOrNull { it.name == "X-T50" })
                     val verified = openBluetooth(device).readBackup(recoveryStore::saveReadback)
                     val match = BluetoothBackup.compare(verified, target)
                     check(match.settingsVerified) {

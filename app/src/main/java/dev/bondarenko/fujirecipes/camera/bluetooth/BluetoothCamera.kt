@@ -64,6 +64,8 @@ class BluetoothCamera(private val context: Context, private val onDisconnected: 
     @Volatile private var closed = false
     @Volatile private var linkFailure: Int? = null
     private lateinit var gatt: BluetoothGatt
+    internal val device: BluetoothDevice get() = gatt.device
+
     private val callback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
             Log.i("FujiBluetooth", "Link state=$newState status=$status closing=$closed")
