@@ -25,6 +25,12 @@ Jetpack Compose Material 3 implementation and follow the documented structure,
 behavior, interactions and accessibility guidance. Do not invent custom
 replacements for official components. The icon rules below still apply.
 
+The RAW Editor's `RawParameterWheel` is a deliberate exception. The custom
+wheel proved a better fit for precise photo adjustments: fixed tick spacing
+and a stationary center marker let users make small changes by swiping the
+scale. Use the existing wheel for RAW Editor, framing, and mask parameters,
+and preserve its keyboard and screen-reader controls.
+
 ## 1. Icon System: Google Fonts Material Symbols Only (STRICT)
 
 All icons in this application MUST come exclusively from **Google Fonts Material Symbols Rounded** definitions compiled into `FujiIcons`.
