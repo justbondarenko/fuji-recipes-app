@@ -8,6 +8,8 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import dev.bondarenko.fujirecipes.camera.CameraController
 import dev.bondarenko.fujirecipes.camera.CameraState
+import dev.bondarenko.fujirecipes.camera.CameraTransport
+import dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothBackup
 import dev.bondarenko.fujirecipes.camera.WriteResult
 import dev.bondarenko.fujirecipes.camera.plan.FIRST_SLOT
 import dev.bondarenko.fujirecipes.camera.plan.WritePlan
@@ -42,7 +44,7 @@ class WriteViewModel(
     val state: StateFlow<WriteUiState> = _state.asStateFlow()
 
     private var recipe: Recipe? = null
-    private var cancelRequested = false
+    @Volatile private var cancelRequested = false
 
     val cameraState: StateFlow<CameraState> = controller.state
 
@@ -52,8 +54,10 @@ class WriteViewModel(
                 .recipes.firstOrNull { it.id == recipeId }
 
             recipe = loaded
-            val stage = openingStage(controller.state.value, planFor(FIRST_SLOT))
+            controller.refreshBluetoothRecovery()
+            val stage = openingStage(controller.state.value, openingPlan())
             _state.value = WriteUiState(stage = stage, recipeName = loaded?.name.orEmpty())
+            if (requiresRecovery()) return@launch
 
             // The ordinary case opens straight on the picker, so the read starts here rather
             // than only on the compatibility stage's way out.
@@ -68,8 +72,15 @@ class WriteViewModel(
      * says why the selection resets; [refreshSlots] says why the names are re-read.
      */
     private fun enterPicker() {
+        if (requiresRecovery()) return
         _state.value = _state.value.enteringPicker()
         refreshSlots()
+    }
+
+    private fun requiresRecovery(): Boolean {
+        if (controller.transport.value != CameraTransport.BLUETOOTH || controller.recovery.value == null) return false
+        _state.value = _state.value.copy(stage = WriteStage.RecoveryRequired())
+        return true
     }
 
     /**
@@ -85,6 +96,13 @@ class WriteViewModel(
             ?: return WritePlan(slot = slot, refusal = "That recipe is no longer in the library.")
 
         val camera = controller.state.value as? CameraState.Connected
+        if (isBluetooth()) {
+            val refusal = runCatching {
+                require(slot in 1..7) { "Choose a Bluetooth slot from C1–C7." }
+                BluetoothBackup.validateRecipe(loaded.name, loaded.settings)
+            }.exceptionOrNull()?.message
+            return WritePlan(slot = slot, refusal = refusal)
+        }
 
         return buildWritePlan(
             slot = slot,
@@ -98,12 +116,24 @@ class WriteViewModel(
         )
     }
 
+    private fun openingPlan() = planFor(FIRST_SLOT)
+
+    // A dropped link must retain the selected transport's validation and recovery policy.
+    private fun isBluetooth() = controller.transport.value == CameraTransport.BLUETOOTH
+
     /** Stage 1 → the camera connects, and the sheet moves on when it does. */
     fun connect() {
-        controller.connect()
+        if (requiresRecovery()) return
+        _state.value = _state.value.copy(connectionError = null)
         viewModelScope.launch {
-            controller.state.first { it is CameraState.Connected }
-            val stage = openingStage(controller.state.value, planFor(FIRST_SLOT))
+            controller.connect()?.join()
+            val camera = controller.state.first { it !is CameraState.Connecting }
+            if (camera !is CameraState.Connected) {
+                _state.value = _state.value.copy(connectionError = (camera as? CameraState.Error)?.message
+                    ?: "The camera is not connected. Wake it and try again.")
+                return@launch
+            }
+            val stage = openingStage(camera, openingPlan())
             _state.value = _state.value.copy(stage = stage)
             if (stage == WriteStage.Picker) enterPicker()
         }
@@ -196,6 +226,8 @@ class WriteViewModel(
 
     /** Stage 4 → the write runs. */
     fun confirm(slot: Int) {
+        if (_state.value.isWriting) return
+        if (requiresRecovery()) return
         // The same guard as [selectSlot], on the path that actually sends bytes. The picker
         // disables the button too; this is the half that has to hold, because the other half
         // is a rendering decision.
@@ -203,11 +235,16 @@ class WriteViewModel(
         if (slotState?.status == SlotStatus.READING) return
 
         val plan = planFor(slot)
+        if (plan.refusal != null) {
+            _state.value = _state.value.copy(stage = WriteStage.Compatibility(plan))
+            return
+        }
         cancelRequested = false
 
         _state.value = _state.value.copy(
             stage = WriteStage.Progress(slot, 0, plan.total, ""),
             isWriting = true,
+            canCancel = true,
         )
 
         viewModelScope.launch {
@@ -223,22 +260,29 @@ class WriteViewModel(
                                 camera.total,
                                 camera.current,
                             ),
+                            canCancel = camera.cancellable,
+                            confirmingCancel = if (camera.cancellable) _state.value.confirmingCancel else false,
                         )
                     }
                 }
             }
 
-            val result = controller.write(plan) { cancelRequested }
+            val loaded = recipe
+            val result = if (isBluetooth() && loaded != null) {
+                controller.writeBluetoothRecipe(slot, loaded.name, loaded.settings) { cancelRequested }
+            } else controller.write(plan) { cancelRequested }
             mirror.cancel()
 
             _state.value = _state.value.copy(
                 stage = when (result) {
                     is WriteResult.Success -> WriteStage.Done(result.outcome)
-                    is WriteResult.Failure -> WriteStage.Failed(
+                    is WriteResult.Failure -> if (result.recoveryRequired) WriteStage.RecoveryRequired(result.message)
+                    else WriteStage.Failed(
                         message = result.message,
                         warning = result.warning,
                         outcome = result.outcome,
                         slot = slot,
+                        retryable = result.retryable,
                     )
                 },
                 isWriting = false,
@@ -249,6 +293,7 @@ class WriteViewModel(
 
     /** Back during a write asks first — the slot is being changed as we speak. */
     fun requestCancel() {
+        if (!(_state.value.canCancel && (controller.state.value as? CameraState.Writing)?.cancellable != false)) return
         _state.value = _state.value.copy(confirmingCancel = true)
     }
 
@@ -258,6 +303,7 @@ class WriteViewModel(
 
     /** Takes effect at the next step boundary; a sent property cannot be unsent. */
     fun confirmCancel() {
+        if ((controller.state.value as? CameraState.Writing)?.cancellable == false) return
         cancelRequested = true
         _state.value = _state.value.copy(confirmingCancel = false)
     }

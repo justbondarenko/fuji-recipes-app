@@ -55,6 +55,8 @@ sealed interface WriteStage {
     /** Stage 6, the good half. */
     data class Done(val outcome: WriteOutcome) : WriteStage
 
+    data class RecoveryRequired(val reason: String? = null) : WriteStage
+
     /**
      * Stage 6, the other half.
      *
@@ -68,6 +70,7 @@ sealed interface WriteStage {
         val outcome: WriteOutcome? = null,
         /** The slot that was being written, so Retry starts the same write again. */
         val slot: Int? = null,
+        val retryable: Boolean = true,
     ) : WriteStage
 }
 
@@ -76,6 +79,8 @@ data class WriteUiState(
     val recipeName: String = "",
     /** True while the write is running: the sheet must not be dismissed. */
     val isWriting: Boolean = false,
+    val canCancel: Boolean = true,
+    val connectionError: String? = null,
     /** Set when the user pressed back mid-write and has not yet confirmed. */
     val confirmingCancel: Boolean = false,
     /** What the camera said each slot holds, C1 first. Always seven entries. */

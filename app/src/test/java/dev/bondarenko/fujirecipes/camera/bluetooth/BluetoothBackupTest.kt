@@ -1,0 +1,209 @@
+package dev.bondarenko.fujirecipes.camera.bluetooth
+
+import java.io.ByteArrayOutputStream
+import java.util.zip.DeflaterOutputStream
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.int
+import dev.bondarenko.fujirecipes.camera.ptp.packU32
+import dev.bondarenko.fujirecipes.camera.ptp.unpackU32
+import org.junit.Assert.*
+import org.junit.Test
+
+class BluetoothBackupTest {
+    private fun fixture() = javaClass.getResourceAsStream("/bluetooth/xt50-132-sanitized.dat")!!.use { it.readBytes() }
+
+    private fun withChecksum(raw: ByteArray) = raw.also {
+        val sum = (168 until it.size).sumOf { offset ->
+            if (offset in 264..267 || offset in 59920..63355) 0 else it[offset].toInt() and 255
+        }
+        packU32(sum).copyInto(it, 264)
+    }
+
+    @Test fun firmwareChecksumRejectsCorruptionBeforeReadingPatchingOrComparing() {
+        val raw = withChecksum(fixture())
+        BluetoothBackup.decode(raw)
+        for (offset in listOf(168, 263, 264, 265, 266, 267, 268, 59919, 63356, 70523)) {
+            val bad = raw.copyOf().also { it[offset] = (it[offset].toInt() xor 1).toByte() }
+            assertThrows("Decoded corrupt backup at $offset", IllegalArgumentException::class.java) { BluetoothBackup.decode(bad) }
+            assertThrows("Patched corrupt backup at $offset", IllegalArgumentException::class.java) {
+                BluetoothBackup.patchSlot(bad, 1, buildJsonObject {})
+            }
+            assertThrows("Verified corrupt backup at $offset", IllegalArgumentException::class.java) { BluetoothBackup.compare(bad, bad) }
+        }
+        for (offset in listOf(59920, 63170, 63268, 63355)) {
+            BluetoothBackup.decode(raw.copyOf().also { it[offset] = (it[offset].toInt() xor 1).toByte() })
+        }
+    }
+
+    @Test fun unsupportedHeaderCannotBeDecodedPatchedOrVerified() {
+        val raw = fixture()
+        for (offset in (16..19) + (152..155) + (160..163)) {
+            val bad = raw.copyOf().also { it[offset] = (it[offset].toInt() xor 1).toByte() }
+            assertThrows("Decoded unsupported header at $offset", IllegalArgumentException::class.java) {
+                BluetoothBackup.decode(bad)
+            }
+            assertThrows("Patched unsupported header at $offset", IllegalArgumentException::class.java) {
+                BluetoothBackup.patchSlot(bad, 1, buildJsonObject {})
+            }
+            assertThrows("Verified unsupported header at $offset", IllegalArgumentException::class.java) {
+                BluetoothBackup.compare(bad, bad)
+            }
+        }
+    }
+
+    @Test fun settingsVerificationExcludesOnlyTheFirmwareRestoreGap() {
+        val raw = fixture()
+        val tail = raw.copyOf().also { bytes ->
+            for (offset in 59920 until 63356) bytes[offset] = (bytes[offset].toInt() xor 255).toByte()
+        }
+        assertFalse(tail.contentEquals(raw))
+        assertEquals(BluetoothBackup.Match.SETTINGS, BluetoothBackup.compare(tail, raw))
+        for (offset in listOf(80, 167, 168, 263, 268, 59919)) {
+            val changed = withChecksum(raw.copyOf().also { it[offset] = (it[offset].toInt() xor 1).toByte() })
+            assertEquals("Ignored covered byte $offset", BluetoothBackup.Match.RECIPES_ONLY, BluetoothBackup.compare(changed, raw))
+        }
+        val collision = withChecksum(raw.copyOf().also { it[168] = 0; it[169] = 1 })
+        val changed = collision.copyOf().also { it[168] = 1; it[169] = 0 }
+        assertEquals(unpackU32(collision, 264), unpackU32(changed, 264))
+        assertEquals(BluetoothBackup.Match.RECIPES_ONLY, BluetoothBackup.compare(changed, collision))
+        assertTrue(BluetoothBackup.Match.COMPLETE.settingsVerified)
+        assertTrue(BluetoothBackup.Match.SETTINGS.settingsVerified)
+        assertFalse(BluetoothBackup.Match.RECIPES_ONLY.settingsVerified)
+        assertFalse(BluetoothBackup.Match.DIFFERENT_RECIPES.settingsVerified)
+    }
+
+    @Test fun verificationDistinguishesWholeBackupSettingsAndRecipeRecords() {
+        val raw = fixture()
+        assertEquals(BluetoothBackup.Match.COMPLETE, BluetoothBackup.compare(raw.copyOf(), raw))
+        for (offset in listOf(63164, 63170, 63171, 63172, 63173)) {
+            val drift = raw.copyOf().also { it[offset] = (it[offset].toInt() xor 1).toByte() }
+            assertEquals(BluetoothBackup.Match.SETTINGS, BluetoothBackup.compare(drift, raw))
+        }
+        // Include undecoded bytes and every slot: matching mapped fields is insufficient.
+        for (slot in 0..6) {
+            val changed = withChecksum(raw.copyOf().also { it[63356 + slot * 1024] = (it[63356 + slot * 1024].toInt() xor 1).toByte() })
+            assertEquals(BluetoothBackup.Match.DIFFERENT_RECIPES, BluetoothBackup.compare(changed, raw))
+        }
+        for (bad in listOf(raw.copyOf(raw.size - 1), raw.copyOf().also { it[63356 + 229] = -1 })) {
+            assertThrows(IllegalArgumentException::class.java) { BluetoothBackup.compare(bad, raw) }
+            assertThrows(IllegalArgumentException::class.java) { BluetoothBackup.compare(raw, bad) }
+        }
+    }
+
+    @Test fun slotEncoderMatchesIndependentUsbColorChanges() {
+        val measured = javaClass.getResourceAsStream("/bluetooth/xt50-132-slot-colors-measured.json")!!.bufferedReader().use {
+            Json.parseToJsonElement(it.readText()).jsonArray
+        }
+        assertEquals((1..6).toList(), measured.map { it.jsonObject.getValue("slot").jsonPrimitive.int })
+        measured.forEach { element ->
+            val trial = element.jsonObject
+            val slot = trial.getValue("slot").jsonPrimitive.int
+            val offset = 63356 + (slot - 1) * 1024 + 248
+            val raw = withChecksum(fixture().also {
+                it[offset] = trial.getValue("sourceColorCode").jsonPrimitive.int.toByte()
+            })
+            val expected = raw.copyOf().also {
+                it[offset] = trial.getValue("targetColorCode").jsonPrimitive.int.toByte()
+                packU32(unpackU32(raw, 264).toInt() + trial.getValue("delta").jsonPrimitive.int).copyInto(it, 264)
+            }
+            assertArrayEquals("Measured C$slot", expected,
+                BluetoothBackup.patchSlot(raw, slot, buildJsonObject { put("color", trial.getValue("color")) }))
+        }
+        val raw = withChecksum(fixture().also { it[63356 + 647] = 42 })
+        val unchangedName = BluetoothBackup.decode(raw).first().name
+        assertArrayEquals(raw, BluetoothBackup.patchSlot(raw, 1, buildJsonObject {}, unchangedName))
+        for (slot in listOf(0, 8)) assertThrows(IllegalArgumentException::class.java) {
+            BluetoothBackup.patchSlot(raw, slot, buildJsonObject {})
+        }
+    }
+
+    @Test fun slotEncoderAppliesMeasuredFieldsWithoutTouchingOtherRecords() {
+        val measured = javaClass.getResourceAsStream("/bluetooth/xt50-132-c7-measured.json")!!.bufferedReader().use {
+            Json.parseToJsonElement(it.readText()).jsonObject
+        }
+        val cases = measured.getValue("cases").jsonArray
+        assertEquals(566, cases.size)
+        cases.forEachIndexed { index, element ->
+            for (slot in 1..7) {
+                val start = 63356 + (slot - 1) * 1024
+                val trial = element.jsonObject
+                val raw = fixture()
+                measured.getValue("sources").jsonArray[trial.getValue("source").jsonPrimitive.int].jsonObject.forEach { (offset, value) ->
+                    raw[start + offset.toInt()] = value.jsonPrimitive.int.toByte()
+                }
+                withChecksum(raw)
+                val expected = raw.copyOf()
+                trial.getValue("changes").jsonObject.forEach { (offset, value) ->
+                    expected[start + offset.toInt()] = value.jsonPrimitive.int.toByte()
+                }
+                packU32(unpackU32(raw, 264).toInt() + trial.getValue("delta").jsonPrimitive.int).copyInto(expected, 264)
+                assertArrayEquals("C$slot measured case $index", expected,
+                    BluetoothBackup.patchSlot(raw, slot, trial.getValue("settings").jsonObject))
+            }
+        }
+        val raw = fixture()
+        val named = BluetoothBackup.patchSlot(raw, 7, buildJsonObject {}, "Fuji BLE TEST")
+        assertEquals("Fuji BLE TEST", BluetoothBackup.decode(named)[6].name)
+        val delta = (69500 until raw.size).sumOf { (named[it].toInt() and 255) - (raw[it].toInt() and 255) }
+        assertEquals(unpackU32(raw, 264) + delta, unpackU32(named, 264))
+        assertArrayEquals(raw, BluetoothBackup.patchSlot(raw, 7, buildJsonObject {}))
+        for ((settings, name) in listOf(
+            "{\"color\":true}" to null, "{\"color\":\"4\"}" to null,
+            "{\"wbShiftRed\":9.5}" to null, "{\"whiteBalance\":\"custom-1\"}" to null,
+            "{\"whiteBalance\":\"color-temp\",\"colorTemperature\":5550}" to null,
+            "{\"unknown\":0}" to null, "{\"monochromaticColorWc\":1}" to null,
+            "{}" to "x".repeat(26), "{}" to "Тест", "{}" to "",
+        )) {
+            assertThrows("Accepted $settings / $name", Exception::class.java) {
+                BluetoothBackup.patchSlot(raw, 7, Json.parseToJsonElement(settings).jsonObject, name)
+            }
+        }
+    }
+
+    @Test fun completeBackupMatchesIndependentGoldenAndRejectsInvalidData() {
+        val raw = fixture()
+        val decoded = BluetoothBackup.decode(raw)
+        val actual = buildJsonArray {
+            decoded.forEach { slot ->
+                add(buildJsonObject {
+                    put("slot", slot.slot)
+                    put("name", slot.name)
+                    put("settings", buildJsonObject {
+                        slot.settings.forEach { (key, value) ->
+                            when (value) {
+                                is String -> put(key, value)
+                                is Number -> put(key, value)
+                                else -> error("Unexpected field type")
+                            }
+                        }
+                    })
+                })
+            }
+        }
+        val expected = javaClass.getResourceAsStream("/bluetooth/xt50-132-expected.json")!!.bufferedReader().use { it.readText() }
+        assertEquals(Json.parseToJsonElement(expected), actual)
+        assertEquals("", decoded[2].name)
+        val compressed = ByteArrayOutputStream().also { out -> DeflaterOutputStream(out).use { it.write(raw) } }.toByteArray()
+        val checksum = compressed.sumOf { it.toInt() and 0xff } and 0xffff
+        assertArrayEquals(raw, BluetoothBackup.inflate(compressed, raw.size, checksum))
+        for (data in listOf(raw.copyOf(raw.size - 1), raw.copyOf().also { it[0] = 0 },
+            raw.copyOf().also { it[20] = 0 }, raw.copyOf().also { it[69500 + 229] = -1 },
+            raw.copyOf().also { it[69500 + 114] = 1 }, raw.copyOf().also { it[63356 + 116] = 19 },
+            raw.copyOf().also { it[63356 + 622] = -1 })) {
+            assertThrows(IllegalArgumentException::class.java) { BluetoothBackup.decode(data) }
+        }
+        assertThrows(IllegalArgumentException::class.java) { BluetoothBackup.inflate(compressed, raw.size - 1, checksum) }
+        assertThrows(IllegalArgumentException::class.java) { BluetoothBackup.inflate(compressed, raw.size, checksum xor 1) }
+        for (data in listOf(compressed.copyOf(compressed.size - 1), compressed + byteArrayOf(0))) {
+            assertThrows(IllegalArgumentException::class.java) {
+                BluetoothBackup.inflate(data, raw.size, data.sumOf { it.toInt() and 0xff } and 0xffff)
+            }
+        }
+    }
+}

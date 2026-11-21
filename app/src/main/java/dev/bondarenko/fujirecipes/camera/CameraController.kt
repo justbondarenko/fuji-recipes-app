@@ -1,5 +1,17 @@
 package dev.bondarenko.fujirecipes.camera
 
+import android.Manifest
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothDevice
+import android.net.Uri
+import android.os.Build
+import dev.bondarenko.fujirecipes.R
+import dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothCamera
+import dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothBackup
+import dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothRecoveryStore
+import dev.bondarenko.fujirecipes.camera.bluetooth.BluetoothRecoveryStatus
+import dev.bondarenko.fujirecipes.camera.plan.CameraDetails
+import kotlinx.coroutines.CancellationException
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -53,6 +65,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -91,6 +107,117 @@ class CameraController(
     private val lock = Mutex()
 
     private var session: PtpSession? = null
+    private var bluetooth: BluetoothCamera? = null
+    private var bluetoothSlots: List<SlotRecipe>? = null
+    private val _transport = MutableStateFlow(CameraTransport.USB)
+    val transport: StateFlow<CameraTransport> = _transport.asStateFlow()
+    private val recoveryStore = BluetoothRecoveryStore(File(appContext.noBackupFilesDir, "bluetooth-c7-recovery"))
+    private val _recovery = MutableStateFlow<BluetoothRecoveryStatus?>(null)
+    val recovery: StateFlow<BluetoothRecoveryStatus?> = _recovery.asStateFlow()
+
+    suspend fun refreshBluetoothRecovery() = lock.withLock {
+        withContext(Dispatchers.IO) { _recovery.value = recoveryStore.status() }
+    }
+
+    /** Download only; matching recipe records alone can never clear the write lock. */
+    suspend fun inspectBluetoothRecovery(): Boolean = withConnection {
+        withContext(Dispatchers.IO + NonCancellable) {
+            check(_state.value is CameraState.Connected && bluetooth != null) {
+                appContext.getString(R.string.camera_recovery_connect)
+            }
+            try {
+                underRawWakeLock {
+                    var resolved = false
+                    val raw = requireNotNull(bluetooth).readBackup { resolved = recoveryStore.inspect(it) }
+                    bluetoothSlots = BluetoothBackup.decode(raw)
+                    resolved
+                }
+            } finally {
+                _recovery.value = recoveryStore.status()
+            }
+        }
+    }
+
+    suspend fun exportBluetoothRecovery(destination: Uri) = lock.withLock {
+        withContext(Dispatchers.IO) {
+            val bytes = recoveryStore.archive()
+            val stream = checkNotNull(appContext.contentResolver.openOutputStream(destination, "wt")) {
+                appContext.getString(R.string.camera_recovery_export_failed)
+            }
+            stream.use { it.write(bytes) }
+        }
+    }
+
+    fun selectTransport(value: CameraTransport) {
+        scope.launch {
+            lock.withLock {
+                if (_transport.value == value) return@withLock
+                closeSession(CameraState.Disconnected)
+                _transport.value = value
+                if (value == CameraTransport.USB && !hasHostSupport) _state.value = CameraState.NoUsbHost
+            }
+        }
+    }
+
+    fun pairBluetooth(device: BluetoothDevice) = scope.launch {
+        connectBluetoothNow(device)
+    }
+
+    private suspend fun connectBluetoothNow(selectedDevice: BluetoothDevice? = null) = lock.withLock {
+        if (_transport.value != CameraTransport.BLUETOOTH || _state.value is CameraState.Connected) return@withLock
+        closeSession(CameraState.Connecting)
+        try {
+            check(Build.VERSION.SDK_INT < 31 || ContextCompat.checkSelfPermission(appContext, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+                appContext.getString(R.string.camera_bluetooth_permission)
+            }
+            val adapter = requireNotNull(appContext.getSystemService(BluetoothManager::class.java)?.adapter) {
+                appContext.getString(R.string.camera_bluetooth_unavailable)
+            }
+            check(adapter.isEnabled) { appContext.getString(R.string.camera_bluetooth_off) }
+            val device = selectedDevice ?: requireNotNull(adapter.bondedDevices.singleOrNull { it.name == "X-T50" }) {
+                appContext.getString(R.string.camera_bluetooth_pair_first)
+            }
+            check(device.name == "X-T50") { "Bluetooth recipes currently support the X-T50 only." }
+            if (device.bondState != BluetoothDevice.BOND_BONDED) {
+                if (device.bondState == BluetoothDevice.BOND_NONE) {
+                    check(device.createBond()) { "Android could not start camera pairing. Put the camera in PAIRING REGISTRATION and try again." }
+                }
+                withTimeout(90_000) {
+                    var bonding = false
+                    while (device.bondState != BluetoothDevice.BOND_BONDED) {
+                        check(adapter.isEnabled) { "Bluetooth was turned off during camera pairing." }
+                        val bondState = device.bondState
+                        check(!bonding || bondState != BluetoothDevice.BOND_NONE) { "Camera pairing was cancelled or refused. Start PAIRING REGISTRATION on the camera and try again." }
+                        bonding = bonding || bondState == BluetoothDevice.BOND_BONDING
+                        delay(100)
+                    }
+                }
+            }
+            openBluetooth(device)
+            _state.value = CameraState.Connected(
+                identity = CameraModels.identify("X-T50").copy(note = appContext.getString(R.string.camera_bluetooth_recipe_scope)),
+                details = CameraDetails(firmware = "1.32"),
+                transport = CameraTransport.BLUETOOTH,
+            )
+            CameraTransferService.start(appContext)
+        } catch (error: Exception) {
+            closeSession(CameraState.Error(appContext.getString(R.string.camera_bluetooth_failure, error.message.orEmpty())))
+        }
+    }
+
+    private fun openBluetooth(device: BluetoothDevice): BluetoothCamera {
+        lateinit var opened: BluetoothCamera
+        opened = BluetoothCamera(appContext) {
+            scope.launch {
+                lock.withLock {
+                    if (bluetooth === opened) closeSession(CameraState.Error(appContext.getString(R.string.camera_bluetooth_disconnected)))
+                }
+            }
+        }
+        bluetooth = opened
+        opened.connect(device)
+        return opened
+    }
 
     /**
      * What the camera is holding for the lab, for as long as this session lasts.
@@ -107,6 +234,7 @@ class CameraController(
 
     init {
         if (hasHostSupport) registerReceivers()
+        scope.launch { refreshBluetoothRecovery() }
     }
 
     // ─── Connecting ─────────────────────────────────────────────────────────
@@ -117,9 +245,12 @@ class CameraController(
      * Safe to call in any state; a call while already connected is a no-op rather than a
      * reconnection, because tapping the chip twice should not drop a working session.
      */
-    fun connect() {
-        if (!hasHostSupport) return
-        scope.launch { connectNow(UsbBulkChannel.findCamera(usbManager)) }
+    fun connect(): Job? {
+        if (_transport.value == CameraTransport.BLUETOOTH) {
+            return scope.launch { connectBluetoothNow() }
+        }
+        if (!hasHostSupport) return null
+        return scope.launch { connectNow(UsbBulkChannel.findCamera(usbManager)) }
     }
 
     /**
@@ -130,12 +261,13 @@ class CameraController(
      * feature that justifies going native.
      */
     fun onDeviceAttached(device: UsbDevice?) {
-        if (!hasHostSupport) return
+        if (!hasHostSupport || _transport.value != CameraTransport.USB) return
         scope.launch { connectNow(device ?: UsbBulkChannel.findCamera(usbManager)) }
     }
 
     private suspend fun connectNow(device: UsbDevice?) {
         lock.withLock {
+            if (_transport.value != CameraTransport.USB) return@withLock
             if (_state.value is CameraState.Connected || _state.value is CameraState.Writing) return@withLock
 
             if (device == null) {
@@ -213,6 +345,7 @@ class CameraController(
         if (!hasHostSupport) return
         scope.launch {
             lock.withLock {
+                if (session == null) return@withLock
                 // A write in progress is a partial slot, and the sheet says so rather
                 // than the state quietly reading "disconnected" as if nothing was
                 // underway.
@@ -243,14 +376,17 @@ class CameraController(
      * explicit refresh while connected in another mode.
      */
     fun reconnect() {
-        if (!hasHostSupport) return
         scope.launch {
             lock.withLock { closeSession(CameraState.Disconnected) }
-            connectNow(UsbBulkChannel.findCamera(usbManager))
+            if (_transport.value == CameraTransport.BLUETOOTH) connectBluetoothNow()
+            else if (hasHostSupport) connectNow(UsbBulkChannel.findCamera(usbManager))
         }
     }
 
     private fun closeSession(next: CameraState, abort: Boolean = false) {
+        bluetooth?.let { runCatching { it.close() } }
+        bluetooth = null
+        bluetoothSlots = null
         session?.let { runCatching { if (abort) it.abort() else it.close() } }
         session = null
         labSession = null
@@ -262,7 +398,10 @@ class CameraController(
         try {
             block()
         } catch (error: Exception) {
-            if (error is PtpTransportError) {
+            if (error is CancellationException) throw error
+            if (bluetooth != null) {
+                closeSession(CameraState.Error(appContext.getString(R.string.camera_bluetooth_failure, error.message.orEmpty())))
+            } else if (error is PtpTransportError) {
                 closeSession(error.toCameraError(), abort = true)
             }
             throw error
@@ -290,6 +429,7 @@ class CameraController(
             when (intent.action) {
                 ACTION_USB_PERMISSION -> scope.launch {
                     lock.withLock {
+                        if (_transport.value != CameraTransport.USB) return@withLock
                         val device = UsbBulkChannel.findCamera(usbManager)
                         when {
                             device == null -> _state.value = CameraState.Disconnected
@@ -350,6 +490,13 @@ class CameraController(
      * seven slots it never asked about.
      */
     suspend fun readSlots(): List<SlotNameReading> = withConnection {
+        bluetooth?.let { camera ->
+            return withContext(Dispatchers.IO) {
+                val slots = camera.readRecipes()
+                bluetoothSlots = slots
+                slots.map { SlotNameReading(it.slot, it.name.takeIf(String::isNotBlank), true) }
+            }
+        }
         val open = session ?: return emptyList()
 
         return withContext(Dispatchers.IO) { readSlotNames(open) }
@@ -368,6 +515,16 @@ class CameraController(
     suspend fun readSlotRecipes(
         onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
     ): List<SlotRecipe> = withConnection {
+        bluetooth?.let { camera ->
+            return withContext(Dispatchers.IO) {
+                val slots = camera.readRecipes()
+                bluetoothSlots = slots
+                slots.mapIndexed { index, slot ->
+                    onProgress(index + 1, slots.size)
+                    slot.copy(name = slot.name.ifBlank { "Slot C${slot.slot}" })
+                }
+            }
+        }
         val open = session ?: return emptyList()
 
         return withContext(Dispatchers.IO) { readSlotRecipes(open, onProgress) }
@@ -377,6 +534,13 @@ class CameraController(
      * Reads a single slot as a recipe.
      */
     suspend fun readSlotRecipe(slot: Int): SlotRecipe? = withConnection {
+        require(slot in 1..7) { "Invalid custom slot." }
+        bluetooth?.let { camera ->
+            return withContext(Dispatchers.IO) {
+                val slots = bluetoothSlots ?: camera.readRecipes().also { bluetoothSlots = it }
+                slots.single { it.slot == slot }.let { it.copy(name = it.name.ifBlank { "Slot C$slot" }) }
+            }
+        }
         val open = session ?: return null
 
         return withContext(Dispatchers.IO) { readSlotRecipe(open, slot) }
@@ -449,6 +613,7 @@ class CameraController(
     }
 
     private fun mediaSession(): PtpSession {
+        check(bluetooth == null) { appContext.getString(R.string.camera_bluetooth_usb_feature) }
         val open = session ?: throw IllegalStateException(
             "Connect the camera before choosing photos from it.",
         )
@@ -529,6 +694,7 @@ class CameraController(
     }
 
     private fun rawDevelopmentSession(): PtpSession {
+        check(bluetooth == null) { appContext.getString(R.string.camera_bluetooth_usb_feature) }
         val open = session ?: throw IllegalStateException(
             "Connect the camera before developing a RAW file.",
         )
@@ -548,6 +714,71 @@ class CameraController(
 
     // ─── Writing (FEAT-006) ─────────────────────────────────────────────────
 
+    /** BLE transfers whole settings, so it must never execute the USB property WritePlan. */
+    suspend fun writeBluetoothRecipe(
+        slot: Int,
+        name: String?,
+        settings: JsonObject,
+        isCancelled: () -> Boolean = { false },
+    ): WriteResult = withConnection {
+        if (withContext(Dispatchers.IO) { recoveryStore.pending }) {
+            _recovery.value = withContext(Dispatchers.IO) { recoveryStore.status() }
+            return WriteResult.Failure(appContext.getString(R.string.camera_recovery_blocked),
+                retryable = false, recoveryRequired = true)
+        }
+        if (slot !in 1..7) return WriteResult.Failure("Choose a Bluetooth slot from C1–C7.", retryable = false)
+        val connected = _state.value as? CameraState.Connected
+        val camera = bluetooth
+        if (connected?.transport != CameraTransport.BLUETOOTH || camera == null) {
+            return WriteResult.Failure("Connect the X-T50 over Bluetooth before writing C$slot.", retryable = false)
+        }
+        // Keep the operation alive once the upload starts; cancelling is safe only beforehand.
+        withContext(Dispatchers.IO + NonCancellable) {
+            try {
+                underRawWakeLock {
+                    _state.value = CameraState.Writing(slot, 0, 3, appContext.getString(R.string.camera_bluetooth_write_backup))
+                    val target = camera.writeRecipe(slot, settings, name,
+                        saveBackup = { original, expected ->
+                            recoveryStore.prepare(original, expected)
+                        },
+                        onUploadStarted = {
+                            recoveryStore.markUploadStarted()
+                            _recovery.value = recoveryStore.status()
+                            _state.value = CameraState.Writing(slot, 1, 3,
+                                appContext.getString(R.string.camera_bluetooth_write_upload), cancellable = false)
+                        },
+                        isCancelled = isCancelled,
+                    )
+                    recoveryStore.markAccepted()
+                    _state.value = CameraState.Writing(slot, 2, 3,
+                        appContext.getString(R.string.camera_bluetooth_write_verify), cancellable = false)
+                    // A separate GATT connection verifies camera state, rather than trusting its acknowledgement.
+                    camera.close()
+                    bluetooth = null
+                    bluetoothSlots = null
+                    Thread.sleep(3_000)
+                    val adapter = requireNotNull(appContext.getSystemService(BluetoothManager::class.java).adapter)
+                    val device = requireNotNull(adapter.bondedDevices.singleOrNull { it.name == "X-T50" })
+                    val verified = openBluetooth(device).readBackup(recoveryStore::saveReadback)
+                    val match = BluetoothBackup.compare(verified, target)
+                    check(match.settingsVerified) {
+                        appContext.getString(if (match == BluetoothBackup.Match.RECIPES_ONLY)
+                            R.string.camera_recovery_recipe_match else R.string.camera_recovery_recipe_mismatch)
+                    }
+                    check(recoveryStore.resolve(verified))
+                    bluetoothSlots = BluetoothBackup.decode(verified)
+                    _state.value = connected
+                    WriteResult.Success(WriteOutcome(slot = slot, slotTouched = true, bluetoothSettingsVerified = true))
+                }
+            } catch (error: Exception) {
+                closeSession(CameraState.Error(appContext.getString(R.string.camera_bluetooth_failure, error.message.orEmpty())))
+                WriteResult.Failure(error.message.orEmpty(), retryable = false, recoveryRequired = recoveryStore.pending)
+            } finally {
+                _recovery.value = recoveryStore.status()
+            }
+        }
+    }
+
     /**
      * Executes a plan against the open session.
      *
@@ -566,6 +797,9 @@ class CameraController(
         val open = session
         val connected = _state.value as? CameraState.Connected
 
+        if (connected?.transport == CameraTransport.BLUETOOTH) {
+            return WriteResult.Failure(appContext.getString(R.string.camera_bluetooth_read_only))
+        }
         if (open == null || connected == null) {
             return WriteResult.Failure(
                 "The camera is not connected, so there is nothing to write to.",
@@ -679,6 +913,8 @@ sealed interface WriteResult {
         /** What the slot now holds, when anything was written before this stopped. */
         val warning: String? = null,
         val outcome: WriteOutcome? = null,
+        val retryable: Boolean = true,
+        val recoveryRequired: Boolean = false,
     ) : WriteResult
 }
 

@@ -64,11 +64,12 @@ class CameraTransferService : Service() {
         ensureTransferChannel(this)
         val cameraState = container.cameraController.state.value
         val batchInFlight = transfers.state.value is CameraTransferState.Running
-        if (cameraState !is CameraState.Connected && !batchInFlight) {
-            stopSelf(startId)
+        // Even a disconnect racing service startup must fulfill startForegroundService first.
+        promote(render(cameraState, transfers.state.value))
+        if (cameraState !is CameraState.Connected && cameraState !is CameraState.Writing && !batchInFlight) {
+            finish()
             return START_NOT_STICKY
         }
-        promote(render(cameraState, transfers.state.value))
 
         startWatching()
         startPendingBatch()
@@ -122,7 +123,7 @@ class CameraTransferService : Service() {
             // Writing a slot is the controller's own foreground concern and has its own wake
             // lock; this service has nothing to add to it, but it must not stop mid-write
             // either, so it holds whatever it was already showing.
-            camera is CameraState.Writing -> lastNotification
+            camera is CameraState.Writing -> lastNotification ?: buildConnectedNotification(this, label, UsbMode.UNREPORTED)
 
             else -> null
         }

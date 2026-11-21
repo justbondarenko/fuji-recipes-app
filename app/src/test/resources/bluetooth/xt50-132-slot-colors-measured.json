@@ -1,0 +1,44 @@
+[
+  {
+    "slot": 1,
+    "sourceColorCode": 4,
+    "targetColorCode": 0,
+    "color": 0,
+    "delta": -4
+  },
+  {
+    "slot": 2,
+    "sourceColorCode": 4,
+    "targetColorCode": 0,
+    "color": 0,
+    "delta": -4
+  },
+  {
+    "slot": 3,
+    "sourceColorCode": 0,
+    "targetColorCode": 6,
+    "color": 1,
+    "delta": 6
+  },
+  {
+    "slot": 4,
+    "sourceColorCode": 3,
+    "targetColorCode": 0,
+    "color": 0,
+    "delta": -3
+  },
+  {
+    "slot": 5,
+    "sourceColorCode": 6,
+    "targetColorCode": 0,
+    "color": 0,
+    "delta": -6
+  },
+  {
+    "slot": 6,
+    "sourceColorCode": 3,
+    "targetColorCode": 0,
+    "color": 0,
+    "delta": -3
+  }
+]

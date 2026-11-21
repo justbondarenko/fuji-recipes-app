@@ -1,5 +1,25 @@
 package dev.bondarenko.fujirecipes.ui.camera
 
+import android.Manifest
+import android.app.Activity
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
+import android.bluetooth.le.ScanResult
+import android.companion.AssociationInfo
+import android.companion.AssociationRequest
+import android.companion.BluetoothLeDeviceFilter
+import android.companion.CompanionDeviceManager
+import android.content.IntentSender
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.widget.Toast
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.IntentSenderRequest
+import androidx.core.content.ContextCompat
+import dev.bondarenko.fujirecipes.camera.CameraTransport
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -7,10 +27,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -35,11 +60,15 @@ import dev.bondarenko.fujirecipes.R
 import dev.bondarenko.fujirecipes.core.share.ShareFile
 import dev.bondarenko.fujirecipes.ui.common.FujiModalSideSheet
 import dev.bondarenko.fujirecipes.ui.theme.icons.Close
+import dev.bondarenko.fujirecipes.ui.theme.icons.Bluetooth
+import dev.bondarenko.fujirecipes.ui.theme.icons.Usb
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.regex.Pattern
+import java.util.Locale
 
 /**
  * The button, the side sheet it opens, and the screen inside it, wired to the controller.
@@ -69,26 +98,12 @@ fun CameraSheetButtonHost(modifier: Modifier = Modifier) {
  */
 @Composable
 fun CameraSheetHost(visible: Boolean, onDismiss: () -> Unit) {
-    FujiModalSideSheet(visible = visible, onDismissRequest = onDismiss) {
+    val controller = cameraController()
+    val state by controller.state.collectAsStateWithLifecycle()
+    val transport by controller.transport.collectAsStateWithLifecycle()
+    FujiModalSideSheet(visible = visible, title = stringResource(R.string.camera_sheet_title), onDismissRequest = onDismiss) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 20.dp, end = 8.dp, top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.camera_sheet_title),
-                    style = MaterialTheme.typography.titleLarge,
-                )
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        imageVector = FujiIcons.Close,
-                        contentDescription = stringResource(R.string.action_close),
-                    )
-                }
-            }
+            CameraSheetHeader(state, transport, controller::selectTransport, onDismiss)
 
             // Rendered only while the sheet is up: the slot read talks to the camera, and it
             // has no business running behind a closed sheet.
@@ -102,6 +117,59 @@ fun CameraSheetHost(visible: Boolean, onDismiss: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+internal fun CameraSheetHeader(
+    state: CameraState,
+    transport: CameraTransport,
+    onSelectTransport: (CameraTransport) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, top = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.camera_sheet_title),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onDismiss) {
+                Icon(FujiIcons.Close, contentDescription = stringResource(R.string.action_close), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 8.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            Row(
+                modifier = Modifier.selectableGroup(),
+                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+            ) {
+                CameraTransport.entries.forEachIndexed { index, mode ->
+                    ToggleButton(
+                        checked = transport == mode,
+                        onCheckedChange = { onSelectTransport(mode) },
+                        enabled = state != CameraState.Connecting && state !is CameraState.Writing,
+                        shapes = if (index == 0) ButtonGroupDefaults.connectedLeadingButtonShapes()
+                            else ButtonGroupDefaults.connectedTrailingButtonShapes(),
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.size(48.dp),
+                    ) {
+                        Icon(
+                            imageVector = if (mode == CameraTransport.USB) FujiIcons.Usb else FujiIcons.Bluetooth,
+                            contentDescription = stringResource(if (mode == CameraTransport.USB) R.string.camera_transport_usb else R.string.camera_transport_bluetooth),
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun CameraSheetContent(
     contentPadding: PaddingValues,
@@ -109,6 +177,23 @@ fun CameraSheetContent(
 ) {
     val controller = cameraController()
     val state by controller.state.collectAsStateWithLifecycle()
+    val transport by controller.transport.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var pairingError by remember { mutableStateOf<String?>(null) }
+    var pairingAfterPermission by remember { mutableStateOf(false) }
+    val pairCamera = rememberCameraPairing(
+        onSelected = { device ->
+            pairingError = null
+            if (controller.transport.value == CameraTransport.BLUETOOTH) controller.pairBluetooth(device)
+        },
+        onFailure = { pairingError = it },
+    )
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (controller.transport.value == CameraTransport.BLUETOOTH) {
+            if (!granted) pairingError = context.getString(R.string.camera_bluetooth_permission)
+            else if (pairingAfterPermission) pairCamera() else controller.connect()
+        }
+    }
 
     var slotReadings by remember(state) { mutableStateOf<List<SlotNameReading>?>(null) }
     var isLoadingSlots by remember(state) { mutableStateOf(state is CameraState.Connected) }
@@ -151,20 +236,76 @@ fun CameraSheetContent(
     // Held here rather than in a ViewModel for the same reason the rest of this screen is:
     // `CameraController` already outlives every screen. Resetting on `state` releases the
     // button the moment the cable is pulled.
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var isReportRunning by remember(state) { mutableStateOf(false) }
+    val recovery by controller.recovery.collectAsStateWithLifecycle()
+    var recoveryBusy by remember { mutableStateOf(false) }
+    var recoveryMessage by remember { mutableStateOf<String?>(null) }
+    val exportRecovery = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null) {
+            recoveryBusy = true
+            scope.launch {
+                runCatching { controller.exportBluetoothRecovery(uri) }
+                    .onSuccess {
+                        recoveryMessage = context.getString(R.string.camera_recovery_exported)
+                        Toast.makeText(context, recoveryMessage, Toast.LENGTH_LONG).show()
+                    }
+                    .onFailure { recoveryMessage = context.getString(R.string.camera_recovery_export_error, it.message.orEmpty()) }
+                recoveryBusy = false
+            }
+        }
+    }
 
     CameraScreen(
         modifier = modifier,
         state = state,
         isCameraAttached = controller.isCameraAttached,
+        transport = transport,
         slots = slots,
         isLoadingSlots = isLoadingSlots,
         slotsError = slotsError,
         onRefreshSlots = { refreshCounter++ },
         onSelectSlot = { slot -> selectedSlotForDetail = slot },
-        onConnect = controller::connect,
+        onConnect = {
+            pairingAfterPermission = false
+            pairingError = null
+            if (transport == CameraTransport.BLUETOOTH && Build.VERSION.SDK_INT >= 31 &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                permission.launch(Manifest.permission.BLUETOOTH_CONNECT)
+            } else controller.connect()
+        },
+        onPair = {
+            pairingAfterPermission = true
+            pairingError = null
+            if (Build.VERSION.SDK_INT >= 31 &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+                permission.launch(Manifest.permission.BLUETOOTH_CONNECT)
+            } else pairCamera()
+        },
+        pairingError = pairingError,
+        recoveryContent = recovery?.let { saved -> {
+            BluetoothRecoveryCard(
+                status = saved,
+                canInspect = state is CameraState.Connected && transport == CameraTransport.BLUETOOTH,
+                busy = recoveryBusy,
+                message = recoveryMessage,
+                onInspect = {
+                    recoveryBusy = true
+                    recoveryMessage = null
+                    scope.launch {
+                        runCatching { controller.inspectBluetoothRecovery() }
+                            .onSuccess { resolved ->
+                                recoveryMessage = context.getString(if (resolved) R.string.camera_recovery_resolved else R.string.camera_recovery_still_pending)
+                                if (resolved) Toast.makeText(context, recoveryMessage, Toast.LENGTH_LONG).show()
+                                refreshCounter++
+                            }
+                            .onFailure { recoveryMessage = context.getString(R.string.camera_recovery_check_error, it.message.orEmpty()) }
+                        recoveryBusy = false
+                    }
+                },
+                onExport = { exportRecovery.launch("fuji-bluetooth-recovery.zip") },
+            )
+        } },
         onDisconnect = controller::disconnect,
         contentPadding = contentPadding,
         isReportRunning = isReportRunning,
@@ -203,6 +344,65 @@ fun CameraSheetContent(
 @Composable
 private fun cameraController() =
     (LocalContext.current.applicationContext as FujiRecipesApp).container.cameraController
+
+/** Android owns discovery and consent; the app never scans for location or accepts pairing codes. */
+@Suppress("DEPRECATION")
+@Composable
+private fun rememberCameraPairing(
+    onSelected: (BluetoothDevice) -> Unit,
+    onFailure: (String) -> Unit,
+): () -> Unit {
+    val context = LocalContext.current
+    val result = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { response ->
+        if (response.resultCode != Activity.RESULT_OK) {
+            onFailure(context.getString(R.string.camera_bluetooth_pair_cancelled))
+        } else {
+            runCatching {
+                val device = if (Build.VERSION.SDK_INT >= 33) {
+                    val association = response.data?.getParcelableExtra(CompanionDeviceManager.EXTRA_ASSOCIATION, AssociationInfo::class.java)
+                    val address = requireNotNull(association?.deviceMacAddress) { "Android did not return the selected camera." }
+                    context.getSystemService(BluetoothManager::class.java).adapter.getRemoteDevice(address.toString().uppercase(Locale.ROOT))
+                } else {
+                    response.data?.getParcelableExtra<ScanResult>(CompanionDeviceManager.EXTRA_DEVICE)?.device
+                }
+                onSelected(requireNotNull(device) { "Android did not return the selected camera." })
+            }.onFailure { onFailure(it.message ?: context.getString(R.string.camera_bluetooth_pair_unavailable)) }
+        }
+    }
+    return {
+        runCatching {
+            check(context.getSystemService(BluetoothManager::class.java)?.adapter?.isEnabled == true) {
+                context.getString(R.string.camera_bluetooth_off)
+            }
+            val manager = requireNotNull(context.getSystemService(CompanionDeviceManager::class.java)) {
+                context.getString(R.string.camera_bluetooth_pair_unavailable)
+            }
+            val request = AssociationRequest.Builder()
+                .addDeviceFilter(BluetoothLeDeviceFilter.Builder().setNamePattern(Pattern.compile("^X-T50$")).build())
+                .build()
+            var chooserLaunched = false
+            manager.associate(request, object : CompanionDeviceManager.Callback() {
+                override fun onDeviceFound(chooserLauncher: IntentSender) {
+                    chooserLaunched = true
+                    runCatching { result.launch(IntentSenderRequest.Builder(chooserLauncher).build()) }
+                        .onFailure { onFailure(it.message ?: context.getString(R.string.camera_bluetooth_pair_unavailable)) }
+                }
+                override fun onAssociationCreated(association: AssociationInfo) {
+                    // Android may reuse approval without launching a chooser/result activity.
+                    if (!chooserLaunched && Build.VERSION.SDK_INT >= 33) {
+                        runCatching {
+                            val address = requireNotNull(association.deviceMacAddress) { "Android did not return the selected camera." }
+                            onSelected(context.getSystemService(BluetoothManager::class.java).adapter.getRemoteDevice(address.toString().uppercase(Locale.ROOT)))
+                        }.onFailure { onFailure(it.message ?: context.getString(R.string.camera_bluetooth_pair_unavailable)) }
+                    }
+                }
+                override fun onFailure(error: CharSequence?) {
+                    onFailure(error?.toString() ?: context.getString(R.string.camera_bluetooth_pair_unavailable))
+                }
+            }, Handler(Looper.getMainLooper()))
+        }.onFailure { onFailure(it.message ?: context.getString(R.string.camera_bluetooth_pair_unavailable)) }
+    }
+}
 
 /** UTC, because a report read by someone else should not be in the reader's guess at a zone. */
 private fun timestamp(): String = DateTimeFormatter.ISO_INSTANT.format(Instant.now())

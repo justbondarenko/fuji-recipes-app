@@ -18687,3 +18687,637 @@ public val FujiIcons.Help: ImageVector
 private var _helpW300: ImageVector? = null
 private var _helpW400: ImageVector? = null
 private var _helpW500: ImageVector? = null
+
+/** Material Symbols Rounded `bluetooth`, including all configured weights. */
+public val FujiIcons.Bluetooth: ImageVector
+    get() = when (FujiIconConfig.weight) {
+        IconWeight.W300 -> _bluetoothW300 ?: ImageVector.Builder(
+          name = "bluetooth",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(11.29f, 20.13f)
+            verticalLineTo(13.68f)
+            lineTo(6.96f, 18.01f)
+            quadTo(6.75f, 18.22f, 6.47f, 18.23f)
+            reflectiveQuadTo(5.97f, 18.01f)
+            reflectiveQuadTo(5.75f, 17.52f)
+            reflectiveQuadToRelative(0.22f, -0.5f)
+            lineTo(11.01f, 12f)
+            lineTo(5.97f, 6.95f)
+            quadTo(5.76f, 6.75f, 5.75f, 6.47f)
+            reflectiveQuadTo(5.97f, 5.96f)
+            quadTo(6.18f, 5.75f, 6.46f, 5.75f)
+            reflectiveQuadToRelative(0.5f, 0.21f)
+            lineToRelative(4.33f, 4.34f)
+            verticalLineTo(3.85f)
+            quadToRelative(0f, -0.39f, 0.26f, -0.62f)
+            reflectiveQuadToRelative(0.6f, -0.24f)
+            quadToRelative(0.16f, 0f, 0.32f, 0.07f)
+            reflectiveQuadToRelative(0.28f, 0.2f)
+            lineToRelative(3.89f, 3.88f)
+            quadToRelative(0.13f, 0.13f, 0.19f, 0.28f)
+            reflectiveQuadToRelative(0.06f, 0.32f)
+            reflectiveQuadTo(16.82f, 8.06f)
+            reflectiveQuadTo(16.63f, 8.34f)
+            lineToRelative(-3.66f, 3.64f)
+            lineToRelative(3.66f, 3.65f)
+            quadToRelative(0.13f, 0.13f, 0.19f, 0.28f)
+            reflectiveQuadToRelative(0.06f, 0.32f)
+            reflectiveQuadToRelative(-0.06f, 0.32f)
+            reflectiveQuadToRelative(-0.19f, 0.28f)
+            lineToRelative(-3.89f, 3.89f)
+            quadToRelative(-0.13f, 0.13f, -0.28f, 0.19f)
+            reflectiveQuadToRelative(-0.32f, 0.07f)
+            quadToRelative(-0.34f, 0f, -0.6f, -0.23f)
+            reflectiveQuadTo(11.29f, 20.13f)
+            close()
+            moveToRelative(1.4f, -9.83f)
+            lineTo(15.27f, 7.74f)
+            lineTo(12.69f, 5.21f)
+            verticalLineTo(10.3f)
+            close()
+            moveToRelative(0f, 8.47f)
+            lineToRelative(2.58f, -2.53f)
+            lineTo(12.69f, 13.68f)
+            verticalLineToRelative(5.08f)
+            close()
+          }
+        }
+        .build().also { _bluetoothW300 = it }
+        IconWeight.W400 -> _bluetoothW400 ?: ImageVector.Builder(
+          name = "bluetooth",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(11f, 20.58f)
+            verticalLineTo(14.4f)
+            lineTo(7.1f, 18.3f)
+            quadTo(6.83f, 18.58f, 6.4f, 18.58f)
+            reflectiveQuadTo(5.7f, 18.3f)
+            quadTo(5.43f, 18.02f, 5.43f, 17.6f)
+            reflectiveQuadTo(5.7f, 16.9f)
+            lineTo(10.6f, 12f)
+            lineTo(5.7f, 7.1f)
+            quadTo(5.43f, 6.82f, 5.43f, 6.4f)
+            reflectiveQuadTo(5.7f, 5.7f)
+            reflectiveQuadTo(6.4f, 5.43f)
+            reflectiveQuadTo(7.1f, 5.7f)
+            lineTo(11f, 9.6f)
+            verticalLineTo(3.42f)
+            quadTo(11f, 2.97f, 11.3f, 2.69f)
+            reflectiveQuadTo(12f, 2.4f)
+            quadToRelative(0.2f, 0f, 0.38f, 0.07f)
+            reflectiveQuadTo(12.7f, 2.7f)
+            lineTo(17f, 7f)
+            quadToRelative(0.15f, 0.15f, 0.21f, 0.32f)
+            reflectiveQuadTo(17.28f, 7.7f)
+            reflectiveQuadTo(17.21f, 8.07f)
+            reflectiveQuadTo(17f, 8.4f)
+            lineTo(13.4f, 12f)
+            lineTo(17f, 15.6f)
+            quadToRelative(0.15f, 0.15f, 0.21f, 0.32f)
+            reflectiveQuadToRelative(0.06f, 0.38f)
+            reflectiveQuadToRelative(-0.06f, 0.38f)
+            reflectiveQuadTo(17f, 17f)
+            lineToRelative(-4.3f, 4.3f)
+            quadToRelative(-0.15f, 0.15f, -0.33f, 0.22f)
+            reflectiveQuadTo(12f, 21.6f)
+            quadToRelative(-0.4f, 0f, -0.7f, -0.29f)
+            reflectiveQuadTo(11f, 20.58f)
+            close()
+            moveTo(13f, 9.6f)
+            lineTo(14.9f, 7.7f)
+            lineTo(13f, 5.85f)
+            verticalLineTo(9.6f)
+            close()
+            moveToRelative(0f, 8.55f)
+            lineTo(14.9f, 16.3f)
+            lineTo(13f, 14.4f)
+            verticalLineToRelative(3.75f)
+            close()
+          }
+        }
+        .build().also { _bluetoothW400 = it }
+        IconWeight.W500 -> _bluetoothW500 ?: ImageVector.Builder(
+          name = "bluetooth",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(10.95f, 20.36f)
+            verticalLineTo(14.51f)
+            lineTo(7.13f, 18.33f)
+            quadTo(6.84f, 18.62f, 6.4f, 18.62f)
+            reflectiveQuadTo(5.67f, 18.33f)
+            reflectiveQuadTo(5.38f, 17.6f)
+            reflectiveQuadTo(5.67f, 16.86f)
+            lineTo(10.53f, 12f)
+            lineTo(5.66f, 7.13f)
+            quadTo(5.37f, 6.84f, 5.37f, 6.4f)
+            reflectiveQuadTo(5.66f, 5.67f)
+            reflectiveQuadTo(6.4f, 5.38f)
+            reflectiveQuadTo(7.13f, 5.67f)
+            lineToRelative(3.82f, 3.82f)
+            verticalLineTo(3.64f)
+            quadToRelative(0f, -0.52f, 0.34f, -0.84f)
+            reflectiveQuadTo(12.09f, 2.48f)
+            quadToRelative(0.22f, 0f, 0.42f, 0.08f)
+            reflectiveQuadToRelative(0.38f, 0.26f)
+            lineTo(16.96f, 6.9f)
+            quadToRelative(0.17f, 0.17f, 0.25f, 0.37f)
+            reflectiveQuadTo(17.29f, 7.7f)
+            reflectiveQuadTo(17.21f, 8.13f)
+            reflectiveQuadTo(16.96f, 8.5f)
+            lineTo(13.47f, 12f)
+            lineToRelative(3.5f, 3.5f)
+            quadToRelative(0.17f, 0.17f, 0.25f, 0.37f)
+            reflectiveQuadToRelative(0.08f, 0.43f)
+            reflectiveQuadToRelative(-0.08f, 0.43f)
+            reflectiveQuadTo(16.96f, 17.1f)
+            lineToRelative(-4.07f, 4.07f)
+            quadToRelative(-0.17f, 0.17f, -0.38f, 0.26f)
+            reflectiveQuadToRelative(-0.42f, 0.08f)
+            quadToRelative(-0.45f, 0f, -0.79f, -0.32f)
+            reflectiveQuadTo(10.95f, 20.36f)
+            close()
+            moveTo(13.05f, 9.49f)
+            lineTo(14.83f, 7.7f)
+            lineTo(13.05f, 5.96f)
+            verticalLineTo(9.49f)
+            close()
+            moveToRelative(0f, 8.55f)
+            lineTo(14.83f, 16.3f)
+            lineTo(13.05f, 14.51f)
+            verticalLineToRelative(3.53f)
+            close()
+          }
+        }
+        .build().also { _bluetoothW500 = it }
+    }
+
+private var _bluetoothW300: ImageVector? = null
+private var _bluetoothW400: ImageVector? = null
+private var _bluetoothW500: ImageVector? = null
+
+/** Material Symbols Rounded `usb`, including all configured weights. */
+public val FujiIcons.Usb: ImageVector
+    get() = when (FujiIconConfig.weight) {
+        IconWeight.W300 -> _usbW300 ?: ImageVector.Builder(
+          name = "usb",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(10.81f, 20.88f)
+            quadToRelative(-0.49f, -0.49f, -0.49f, -1.2f)
+            quadToRelative(0f, -0.48f, 0.27f, -0.88f)
+            reflectiveQuadToRelative(0.71f, -0.6f)
+            verticalLineTo(15.67f)
+            horizontalLineTo(8.29f)
+            quadToRelative(-0.71f, 0f, -1.21f, -0.5f)
+            reflectiveQuadTo(6.58f, 13.96f)
+            verticalLineToRelative(-2.2f)
+            quadTo(6.14f, 11.58f, 5.86f, 11.18f)
+            reflectiveQuadTo(5.58f, 10.25f)
+            quadToRelative(0f, -0.7f, 0.49f, -1.2f)
+            reflectiveQuadTo(7.27f, 8.56f)
+            reflectiveQuadToRelative(1.2f, 0.49f)
+            reflectiveQuadToRelative(0.49f, 1.2f)
+            quadToRelative(0f, 0.51f, -0.28f, 0.91f)
+            reflectiveQuadToRelative(-0.7f, 0.6f)
+            verticalLineToRelative(2.2f)
+            quadToRelative(0f, 0.12f, 0.1f, 0.21f)
+            reflectiveQuadToRelative(0.21f, 0.1f)
+            horizontalLineTo(11.3f)
+            verticalLineTo(6.24f)
+            horizontalLineTo(10.48f)
+            quadTo(10.21f, 6.24f, 10.09f, 6f)
+            reflectiveQuadTo(10.14f, 5.55f)
+            lineTo(11.65f, 3.53f)
+            quadTo(11.79f, 3.36f, 12f, 3.36f)
+            reflectiveQuadToRelative(0.34f, 0.17f)
+            lineToRelative(1.52f, 2.03f)
+            quadTo(14.03f, 5.77f, 13.91f, 6f)
+            reflectiveQuadTo(13.53f, 6.24f)
+            horizontalLineTo(12.7f)
+            verticalLineToRelative(8.03f)
+            horizontalLineToRelative(3.01f)
+            quadToRelative(0.12f, 0f, 0.21f, -0.1f)
+            reflectiveQuadToRelative(0.1f, -0.21f)
+            verticalLineTo(11.94f)
+            horizontalLineTo(15.45f)
+            quadToRelative(-0.18f, 0f, -0.3f, -0.12f)
+            reflectiveQuadTo(15.03f, 11.51f)
+            verticalLineTo(9f)
+            quadToRelative(0f, -0.18f, 0.12f, -0.3f)
+            reflectiveQuadToRelative(0.3f, -0.12f)
+            horizontalLineToRelative(2.53f)
+            quadToRelative(0.18f, 0f, 0.3f, 0.12f)
+            reflectiveQuadToRelative(0.12f, 0.31f)
+            verticalLineToRelative(2.5f)
+            quadToRelative(0f, 0.18f, -0.12f, 0.3f)
+            reflectiveQuadToRelative(-0.3f, 0.12f)
+            horizontalLineTo(17.42f)
+            verticalLineToRelative(2.02f)
+            quadToRelative(0f, 0.71f, -0.5f, 1.21f)
+            reflectiveQuadToRelative(-1.21f, 0.5f)
+            horizontalLineToRelative(-3f)
+            verticalLineTo(18.2f)
+            quadToRelative(0.46f, 0.18f, 0.72f, 0.59f)
+            reflectiveQuadToRelative(0.27f, 0.9f)
+            quadToRelative(0f, 0.71f, -0.49f, 1.2f)
+            reflectiveQuadToRelative(-1.2f, 0.49f)
+            reflectiveQuadToRelative(-1.2f, -0.49f)
+            close()
+          }
+        }
+        .build().also { _usbW300 = it }
+        IconWeight.W400 -> _usbW400 ?: ImageVector.Builder(
+          name = "usb",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(10.59f, 21.41f)
+            quadTo(10f, 20.83f, 10f, 20f)
+            quadToRelative(0f, -0.52f, 0.28f, -0.98f)
+            quadTo(10.55f, 18.58f, 11f, 18.3f)
+            verticalLineTo(16f)
+            horizontalLineTo(8f)
+            quadTo(7.18f, 16f, 6.59f, 15.41f)
+            reflectiveQuadTo(6f, 14f)
+            verticalLineTo(11.7f)
+            quadTo(5.55f, 11.48f, 5.28f, 11.02f)
+            quadTo(5f, 10.58f, 5f, 10f)
+            quadTo(5f, 9.17f, 5.59f, 8.59f)
+            reflectiveQuadTo(7f, 8f)
+            quadTo(7.83f, 8f, 8.41f, 8.59f)
+            reflectiveQuadTo(9f, 10f)
+            quadToRelative(0f, 0.57f, -0.28f, 1f)
+            reflectiveQuadTo(8f, 11.7f)
+            verticalLineTo(14f)
+            horizontalLineToRelative(3f)
+            verticalLineTo(6f)
+            horizontalLineTo(10f)
+            quadTo(9.7f, 6f, 9.55f, 5.72f)
+            reflectiveQuadTo(9.6f, 5.2f)
+            lineToRelative(2f, -2.68f)
+            quadTo(11.75f, 2.32f, 12f, 2.32f)
+            reflectiveQuadToRelative(0.4f, 0.2f)
+            lineToRelative(2f, 2.68f)
+            quadToRelative(0.2f, 0.25f, 0.05f, 0.52f)
+            reflectiveQuadTo(14f, 6f)
+            horizontalLineTo(13f)
+            verticalLineToRelative(8f)
+            horizontalLineToRelative(3f)
+            verticalLineTo(12f)
+            horizontalLineTo(15.5f)
+            quadToRelative(-0.2f, 0f, -0.35f, -0.15f)
+            reflectiveQuadTo(15f, 11.5f)
+            verticalLineToRelative(-3f)
+            quadTo(15f, 8.3f, 15.15f, 8.15f)
+            reflectiveQuadTo(15.5f, 8f)
+            horizontalLineToRelative(3f)
+            quadToRelative(0.2f, 0f, 0.35f, 0.15f)
+            reflectiveQuadTo(19f, 8.5f)
+            verticalLineToRelative(3f)
+            quadToRelative(0f, 0.2f, -0.15f, 0.35f)
+            reflectiveQuadTo(18.5f, 12f)
+            horizontalLineTo(18f)
+            verticalLineToRelative(2f)
+            quadToRelative(0f, 0.82f, -0.59f, 1.41f)
+            reflectiveQuadTo(16f, 16f)
+            horizontalLineTo(13f)
+            verticalLineToRelative(2.3f)
+            quadToRelative(0.48f, 0.25f, 0.74f, 0.7f)
+            reflectiveQuadTo(14f, 20f)
+            quadToRelative(0f, 0.82f, -0.59f, 1.41f)
+            reflectiveQuadTo(12f, 22f)
+            reflectiveQuadTo(10.59f, 21.41f)
+            close()
+          }
+        }
+        .build().also { _usbW400 = it }
+        IconWeight.W500 -> _usbW500 ?: ImageVector.Builder(
+          name = "usb",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(10.52f, 21.57f)
+            quadTo(9.91f, 20.95f, 9.91f, 20.09f)
+            quadToRelative(0f, -0.54f, 0.27f, -0.99f)
+            reflectiveQuadToRelative(0.73f, -0.75f)
+            verticalLineTo(16.19f)
+            horizontalLineTo(8f)
+            quadToRelative(-0.9f, 0f, -1.54f, -0.64f)
+            reflectiveQuadTo(5.81f, 14f)
+            verticalLineTo(11.75f)
+            quadTo(5.36f, 11.5f, 5.09f, 11.04f)
+            reflectiveQuadTo(4.81f, 10f)
+            quadToRelative(0f, -0.87f, 0.62f, -1.48f)
+            reflectiveQuadTo(6.91f, 7.91f)
+            quadToRelative(0.87f, 0f, 1.48f, 0.61f)
+            reflectiveQuadTo(9f, 10f)
+            quadToRelative(0f, 0.59f, -0.28f, 1.02f)
+            reflectiveQuadTo(8f, 11.75f)
+            verticalLineTo(14f)
+            horizontalLineToRelative(2.91f)
+            verticalLineTo(6f)
+            horizontalLineTo(9.95f)
+            quadTo(9.6f, 6f, 9.44f, 5.69f)
+            reflectiveQuadTo(9.5f, 5.09f)
+            lineTo(11.55f, 2.36f)
+            quadTo(11.72f, 2.13f, 12f, 2.13f)
+            reflectiveQuadToRelative(0.45f, 0.23f)
+            lineTo(14.5f, 5.09f)
+            quadToRelative(0.22f, 0.29f, 0.06f, 0.6f)
+            reflectiveQuadTo(14.05f, 6f)
+            horizontalLineTo(13.09f)
+            verticalLineToRelative(8f)
+            horizontalLineTo(16f)
+            verticalLineTo(12.09f)
+            horizontalLineTo(15.57f)
+            quadToRelative(-0.23f, 0f, -0.4f, -0.17f)
+            reflectiveQuadTo(15f, 11.52f)
+            verticalLineTo(8.48f)
+            quadToRelative(0f, -0.23f, 0.17f, -0.4f)
+            reflectiveQuadToRelative(0.4f, -0.17f)
+            horizontalLineToRelative(3.05f)
+            quadToRelative(0.23f, 0f, 0.4f, 0.17f)
+            reflectiveQuadToRelative(0.17f, 0.4f)
+            verticalLineToRelative(3.04f)
+            quadToRelative(0f, 0.23f, -0.17f, 0.4f)
+            reflectiveQuadToRelative(-0.4f, 0.17f)
+            horizontalLineTo(18.19f)
+            verticalLineTo(14f)
+            quadToRelative(0f, 0.9f, -0.64f, 1.54f)
+            reflectiveQuadTo(16f, 16.19f)
+            horizontalLineTo(13.09f)
+            verticalLineToRelative(2.15f)
+            quadToRelative(0.48f, 0.27f, 0.74f, 0.74f)
+            reflectiveQuadToRelative(0.26f, 1.02f)
+            quadToRelative(0f, 0.86f, -0.61f, 1.48f)
+            reflectiveQuadTo(12f, 22.19f)
+            reflectiveQuadTo(10.52f, 21.57f)
+            close()
+          }
+        }
+        .build().also { _usbW500 = it }
+    }
+
+private var _usbW300: ImageVector? = null
+private var _usbW400: ImageVector? = null
+private var _usbW500: ImageVector? = null
+
+/** Material Symbols Rounded `eject`, including all configured weights. */
+public val FujiIcons.Eject: ImageVector
+    get() = when (FujiIconConfig.weight) {
+        IconWeight.W300 -> _ejectW300 ?: ImageVector.Builder(
+          name = "eject",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(6.44f, 17.19f)
+            horizontalLineTo(17.56f)
+            quadToRelative(0.28f, 0f, 0.48f, 0.2f)
+            reflectiveQuadToRelative(0.2f, 0.48f)
+            reflectiveQuadToRelative(-0.2f, 0.48f)
+            reflectiveQuadToRelative(-0.48f, 0.2f)
+            horizontalLineTo(6.44f)
+            quadToRelative(-0.29f, 0f, -0.49f, -0.2f)
+            reflectiveQuadTo(5.76f, 17.87f)
+            reflectiveQuadToRelative(0.2f, -0.48f)
+            reflectiveQuadToRelative(0.49f, -0.2f)
+            close()
+            moveTo(6.87f, 13.44f)
+            lineTo(11.29f, 6.83f)
+            quadToRelative(0.13f, -0.2f, 0.32f, -0.29f)
+            reflectiveQuadTo(12f, 6.44f)
+            reflectiveQuadToRelative(0.39f, 0.09f)
+            reflectiveQuadToRelative(0.32f, 0.29f)
+            lineToRelative(4.42f, 6.61f)
+            quadToRelative(0.28f, 0.42f, 0.04f, 0.87f)
+            reflectiveQuadToRelative(-0.75f, 0.45f)
+            horizontalLineTo(7.58f)
+            quadToRelative(-0.51f, 0f, -0.75f, -0.45f)
+            reflectiveQuadTo(6.87f, 13.44f)
+            close()
+            moveTo(12f, 13.43f)
+            close()
+            moveToRelative(-3.45f, 0f)
+            horizontalLineToRelative(6.9f)
+            lineTo(12f, 8.27f)
+            lineTo(8.55f, 13.43f)
+            close()
+          }
+        }
+        .build().also { _ejectW300 = it }
+        IconWeight.W400 -> _ejectW400 ?: ImageVector.Builder(
+          name = "eject",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(6f, 17f)
+            horizontalLineTo(18f)
+            quadToRelative(0.43f, 0f, 0.71f, 0.29f)
+            reflectiveQuadTo(19f, 18f)
+            reflectiveQuadToRelative(-0.29f, 0.71f)
+            reflectiveQuadTo(18f, 19f)
+            horizontalLineTo(6f)
+            quadTo(5.58f, 19f, 5.29f, 18.71f)
+            quadTo(5f, 18.43f, 5f, 18f)
+            reflectiveQuadTo(5.29f, 17.29f)
+            reflectiveQuadTo(6f, 17f)
+            close()
+            moveTo(6.38f, 13.45f)
+            lineToRelative(4.8f, -7.2f)
+            quadTo(11.33f, 6.02f, 11.54f, 5.91f)
+            reflectiveQuadTo(12f, 5.8f)
+            reflectiveQuadToRelative(0.46f, 0.11f)
+            reflectiveQuadToRelative(0.36f, 0.34f)
+            lineToRelative(4.8f, 7.2f)
+            quadToRelative(0.35f, 0.5f, 0.05f, 1.03f)
+            reflectiveQuadTo(16.78f, 15f)
+            horizontalLineTo(7.23f)
+            quadToRelative(-0.6f, 0f, -0.9f, -0.53f)
+            reflectiveQuadTo(6.38f, 13.45f)
+            close()
+            moveTo(12f, 13f)
+            close()
+            moveTo(9.05f, 13f)
+            horizontalLineToRelative(5.9f)
+            lineTo(12f, 8.6f)
+            lineTo(9.05f, 13f)
+            close()
+          }
+        }
+        .build().also { _ejectW400 = it }
+        IconWeight.W500 -> _ejectW500 ?: ImageVector.Builder(
+          name = "eject",
+          defaultWidth = 24.dp,
+          defaultHeight = 24.dp,
+          viewportWidth = 24f,
+          viewportHeight = 24f,
+        )
+        .apply {
+          path(
+            fill = SolidColor(Color.Black),
+            fillAlpha = 1f,
+            stroke = null,
+            strokeAlpha = 1f,
+            strokeLineWidth = 1f,
+            strokeLineCap = StrokeCap.Butt,
+            strokeLineJoin = StrokeJoin.Bevel,
+            strokeLineMiter = 1f,
+            pathFillType = PathFillType.Companion.NonZero,
+          ) {
+            moveTo(5.86f, 17f)
+            horizontalLineTo(18.14f)
+            quadToRelative(0.48f, 0f, 0.81f, 0.33f)
+            reflectiveQuadToRelative(0.33f, 0.81f)
+            reflectiveQuadToRelative(-0.33f, 0.81f)
+            reflectiveQuadToRelative(-0.81f, 0.33f)
+            horizontalLineTo(5.86f)
+            quadToRelative(-0.48f, 0f, -0.81f, -0.33f)
+            reflectiveQuadTo(4.72f, 18.14f)
+            reflectiveQuadTo(5.05f, 17.33f)
+            reflectiveQuadTo(5.86f, 17f)
+            close()
+            moveTo(6.14f, 13.23f)
+            lineTo(11.06f, 5.86f)
+            quadTo(11.23f, 5.6f, 11.47f, 5.47f)
+            reflectiveQuadTo(12f, 5.35f)
+            reflectiveQuadToRelative(0.53f, 0.13f)
+            reflectiveQuadToRelative(0.41f, 0.38f)
+            lineToRelative(4.92f, 7.38f)
+            quadToRelative(0.39f, 0.57f, 0.06f, 1.17f)
+            reflectiveQuadTo(16.89f, 15f)
+            horizontalLineTo(7.11f)
+            quadTo(6.42f, 15f, 6.09f, 14.4f)
+            reflectiveQuadTo(6.14f, 13.23f)
+            close()
+            moveTo(12f, 12.72f)
+            close()
+            moveToRelative(-2.81f, 0f)
+            horizontalLineToRelative(5.62f)
+            lineTo(12f, 8.53f)
+            lineToRelative(-2.81f, 4.2f)
+            close()
+          }
+        }
+        .build().also { _ejectW500 = it }
+    }
+
+private var _ejectW300: ImageVector? = null
+private var _ejectW400: ImageVector? = null
+private var _ejectW500: ImageVector? = null

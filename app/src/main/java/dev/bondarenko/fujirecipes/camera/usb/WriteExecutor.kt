@@ -72,6 +72,8 @@ data class WriteOutcome(
      * saying "the slot may be half-written" about an untouched slot is a false alarm.
      */
     val slotTouched: Boolean = false,
+    /** BLE success requires a fresh read matching every header and firmware-restored settings byte. */
+    val bluetoothSettingsVerified: Boolean = false,
 )
 
 enum class InterruptReason { CANCELLED, DISCONNECTED, REFUSED }
