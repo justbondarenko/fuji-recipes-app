@@ -56,8 +56,7 @@ import dev.bondarenko.fujirecipes.ui.theme.FujiTheme
  * Import from camera — FEAT-007 T-16.
  *
  * The screen is a sequence rather than a form: connect, read, review, import. Each stage
- * shows one thing to decide and one action, because the whole flow happens with a camera
- * hanging off the phone by a cable.
+ * shows one thing to decide and one action, with a camera connected over Bluetooth or USB.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,9 +111,17 @@ fun ImportScreen(
             ImportStage.NeedsCamera -> item {
                 ImportPanel(
                     title = stringResource(R.string.import_needs_camera_title),
-                    body = stringResource(R.string.import_needs_camera_body),
+                    body = state.connectionError ?: stringResource(R.string.import_needs_camera_body),
                     actionLabel = stringResource(R.string.camera_action_connect),
                     onAction = onConnect,
+                    modifier = Modifier.fillParentMaxSize(),
+                )
+            }
+
+            ImportStage.Connecting -> item {
+                FujiCenteredLoading(
+                    label = stringResource(R.string.camera_state_connecting_title),
+                    progress = null,
                     modifier = Modifier.fillParentMaxSize(),
                 )
             }
@@ -409,6 +416,11 @@ private fun ImportNeedsCameraPreview() =
 @Composable
 private fun ImportReadyPreview() =
     PreviewScreen(ImportUiState(stage = ImportStage.Ready, cameraModel = "X-T50"))
+
+@Preview(name = "Import — connecting", showBackground = true)
+@Composable
+private fun ImportConnectingPreview() =
+    PreviewScreen(ImportUiState(stage = ImportStage.Connecting))
 
 @Preview(name = "Import — reading", showBackground = true)
 @Composable

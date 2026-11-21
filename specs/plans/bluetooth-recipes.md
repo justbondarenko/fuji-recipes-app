@@ -1,0 +1,386 @@
+# Bluetooth recipe connection
+
+**Recovery acceptance completed, 29 October:** The fixed app completed and
+acknowledged a temporary TEST recipe upload to C7, then was deliberately
+force-stopped before verification. The real pending/accepted markers and policy
+survived, with no read-back saved. Restart correctly blocks Upload and offers
+Review camera recovery without Retry. The normal local ZIP export passed and
+its six entries match the retained checkpoint. Connecting alone retained the
+lock; the explicit fresh read-only Check camera action then matched all target
+recipe bytes and every compared settings byte and resolved it. Original, target,
+acknowledgement and policy files remained intact, and inspection left the library
+unchanged. The normal UI then restored Kodak Negative to C7 and verified it over
+another connection. The final read-back matches all 7,168 original recipe bytes
+and every compared backed-up settings byte from before the interruption. Only
+the established non-restored memory interval differs; whole-file equality is
+false. No pending marker remains. Only the identified TEST-created library ID was
+deleted; the library is back to its original 30 recipes, every user recipe object
+unchanged, and cleanup preserved all 13 recovery files checked. The exported ZIP
+and private captures retain the interrupted checkpoint. See the current handover
+above its historical entries for evidence paths and user-data constraints.
+
+**29 October lost-link routing fix:** A recovery-test setup lost its Bluetooth
+link after slot reading and before upload. The write ViewModel inferred transport
+from the current Connected state, fell back to the USB writer and offered its
+generic Retry failure. Validation and dispatch now use the selected transport,
+so a disconnected Bluetooth attempt retains its explicit reconnect message and
+non-retryable policy. A real ViewModel regression reproduced the wrong USB-path
+message before the fix and passed afterward using a temporary TEST library and
+no camera connection. The import-state regression also passed (two Pixel checks
+in 1.661 seconds); all 743 JVM tests and both APK builds passed. All 14 real
+library/recovery files checked remained unchanged. Before this fix's successful
+recovery attempt above, one setup's UI inspection stopped before selection and
+the other failed before upload. No forced app stop was sent in those two cases.
+
+**29 October normal app write acceptance:** The live UI selected C7, displayed
+its existing Kodak Negative name and confirmed the temporary `TEST Bluetooth C7`
+replacement. The writer reported success after a fresh connection/read-back;
+saved evidence confirms that only C7 recipe bytes and the checksum changed in
+the upload candidate. The normal UI then restored Kodak Negative and verified
+that write over another connection. The final read-back matches all 7,168
+pre-test recipe bytes and every compared header/settings-prefix byte. Differences
+are confined to the established non-restored memory interval; literal whole-file
+equality is false. No pending marker remains. All 30 user library recipes and
+eight retained historical archive/C1-reference files are unchanged. The one
+TEST-prefixed library recipe was retained at that stage for the recovery check,
+then removed after final restoration as recorded above.
+Reports and snapshots are private under
+`captures/bluetooth/recipe-acceptance-2026-10-29/`. This passing C7 round trip does
+not explain or retire the earlier C1 AF-coordinate compatibility finding.
+
+**29 October recipe UI continuation:** Import now shows an indeterminate
+Connecting state while the camera session opens, without another Connect or
+Read action. A connection failure returns to its specific error and Connect;
+success advances to Ready. The screen-state regression covers those transitions
+on Pixel (1.378 seconds). All 743 JVM tests and both APK builds passed.
+
+The live app connected through the existing native bond and displayed C1–C7
+on X-T50 1.32. The first link timed out with status 147, and the next connection
+stalled waiting for its readiness notification. After a user-controlled normal
+camera restart, import showed Connecting, reached Ready and read all seven
+slots. Review identified six configuration duplicates and one new C3 preset.
+Only that preset was selected; the app reported Imported 1, and the saved library
+contained its 16 decoded fields. All 30 original user recipes remained unchanged.
+The test-created preset was then renamed `TEST Bluetooth C7`; the library
+temporarily contained 31 recipes. An initial cleanup attempt stopped without
+deleting anything; the subsequent TEST-only cleanup is recorded above.
+Test recipes must use the `TEST` prefix; delete only IDs created by the test,
+never user recipes. No camera settings were uploaded during these import checks.
+
+Before import, the library, checkpoint files, historical archive and independent
+C1 reference matched the start-of-pass private copy; only Android's
+`files/profileInstalled` changed after installation/UI testing. Private evidence
+is under `captures/bluetooth/recipe-acceptance-2026-10-29/`. Firmware investigation
+remains parked; the earlier AF discrepancy is unresolved.
+
+**Recipe UI continuation:** Camera import now displays the actual connection
+failure and keeps its Connect retry action available, then offers reading once
+connected. Connection help covers Bluetooth and USB. All 743 JVM tests, both APK
+builds and four Pixel recipe UI checks passed, including import failure/retry/read,
+transport selection, write result/retry protection and recovery access. Seven
+current proof/library fingerprints stayed unchanged. No camera operation was
+performed by these UI checks.
+
+The named live pre-upload cancellation proof then passed on Pixel/X-T50 in
+17.582 seconds. It cancelled after the fresh backup/candidate were saved and
+before restore preparation or settings data upload. An independent backup
+matched every compared header/settings byte and every recipe byte from before
+the attempt. No canonical or atomic-sidecar pending marker exists. The phone
+library, retained C1 reference and all frozen historical archive fingerprints
+are unchanged. Log: `/private/tmp/fuji-recipe-cancel-before-upload.log`.
+The active recovery folder now holds this unsent C7 candidate; preparation
+normally replaced the previous inactive snapshots and removed accepted/read-back
+files. The earlier AF trial evidence remains in the private capture directory
+and its C1 reference remains protected. Do not use the older seven-file read-trace
+baseline as if it described this later, intentionally prepared candidate.
+
+**Current focus, 28 October:** Firmware investigation is parked. The native C1
+recipe edit and recipe-byte restoration were verified, while an AF-area
+difference keeps the broad round-trip proof failed. Its independent reference
+is retained. Continue recipe UI and normal connection/import/write/cancellation
+flows; see [current evidence and scope](bluetooth-backup-integrity-2026-10-28.md#recipe-proof-and-scope-correction).
+
+For the current resumable checkpoint, safety constraints, evidence inventory and
+ordered next steps, read the [27 October handover](bluetooth-handover-2026-10-27.md)
+before the historical stages below.
+
+Hardware investigation completed on 26 October 2026 on branch `bluetooth-connection`. The debug probe can connect to the paired X-T50 1.32 after a normal camera restart, download its settings over Bluetooth, change a complete measured C7 recipe, verify persistence, and restore the original recipe. The app now includes Bluetooth connection, C1–C7 views, library import and controlled C1–C7 writing on the verified Pixel/X-T50 combination. See the slot expansion stage below for the measured field coverage.
+
+**Current recovery checkpoint:** The historical checkpoint was retired on 28 October through the separately tested audit procedure, after the user's explicit acceptance of the camera's current other settings and a fresh production inspection. Every original recipe byte still matches; the 18 compared-prefix differences remain unmapped and are accepted as current state. All five frozen fingerprints are preserved, including the old pending marker inside the archive and the unchanged live library. The original baseline was not replaced, no settings were uploaded and the old write is not declared verified. See [approved transition and archive paths](bluetooth-backup-integrity-2026-10-28.md#approved-live-retirement). The next gate is a fresh controlled native-bond C1 write/restoration proof.
+
+**28 October offline continuation:** All five protected Pixel files match the retained baseline. [Integrity research and reproduction](bluetooth-backup-integrity-2026-10-28.md) reject a deterministic checksum of the other stored bytes at 63170–63173 and reject two additive coverage candidates against 711 saved files (593 unique backups, not independent experiments). A newly located X-T5 parser does not establish an X-T50 checksum or field mapping. No camera setting was changed or uploaded; exact verification and the genuine pending marker remain in place.
+
+**28 October vendor/format continuation:** Static X Acquire Mac/Windows SDK traces expose opaque backup transfer methods, not an independently recovered checksum. The shared decoder now rejects unsupported version/payload-window headers measured across all 711 retained files; the malformed-header regression reproduced acceptance before the fix. This stricter layout gate does not identify the unknown bytes or loosen exact comparison/recovery resolution. All 741 JVM tests, both APK builds and two Pixel recovery storage/guard checks passed; all five protected fingerprints remain unchanged. See the same [research record](bluetooth-backup-integrity-2026-10-28.md#next-stage-vendor-validator) for provenance and validation.
+
+## Verified scope
+
+**28 October settings verification:** A firmware-bounded verifier is implemented
+for new checkpoints, with an atomic policy marker saved before upload. It checks
+the complete header, checksum-covered settings prefix and all seven recipe
+records, excluding only the firmware's non-restored memory tail. Legacy pending
+checkpoints retain exact-only resolution. All 743 JVM tests, both APK builds,
+three Pixel recovery checks and two UI checks passed. One fresh read-only camera
+inspection confirmed original recipes but retained the genuine lock because of
+the 18 prefix differences. No settings upload was performed. See
+[contract, trace and validation](bluetooth-backup-integrity-2026-10-28.md#next-delivery-firmware-bounded-settings-verification).
+
+**28 October firmware continuation:** Static analysis of the matching official
+X-T50 1.32 firmware recovered the settings checksum at raw offset 264. Its exact
+coverage matches all 711 retained files with zero mismatches. The shared decoder
+now validates it, and the patcher recomputes it; 742 JVM tests, both APK builds
+and two Pixel storage-only recovery checks passed. All five protected files
+remain unchanged. Firmware export/restore boundaries are being traced before
+any verification-policy change; exact comparison and the genuine lock still
+apply. See [firmware evidence and reproduction](bluetooth-backup-integrity-2026-10-28.md#matching-firmware-and-reproducible-extraction).
+
+The investigation used Fujifilm X-T50 firmware 1.32 and Pixel 10 Pro XL on Android 17 / API 37, with an existing XApp-created Bluetooth bond. Phone Wi-Fi was disabled and XApp was stopped before and after native operations. Camera USB was disconnected for Bluetooth transfers. The read-only app was subsequently tested on that Pixel and Samsung SM-F976B, also API 37. Native initial pairing was subsequently verified on Pixel only, as recorded below. This does not establish older Android versions, other camera models/firmware or Bluetooth writes from Samsung.
+
+| Check | Result |
+|---|---|
+| Independent Bluetooth settings read | Validated transfer checksum, zlib EOF, declared length, header and model; 70,524 bytes |
+| USB whole-backup read | RAW CONV./BACKUP RESTORE object zero returns the same layout; all seven recipe records matched the corresponding BLE read |
+| Independent USB reference | 24 properties per slot across C1–C7, preserving and reading back the original selector |
+| Research decoder | Seven names and 112 field values agree with independent USB reads |
+| Research C7 encoder | Reproduces 569 measured USB changes byte-for-byte, including the metadata update; unchanged backup preserved and invalid edits rejected |
+| Native unchanged restore | Fresh download → upload → independent reconnect/read-back matched all 70,524 bytes |
+| Controlled Color proof | C7 +4 → 0 → +4, power-cycle persistence and restoration verified |
+| Complete C7 recipe proof | Changed 16 settings and the test name; repeat upload and independent read-back matched all 70,524 bytes |
+| Full-recipe persistence | After user power cycle, all seven recipe records matched the expected test-state records exactly |
+| Original restoration | All original seven-slot records restored; independent HCI reconstruction and native full read-back matched the uploaded fresh snapshot |
+| Standalone cold startup | Corrected client identity; normal off/on followed by native read passed in 4.132 seconds with XApp closed |
+| Native initial pairing | Android chooser and matching-code confirmation created a new bond without XApp; original recipe records preserved across reads and camera restart |
+
+The camera is back at its original recipe state. C7 includes Color +4, Sharpness -1, DR400, Highlight -0.5 and Grain Weak/Large. Temporary write-reference files were removed from the phone. The user later confirmed AUTO POWER OFF is currently 1 MIN, despite earlier requests to disable it. Leave that confirmed setting unchanged; the value before the earlier investigation was not supplied.
+
+## Protocol and format established by measurement
+
+The BLE operation transfers a whole settings backup, rather than the existing USB PTP property commands. Reconstructing HCI traffic independently verifies the native transfer. Downloads use sequence/length-framed chunks, a sum16 checksum over compressed bytes and zlib data. Restore metadata declares compressed size; the observed final upload packet repeats its checksum. Relevant UUIDs and exact framing are implemented in the opt-in `CameraBluetoothHardwareTest`.
+
+Secure reconnect uses Android's existing encrypted bond. The client identity captured from XApp is the phone's Bluetooth name with spaces replaced by hyphens, followed by `-2065` and NUL. The original probe invented another name; the corrected platform-derived identity passed the subsequent off/on test. The suffix remains a measured constant whose meaning is unknown; do not assume it is universal. Native initial pairing and restart after battery removal have not been independently repeated with this correction.
+
+The observed backup has header `FUJIFILMX-BACKUP`, model text `X-T50`, exactly 70,524 bytes, and seven 1,024-byte records beginning at 63356. These are model/layout gates, not permission to accept other firmware. The relative metadata update at 264 equals the changed recipe-byte sum across the measured C7 operations and six independent C1–C6 Color changes. This establishes the relative recipe update for the tested layout, not a general checksum algorithm for arbitrary camera settings.
+
+| Field | Relative record offset | Measured coverage |
+|---|---:|---|
+| Kelvin | 16, little-endian u16 | 2500–10000 at 100K increments |
+| WB mode | 114 | Auto, Ambience, Daylight, Shade, three Fluorescent modes, Incandescent, Underwater and Kelvin |
+| WB red/blue shift | Mode-specific | Every -9..+9 value; encoded as `9 - shift` |
+| High ISO NR | 172 | -4..+4 |
+| Clarity | 175 | -5..+5 |
+| Film simulation | 229 | All 20 existing app simulations |
+| Remembered ACROS/Monochrome variant | 232 / 235 | Film changes also update these family choices; preserve or update deliberately |
+| Dynamic range | 245 | DR100, DR200 and DR400 |
+| Color | 248 | -4..+4; nonlinear lookup |
+| Sharpness | 250 | -4..+4 |
+| Highlight / Shadow | 252 / 254 | -2..+4 in half steps |
+| Color Chrome / Blue | 256 / 257 | Off, Weak, Strong |
+| Grain strength / size | 258 / 259 | Strong=0, Weak=1, Off=2; Small=0, Large=1 |
+| Name | 622 | Printable ASCII through 25 characters; 26/31/32 refused |
+
+WB red/blue banks are Auto 116/118, Ambience 124/126, Daylight 144/146, Shade 148/150, Fluorescent 1 152/154, Fluorescent 2 156/158, Fluorescent 3 160/162, Incandescent 164/166, Underwater 168/170 and Kelvin 140/142. Other WB modes, monochromatic color and D-Range Priority are not mapped for BLE. The tested USB name setter did not preserve non-ASCII text; the research encoder therefore rejects it.
+
+Do not reuse USB grain read-back codes as write codes. Off is written as 1 but reads as 6 or 7 depending on remembered size; writing 6/7 was refused. These findings do not change the production USB encoder in this stage.
+
+Immediate operation switches were refused; the probe currently uses measured three-second pauses. A real readiness signal remains preferable to widening arbitrary retry loops. A transfer while camera USB remained attached also stalled in this setup. Camera sleep/menu state can prevent preparation. A first complete restore after USB work changed two bytes outside the recipe region; the strict comparison caught this. Subsequent original restoration and repeat recipe write matched every byte. No universal exclusion mask was added.
+
+## Integration delivery plan
+
+### Initial controlled C7 stage
+
+The production Kotlin encoder is restricted to the measured C7 record and relative metadata update. Its checked-in synthetic fixture and 566 sanitized field-change cases reproduce independent USB measurements; names, unknown fields, ranges and metadata overflow are validated before an upload. Names must be 1–25 printable ASCII characters. Unsupported non-advisory fields are refused. Unspecified settings, inactive WB banks and every other fresh backup byte are preserved; remembered Kelvin is ignored unless the recipe explicitly selects Kelvin WB. These rules do not imply that an unmapped field was reset to a default.
+
+The Bluetooth write picker exposes C7 only. The controller uses the recipe settings directly, never USB PTP property steps. Every write downloads a fresh, fully validated backup and durably stores original and intended snapshots under app-private `noBackupFilesDir/bluetooth-c7-recovery/`. A pending marker is written before settings upload. If a previous upload was unresolved, a new fresh read must match its complete original or intended snapshot before another write is permitted. No byte-exclusion mask or automatic whole-backup rollback is used.
+
+Cancellation is accepted before settings upload; once upload begins, the operation finishes under a wake lock and non-cancellable coroutine, then reconnects and verifies all 70,524 bytes. Only a complete match reports success. Failure closes the connection, retains recovery data and suppresses the write sheet's direct Retry action. The original backup remains local after success until the next write replaces the checkpoint. Recovery export/UI and physical interruption tests are not delivered in this stage; uncertain states require inspection, with USB remaining the recovery route.
+
+On the available Pixel, three separate connections and six shipping-reader downloads passed with XApp stopped. The production controller then wrote C7 Color to 0 and restored its original +4; both writes passed independent reconnect verification, and the separate research probe matched the complete original backup after restoration. This verifies the shipping C7 transport on Pixel, not C1–C6 writes or Samsung writes. The broader complete-recipe hardware proof above remains separate research evidence.
+
+Testing found a foreground-service startup race: its start command could observe Writing or Disconnected instead of Connected and return before fulfilling Android's foreground-service requirement. The shared service now promotes before deciding to stop and keeps a notification during Writing. A device regression waits beyond Android's failure deadline to detect the original asynchronous crash. The hardware test uses the application's real controller so the service observes the same connection state.
+
+Connection timeouts were reproduced before recipe transfer; waking/restarting the camera allowed the reader checks to pass. Status 147 is a link timeout, not proof of a bad bond. BLE requests now stop promptly when a disconnect arrives, including while waiting for notifications or MTU. No automatic write replay or broad connection retry loop was added. A separate readiness-notification timeout also occurred; its exact cause is not established. After the user's power cycle and +4 menu confirmation, a private HCI trace captured successful LE connection, Start Encryption, then disconnect reason 0x08 without a successful encryption event. One complete Pixel adapter OFF/ON cycle, preserving the bond and restoring `ble_scan_always_enabled` from 1 back to 1, recovered three connections and six reads. This establishes a recovery procedure, not an unassisted cold-start guarantee or proof of a firmware cause. The app explains the manual phone Bluetooth toggle if timeouts persist; it never resets the adapter itself. A readiness polling experiment was removed rather than shipped without evidence. Camera sleep, cold restart and multi-phone behavior must remain part of hardware regression testing.
+
+The build passes 738 JVM tests and three Pixel UI/service checks. The cancellation-after-backup test passed after the adapter recovery: no upload began and an independent read matched the complete original backup. The user confirmed C7 Color +4 after power cycling. Actual UI testing found that an idle disconnect still presented a USB-only Upload tooltip. With Bluetooth selected, Upload now opens the existing connection stage even when disconnected, waits for that connection attempt to finish, and displays an actionable failure in the same sheet.
+
+The normal Pixel UI write flow subsequently passed immediately after the user woke the camera: the existing Kodak Negative recipe → Upload → Connect → C7 → Write to C7 → verified completion. The picker exposed no C1–C6 choices. This existing recipe already matched C7; all 70,524 bytes of the fresh pre-upload snapshot and intended snapshot were identical, and the app's separate reconnect/read-back matched that complete snapshot before showing success. All seven recipe records also matched the earlier independently restored original records, and the phone library remained byte-for-byte unchanged. The pending recovery marker was absent and XApp remained stopped. The private completion screenshot and snapshots are under ignored `captures/bluetooth/c7-app/`. Earlier-reference nonrecipe bytes had already changed before the UI upload; they were preserved from the fresh snapshot, not replaced from an older backup or excluded from verification.
+
+This completes the bounded Pixel C7 stage, including the normal app flow; broader compatibility and idle/cold-link reliability remain limited as described above. Samsung is no longer connected and its C7 write path has not been tested; this stage continued on Pixel only at the user's request. AUTO POWER OFF was subsequently confirmed as 1 MIN; no timeout change is needed for the controlled sleep check below.
+
+### Reconnection investigation, 26 October
+
+A subsequent read-only baseline reproduced status 147 while waiting for encryption. The next attempt completed encryption and camera readiness but received backup preparation state 0. The private HCI capture confirms the latter refusal, so a completed connection handshake alone does not establish that settings transfer is available. Neither attempt sent recipe settings.
+
+After the user half-pressed the shutter, the unmodified shipping transport passed three GATT connections and six matching decoded reads without a phone Bluetooth reset. The same test then passed with 30-second gaps between connections (89.262 seconds), and passed again after a user-controlled camera off/on with the same gaps (89.049 seconds). Across these three successful runs, 18 reads passed; comparisons cover slot names and the 16 decoded settings per slot within each run, not full-backup equality across runs. XApp remained stopped and no recipe writes or phone radio resets were performed. The combined private successful capture contains seven new physical links, seven successful encryption events and no failed encryption events; three short-gap GATT clients shared one physical link. These observations narrow the reproduction conditions but do not establish the cause of the earlier timeout. Controlled camera sleep remains the next checkpoint; no speculative production retry or adapter reset has been added.
+
+The user then clarified that AUTO POWER OFF is already 1 MIN, not OFF. No timeout setting was changed. The next read-only attempt encrypted successfully, read connection readiness 0 and timed out waiting for readiness after 18.087 seconds total. Its private capture contains no backup/restore preparation command. The camera's actual display state at that attempt has not yet been confirmed by the user, so this is not yet a verified sleep reproduction. Capture and instrumentation are stopped; the next checkpoint is display-state confirmation followed by a shutter-wake comparison.
+
+The user subsequently confirmed the camera was asleep. An immediate read-only attempt then failed with status 147 in 7.707 seconds; HCI showed a successful LE connection followed by encryption failure status 0x08 and disconnect reason 0x08. After a user-confirmed shutter half-press, the same reader passed three connections and six matching reads in 33.644 seconds, with no phone Bluetooth reset or XApp initialization. This establishes a reproducible automatic-sleep/wake failure and recovery on the tested Pixel/X-T50, not a diagnosis of every earlier timeout. The app's connection help and status-147 guidance now explicitly instruct a shutter half-press. AUTO POWER OFF remains at the confirmed 1 MIN. No recipe changes, automatic adapter resets or speculative connection retries were added.
+
+### C1–C7 slot expansion
+
+Fresh USB backup and 24 properties per slot matched all original recipe records before measurement. Each C1–C6 trial changed only Color, verified the direct USB property, measured the one changed recipe byte and relative metadata update, then restored all seven original recipe records and the original selector. The six sanitized numeric cases are checked in as `xt50-132-slot-colors-measured.json`; raw backups and personal names remain private. The encoder now patches the selected 1,024-byte record and preserves an unchanged name byte-for-byte, including unknown trailing bytes. The 566 C7 field measurements are also replayed at all seven offsets in JVM tests; this is code verification, not a claim that every field was physically changed in each slot.
+
+The real application controller then passed independent Bluetooth Color write/restoration trials for C1–C6. The separate probe verified each forward snapshot, including that only the intended recipe Color byte changed. After each restoration it matched every byte of that trial's original 70,524-byte backup. Timings were C1 52.683s, C2 52.391s, C3 52.114s, C4 51.854s, C5 51.603s and C6 51.683s. C3 remained unnamed throughout: the writer reused the encoder's existing optional-name behavior rather than assigning a temporary name. Its first test stopped at the inherited named-slot guard before any write; that guard was corrected. An earlier initial reference read stalled after USB-to-Bluetooth handoff before any recipe upload; a user-controlled camera restart preceded the successful series. Neither incident is counted as a passed trial.
+
+The app now offers C1–C7 in the Bluetooth write picker and sends the actual selected slot to the same checkpointed writer. Fresh whole-backup verification, pending-write refusal, cancellation boundaries, wake lock, strict model/firmware checks and USB-only Photos/RAW Lab remain unchanged. The legacy private directory name `bluetooth-c7-recovery` is retained so existing pending checkpoints remain discoverable; its snapshots protect the entire backup for every slot. The build passes 739 JVM tests, and the three Pixel native UI/service checks pass, including selected-slot success text for C1 and C7. Final normal C1 upload UI verification passed after the battery was charged, as recorded below.
+
+In that final normal UI attempt, the existing Kodak Gold 200 recipe was selected, all seven picker choices were verified, and C1 was selected before Write to C1. Connection and the fresh pre-write download passed. The app reported a restore-command write failure (status 133) when the user reported battery loss; no success was shown. The private HCI capture `capture-20261026-223429.btsnoop` contains one restore-preparation request and zero FILE_INFO or FILE_DATA upload writes. The phone has no pending marker, and its retained original and intended snapshots are identical across all 70,524 bytes. The fresh pre-write recipe records match all seven original records, and the 30-recipe library remains byte-for-byte unchanged. Copies of both snapshots are under ignored `captures/bluetooth/c7-app/pixel-c1-ui-interrupted-*.dat`. Capture, UI polling and forwarding are stopped. On resumption, charge/wake the camera and independently read its actual state before attempting another write; then finish the normal C1 UI completion check. Do not replay an older whole backup as recovery.
+
+On 2026-10-27, the charged-camera resumption first timed out waiting for connection readiness, before backup transfer. A user-confirmed shutter wake then allowed an independent read in 5.631 seconds. All seven decoded recipes and all 7,168 recipe-record bytes matched the pre-interruption originals; 15 nonrecipe bytes differed and were preserved from the fresh camera state. The normal Pixel UI then passed Kodak Gold 200 → Upload → C1 → Write to C1 → Written to C1. This existing recipe already matched C1: the app's fresh original and intended snapshots were identical across all 70,524 bytes. A separate probe after completion passed in 5.057 seconds and matched the full intended snapshot. The pending marker was absent, all seven original recipe records remained intact, and the library was byte-for-byte unchanged. Independent extraction of private `capture-20261027-084335.btsnoop` also matched the transmitted upload to all 70,524 intended bytes and validated five downloads with the same recipe records. Screenshots, snapshots and logs are ignored under `captures/bluetooth/c7-app/pixel-c1-ui-resumed-*`. Capture and forwarding were stopped. This closes the interrupted Pixel UI check; Samsung Bluetooth writing is still unverified and Samsung was disconnected at this checkpoint. The user subsequently set camera AUTO POWER OFF to OFF to prevent repeated sleep during development; leave that user-selected setting unchanged and obtain fresh snapshots for any future write.
+
+The user chose to continue on Pixel only. A new opted-in production-controller diagnostic simulates a lost acknowledgement using the real retained checkpoint and a temporary pending marker, after camera settings have changed. It requires refusal before the second cancellation boundary, preserves both saved snapshots and the marker during refusal, verifies all seven recipe records independently, and removes only its simulated marker afterward. A failed connection attempt stopped before marker creation. The first completed trial reached every refusal/checkpoint assertion but failed an overly broad final equality assertion: four nonrecipe bytes at offsets 63170–63173 changed across read-only downloads, while recipe records remained identical and the capture contained zero upload metadata/data writes. The diagnostic now reports nonrecipe drift separately; production's exact full-backup write verification and unresolved-write guard remain unchanged. The corrected diagnostic passed in 18.028 seconds. Private `capture-20261027-085822.btsnoop` independently yields three complete matching downloads and zero upload metadata/data writes. The marker is absent afterward, the library remains byte-for-byte unchanged, and capture/forwarding are stopped. The current build passes all 739 JVM tests. This simulates unresolved-write refusal; it is not a physical interruption during settings upload or a delivered recovery/export UI.
+
+### Native pairing delivered on Pixel, 27 October
+
+Continue on Pixel only at the user's request. The Camera-sheet action uses Android `CompanionDeviceManager` with an X-T50 BLE name filter and the system device-consent UI, then `BluetoothDevice.createBond()` and a bounded wait for Android bonding before the existing encrypted reconnect handshake. No app-managed BLE scan, location permission, automatic passkey acceptance, Wi-Fi setup or recipe upload is added. Companion setup remains an optional device feature; older Android result handling is implemented but untested. The chooser handles cancellation and the API-33+ path where Android can reuse consent without launching a result activity. Both address-result paths normalize `MacAddress.toString()` to uppercase with `Locale.ROOT`, as required by `BluetoothAdapter.getRemoteDevice()`.
+
+The build and 739 JVM tests pass. After unlocking Pixel, the connection-screen UI regression passed in 1.787 seconds. The real Android chooser found X-T50, and Don’t allow returned to actionable cancellation help without changing the old bond. A fresh independent reference read passed in 6.456 seconds before registration changes. The user then deleted only the Pixel registration on the camera, and the X-T50 bond was removed through Pixel Settings. The first unpaired scan saw no X-T50 advertisement until the user restarted registration; the capture then confirmed its advertised name is exactly X-T50. The first chooser selection exposed the address-casing error, which was fixed before Android bonding started. The next matching-code attempt timed out after a roughly 30-second LE link and disconnect reason 0x13; the app reported pairing cancelled/refused. These attempts are not counted as successful pairing.
+
+With the native chooser prepared before restarting camera registration, the user compared and confirmed the codes on both devices and returned the camera to shooting mode. Fuji Recipes completed the encrypted handshake and displayed all seven slots with XApp closed. A separate probe read passed in 3.376 seconds, matching every original recipe-record byte. Nonrecipe bytes changed after registration and are retained from the current camera state; old whole backups were not restored. The shipping reader then passed six reads across three GATT clients in 34.922 seconds. Private `capture-20261027-093704.btsnoop` independently yields eight valid downloads, all with the original seven recipe records, and zero FILE_INFO/FILE_DATA upload writes.
+
+After a user-controlled camera off/on, the unchanged shipping reader passed six more reads across three GATT clients in 31.861 seconds, with Pixel Bluetooth unchanged and XApp closed. The following normal app connection hit status 147 before encryption; a single ordinary Try again action recovered and displayed all seven slots, without a phone Bluetooth reset or a requested camera wake. This does not establish the cause or eliminate the previously measured intermittent link failure. Private `capture-20261027-094602.btsnoop` independently yields seven valid downloads preserving every original recipe-record byte and zero settings-upload metadata/data writes. Across both successful captures there are 15 validated downloads: two actual app reads, one separate probe read and twelve shipping-regression reads. A new GATT client alone is not proof of a new physical radio link.
+
+The Pixel library remains byte-for-byte unchanged, the pending-write marker is absent, and the app is left connected through the new native bond. Capture and forwarding are stopped. Pairing captures may contain bonding material and are ignored and owner-readable only; keys/codes are not copied into app logs or checked in. The user selected AUTO POWER OFF = OFF, but subsequently reported the camera was sleeping before the next write trial; the later drive-mode comparison confirmed the actual setting was 1 MIN. Native pairing and restart reads are verified only for this Pixel/API-37 and X-T50 firmware 1.32 combination; writes through this newly created bond, Samsung pairing, older Android versions, multiple X-T50 devices and other firmware remain untested. General write tests described above used the previous bond. Physical interruption during a settings upload and a recovery/export UI remain separate work.
+
+Primary references: [Android companion setup](https://developer.android.com/develop/connectivity/bluetooth/companion-device-pairing), [Android bonding](https://developer.android.com/reference/android/bluetooth/BluetoothDevice#createBond()), [pinned libfuji handshake](https://github.com/petabyt/libfuji/blob/3328efc51f74d754f8fa76af70c6becdde62271f/lib/bluetooth.c), and [X-T50 pairing registration](https://fujifilm-dsc.com/en/manual/x-t50/connections/network_usb_menu/).
+
+### Native-bond write proof in progress
+
+Completed C1–C7 writing and native pairing were committed as `03e9e44`. Two initial controlled C1 attempts failed during encryption with status 147 in 6.329 and 6.093 seconds, before a reference download or slot-proof checkpoint. Private `capture-20261027-095543.btsnoop` confirms zero settings-upload metadata/data writes. The user then confirmed the camera had been sleeping and woke it.
+
+The awake trial accepted C1 Color +3 → 0 but failed strict full-backup verification in 21.964 seconds. The actual transmitted backup exactly matches the intended target: only metadata byte 264 and C1 Color byte 63604 differ from the fresh original. The camera read-back matches every intended recipe-record byte but differs at four nonrecipe bytes, offsets 63170–63173. These same offsets previously changed during a read-only refusal diagnostic. A separate fresh probe read passed in 5.433 seconds and confirmed the identical four-byte mismatch and C1 Color 0; no reverse upload was sent. Private `capture-20261027-101250.btsnoop` validates the one upload and four downloads. This is not a successful write proof, and production verification has not been weakened.
+
+The original remains in app-private `bluetooth-slot-1-hardware-original.dat`; the writer's original/target snapshots and genuine pending marker remain in `bluetooth-c7-recovery`. Copies are ignored under `captures/bluetooth/c7-app/pixel-native-bond-c1-*`. The failed trial left C1 Color 0 with all other original recipe-record bytes unchanged. The user connected USB RAW CONV./BACKUP RESTORE for single-property recovery. A bounded private helper `read_usb_slots.py --restore-c1-color OUTPUT_DIRECTORY` checks camera identity, the fresh original/target recipe records and direct USB Color before issuing the single-property recovery; it does not upload a whole backup. Recovery completed: the helper restored C1 Color +3, read it back, verified all original recipe records and restored the original selector. A separate USB session read all 168 original properties, and another session downloaded an independent backup with all 7,168 original recipe bytes matching. Private evidence is in `captures/bluetooth/c7-app/usb-native-bond-c1-recovery/`. Nonrecipe differences against the pre-Bluetooth original now include offsets 71, 63164–63165 and 63170–63173; their meanings are not established. Capture and forwarding are stopped. Two independent USB backup-only sessions returned byte-for-byte identical files, so these USB reads did not reproduce the four-byte drift. The Pixel library still matches the pretrial file byte-for-byte, and ADB confirms the genuine pending marker, original/target snapshots and original hardware-proof snapshot remain intact. The genuine pending marker and snapshots remain on Pixel; do not bypass the guard to resume Bluetooth writes. The subsequent read-only Bluetooth comparison is recorded below; no upload or marker changes were permitted.
+
+### Read-only app stage delivered
+
+`BluetoothBackup` is a pure Kotlin decoder with a synthetic 70,524-byte fixture and an independently decoded golden result. It checks the complete layout and all seven slots before returning recipes. The shipping `BluetoothCamera` retains checksum, zlib EOF, size/model/firmware gates and bounded, serial GATT operations. It has no settings-upload entry point and saves no raw backups. Transfer subscriptions are enabled for each download, so Refresh and bulk import work on an existing connection.
+
+The existing Camera sheet now offers USB/Bluetooth selection and the Android Nearby devices permission request. Bluetooth uses one already bonded X-T50 and displays a read-only label. Slot details reuse the validated snapshot from the most recent complete read; Refresh or reopening the Camera sheet obtains a fresh snapshot. Bulk import always reads afresh. USB writes, Photos and RAW Lab retain their USB paths, with Bluetooth refusals in both UI and controller. USB host support is optional for installation and does not suppress the Bluetooth choice.
+
+Both phones passed the actual app flow: connect with XApp stopped, read seven slot names, view C7, save C7, refresh, release/reconnect, review and import all seven slots. Persisted imports matched across phones for all seven names and 112 field values. Both imported sets also matched the independent research decoder of the previously restored camera backup. Existing recipes were unchanged; all temporary imports were then removed and both original library files restored byte-for-byte. Pixel Wi-Fi was off; Samsung Wi-Fi remained on. The app has no Internet permission and this transport uses only Android BLE APIs. Camera recipes were not written during this stage.
+
+The compatibility ceiling remains X-T50 1.32 with an existing bond. Older Android callback/write APIs are implemented but untested on hardware; both available phones run API 37. Unsupported backup layouts, field codes and non-ASCII names fail the whole read. Auto White Priority/custom WB, monochromatic color and D-Range Priority remain unmapped. Native pairing and general Bluetooth writes are separate stages.
+
+The original integration sequence below covers delivered and remaining work. The historical read-only stage above was followed by the controlled C7 stage and then the verified C1–C7 expansion below. Broader camera/firmware compatibility remains disabled.
+
+1. Finish the format boundary before enabling general writes. Produce sanitized, checked-in examples from the measured layout, retaining unknown bytes without personal names/identities. Verify C1–C6 changes and restoration before advertising writes to every slot. Refuse unsupported model/firmware/layout and unsupported requested values. Unknown/global data must be preserved from a fresh snapshot, never copied from an old complete backup.
+
+2. Move the proven transport into the app with native Android BLE APIs. Keep serialized GATT requests, bounded queues/timeouts, disconnect handling and all integrity checks. The API-37 encryption-status diagnostic needs an explicitly implemented/tested compatibility path before claiming older Android support. Initial delivery may use the existing bond, with clear pairing help; native initial pairing needs a separate hardware proof. Keep pairing data private and never log credentials.
+
+3. Add the smallest transport boundary required by the existing USB and new BLE implementations. `CameraController` currently owns a concrete `PtpSession`; `readSlots`, `readSlotRecipes`, `readSlotRecipe` and `write` are the recipe integration points. Reuse `SlotRecipe`, recipe validation and library import behavior. The USB `WritePlan` contains PTP property operations, so it must not be passed to BLE as though it were a transport-neutral recipe. Leave USB Photos and RAW Lab on their existing sessions and wake-lock/transfer paths.
+
+4. Add an explicit USB/Bluetooth choice to the existing Camera screen, preserving its UI language and using only FujiIcons. Handle Android Bluetooth permissions in the existing app permission flow. Do not imply Bluetooth Photos or RAW Lab support. Revisit the USB-host-required installation filter and `NoUsbHost` state so they do not suppress a valid Bluetooth option. Keep offline behavior; BLE alone does not require Internet. No recipe-library schema migration is expected; connection/bond metadata is separate app-private state.
+
+5. Verify the user-facing flow on the connected Pixel and X-T50: cold connect without XApp, all-slot import, recipe selection, supported-field preflight, controlled write, independent verification, disconnect/reconnect and restoration. Include unsupported values, camera sleep/menu state, cancellation, interrupted transfer and stale-snapshot refusal. Run the relevant camera/recipe JVM tests and debug build once integration changes land. Current private capture checks are hardware research evidence, not checked-in CI fixtures.
+
+6. Deliver in coherent stages: diagnostic proof, read-only app import, controlled C7 write support, then broader compatibility. Review the full diff at each stage. Do not enable writes beyond hardware-verified scope or declare unobserved devices compatible. C1–C7 Bluetooth writing is enabled only for the verified X-T50 1.32 layout with an existing bond.
+
+## Local verification and recovery
+
+Private captures, backups, helpers and complete checkpoints remain under the ignored `captures/bluetooth/xt50-132-pixel/`. The standard-library research checks are `decode_slots.py --check`, `check_extraction.py` and `read_usb_slots.py --check`; they require those private research files. The USB helper's normal modes only change/restore the selector; explicit bounded calibration modes temporarily measured C7 fields and verified restoration.
+
+Build the diagnostics with `./gradlew :app:assembleDebug :app:assembleDebugAndroidTest`. With both APKs installed on Pixel, Bluetooth permission granted and XApp closed, opt in with `bluetoothProbe=true` to download a backup. This diagnostic only reads camera settings. A failed run deletes its old result, so retrieve a backup only after `OK (1 test)`.
+
+For the shipping reader regression, run `CameraBluetoothHardwareTest#readRecipesWithAppTransport` with `-e bluetoothAppRead true`. It reads all seven slots twice on one connection and requires the results to match, without writing settings or a backup file. Run phones sequentially so the camera has only one client. `CameraTransportTest` checks the Bluetooth choice on a state without USB host support, disabled transport changes while connecting and the read-only label; it needs no camera. Parser and write-capability checks run in `:app:testDebugUnitTest`. The final build passed 737 JVM tests and both device checks on each phone (four instrumentation checks). Samsung also displayed the native Nearby devices prompt, handled denial with actionable guidance and reconnected after its original permission was restored.
+
+The current reader regression repeats that pair of reads over three independent GATT clients. Add `-e bluetoothReconnectPauseMs 30000` to leave the connection closed for 30 seconds between clients; the default is 3 seconds, and the accepted range is 3–300 seconds. The test logs each cycle and requires all six decoded reads to agree. A new GATT client does not by itself prove a new physical radio link, so use the private HCI capture when investigating encryption or disconnect behavior.
+
+For the C2 controller round trip, run `CameraBluetoothHardwareTest#writeSlotWithAppTransportAndRestore` with `-e bluetoothAppWrite true`. It checks that the original C2 name and Color can be restored exactly, saves the original backup privately, writes `TEST Bluetooth C2` with a different Color, and verifies the result through the app and an independent read. It restores the original recipe only after verifying the forward write, then compares the restored backed-up settings and all seven recipe records with the original. An uncertain upload requires inspection. `#cancelC2BeforeUploadLeavesCameraUnchanged` with `-e bluetoothAppCancel true` checks cancellation after backup but before upload against an independent read. These tests require the camera awake and XApp stopped. Never upload the synthetic fixture.
+
+For no-upload unresolved-write refusal, use `CameraBluetoothHardwareTest#unresolvedWriteRefusesChangedCameraBeforeUpload` with `-e bluetoothPendingGuard true`. It requires no existing pending marker, a real retained original/target checkpoint, and camera settings that match neither checkpoint. It temporarily creates only a diagnostic marker; a second cancellation boundary prevents restore preparation even if the guard regresses. Capture traffic independently to confirm zero FILE_INFO/FILE_DATA upload writes. An interrupted diagnostic may leave its marker, so inspect its log and retained checkpoints before removing anything; never clear a genuine unresolved-write marker to bypass recovery.
+
+Every product write must start with a fresh validated backup, patch only supported fields in the selected slot and measured metadata, preserve all other fresh bytes, then reconnect and verify. On interruption, read actual camera state before deciding recovery; do not replay a whole-settings restore blindly. Retain original recipe data and report whether the transfer was accepted, the recipe read back correctly, and the complete snapshot matched. Disable Bluetooth writes when format/integrity validation fails; USB remains the established recovery route. No server, account, migration or external radio sniffer is required for this path.
+
+Protocol source leads include the inspected [libfuji Bluetooth implementation](https://github.com/petabyt/libfuji/blob/3328efc51f74d754f8fa76af70c6becdde62271f/lib/bluetooth.c), its [USB backup reader](https://github.com/petabyt/libfuji/blob/master/lib/fuji_usb.c), and [Fujifilm XApp](https://www.fujifilm-x.com/en-us/products/software/xapp/). Their existence is background; the compatibility claims above come from this camera's measured responses. Android documents status 147 as [GATT_CONNECTION_TIMEOUT](https://developer.android.com/reference/android/bluetooth/BluetoothGatt#GATT_CONNECTION_TIMEOUT); that code alone does not diagnose the camera's physical state or pairing.
+
+### Post-recovery read-only connection check
+
+After the user unplugged camera USB, the first independent read failed during encryption with status 147 in 6.244 seconds. One ordinary reconnect reached the camera handshake but backup preparation was refused in 1.927 seconds. Neither attempt produced a fresh settings backup; no cached result was treated as current. Private `capture-20261027-140130.btsnoop` confirms zero settings-upload metadata/data writes. Capture and forwarding are stopped. The user was asked for a camera off/on and live shooting display before repeating the read-only comparison. C1 Color +3 and all seven original recipes were last verified through USB; the genuine pending marker remains intact.
+
+The user restarted the camera and confirmed the shooting display. The first post-restart probe again failed before encryption (status 147, 5.798 seconds); one ordinary reconnect encrypted and reached connection readiness but received an explicit backup-preparation indication `0000` (2.664 seconds). The shipping reader also failed before encryption (status 147, 6.547 seconds), so successful repeated downloads are not yet established. Mac USB enumeration confirmed zero Fujifilm USB devices. Private `capture-20261027-140620.btsnoop` confirms the preparation refusal and zero settings-upload metadata/data writes; recording began after the first attempt started, so it is not full wire evidence for that first attempt. Capture and forwarding are stopped. The user was asked to report the actual camera display and current AUTO POWER OFF value rather than repeat another speculative wake/restart. No production safeguards were changed.
+
+The user subsequently reported that the camera had exhausted its battery, charged it and returned it to the shooting display. This does not establish the cause of each earlier refusal. The charged-camera comparison could not start because `adb devices -l` detected no Android phones; forwarding and instrumentation failed before reaching Pixel, and the capture socket did not connect. No new camera read or upload occurred. At that checkpoint the test awaited Pixel USB reconnection/unlock; the last verified recipe state was the USB-restored original C1–C7, with the genuine pending marker retained.
+
+After Pixel reconnected, the charged-camera probe failed before encryption in 6.631 seconds; its ordinary reconnect reached backup preparation but received refusal in 3.150 seconds. The shipping reader reproduced the same pair of outcomes (5.768-second pre-encryption timeout, then 2.606-second explicit preparation refusal). Compared with the earlier successful shipping-reader trace, the probe startup differed only by the shipping reader disabling the restore-status CCCD; the shipping reader also refused, so that missing cleanup does not establish the cause. Private traces `capture-20261027-164048.btsnoop` and `capture-20261027-164308.btsnoop` each confirm the explicit `0000` preparation indication and zero settings-upload metadata/data writes. No fresh backup was obtained.
+
+A backup-only manufacturer control was attempted in XApp; its startup dialog said its prior camera registration had been deleted from Android Bluetooth and demanded registration deletion/re-pairing. Neither action was performed. XApp was force-stopped again, and separate `capture-20261027-164434.btsnoop` confirms zero settings uploads. This is an unavailable control, not evidence that XApp can or cannot back up the camera in this state. Recording/forwarding are stopped, and ADB confirms the genuine pending marker and all protected snapshots remain intact. The user was asked for the actual AUTO lever, DRIVE mode, AUTO POWER OFF value and any camera warning before another test; no timeout setting, recipe, pairing registration or production code was changed.
+
+### Controlled drive-mode comparison
+
+The user confirmed the AUTO lever is outside AUTO, DRIVE is CL Low-speed Burst and AUTO POWER OFF is 1 MIN, then returned to the shooting display. For a single-variable experiment, the user changed DRIVE to Single Frame without changing the timeout or recipes. The first probe encrypted but timed out at connection readiness in 16.675 seconds. An ordinary reconnect downloaded a validated 70,524-byte backup in 4.056 seconds; a repeat succeeded in 4.063 seconds. Both fresh files are identical byte-for-byte, including unknown offsets 63170–63173. All 7,168 recipe-record bytes match the independently verified USB-restored originals and C1 Color is +3. This is successful Single Frame read evidence, not proof that CL caused the previous refusals. The shipping six-read/three-client regression passed in 32.027 seconds. Independent extraction of `capture-20261027-165249.btsnoop` validates eight complete downloads and zero settings-upload metadata/data writes: the first seven backups are byte-for-byte identical, and only offsets 63170–63173 change in the eighth. Every recipe byte is unchanged. This reproduces the unknown-field drift during read-only operation; it does not identify the field or justify excluding it from production verification. The genuine pending marker remains intact and no recipe upload is authorized in this comparison. Private evidence is under `captures/bluetooth/c7-app/usb-native-bond-c1-recovery/ble-single-frame-*`.
+
+The user then restored DRIVE to CL Low-speed Burst, briefly half-pressed/released the shutter and returned to the shooting display. The reverse probe read passed in 4.049 seconds and preserved all original recipes, followed by another passing six-read/three-client shipping-reader regression in 33.367 seconds. This rules out CL alone as a deterministic backup restriction; the earlier refusals remain unexplained. Private `capture-20261027-165633.btsnoop` fully captures the six shipping downloads (recording began after the separate reverse probe started). All six validate independently and preserve every recipe byte; compared with the reverse probe they differ only at 63170–63173. There are 15 successful native downloads across both drive modes, with 14 independently reconstructed from HCI. No settings upload occurred.
+
+Camera DRIVE is back at the user's original CL setting and AUTO POWER OFF remains 1 MIN. ADB byte comparisons confirm the library, the three protected original/target snapshots and the genuine pending marker remain intact. Capture and forwarding are stopped. The private recovery `verify.py` rechecks the USB recovery, all 14 captured Bluetooth backups and observed nonrecipe drift. Next format work must identify the four-byte field or establish another independently validated whole-settings verification method; do not silently mask unknown bytes or clear the genuine marker merely because the mapped recipes match. No production code, write-verification rule or retry policy was changed by this investigation.
+
+### Unknown-field investigation: independent USB properties
+
+The next stage retains strict full-backup verification and the genuine pending marker. The known four-byte values did not match the CRC32/sum32 candidates tested over selected backup regions; this does not rule out other integrity algorithms. The user connected camera USB RAW CONV./BACKUP RESTORE. A private read-only mode in `read_usb_slots.py --read-fact-backups OUTPUT_DIRECTORY` checks the previously verified camera identity and all seven original recipe records, brackets property queries with fresh backups and issues only session, read-description, read-value and object-read operations. It never writes the selector or a recipe property. `check_fact_reader.py` exercises malformed DeviceInfo arrays, a read/session-only command whitelist and session closure offline.
+
+The first hardware run queried 17 known battery/focus/exposure properties. Only the two battery values answered; neither contained the unknown four-byte value. The second run parsed the 61 properties advertised by the camera itself and read their descriptions/values. The camera refused descriptions in this mode, so their scalar types were not established independently. Fifty-eight advertised values answered, and none of their raw payloads contained the unknown four-byte field. Within each run, the before/after complete backups were byte-for-byte identical, and every original recipe record was preserved. Private evidence is in `captures/bluetooth/c7-app/usb-unknown-field-facts/` and `usb-unknown-field-advertised/`. This rules out a direct raw-value match in the properties queried, not a different encoding or a property unavailable in RAW conversion mode. The user was asked for one physical 90-degree rotation without any button/menu change to test orientation as a candidate.
+
+The existing unresolved-write regression now explicitly checks every offset 63170–63173 as well as other metadata/recipe changes: each unknown-byte mismatch must continue to refuse recovery. The targeted `BluetoothBackupTest` run passes with zero failures/errors. Production verification remains unchanged; the subsequent orientation result is recorded below.
+
+### Read-only USB orientation control
+
+The user physically rotated the USB-connected camera approximately 90 degrees without pressing controls. A fresh backup differed from the preceding reference only at offsets 264 and 1811; unknown bytes 63170–63173 and all original recipe-record bytes were unchanged. After the user returned the camera to its original position, another fresh backup matched the entire pre-rotation snapshot byte-for-byte. This experiment does not associate the four changing bytes with physical orientation in USB RAW conversion mode; it does not exclude an imaging-state-dependent value unavailable while USB is attached. `check_orientation.py` rechecks all three private samples, exact reverse restoration and original recipe preservation.
+
+The four changing byte positions do not yet establish the boundary/type of one logical 32-bit field. A comparison with the known libgphoto2 Fujifilm shutter-speed encodings did not find an exact match for the recorded variants; this does not exclude another exposure encoding. The proposed lens/scene/exposure exercise was dropped after the user questioned its relevance: there was insufficient evidence to justify more manual physical experiments. The genuine recovery marker and strict full-backup checks remain intact.
+
+### Persistent verification evidence and recovery UI
+
+The app now retains `readback.dat` before decoding verification data and records a complete-upload acknowledgement separately. It compares every byte of all seven 1,024-byte recipe records, including undecoded fields, and distinguishes a complete match, matching recipe records with other differences, and different recipe records. Invalid backups remain failures. These distinctions are diagnostic; no offsets are excluded from complete verification.
+
+`BluetoothRecoveryStore` reuses the existing private checkpoint directory. It preserves the original verification read-back separately from a later `inspection.dat`, detects pending atomic-file sidecars, refuses checkpoint replacement while unresolved, and clears the marker only after a fresh valid complete match to either saved snapshot. Missing or invalid checkpoint evidence leaves the lock intact. The controller serializes recovery work with the existing connection lock; inspection performs a backup download only. Upload preflight now refuses a pending checkpoint before reaching the writer, even if the UI is stale.
+
+The camera sheet exposes saved verification status, a read-only Check camera action, and Android's Create Document picker for a ZIP of allowlisted checkpoint files. Export works offline, reports failures, and does not copy HCI captures or Android bond storage. The archive explains that saved checks are historical evidence and is not an automatic restore file. Upload opens a recovery-required stage without a blind Retry action and links back to this screen. USB recovery remains necessary when no complete match can be established.
+
+The build and all 740 JVM checks pass. Six Pixel instrumentation checks pass, including a synthetic interrupted-write/restart/export/strict-resolution workflow, damaged checkpoint handling, the genuine checkpoint's no-upload preflight and exact exported bytes, offline scrollable recovery UI, recovery-result navigation, and existing transport/service regressions. Installation preserved all five protected file fingerprints: original, target, pending marker, independent recovery reference and library. No camera settings upload or phone radio reset was performed in this stage. New physical interruption testing and camera-connected recovery inspection remain separate hardware checks.
+
+The installed Pixel app also passed the normal offline route: select Bluetooth → open Kodak Gold 200 → Upload shows recovery immediately, with no connection or slot-overwrite stage. Review camera recovery returns to the camera side sheet. Android’s native save picker produced a ZIP whose original, target and pending entries matched the private files exactly; only that newly created test ZIP was removed afterward. Protected file fingerprints still match after the final build and six-check rerun. No new camera-connected recovery inspection was attempted.
+
+### Live recovery inspection checkpoint
+
+Recovery UI and evidence retention are committed in `eb28f6d`. The next normal Pixel connection attempt, with Bluetooth on and XApp stopped, timed out with status 147 before a backup download. All five protected file fingerprints still matched afterward. A shutter wake was requested; no recipe upload or automatic radio reset was attempted.
+
+`BluetoothRecoveryTest#inspectExistingCheckpointWithoutUploading` is a separate opt-in hardware check (`-e recoveryInspection true`). It requires a genuine existing pending checkpoint, connects through the production controller, performs only its read-only inspection, compares the saved inspection with both retained snapshots, and verifies exact-match-only marker resolution plus unchanged original/target/library files. It never creates a diagnostic pending marker, invokes the writer, or replays a backup. After the user confirmed a shutter wake, the live check passed in 5.007 seconds. It saved a validated 70,524-byte inspection: all 7,168 original recipe-record bytes match, the C1 Color=0 target does not, and 26 byte positions outside the records differ from the historical original. These differences include the known unresolved positions 63170–63173; the broader historical snapshot comparison does not isolate their cause. The pending marker correctly remains, and all five protected file fingerprints still match. The private live backup is retained under ignored `captures/bluetooth/c7-app/recovery-inspection/`. The test disconnected cleanly; no recipe upload or phone radio reset occurred.
+
+A subsequent app force-stop/restart, without reconnecting the camera, displayed “Last saved camera check: all seven recipe records match the original backup; other backup bytes differ.” The recovery lock remained visible and the five protected fingerprints still matched. This verifies the real saved inspection survives process restart, rather than only the synthetic persistence check.
+
+### Read-only device and lens metadata comparison
+
+The opt-in `CameraBluetoothHardwareTest#compareBackupWithReadOnlyDeviceInformation`
+(`-e bluetoothDeviceInfo true`) brackets eight readable device/lens characteristics
+with two backups. It uses the existing diagnostic transport, validates both
+backups and compares every recipe-record byte with the retained original.
+Completed reads are retained immediately in private cache; logs contain only
+lengths and changed offsets. The original, target, genuine pending marker and
+library must remain byte-for-byte unchanged. No restore path is invoked.
+
+Two initial attempts failed before encryption with status 147. After a
+user-controlled camera restart, the first backup and metadata reads completed,
+but the second download exposed a diagnostic-only notification lifecycle bug:
+the probe disabled file/operation notifications after each download and enabled
+them only at connection. Their enablement now belongs to each download, as in
+the production reader. The corrected Pixel hardware check passed in 9.831
+seconds. All eight metadata reads completed, both 70,524-byte backups validated,
+and all 7,168 original recipe bytes matched. The five independently protected
+file fingerprints also remained unchanged.
+
+Raw, padding-trimmed, printable-string and ASCII-to-UTF-16LE comparisons found
+no metadata match in the region around offsets 63170–63173. The sole complete
+text match was the manufacturer at the backup header. Before/after backups
+differed only at offset 63268; offsets 63170–63173 were unchanged in this run.
+This excludes a direct string match for these eight reads, not another encoding
+or a different field. The field remains unidentified. A prior phone-name
+comparison also did not match, so registration data is not an established
+explanation. No production verification rule, camera setting, bond or genuine
+recovery marker was changed. Private evidence is under ignored
+`captures/bluetooth/c7-app/device-info-probe/`.
+
+The lens characteristic identifiers come from the pinned
+[libfuji Bluetooth source](https://github.com/petabyt/libfuji/blob/3328efc51f74d754f8fa76af70c6becdde62271f/lib/bluetooth.c).
+Static inspection of the installed Fujifilm USB SDK exposed an opaque backup
+transfer path, without an identified backup parser. These sources supply
+protocol leads, not meanings for the unexplained bytes or permission to ignore
+them during write verification.

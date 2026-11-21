@@ -1,5 +1,30 @@
 # Project Rules & Guidelines
 
+## Device testing
+
+Use Pixel for routine automated testing. Samsung is a manual QA device; connect
+it for automated checks only when investigating a user-reported Samsung bug.
+
+## Camera preset tests and test recipes
+
+Always use C2 for camera preset test writes. Preserve its original recipe before
+the test and restore it afterward.
+
+Always use the `TEST` prefix for test recipe names, including recipes in the app
+library and test presets written to camera custom slots. Before deleting test
+recipes, identify their new IDs against the pre-test library. Never delete or
+modify existing user recipes as test cleanup. Camera slot restoration is separate
+from deleting a recipe in the app library.
+
+## Material 3 components
+
+Always use official Material 3 components. Before adding or changing a UI
+component, consult its official documentation, specifications and guidelines at
+[Material 3 components](https://m3.material.io/components). Use the official
+Jetpack Compose Material 3 implementation and follow the documented structure,
+behavior, interactions and accessibility guidance. Do not invent custom
+replacements for official components. The icon rules below still apply.
+
 ## 1. Icon System: Google Fonts Material Symbols Only (STRICT)
 
 All icons in this application MUST come exclusively from **Google Fonts Material Symbols Rounded** definitions compiled into `FujiIcons`.

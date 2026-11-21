@@ -92,6 +92,7 @@ fun WriteSheetHost(recipeId: String, onDismiss: () -> Unit) {
         factory = WriteViewModel.factory(container, recipeId),
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val openCameraSheet = LocalCameraSheetOpener.current
     val haptics = LocalHapticFeedback.current
 
     /**
@@ -103,7 +104,7 @@ fun WriteSheetHost(recipeId: String, onDismiss: () -> Unit) {
     LaunchedEffect(state.stage) {
         when (state.stage) {
             is WriteStage.Done -> haptics.performHapticFeedback(HapticFeedbackType.Confirm)
-            is WriteStage.Failed -> haptics.performHapticFeedback(HapticFeedbackType.Reject)
+            is WriteStage.Failed, is WriteStage.RecoveryRequired -> haptics.performHapticFeedback(HapticFeedbackType.Reject)
             else -> Unit
         }
     }
@@ -128,6 +129,7 @@ fun WriteSheetHost(recipeId: String, onDismiss: () -> Unit) {
             onDismissCancel = viewModel::dismissCancel,
             onConfirmCancel = viewModel::confirmCancel,
             onDone = onDismiss,
+            onReviewRecovery = { onDismiss(); openCameraSheet() },
         )
     }
 }
@@ -148,9 +150,10 @@ fun WriteSheetContent(
     onConfirmCancel: () -> Unit,
     onDone: () -> Unit,
     modifier: Modifier = Modifier,
+    onReviewRecovery: () -> Unit = {},
 ) {
     // Back during a write asks first, for the same reason the sheet will not be dismissed.
-    BackHandler(enabled = state.isWriting) { onRequestCancel() }
+    BackHandler(enabled = state.isWriting) { if (state.canCancel) onRequestCancel() }
 
     Column(
         modifier = modifier
@@ -162,7 +165,7 @@ fun WriteSheetContent(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         when (val stage = state.stage) {
-            WriteStage.Connect -> ConnectStage(state.recipeName, onConnect)
+            WriteStage.Connect -> ConnectStage(state.recipeName, state.connectionError, onConnect)
 
             is WriteStage.Compatibility -> CompatibilityStage(
                 plan = stage.plan,
@@ -192,6 +195,18 @@ fun WriteSheetContent(
 
             is WriteStage.Done -> DoneStage(stage.outcome, onDone)
 
+            is WriteStage.RecoveryRequired -> {
+                StageHeader(stringResource(R.string.camera_recovery_title))
+                Body(stringResource(R.string.camera_recovery_blocked))
+                stage.reason?.let { Panel(it, alert = true) }
+                Button(onClick = onReviewRecovery, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.camera_recovery_review))
+                }
+                OutlinedButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.action_done))
+                }
+            }
+
             is WriteStage.Failed -> FailedStage(
                 stage = stage,
                 onRetry = { stage.slot?.let(onRetry) },
@@ -200,7 +215,7 @@ fun WriteSheetContent(
         }
     }
 
-    if (state.confirmingCancel) {
+    if (state.confirmingCancel && state.canCancel) {
         AlertDialog(
             onDismissRequest = onDismissCancel,
             title = { Text(stringResource(R.string.write_cancel_title)) },
@@ -222,9 +237,10 @@ fun WriteSheetContent(
 // ─── Stage 1 ────────────────────────────────────────────────────────────────
 
 @Composable
-private fun ConnectStage(recipeName: String, onConnect: () -> Unit) {
+private fun ConnectStage(recipeName: String, error: String?, onConnect: () -> Unit) {
     StageHeader(stringResource(R.string.write_title))
     Body(stringResource(R.string.write_connect_body, recipeName))
+    error?.let { Panel(it, alert = true) }
     Button(onClick = onConnect, modifier = Modifier.fillMaxWidth()) {
         Text(stringResource(R.string.camera_action_connect))
     }
@@ -531,7 +547,8 @@ private fun ProgressStage(stage: WriteStage.Progress) {
 @Composable
 private fun DoneStage(outcome: WriteOutcome, onDone: () -> Unit) {
     StageHeader(stringResource(R.string.write_done_title, outcome.slot))
-    Body(stringResource(R.string.write_done_body, outcome.written, outcome.total))
+    Body(if (outcome.bluetoothSettingsVerified) stringResource(R.string.camera_bluetooth_write_done, outcome.slot)
+        else stringResource(R.string.write_done_body, outcome.written, outcome.total))
 
     // A refused setting or a value the body adjusted did not stop the write, and the user
     // should still know about it.
@@ -551,8 +568,10 @@ private fun FailedStage(stage: WriteStage.Failed, onRetry: () -> Unit, onDone: (
     // untouched slot is a false alarm.
     stage.warning?.let { Panel(it, alert = true) }
 
-    Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
-        Text(stringResource(R.string.camera_action_retry))
+    if (stage.retryable) {
+        Button(onClick = onRetry, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.camera_action_retry))
+        }
     }
     OutlinedButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
         Text(stringResource(R.string.action_done))
@@ -658,6 +677,10 @@ private fun PreviewSheet(state: WriteUiState) {
 @Preview(name = "Write — connect", showBackground = true)
 @Composable
 private fun WriteConnectPreview() = PreviewSheet(previewState(WriteStage.Connect))
+
+@Preview(name = "Write — recovery required", showBackground = true)
+@Composable
+private fun WriteRecoveryPreview() = PreviewSheet(previewState(WriteStage.RecoveryRequired()))
 
 @Preview(name = "Write — refused (WR-01)", showBackground = true)
 @Composable

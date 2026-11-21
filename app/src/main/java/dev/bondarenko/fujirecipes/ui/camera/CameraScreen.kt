@@ -22,10 +22,12 @@ import androidx.compose.foundation.verticalScroll
 import dev.bondarenko.fujirecipes.ui.theme.icons.FujiIcons
 import dev.bondarenko.fujirecipes.ui.theme.icons.Battery5Bar
 import dev.bondarenko.fujirecipes.ui.theme.icons.Cable
+import dev.bondarenko.fujirecipes.ui.theme.icons.Eject
 import dev.bondarenko.fujirecipes.ui.theme.icons.CodeXml
 import dev.bondarenko.fujirecipes.ui.theme.icons.PhotoCamera
 import dev.bondarenko.fujirecipes.ui.theme.icons.Refresh
 import androidx.compose.material3.Button
+import dev.bondarenko.fujirecipes.camera.CameraTransport
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ButtonDefaults
@@ -33,12 +35,10 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -96,6 +96,10 @@ fun CameraScreen(
     isReportRunning: Boolean = false,
     onShareReport: () -> Unit = {},
     modifier: Modifier = Modifier,
+    transport: CameraTransport = CameraTransport.USB,
+    onPair: (() -> Unit)? = null,
+    pairingError: String? = null,
+    recoveryContent: (@Composable () -> Unit)? = null,
 ) {
     if (state is CameraState.Connected) {
         CameraConnectedContent(
@@ -108,6 +112,7 @@ fun CameraScreen(
             onDisconnect = onDisconnect,
             isReportRunning = isReportRunning,
             onShareReport = onShareReport,
+            recoveryContent = recoveryContent,
             modifier = modifier
                 .fillMaxSize()
                 .padding(contentPadding),
@@ -115,12 +120,15 @@ fun CameraScreen(
     } else {
         CameraStatusContent(
             state = state,
+            transport = transport,
             isCameraAttached = isCameraAttached,
             onConnect = onConnect,
             onDisconnect = onDisconnect,
-            modifier = modifier
-                .fillMaxSize()
-                .padding(contentPadding),
+            onPair = onPair,
+            pairingError = pairingError,
+            recoveryContent = recoveryContent,
+            modifier = (if (recoveryContent != null) modifier.verticalScroll(rememberScrollState()) else modifier)
+                .fillMaxSize().padding(contentPadding),
         )
     }
 }
@@ -141,6 +149,7 @@ fun CameraConnectedContent(
     isReportRunning: Boolean = false,
     onShareReport: () -> Unit = {},
     modifier: Modifier = Modifier,
+    recoveryContent: (@Composable () -> Unit)? = null,
 ) {
     val dark = isSystemInDarkTheme()
     val greenAccent = if (dark) Color(0xFF6ABF69) else Color(0xFF2E7D32)
@@ -161,6 +170,7 @@ fun CameraConnectedContent(
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
+        recoveryContent?.invoke()
         // ─── 1. The body, in the shape-and-icon panel the empty screens use ─────
         //
         // Same pattern as `FujiIconPanel` at a smaller shape size: this page has content under
@@ -173,9 +183,9 @@ fun CameraConnectedContent(
             Box(
                 modifier = Modifier
                     .size(88.dp)
-                    .clip(MaterialShapes.Pentagon.toShape())
+                    .clip(CircleShape)
                     .background(greenAccent)
-                    .clickable(enabled = !reportRevealed) {
+                    .clickable(enabled = !reportRevealed && state.transport == CameraTransport.USB) {
                         reportTaps++
                         // Counted off the new tally, so the fifth tap already says ten to go.
                         val left = ReportTapsToReveal - reportTaps
@@ -209,6 +219,10 @@ fun CameraConnectedContent(
                 overflow = TextOverflow.Ellipsis,
             )
 
+            if (state.transport == CameraTransport.BLUETOOTH) {
+                Text(stringResource(R.string.camera_bluetooth_connected), style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             CameraBatteryStatus(
                 battery = state.details.battery,
                 chargedColor = greenAccent,
@@ -238,6 +252,8 @@ fun CameraConnectedContent(
                     onClick = onDisconnect,
                     shape = RoundedCornerShape(12.dp),
                 ) {
+                    Icon(FujiIcons.Eject, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
                     Text(stringResource(R.string.camera_action_disconnect))
                 }
             }
@@ -541,16 +557,24 @@ fun CameraStatusContent(
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     modifier: Modifier = Modifier,
+    transport: CameraTransport = CameraTransport.USB,
+    onPair: (() -> Unit)? = null,
+    pairingError: String? = null,
+    recoveryContent: (@Composable () -> Unit)? = null,
 ) {
     val look = cameraChipLook(state)
     val accent = look.tone.accent()
     val action = action(state)
 
     FujiIconPanel(
-        icon = look.icon.imageVector(),
-        shape = MaterialShapes.Pentagon.toShape(),
+        icon = if (transport == CameraTransport.BLUETOOTH && state == CameraState.Disconnected) FujiIcons.PhotoCamera else look.icon.imageVector(),
+        shape = CircleShape,
         title = title(state),
-        body = body(state, isCameraAttached),
+        body = if (transport == CameraTransport.BLUETOOTH && state == CameraState.Disconnected) {
+            stringResource(R.string.camera_bluetooth_help)
+        } else if (transport == CameraTransport.BLUETOOTH && state == CameraState.Connecting) {
+            stringResource(R.string.camera_bluetooth_connecting)
+        } else body(state, isCameraAttached),
         containerColor = accent,
         contentColor = MaterialTheme.colorScheme.surface,
         actionLabel = action?.label?.let { stringResource(it) },
@@ -562,6 +586,14 @@ fun CameraStatusContent(
         actionIsPrimary = action?.kind != ActionKind.DISCONNECT,
         modifier = modifier,
         extra = {
+            recoveryContent?.invoke()
+            if (transport == CameraTransport.BLUETOOTH &&
+                (state == CameraState.Disconnected || state is CameraState.Error)) {
+                onPair?.let { pair ->
+                    OutlinedButton(onClick = pair) { Text(stringResource(R.string.camera_bluetooth_pair)) }
+                }
+                pairingError?.let { Note(it) }
+            }
             if (state is CameraState.Error && state.ptpCode != null) {
                 Note(stringResource(R.string.camera_ptp_code, responseName(state.ptpCode)))
             }
@@ -827,6 +859,37 @@ private val previewConnectedSlots = slotStates(
         SlotNameReading(7, null, read = true),
     ),
 )
+
+@Preview(name = "Bluetooth — Ready to connect", showBackground = true)
+@Composable
+private fun CameraBluetoothDisconnectedPreview() {
+    FujiTheme {
+        Column(Modifier.fillMaxSize()) {
+            CameraSheetHeader(CameraState.Disconnected, CameraTransport.BLUETOOTH, {}, {})
+            CameraScreen(
+                state = CameraState.Disconnected, transport = CameraTransport.BLUETOOTH,
+                isCameraAttached = false, onConnect = {}, onDisconnect = {}, contentPadding = PaddingValues(),
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Preview(name = "Bluetooth — Read-only slots", showBackground = true)
+@Composable
+private fun CameraBluetoothConnectedPreview() {
+    FujiTheme {
+        val state = CameraState.Connected(CameraModels.identify("X-T50").copy(writable = false),
+            transport = CameraTransport.BLUETOOTH)
+        Column(Modifier.fillMaxSize()) {
+            CameraSheetHeader(state, CameraTransport.BLUETOOTH, {}, {})
+            CameraConnectedContent(
+                state = state, slots = previewConnectedSlots, isLoadingSlots = false, slotsError = null,
+                onRefresh = {}, onDisconnect = {}, modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
 
 @Preview(name = "Connected — Loaded Bento Grid", showBackground = true)
 @Preview(name = "Connected — Loaded Bento Grid (Dark)", showBackground = true, uiMode = 0x20)

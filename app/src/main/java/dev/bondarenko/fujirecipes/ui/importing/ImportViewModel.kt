@@ -34,6 +34,9 @@ sealed interface ImportStage {
     /** No camera. The screen offers to connect rather than to read. */
     data object NeedsCamera : ImportStage
 
+    /** The camera connection is in progress; do not offer another Connect action. */
+    data object Connecting : ImportStage
+
     /** A camera, and nothing read yet. */
     data object Ready : ImportStage
 
@@ -63,6 +66,7 @@ data class ImportUiState(
     val stage: ImportStage,
     val rows: List<ImportRow> = emptyList(),
     val cameraModel: String? = null,
+    val connectionError: String? = null,
 ) {
     val summary: ImportSummary get() = summarise(rows)
     val canImport: Boolean get() = rows.any { it.selected }
@@ -82,14 +86,16 @@ class ImportViewModel(
         viewModelScope.launch {
             controller.state.collect { camera ->
                 val stage = _state.value.stage
-                // Only the two waiting stages follow the connection. A review that has been
+                // Only the connection stages follow the camera. A review that has been
                 // read must survive the camera being unplugged — the rows are in memory, and
                 // importing them touches nothing but this phone.
-                val follows = stage is ImportStage.NeedsCamera || stage is ImportStage.Ready
+                val follows = stage is ImportStage.NeedsCamera || stage is ImportStage.Connecting ||
+                    stage is ImportStage.Ready
 
                 _state.value = _state.value.copy(
                     stage = if (follows) stageFor(camera) else stage,
                     cameraModel = (camera as? CameraState.Connected)?.identity?.model,
+                    connectionError = (camera as? CameraState.Error)?.message,
                 )
             }
         }
@@ -191,8 +197,11 @@ class ImportViewModel(
     }
 
     companion object {
-        private fun stageFor(camera: CameraState): ImportStage =
-            if (camera is CameraState.Connected) ImportStage.Ready else ImportStage.NeedsCamera
+        private fun stageFor(camera: CameraState): ImportStage = when (camera) {
+            is CameraState.Connected -> ImportStage.Ready
+            CameraState.Connecting -> ImportStage.Connecting
+            else -> ImportStage.NeedsCamera
+        }
 
         fun factory(container: AppContainer): ViewModelProvider.Factory = viewModelFactory {
             initializer {

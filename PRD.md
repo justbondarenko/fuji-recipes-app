@@ -11,7 +11,7 @@
 
 ## 1. Summary
 
-A native Android app that stores Fujifilm film simulation recipes and writes them to the camera's C1–C7 custom slots over USB-C. Local-first: the phone holds the truth, the cloud is a backup.
+A native Android app that stores Fujifilm film simulation recipes, reads and writes C1–C7 over USB-C or Bluetooth. Bluetooth supports native pairing, slot views, library import and recipe writing on X-T50 firmware 1.32; see [Bluetooth delivery scope](specs/plans/bluetooth-recipes.md). Local-first: the phone holds the truth, the cloud is a backup.
 
 **Why native:** the phone is the field device. It goes in the bag with the camera. A native app gets a USB attach intent — plug the camera in, the app opens already connected — works with no signal, survives being backgrounded mid-write, and depends on no browser being installed or configured a particular way.
 
@@ -399,6 +399,10 @@ A `ModalBottomSheet`, expanding through stages rather than a stack of dialogs.
 **Stage 5 — progress.** `LinearWavyProgressIndicator`, with `n / total properties` in tabular figures and the current property name below. Sheet is non-dismissible; back is intercepted with a cancel confirmation.
 
 **Stage 6 — result.** Success: the wavy bar collapses into a check with a shape morph, `headlineMediumEmphasized` "Written to C3", haptic confirm. Failure: the failing property name and PTP response code, plus a Retry button.
+
+For Bluetooth on X-T50 firmware 1.32, success requires a fresh read over a new connection that matches every header byte, the complete settings prefix and all seven complete recipe records, including undecoded bytes. Both backups must pass layout and checksum validation. Only the firmware's independently established non-restored memory interval may differ; literal whole-file equality remains a distinct result. The [firmware trace and verification contract](specs/plans/bluetooth-backup-integrity-2026-10-28.md#next-delivery-firmware-bounded-settings-verification) define those boundaries. Persist the policy before each new upload. Legacy checkpoints retain exact-only automatic resolution; unknown or incomplete policies keep writes blocked. Matching recipes or checksums alone never establishes success or resolves a checkpoint.
+
+An uncertain upload opens a recovery-required result with a link to the camera sheet and no direct Retry. The sheet retains the original, intended and received backups, distinguishes complete-file, backed-up-settings and recipe-only matches, and offers a read-only camera check and local ZIP export including the checkpoint's policy. A pending checkpoint blocks further Bluetooth uploads before the upload workflow starts. Only a fresh match to the original or intended snapshot under that checkpoint's saved contract clears it. USB remains the recovery route for other states; cached results never clear a checkpoint.
 
 **Haptics:** `HapticFeedbackType.Confirm` on success, `Reject` on failure. This matters more than it sounds — you will often be looking at the camera, not the phone, when the write lands.
 
