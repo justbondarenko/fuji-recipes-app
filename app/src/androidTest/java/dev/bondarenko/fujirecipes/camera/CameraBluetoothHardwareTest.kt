@@ -119,7 +119,8 @@ class CameraBluetoothHardwareTest {
     @Test
     @RequiresApi(37)
     fun writeSlotWithAppTransportAndRestore() = runBlocking {
-        assumeTrue(InstrumentationRegistry.getArguments().getString("bluetoothAppWrite") == "true")
+        val arguments = InstrumentationRegistry.getArguments()
+        assumeTrue(arguments.getString("bluetoothAppWrite") == "true")
         assumeTrue(Build.VERSION.SDK_INT >= 37)
         val slot = 2
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -127,8 +128,11 @@ class CameraBluetoothHardwareTest {
         check(!originalFile.exists()) { "A previous slot proof is unresolved; inspect its saved original before retrying." }
         val evidence = File(context.noBackupFilesDir, "bluetooth-slot-$slot-proof-${UUID.randomUUID()}")
         checkXAppStopped()
+        val address = arguments.getString("bluetoothCameraAddress")
         val device = requireNotNull(context.getSystemService(BluetoothManager::class.java)
-            .adapter.bondedDevices.singleOrNull { it.name == "X-T50" })
+            .adapter.bondedDevices.singleOrNull {
+                it.name == "X-T50" && (address == null || it.address.equals(address, ignoreCase = true))
+            }) { "Pair one X-T50 or select a bonded X-T50 with bluetoothCameraAddress." }
         fun independentBackup() = BleBackupProbe(context).use { probe -> probe.connect(device); probe.download() }
         val original = saveBackupEvidence(evidence, "independent-before.dat", independentBackup())
         val recipe = BluetoothBackup.decode(original).single { it.slot == slot }
@@ -150,7 +154,7 @@ class CameraBluetoothHardwareTest {
             delay(3_000)
         }
         suspend fun connect() {
-            controller.connect()
+            controller.pairBluetooth(device)
             val state = withTimeout(30_000) { controller.state.first { it is CameraState.Connected || it is CameraState.Error } }
             check(state is CameraState.Connected && state.canWrite) { "C$slot writer could not connect: $state" }
         }
